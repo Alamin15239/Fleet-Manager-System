@@ -1,0 +1,346 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                       String              @id @default(cuid())
+  email                    String              @unique
+  name                     String?
+  password                 String
+  role                     Role                @default(USER)
+  isActive                 Boolean             @default(true)
+  isApproved               Boolean             @default(false)
+  isDeleted                Boolean             @default(false)
+  deletedAt                DateTime?
+  deletedBy                String?
+  permissions              Json?
+  profileImage             String?
+  phone                    String?
+  department               String?
+  title                    String?
+  bio                      String?
+  isEmailVerified          Boolean             @default(false)
+  emailVerificationToken   String?
+  emailVerificationExpires DateTime?
+  otpCode                  String?
+  otpExpires               DateTime?
+  lastOtpRequest           DateTime?
+  createdAt                DateTime            @default(now())
+  updatedAt                DateTime            @updatedAt
+  auditLogs                AuditLog[]
+  loginHistory             LoginHistory[]
+  maintenanceRecords       MaintenanceRecord[]
+  createdTires             Tire[]
+  userActivities           UserActivity[]
+
+  @@map("users")
+}
+
+model Mechanic {
+  id                 String              @id @default(cuid())
+  name               String
+  email              String?
+  phone              String?
+  specialty          String?
+  isActive           Boolean             @default(true)
+  isDeleted          Boolean             @default(false)
+  deletedAt          DateTime?
+  deletedBy          String?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  maintenanceRecords MaintenanceRecord[]
+
+  @@map("mechanics")
+}
+
+model Truck {
+  id                 String              @id @default(cuid())
+  vin                String              @unique
+  make               String
+  model              String
+  year               Int
+  licensePlate       String
+  currentMileage     Int
+  status             TruckStatus         @default(ACTIVE)
+  image              String?
+  documents          Json?
+  isDeleted          Boolean             @default(false)
+  deletedAt          DateTime?
+  deletedBy          String?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  engineHours        Int?
+  lastOilChange      DateTime?
+  nextOilChange      DateTime?
+  healthScore        Float?
+  riskLevel          RiskLevel           @default(LOW)
+  fuelEfficiency     Float?
+  avgDailyMileage    Float?
+  lastInspection     DateTime?
+  nextInspection     DateTime?
+  maintenanceRecords MaintenanceRecord[]
+  notifications      Notification[]
+  predictiveAlerts   PredictiveAlert[]
+
+
+  @@map("trucks")
+}
+
+model MaintenanceJob {
+  id                 String              @id @default(cuid())
+  name               String
+  category           String
+  parts              String?
+  notes              String?
+  isActive           Boolean             @default(true)
+  isDeleted          Boolean             @default(false)
+  deletedAt          DateTime?
+  deletedBy          String?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  maintenanceRecords MaintenanceRecord[]
+
+  @@unique([name, category])
+  @@map("maintenance_jobs")
+}
+
+
+
+model PredictiveAlert {
+  id                   String    @id @default(cuid())
+  truckId              String
+  alertType            AlertType
+  title                String
+  description          String
+  severity             RiskLevel @default(MEDIUM)
+  confidence           Float
+  predictedFailureDate DateTime?
+  recommendedAction    String?
+  costImpact           Float?
+  probability          Float
+  isResolved           Boolean   @default(false)
+  resolvedAt           DateTime?
+  resolvedBy           String?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  truck                Truck     @relation(fields: [truckId], references: [id], onDelete: Cascade)
+
+  @@map("predictive_alerts")
+}
+
+model MaintenanceRecord {
+  id                String            @id @default(cuid())
+  truckId           String
+  serviceType       String
+  description       String?
+  datePerformed     DateTime
+  partsCost         Float             @default(0)
+  laborCost         Float             @default(0)
+  totalCost         Float             @default(0)
+  mechanicId        String?
+  createdById       String?
+  nextServiceDue    DateTime?
+  status            MaintenanceStatus @default(COMPLETED)
+  notes             String?
+  attachments       Json?
+  isOilChange       Boolean           @default(false)
+  oilChangeInterval Int?
+  currentMileage    Int?
+  maintenanceJobId  String?
+  isDeleted         Boolean           @default(false)
+  deletedAt         DateTime?
+  deletedBy         String?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  wasPredicted      Boolean           @default(false)
+  predictionId      String?
+  downtimeHours     Float?
+  failureMode       String?
+  rootCause         String?
+  createdBy         User?             @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  maintenanceJob    MaintenanceJob?   @relation(fields: [maintenanceJobId], references: [id])
+  mechanic          Mechanic?         @relation(fields: [mechanicId], references: [id])
+  truck             Truck             @relation(fields: [truckId], references: [id], onDelete: Cascade)
+
+  @@map("maintenance_records")
+}
+
+model Settings {
+  id                     String   @id @default(cuid())
+  currencySymbol         String   @default("﷼")
+  currencyCode           String   @default("SAR")
+  currencyName           String   @default("Saudi Riyal")
+  decimalPlaces          Int      @default(2)
+  thousandsSeparator     String   @default(",")
+  decimalSeparator       String   @default(".")
+  symbolPosition         String   @default("before")
+  companyName            String?
+  companyAddress         String?
+  companyPhone           String?
+  companyEmail           String?
+  bankName               String?
+  bankAccountName        String?
+  bankAccountNumber      String?
+  bankIBAN               String?
+  acceptedPaymentMethods Json?
+  timezone               String   @default("Asia/Riyadh")
+  dateFormat             String   @default("DD/MM/YYYY")
+  maintenanceIntervals   Json?
+  notifications          Json?
+  rolePermissions        Json?
+  userPermissions        Json?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  @@map("settings")
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  type      String
+  title     String
+  message   String
+  truckId   String?
+  userId    String?
+  metadata  Json?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  truck     Truck?   @relation(fields: [truckId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  action     String
+  entityType String
+  entityId   String
+  userId     String
+  userName   String?
+  userEmail  String?
+  userRole   String?
+  changes    Json?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("audit_logs")
+}
+
+model UserActivity {
+  id         String   @id @default(cuid())
+  userId     String
+  action     String
+  entityType String
+  entityId   String?
+  entityName String?
+  oldValues  Json?
+  newValues  Json?
+  ipAddress  String?
+  userAgent  String?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_activities")
+}
+
+model LoginHistory {
+  id              String    @id @default(cuid())
+  userId          String
+  loginTime       DateTime
+  logoutTime      DateTime?
+  ipAddress       String?
+  userAgent       String?
+  sessionDuration Int?
+  isActive        Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("login_history")
+}
+
+model Vehicle {
+  id            String   @id @default(cuid())
+  plateNumber   String   @unique
+  trailerNumber String?
+  driverName    String?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  tires         Tire[]
+
+  @@map("vehicles")
+}
+
+model Tire {
+  id            String   @id @default(cuid())
+  tireSize      String
+  manufacturer  String
+  origin        String
+  plateNumber   String
+  trailerNumber String?
+  driverName    String?
+  quantity      Int      @default(1)
+  notes         String?
+  createdById   String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  createdBy     User?    @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  vehicle       Vehicle  @relation(fields: [plateNumber], references: [plateNumber])
+
+  @@map("tires")
+}
+
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum AlertType {
+  PREDICTIVE_FAILURE
+  OIL_CHANGE_DUE
+  INSPECTION_DUE
+  ABNORMAL_READINGS
+  EFFICIENCY_DROP
+  SAFETY_ALERT
+}
+
+
+
+enum Role {
+  ADMIN
+  MANAGER
+  USER
+}
+
+enum TruckStatus {
+  ACTIVE
+  INACTIVE
+  MAINTENANCE
+}
+
+enum MaintenanceStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum TireOrigin {
+  CHINESE
+  JAPANESE
+  EUROPEAN
+  AMERICAN
+  OTHER
+}
