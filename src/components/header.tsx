@@ -40,7 +40,18 @@ export function Header() {
     // Fetch real notifications from API
     const fetchNotifications = async () => {
       try {
-        const response = await fetch('/api/notifications')
+        const token = localStorage.getItem('authToken')
+        if (!token) {
+          setNotifications([])
+          setLoading(false)
+          return
+        }
+
+        const response = await fetch('/api/notifications', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        })
         if (response.ok) {
           const data = await response.json()
           setNotifications(data || [])
@@ -66,8 +77,14 @@ export function Header() {
 
   const markAsRead = async (id: string) => {
     try {
+      const token = localStorage.getItem('authToken')
+      if (!token) return
+
       const response = await fetch(`/api/notifications?id=${id}&action=markAsRead`, {
-        method: 'PATCH'
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
       })
       if (response.ok) {
         setNotifications(notifications.map(n => 
@@ -81,8 +98,14 @@ export function Header() {
 
   const markAllAsRead = async () => {
     try {
+      const token = localStorage.getItem('authToken')
+      if (!token) return
+
       const response = await fetch('/api/notifications?action=markAllAsRead', {
-        method: 'PATCH'
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
       })
       if (response.ok) {
         setNotifications(notifications.map(n => ({ ...n, read: true })))
