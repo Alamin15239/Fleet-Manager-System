@@ -24,8 +24,8 @@ export async function POST(request: NextRequest) {
     const user = await db.user.findFirst({
       where: {
         email: decodeURIComponent(email),
-        resetToken: token,
-        resetTokenExpires: {
+        emailVerificationToken: token,
+        emailVerificationExpires: {
           gt: new Date()
         }
       }
@@ -46,8 +46,8 @@ export async function POST(request: NextRequest) {
       where: { id: user.id },
       data: {
         password: hashedPassword,
-        resetToken: null,
-        resetTokenExpires: null
+        emailVerificationToken: null,
+        emailVerificationExpires: null
       }
     })
 
