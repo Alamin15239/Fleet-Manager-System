@@ -80,7 +80,7 @@ export async function PUT(
       const vinExists = await db.truck.findUnique({
         where: { 
           vin: body.vin,
-          NOT: { id: params.id }
+          NOT: { id: id }
         }
       })
 
@@ -97,7 +97,7 @@ export async function PUT(
       const plateExists = await db.truck.findUnique({
         where: { 
           licensePlate: body.licensePlate,
-          NOT: { id: params.id }
+          NOT: { id: id }
         }
       })
 
@@ -167,13 +167,14 @@ export async function PUT(
 // DELETE truck (soft delete)
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     // Check if truck exists
     const truck = await db.truck.findUnique({
       where: { 
-        id: params.id,
+        id: id,
         isDeleted: false 
       }
     })
