@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth'
-import { writeFile, mkdir } from 'fs/promises'
-import { join } from 'path'
-import { v4 as uuidv4 } from 'uuid'
+import { db } from '@/lib/db'
 
 export async function POST(request: NextRequest) {
   try {
@@ -27,41 +25,31 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Validate file size (max 5MB)
-    const maxSize = 5 * 1024 * 1024 // 5MB
+    // Validate file size (max 1MB for base64 storage)
+    const maxSize = 1 * 1024 * 1024 // 1MB
     if (file.size > maxSize) {
       return NextResponse.json(
-        { error: 'File too large. Maximum size is 5MB.' },
+        { error: 'File too large. Maximum size is 1MB.' },
         { status: 400 }
       )
     }
 
     const bytes = await file.arrayBuffer()
     const buffer = Buffer.from(bytes)
-
-    // Generate unique filename
-    const fileExtension = file.name.split('.').pop()
-    const fileName = `${uuidv4()}.${fileExtension}`
     
-    // Save file to public/uploads/profiles directory
-    const uploadDir = join(process.cwd(), 'public', 'uploads', 'profiles')
-    const filePath = join(uploadDir, fileName)
+    // Convert to base64 data URL
+    const base64 = buffer.toString('base64')
+    const dataUrl = `data:${file.type};base64,${base64}`
 
-    // Ensure directory exists
-    try {
-      await mkdir(uploadDir, { recursive: true })
-    } catch (error) {
-      // Directory already exists
-    }
-
-    await writeFile(filePath, buffer)
-
-    // Return the URL path
-    const imageUrl = `/uploads/profiles/${fileName}`
+    // Update user profile image in database
+    await db.user.update({
+      where: { id: user.id },
+      data: { profileImage: dataUrl }
+    })
 
     return NextResponse.json({
       success: true,
-      url: imageUrl,
+      url: dataUrl,
       message: 'Profile image uploaded successfully'
     })
 
