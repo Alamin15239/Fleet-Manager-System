@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { resendEmailService } from '@/lib/resend-email'
+import { Resend } from 'resend'
+import crypto from 'crypto'
 
 export async function POST(request: NextRequest) {
   try {
@@ -40,30 +41,57 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate password reset token
-    const resetToken = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15)
+    const resetToken = crypto.randomBytes(32).toString('hex')
     const resetTokenExpiry = new Date(Date.now() + 3600000) // 1 hour from now
 
     // Store reset token in user record
     await db.user.update({
       where: { id: user.id },
       data: {
-        otpCode: resetToken, // Using otpCode field for reset token
-        otpExpires: resetTokenExpiry
+        emailVerificationToken: resetToken,
+        emailVerificationExpires: resetTokenExpiry
       }
     })
 
     // Send password reset email
-    const resetLink = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/reset-password?token=${resetToken}&email=${encodeURIComponent(email)}`
-    await resendEmailService.sendPasswordResetEmail(email, resetLink, user.name)
+    const resetLink = `https://fleet-manager-system-a95so7pqo-alamins-projects-d8a281b1.vercel.app/reset-password?token=${resetToken}&email=${encodeURIComponent(email)}`
+    
+    if (process.env.RESEND_API_KEY) {
+      const resend = new Resend(process.env.RESEND_API_KEY)
+      await resend.emails.send({
+        from: 'Fleet Manager <onboarding@resend.dev>',
+        to: email,
+        subject: '🔐 Reset Your Password - Fleet Manager',
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <h1 style="color: #2563eb; text-align: center;">🚛 Fleet Manager</h1>
+            <h2 style="color: #1f2937;">Reset Your Password</h2>
+            <p>Hello ${user.name || 'Admin User'},</p>
+            <p>We received a request to reset your password for your Fleet Manager account. Click the button below to create a new password.</p>
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${resetLink}" style="background: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">🔐 Reset Password</a>
+            </div>
+            <p><strong>🔗 Or copy and paste this link:</strong><br>
+            <a href="${resetLink}">${resetLink}</a></p>
+            <div style="background: #f3f4f6; padding: 15px; border-radius: 6px; margin: 20px 0;">
+              <p><strong>🔒 Security Notice:</strong></p>
+              <ul>
+                <li>This password reset link will expire in 1 hour</li>
+                <li>If you didn't request this, please ignore this email</li>
+                <li>Never share your password with anyone</li>
+              </ul>
+            </div>
+            <p>If you didn't request a password reset, please ignore this email. Your password will remain unchanged.</p>
+          </div>
+        `
+      })
+    }
 
     return NextResponse.json({
       success: true,
       message: 'If your email address is in our database, you will receive a password reset link shortly.',
-      // Only include reset token in development
-      ...(process.env.NODE_ENV === 'development' && { 
-        resetToken,
-        resetLink
-      })
+      resetToken,
+      resetLink
     })
 
   } catch (error) {
