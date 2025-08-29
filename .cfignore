@@ -1,6 +1,7 @@
 # Cloudflare Pages ignore file
 .next/cache/
 .next/static/chunks/webpack/
+cache/
 node_modules/
 .env*
 *.log
@@ -8,3 +9,4 @@ node_modules/
 .vercel/
 dev.db
 prisma/dev.db
+*.pack
