@@ -28,7 +28,7 @@ async function main() {
         email: defaultAdmin.email,
         name: defaultAdmin.name,
         password: hashedPassword,
-        role: defaultAdmin.role,
+        role: defaultAdmin.role as 'ADMIN',
         isActive: true,
         isApproved: true, // Admin is pre-approved
         isEmailVerified: true, // Admin email is pre-verified

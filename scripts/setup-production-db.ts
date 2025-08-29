@@ -27,7 +27,7 @@ async function setupProductionDatabase() {
           email: defaultAdmin.email,
           name: defaultAdmin.name,
           password: hashedPassword,
-          role: defaultAdmin.role,
+          role: defaultAdmin.role as 'ADMIN',
           isActive: true
         }
       })
