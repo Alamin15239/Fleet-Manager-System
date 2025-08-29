@@ -1,18 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/auth'
 import { resetPassword } from '@/lib/auth'
+import { db } from '@/lib/db'
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     await requireAdmin(request)
 
     // Get user email
     const user = await db.user.findUnique({
       where: { 
-        id: params.id,
+        id: id,
         isDeleted: false,
         isActive: true 
       },
