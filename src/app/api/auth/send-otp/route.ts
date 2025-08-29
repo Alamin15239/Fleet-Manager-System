@@ -55,9 +55,14 @@ export async function POST(request: NextRequest) {
     // Send OTP email
     await resendEmailService.sendOTPEmail(email, otp, user.name)
 
+    // In development mode without RESEND_API_KEY, return OTP for testing
+    const isDevelopment = process.env.NODE_ENV !== 'production'
+    const hasResendKey = !!process.env.RESEND_API_KEY
+    
     return NextResponse.json({
       success: true,
-      message: 'OTP sent successfully'
+      message: 'OTP sent successfully',
+      ...(isDevelopment && !hasResendKey && { otp }) // Include OTP in dev mode
     })
 
   } catch (error) {
