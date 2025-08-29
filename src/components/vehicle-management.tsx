@@ -208,16 +208,37 @@ export default function VehicleManagement() {
     setSuccess(null)
 
     try {
-      // Here you would implement driver creation logic
-      // For now, we'll just show a success message
-      setSuccess('Driver information saved successfully')
-      setShowDriverForm(false)
-      setDriverForm({
-        name: '',
-        phone: '',
-        license: '',
-        notes: ''
+      // Create a vehicle record with just the driver name for now
+      // This allows the driver to appear in the system
+      const plateNumber = `DRIVER-${Date.now()}`
+      const response = await fetch('/api/vehicles', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+        },
+        body: JSON.stringify({
+          plateNumber,
+          driverName: driverForm.name,
+          trailerNumber: '',
+          isActive: true
+        })
       })
+
+      if (response.ok) {
+        setSuccess(`Driver ${driverForm.name} added successfully`)
+        setShowDriverForm(false)
+        setDriverForm({
+          name: '',
+          phone: '',
+          license: '',
+          notes: ''
+        })
+        fetchVehicles() // Refresh the vehicle list
+      } else {
+        const errorData = await response.json()
+        setError(errorData.error || 'Failed to add driver')
+      }
     } catch (error) {
       setError('Failed to save driver information')
     } finally {

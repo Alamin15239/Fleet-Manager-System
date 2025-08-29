@@ -102,9 +102,9 @@ export default function TireReports() {
     }
   }
 
-  const handleRefresh = () => {
+  const handleRefresh = async () => {
     setRefreshing(true)
-    fetchAnalytics()
+    await fetchAnalytics()
   }
 
   const handleExport = () => {

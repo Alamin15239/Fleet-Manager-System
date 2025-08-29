@@ -74,6 +74,13 @@ const navigation = [
     action: 'read'
   },
   { 
+    name: 'Document Editor', 
+    href: '/editor', 
+    icon: FileText,
+    resource: 'documents',
+    action: 'read'
+  },
+  { 
     name: 'Users', 
     href: '/users', 
     icon: Users,

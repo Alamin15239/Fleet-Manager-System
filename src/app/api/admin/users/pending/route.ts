@@ -4,7 +4,7 @@ import { requireAdmin } from '@/lib/auth'
 
 export async function GET(request: NextRequest) {
   try {
-    const user = requireAdmin(request)
+    const user = await requireAdmin(request)
     
     // Get all users for debugging
     const allUsers = await db.user.findMany({

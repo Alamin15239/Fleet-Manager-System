@@ -57,8 +57,6 @@ export default function TireManagementForm() {
 
   useEffect(() => {
     fetchVehicles()
-    fetchPlateNumbers()
-    fetchTrailerNumbers()
   }, [])
 
   const fetchVehicles = async () => {
@@ -66,34 +64,18 @@ export default function TireManagementForm() {
       const response = await apiGet('/api/vehicles')
       if (response.ok) {
         const data = await response.json()
-        setVehicles(data.vehicles || [])
+        const vehicleList = data.vehicles || []
+        setVehicles(vehicleList)
+        
+        // Extract unique plate numbers and trailer numbers from vehicles
+        const plates = [...new Set(vehicleList.map(v => v.plateNumber))]
+        const trailers = [...new Set(vehicleList.map(v => v.trailerNumber).filter(Boolean))]
+        
+        setPlateNumbers(plates)
+        setTrailerNumbers(trailers)
       }
     } catch (error) {
       console.error('Error fetching vehicles:', error)
-    }
-  }
-
-  const fetchPlateNumbers = async () => {
-    try {
-      const response = await apiGet('/api/vehicles?plateOnly=true')
-      if (response.ok) {
-        const data = await response.json()
-        setPlateNumbers(data.vehicles || [])
-      }
-    } catch (error) {
-      console.error('Error fetching plate numbers:', error)
-    }
-  }
-
-  const fetchTrailerNumbers = async () => {
-    try {
-      const response = await apiGet('/api/vehicles?trailerOnly=true')
-      if (response.ok) {
-        const data = await response.json()
-        setTrailerNumbers(data.vehicles || [])
-      }
-    } catch (error) {
-      console.error('Error fetching trailer numbers:', error)
     }
   }
 
@@ -224,8 +206,6 @@ export default function TireManagementForm() {
         
         // Refresh data
         fetchVehicles()
-        fetchPlateNumbers()
-        fetchTrailerNumbers()
       } else {
         const errorData = await response.json()
         console.error('Tire creation failed:', errorData)

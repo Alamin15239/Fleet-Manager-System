@@ -1,103 +1,96 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { writeFile, mkdir } from 'fs/promises'
-import { join } from 'path'
-import { requireAuth } from '@/lib/auth'
+import { NextRequest, NextResponse } from 'next/server';
+import { writeFile } from 'fs/promises';
+import { join } from 'path';
+import jwt from 'jsonwebtoken';
+import { prisma } from '@/lib/db';
+
+async function getUserFromToken(request: NextRequest) {
+  const authHeader = request.headers.get('authorization');
+  console.log('Auth header:', authHeader ? 'Present' : 'Missing');
+  
+  const token = authHeader?.replace('Bearer ', '');
+  if (!token) {
+    console.log('No token found');
+    return null;
+  }
+  
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { userId: string };
+    const user = await prisma.user.findUnique({ where: { id: decoded.userId } });
+    console.log('User found:', user ? user.email : 'Not found');
+    return user;
+  } catch (error) {
+    console.log('Token verification failed:', error);
+    return null;
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {
-    const user = requireAuth(request)
+    console.log('Upload request received');
     
-    const data = await request.formData()
-    const file: File | null = data.get('file') as unknown as File
-    const type = data.get('type') as string // 'truck' or 'maintenance'
-    const entityId = data.get('entityId') as string
+    const user = await getUserFromToken(request);
+    if (!user) {
+      console.log('User authentication failed');
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    console.log('User authenticated:', user.email);
+    
+    const data = await request.formData();
+    const file: File | null = data.get('file') as unknown as File;
 
     if (!file) {
-      return NextResponse.json(
-        { error: 'No file uploaded' },
-        { status: 400 }
-      )
+      console.log('No file in form data');
+      return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
     }
+    
+    console.log('File received:', file.name, 'Size:', file.size, 'Type:', file.type);
 
-    if (!type || !entityId) {
-      return NextResponse.json(
-        { error: 'Type and entity ID are required' },
-        { status: 400 }
-      )
+    const bytes = await file.arrayBuffer();
+    const buffer = Buffer.from(bytes);
+    console.log('File buffer created, size:', buffer.length);
+
+    // Create uploads directory if it doesn't exist
+    const uploadsDir = join(process.cwd(), 'public', 'uploads');
+    console.log('Uploads directory:', uploadsDir);
+    
+    try {
+      await writeFile(join(uploadsDir, 'test'), '');
+      console.log('Directory exists and is writable');
+    } catch {
+      // Directory doesn't exist, create it
+      console.log('Creating uploads directory');
+      const { mkdir } = await import('fs/promises');
+      await mkdir(uploadsDir, { recursive: true });
     }
-
-    // Validate file type
-    const allowedTypes = [
-      'image/jpeg',
-      'image/jpg',
-      'image/png',
-      'image/gif',
-      'application/pdf',
-      'application/msword',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'application/vnd.ms-excel',
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    ]
-
-    if (!allowedTypes.includes(file.type)) {
-      return NextResponse.json(
-        { error: 'File type not allowed' },
-        { status: 400 }
-      )
-    }
-
-    // Validate file size (10MB limit)
-    const maxSize = 10 * 1024 * 1024 // 10MB
-    if (file.size > maxSize) {
-      return NextResponse.json(
-        { error: 'File size exceeds 10MB limit' },
-        { status: 400 }
-      )
-    }
-
-    const bytes = await file.arrayBuffer()
-    const buffer = Buffer.from(bytes)
-
-    // Create upload directory if it doesn't exist
-    const uploadDir = join(process.cwd(), 'public', 'uploads', type, entityId)
-    await mkdir(uploadDir, { recursive: true })
 
     // Generate unique filename
-    const timestamp = Date.now()
-    const randomId = Math.random().toString(36).substring(2, 15)
-    const fileExtension = file.name.split('.').pop()
-    const fileName = `${timestamp}-${randomId}.${fileExtension}`
-    const filePath = join(uploadDir, fileName)
+    const timestamp = Date.now();
+    const filename = `${timestamp}-${file.name}`;
+    const filepath = join(uploadsDir, filename);
+    console.log('Writing file to:', filepath);
 
-    // Write file to disk
-    await writeFile(filePath, buffer)
+    await writeFile(filepath, buffer);
+    console.log('File written successfully');
 
-    // Return file info
-    const fileInfo = {
-      id: `${timestamp}-${randomId}`,
-      name: file.name,
+    const fileUrl = `/uploads/${filename}`;
+
+    // Return the format expected by FileUpload component
+    const uploadedFile = {
+      id: `file_${timestamp}`,
+      name: filename,
       originalName: file.name,
       size: file.size,
       type: file.type,
-      url: `/uploads/${type}/${entityId}/${fileName}`,
+      url: fileUrl,
       uploadedAt: new Date().toISOString(),
-      uploadedBy: user.userId
-    }
+      uploadedBy: user.id
+    };
 
-    return NextResponse.json(fileInfo)
+    return NextResponse.json(uploadedFile, { status: 200 });
   } catch (error) {
-    console.error('Error uploading file:', error)
-    if (error instanceof Error) {
-      if (error.message === 'Unauthorized') {
-        return NextResponse.json(
-          { error: error.message },
-          { status: 401 }
-        )
-      }
-    }
-    return NextResponse.json(
-      { error: 'Failed to upload file' },
-      { status: 500 }
-    )
+    console.error('Error uploading file:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
+import { db } from '@/lib/db'
 
 export async function POST(request: NextRequest) {
   try {
@@ -9,7 +9,7 @@ export async function POST(request: NextRequest) {
 
     // Update login history
     try {
-      await prisma.loginHistory.updateMany({
+      await db.loginHistory.updateMany({
         where: {
           userId: user.id,
           isActive: true

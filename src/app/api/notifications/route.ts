@@ -54,7 +54,14 @@ export async function GET(request: NextRequest) {
 
     const notifications = await db.notification.findMany({
       where: whereClause,
-      include: {
+      select: {
+        id: true,
+        type: true,
+        title: true,
+        message: true,
+        isRead: true,
+        createdAt: true,
+        truckId: true,
         truck: {
           select: {
             id: true,
@@ -66,7 +73,7 @@ export async function GET(request: NextRequest) {
         }
       },
       orderBy: { createdAt: 'desc' },
-      take: 50 // Limit to last 50 notifications
+      take: 20 // Reduced from 50 to 20 for better performance
     })
 
     // Format notifications for frontend

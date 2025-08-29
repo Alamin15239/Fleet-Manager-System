@@ -153,20 +153,12 @@ export default function TireInventoryList() {
 
   const fetchFilterOptions = async () => {
     try {
-      // Fetch all tires to get unique values for filters
-      const response = await apiGet('/api/tires?limit=1000')
+      const response = await apiGet('/api/tires/filters')
       if (response.ok) {
         const data = await response.json()
-        const allTires = data.tires
-
-        // Extract unique values
-        const uniqueManufacturers = [...new Set(allTires.map((t: Tire) => t.manufacturer))]
-        const uniquePlates = [...new Set(allTires.map((t: Tire) => t.plateNumber))]
-        const uniqueDrivers = [...new Set(allTires.map((t: Tire) => t.driverName).filter(Boolean))]
-
-        setManufacturers(uniqueManufacturers.sort())
-        setPlates(uniquePlates.sort())
-        setDrivers(uniqueDrivers.sort())
+        setManufacturers(data.manufacturers)
+        setPlates(data.plates)
+        setDrivers(data.drivers)
       }
     } catch (error) {
       console.error('Error fetching filter options:', error)
