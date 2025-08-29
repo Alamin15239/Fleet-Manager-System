@@ -51,7 +51,7 @@ export async function GET(
             email: true
           }
         },
-        predictiveAlert: body.predictionId ? {
+        predictiveAlert: {
           select: {
             id: true,
             alertType: true,
@@ -64,7 +64,7 @@ export async function GET(
             costImpact: true,
             probability: true
           }
-        } : false
+        }
       }
     })
 
