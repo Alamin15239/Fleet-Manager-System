@@ -30,6 +30,8 @@ model User {
   otpCode                  String?
   otpExpires               DateTime?
   lastOtpRequest           DateTime?
+  resetToken               String?
+  resetTokenExpires        DateTime?
   createdAt                DateTime            @default(now())
   updatedAt                DateTime            @updatedAt
   auditLogs                AuditLog[]
