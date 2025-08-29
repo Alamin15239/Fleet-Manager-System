@@ -1,36 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { hashPassword } from '@/lib/auth'
+import bcrypt from 'bcryptjs'
 
 export async function POST(request: NextRequest) {
   try {
-    const { token, email, newPassword } = await request.json()
+    const { token, email, password } = await request.json()
 
-    if (!token || !email || !newPassword) {
+    if (!token || !email || !password) {
       return NextResponse.json(
-        { error: 'Token, email, and new password are required' },
+        { error: 'Missing required fields' },
         { status: 400 }
       )
     }
 
-    // Validate password strength
-    if (newPassword.length < 8) {
+    if (password.length < 6) {
       return NextResponse.json(
-        { error: 'Password must be at least 8 characters long' },
+        { error: 'Password must be at least 6 characters long' },
         { status: 400 }
       )
     }
 
-    // Find user by email and valid reset token
-    const user = await db.user.findUnique({
-      where: { 
-        email,
-        isActive: true,
-        isDeleted: false 
+    // Find user with valid reset token
+    const user = await db.user.findFirst({
+      where: {
+        email: decodeURIComponent(email),
+        resetToken: token,
+        resetTokenExpires: {
+          gt: new Date()
+        }
       }
     })
 
-    if (!user || !user.otpCode || user.otpCode !== token || !user.otpExpires || new Date() > user.otpExpires) {
+    if (!user) {
       return NextResponse.json(
         { error: 'Invalid or expired reset token' },
         { status: 400 }
@@ -38,28 +39,27 @@ export async function POST(request: NextRequest) {
     }
 
     // Hash new password
-    const hashedPassword = await hashPassword(newPassword)
+    const hashedPassword = await bcrypt.hash(password, 10)
 
     // Update user password and clear reset token
     await db.user.update({
       where: { id: user.id },
       data: {
         password: hashedPassword,
-        otpCode: null,
-        otpExpires: null
+        resetToken: null,
+        resetTokenExpires: null
       }
     })
 
     return NextResponse.json({
       success: true,
-      message: 'Password has been reset successfully. You can now log in with your new password.'
+      message: 'Password reset successfully'
     })
 
   } catch (error) {
-    console.error('Reset password error:', error)
-    
+    console.error('Password reset error:', error)
     return NextResponse.json(
-      { error: 'An error occurred while resetting your password' },
+      { error: 'Internal server error' },
       { status: 500 }
     )
   }
