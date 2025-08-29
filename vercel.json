@@ -6,12 +6,5 @@
     "app/api/**/*.ts": {
       "maxDuration": 30
     }
-  },
-  "env": {
-    "DATABASE_URL": "@database_url",
-    "JWT_SECRET": "@jwt_secret",
-    "NEXTAUTH_SECRET": "@nextauth_secret",
-    "RESEND_API_KEY": "@resend_api_key",
-    "EMAIL_FROM": "@email_from"
   }
 }
