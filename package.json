@@ -6,7 +6,7 @@
     "dev": "nodemon --exec \"npx tsx server.ts\" --watch server.ts --watch src --ext ts,tsx,js,jsx 2>&1 | tee dev.log",
     "build": "prisma generate && next build",
     "vercel-build": "prisma generate && prisma db push && next build",
-    "cf-build": "prisma generate && next build",
+    "cf-build": "prisma generate && rm -rf .next/cache && next build",
     "start": "next start",
     "lint": "next lint",
     "db:push": "prisma db push",
