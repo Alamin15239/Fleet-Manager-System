@@ -6,14 +6,15 @@ import { updateUser, resetPassword } from '@/lib/auth'
 // GET single user by ID (admin only)
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     await requireAdmin(request)
 
     const user = await db.user.findUnique({
       where: { 
-        id: params.id,
+        id: id,
         isDeleted: false 
       },
       select: {
@@ -102,9 +103,10 @@ export async function GET(
 // PUT update user (admin only)
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     await requireAdmin(request)
 
     const body = await request.json()
@@ -112,7 +114,7 @@ export async function PUT(
     // Check if user exists
     const existingUser = await db.user.findUnique({
       where: { 
-        id: params.id,
+        id: id,
         isDeleted: false 
       }
     })
@@ -125,7 +127,7 @@ export async function PUT(
     }
 
     // Prevent self-deactivation
-    if (body.isActive === false && params.id === (await requireAdmin(request)).id) {
+    if (body.isActive === false && id === (await requireAdmin(request)).id) {
       return NextResponse.json(
         { error: 'Cannot deactivate your own account' },
         { status: 400 }
@@ -141,7 +143,7 @@ export async function PUT(
       )
     }
 
-    const updatedUser = await updateUser(params.id, {
+    const updatedUser = await updateUser(id, {
       name: body.name,
       role: body.role,
       isActive: body.isActive,
@@ -175,13 +177,14 @@ export async function PUT(
 // DELETE user (soft delete, admin only)
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const adminUser = await requireAdmin(request)
 
     // Prevent self-deletion
-    if (params.id === adminUser.id) {
+    if (id === adminUser.id) {
       return NextResponse.json(
         { error: 'Cannot delete your own account' },
         { status: 400 }
@@ -191,7 +194,7 @@ export async function DELETE(
     // Check if user exists
     const user = await db.user.findUnique({
       where: { 
-        id: params.id,
+        id: id,
         isDeleted: false 
       }
     })
@@ -205,7 +208,7 @@ export async function DELETE(
 
     // Soft delete user
     await db.user.update({
-      where: { id: params.id },
+      where: { id: id },
       data: {
         isDeleted: true,
         deletedAt: new Date(),
