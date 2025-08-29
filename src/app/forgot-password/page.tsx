@@ -38,16 +38,17 @@ export default function ForgotPasswordPage() {
         setSuccess(true)
         toast.success('Password reset link sent to your email!')
         
-        // In development, show the reset link
-        if (process.env.NODE_ENV === 'development' && data.resetLink) {
-          console.log('Development reset link:', data.resetLink)
+        // Show the reset link for testing
+        if (data.resetLink) {
+          console.log('Reset link:', data.resetLink)
         }
       } else {
-        setError(data.error || 'Failed to send reset link')
+        console.error('API Error:', response.status, data)
+        setError(data.error || `API Error: ${response.status} - ${response.statusText}`)
       }
     } catch (error) {
       console.error('Forgot password error:', error)
-      setError('An error occurred while processing your request')
+      setError(`Network error: ${error instanceof Error ? error.message : 'Unknown error'}`)
     } finally {
       setLoading(false)
     }
@@ -182,6 +183,7 @@ export default function ForgotPasswordPage() {
                 <p>• Check your spam folder if you don't see the email</p>
                 <p>• Only active accounts can request password resets</p>
                 <p>• Contact admin if you need further assistance</p>
+                <p>• Current URL: https://fleet-manager-system-aco7r5xah-alamins-projects-d8a281b1.vercel.app</p>
               </div>
             </div>
           </CardContent>
