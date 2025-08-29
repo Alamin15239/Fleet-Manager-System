@@ -1,9 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { requirePermission } from '@/lib/api-permissions'
+import { logUserActivity } from '@/lib/activity-tracking'
+import { logEntityChange } from '@/lib/audit-logging'
 
 // GET all trucks
 export async function GET(request: NextRequest) {
   try {
+    const user = await requirePermission(request, 'trucks', 'read')
+    
+    // Log activity
+    await logUserActivity({
+      userId: user.id,
+      action: 'VIEW',
+      entityType: 'TRUCK',
+      entityName: 'Truck List',
+      ipAddress: request.headers.get('x-forwarded-for') || '127.0.0.1',
+      userAgent: request.headers.get('user-agent') || ''
+    })
     const { searchParams } = new URL(request.url)
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '10')
@@ -68,6 +82,12 @@ export async function GET(request: NextRequest) {
 
   } catch (error) {
     console.error('Error fetching trucks:', error)
+    if (error instanceof Error && error.message.includes('Insufficient permissions')) {
+      return NextResponse.json(
+        { error: error.message },
+        { status: 403 }
+      )
+    }
     return NextResponse.json(
       { error: 'Failed to fetch trucks' },
       { status: 500 }
@@ -78,6 +98,7 @@ export async function GET(request: NextRequest) {
 // POST create new truck
 export async function POST(request: NextRequest) {
   try {
+    const user = await requirePermission(request, 'trucks', 'create')
     const body = await request.json()
     console.log('Received truck data:', body)
 
@@ -146,6 +167,17 @@ export async function POST(request: NextRequest) {
       }
     })
 
+    // Log audit event (this also logs user activity)
+    await logEntityChange(
+      'CREATE',
+      'TRUCK',
+      truck.id,
+      user.id,
+      undefined,
+      truck,
+      request
+    )
+
     console.log('Truck created successfully:', truck.id)
     return NextResponse.json({
       success: true,
@@ -155,6 +187,12 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Error creating truck:', error)
+    if (error instanceof Error && error.message.includes('Insufficient permissions')) {
+      return NextResponse.json(
+        { error: error.message },
+        { status: 403 }
+      )
+    }
     return NextResponse.json(
       { error: 'Failed to create truck' },
       { status: 500 }

@@ -4,7 +4,7 @@ import { requireAdmin } from '@/lib/auth'
 
 export async function GET(request: NextRequest) {
   try {
-    const user = requireAdmin(request)
+    const user = await requireAdmin(request)
     
     const { searchParams } = new URL(request.url)
     const userId = searchParams.get('userId')

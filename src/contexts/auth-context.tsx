@@ -141,10 +141,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           // These will be checked at feature level instead
           
           console.log('Login successful - storing token and user data')
-          setToken(data.token)
-          setUser(data.user)
           
-          // Safely store in localStorage
+          // Safely store in localStorage first
           try {
             localStorage.setItem('authToken', data.token)
             localStorage.setItem('user', JSON.stringify(data.user))
@@ -152,6 +150,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           } catch (storageError) {
             console.error('Error storing auth data in localStorage:', storageError)
           }
+          
+          // Then update state
+          setToken(data.token)
+          setUser(data.user)
+          
           return true
         } else {
           console.error('Invalid login response structure:', data)
@@ -169,16 +172,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!token) return
     
     try {
-      const response = await fetch('/api/auth/me', {
+      const response = await fetch('/api/users/me', {
         headers: {
           'Authorization': `Bearer ${token}`
         }
       })
       
       if (response.ok) {
-        const userData = await response.json()
+        const data = await response.json()
+        const userData = data.user
         setUser(userData)
         localStorage.setItem('user', JSON.stringify(userData))
+        console.log('User data refreshed:', userData)
       }
     } catch (error) {
       console.error('Error refreshing user data:', error)

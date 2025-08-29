@@ -11,6 +11,7 @@ import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { Settings, Save, RefreshCw, Building, DollarSign, Bell, Wrench, Users, Shield, Crown, User, Briefcase, Activity, Clock } from 'lucide-react'
+import SystemStatus from '@/components/SystemStatus'
 import { toast } from 'sonner'
 import { useAuth } from '@/contexts/auth-context'
 import { usePermissions } from '@/contexts/permissions-context'
@@ -164,6 +165,16 @@ export default function SettingsPage() {
       const response = await apiGet('/api/settings')
       if (response.ok) {
         const data = await response.json()
+        // Ensure maintenanceIntervals is properly initialized
+        if (!data.maintenanceIntervals) {
+          data.maintenanceIntervals = {
+            oilChange: 5000,
+            tireRotation: 10000,
+            brakeInspection: 15000,
+            engineTuneUp: 30000,
+            transmissionService: 60000
+          }
+        }
         setSettings(data)
       } else {
         toast.error('Failed to fetch settings')
@@ -180,9 +191,20 @@ export default function SettingsPage() {
     
     setActivityLoading(true)
     try {
+      const token = localStorage.getItem('authToken')
+      if (!token) {
+        console.log('No auth token available, skipping activity data fetch')
+        setActivityLoading(false)
+        return
+      }
+      
       const [activitiesResponse, loginResponse] = await Promise.all([
-        fetch('/api/admin/activities?limit=25'),
-        fetch('/api/admin/login-history?limit=25')
+        fetch('/api/admin/activities?limit=25', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }),
+        fetch('/api/admin/login-history?limit=25', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
       ])
 
       if (activitiesResponse.ok) {
@@ -215,7 +237,7 @@ export default function SettingsPage() {
       const updatedSettings = { 
         ...settings, 
         [parent]: {
-          ...settings[parent] as any,
+          ...(settings[parent] as any || {}),
           [field]: value
         }
       }
@@ -481,11 +503,12 @@ export default function SettingsPage() {
       </div>
 
       <Tabs defaultValue="company" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className="grid w-full grid-cols-7">
           <TabsTrigger value="company">Company</TabsTrigger>
           <TabsTrigger value="currency">Currency</TabsTrigger>
           <TabsTrigger value="maintenance">Maintenance</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
+          <TabsTrigger value="system">System Status</TabsTrigger>
           {isAdmin && <TabsTrigger value="roles">Roles</TabsTrigger>}
           {isAdmin && <TabsTrigger value="activity">User Activity</TabsTrigger>}
         </TabsList>
@@ -820,6 +843,34 @@ export default function SettingsPage() {
                   />
                 </div>
               </div>
+              
+              {/* Test Notifications */}
+              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <h4 className="font-medium mb-2 text-blue-800">Test Notifications</h4>
+                <p className="text-sm text-blue-700 mb-3">
+                  Test if your notification settings are working by triggering a notification check.
+                </p>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={async () => {
+                    try {
+                      const response = await fetch('/api/notifications/check', { method: 'POST' })
+                      if (response.ok) {
+                        toast.success('Notification check completed! Check your notifications panel.')
+                      } else {
+                        toast.error('Failed to run notification check')
+                      }
+                    } catch (error) {
+                      toast.error('Failed to run notification check')
+                    }
+                  }}
+                  className="bg-blue-600 text-white hover:bg-blue-700"
+                >
+                  <Bell className="h-4 w-4 mr-2" />
+                  Test Notifications
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -1138,6 +1189,11 @@ export default function SettingsPage() {
             </Card>
           </TabsContent>
         )}
+
+        {/* System Status Tab */}
+        <TabsContent value="system" className="space-y-6">
+          <SystemStatus />
+        </TabsContent>
 
         {/* User Activity Tab - Admin Only */}
         {isAdmin && (

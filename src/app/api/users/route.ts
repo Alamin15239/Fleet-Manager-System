@@ -84,11 +84,19 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('Error fetching users:', error)
     
-    if (error instanceof Error && error.message === 'Insufficient permissions') {
-      return NextResponse.json(
-        { error: 'Insufficient permissions' },
-        { status: 403 }
-      )
+    if (error instanceof Error) {
+      if (error.message === 'No token provided' || error.message === 'Invalid token') {
+        return NextResponse.json(
+          { error: 'Authentication required' },
+          { status: 401 }
+        )
+      }
+      if (error.message === 'Insufficient permissions') {
+        return NextResponse.json(
+          { error: 'Admin access required' },
+          { status: 403 }
+        )
+      }
     }
 
     return NextResponse.json(

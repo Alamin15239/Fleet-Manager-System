@@ -38,8 +38,15 @@ export default function LoginPage() {
   const [otpRequested, setOtpRequested] = useState(false)
   const [otpCooldown, setOtpCooldown] = useState(0)
   const [isRedirecting, setIsRedirecting] = useState(false)
-  const { login } = useAuth()
+  const { login, isAuthenticated, isLoading } = useAuth()
   const router = useRouter()
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (!isLoading && isAuthenticated) {
+      router.push('/')
+    }
+  }, [isAuthenticated, isLoading, router])
 
   useEffect(() => {
     // Handle OTP cooldown timer
@@ -62,10 +69,10 @@ export default function LoginPage() {
         setIsRedirecting(true)
         toast.success('Login successful!')
         
-        // Redirect to intended page or dashboard
+        // Immediate redirect with page reload to ensure auth state is fresh
         const redirectPath = localStorage.getItem('redirectAfterLogin') || '/'
         localStorage.removeItem('redirectAfterLogin')
-        router.push(redirectPath)
+        window.location.href = redirectPath
       }
     } catch (error: any) {
       console.error('Login error:', error)
@@ -142,10 +149,16 @@ export default function LoginPage() {
         setIsRedirecting(true)
         toast.success('Login successful!')
         
-        // Redirect to intended page or dashboard
+        // Store auth data from OTP response
+        if (data.token && data.user) {
+          localStorage.setItem('authToken', data.token)
+          localStorage.setItem('user', JSON.stringify(data.user))
+        }
+        
+        // Immediate redirect with page reload
         const redirectPath = localStorage.getItem('redirectAfterLogin') || '/'
         localStorage.removeItem('redirectAfterLogin')
-        router.push(redirectPath)
+        window.location.href = redirectPath
       } else {
         const errorMessage = data.error || 'OTP verification failed'
         setError(errorMessage)
@@ -169,12 +182,15 @@ export default function LoginPage() {
     }
   }
 
-  if (isRedirecting) {
+  // Show loading if auth is loading or redirecting
+  if (isLoading || isRedirecting || (!isLoading && isAuthenticated)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600 dark:text-gray-400">Redirecting...</p>
+          <p className="text-gray-600 dark:text-gray-400">
+            {isRedirecting ? 'Redirecting...' : 'Loading...'}
+          </p>
         </div>
       </div>
     )

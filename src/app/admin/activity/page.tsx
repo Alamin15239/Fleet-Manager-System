@@ -74,16 +74,40 @@ export default function AdminActivityPage() {
 
   useEffect(() => {
     if (isMounted) {
-      fetchUsers();
-      fetchActivities();
-      fetchLoginHistory();
+      const token = localStorage.getItem('authToken');
+      const user = localStorage.getItem('user');
+      
+      if (token && user) {
+        try {
+          const userData = JSON.parse(user);
+          if (userData.role === 'ADMIN') {
+            fetchUsers();
+            fetchActivities();
+            fetchLoginHistory();
+          }
+        } catch (error) {
+          console.error('Error parsing user data:', error);
+        }
+      }
     }
   }, [isMounted]);
 
   useEffect(() => {
     if (isMounted) {
-      fetchActivities();
-      fetchLoginHistory();
+      const token = localStorage.getItem('authToken');
+      const user = localStorage.getItem('user');
+      
+      if (token && user) {
+        try {
+          const userData = JSON.parse(user);
+          if (userData.role === 'ADMIN') {
+            fetchActivities();
+            fetchLoginHistory();
+          }
+        } catch (error) {
+          console.error('Error parsing user data:', error);
+        }
+      }
     }
   }, [filters, activeTab, isMounted]);
 
@@ -91,7 +115,15 @@ export default function AdminActivityPage() {
     if (!isMounted) return;
     
     try {
-      const response = await fetch('/api/users');
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        console.log('No auth token available, skipping users fetch');
+        return;
+      }
+      
+      const response = await fetch('/api/users', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
       if (response.ok) {
         const data = await response.json();
         // Handle API response format: { success: true, data: users, pagination: ... }
@@ -108,12 +140,22 @@ export default function AdminActivityPage() {
     
     setLoading(true);
     try {
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        console.log('No auth token available, skipping activities fetch');
+        setLoading(false);
+        return;
+      }
+      
       const params = new URLSearchParams();
       Object.entries(filters).forEach(([key, value]) => {
         if (value && value !== 'all') params.append(key, value);
       });
+      params.append('limit', '25'); // Add default limit
 
-      const response = await fetch(`/api/admin/activities?${params}`);
+      const response = await fetch(`/api/admin/activities?${params}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
       if (response.ok) {
         const data = await response.json();
         // Handle API response format: { success: true, activities: [...] }
@@ -130,14 +172,23 @@ export default function AdminActivityPage() {
     if (!isMounted) return;
     
     try {
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        console.log('No auth token available, skipping login history fetch');
+        return;
+      }
+      
       const params = new URLSearchParams();
       Object.entries(filters).forEach(([key, value]) => {
         if (value && value !== 'all' && key !== 'action' && key !== 'entityType') {
           params.append(key, value);
         }
       });
+      params.append('limit', '25'); // Add default limit
 
-      const response = await fetch(`/api/admin/login-history?${params}`);
+      const response = await fetch(`/api/admin/login-history?${params}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
       if (response.ok) {
         const data = await response.json();
         // Handle API response format: { success: true, history: [...] }
@@ -150,11 +201,13 @@ export default function AdminActivityPage() {
 
   const generateReport = async (type: 'activities' | 'login-history' | 'user-summary', format: 'json' | 'csv') => {
     try {
+      const token = localStorage.getItem('authToken');
       const userIds = filters.userId ? [filters.userId] : undefined;
       const response = await fetch('/api/admin/reports', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
           type,

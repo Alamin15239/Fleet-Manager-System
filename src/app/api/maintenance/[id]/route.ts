@@ -4,12 +4,13 @@ import { db } from '@/lib/db'
 // GET single maintenance record by ID
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const maintenanceRecord = await db.maintenanceRecord.findUnique({
       where: { 
-        id: params.id,
+        id: id,
         isDeleted: false 
       },
       include: {
@@ -91,15 +92,16 @@ export async function GET(
 // PUT update maintenance record
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const body = await request.json()
 
     // Check if maintenance record exists
     const existingRecord = await db.maintenanceRecord.findUnique({
       where: { 
-        id: params.id,
+        id: id,
         isDeleted: false 
       }
     })
@@ -152,7 +154,7 @@ export async function PUT(
 
     // Update maintenance record
     const updatedRecord = await db.maintenanceRecord.update({
-      where: { id: params.id },
+      where: { id: id },
       data: {
         ...(body.truckId !== undefined && { truckId: body.truckId }),
         ...(body.serviceType !== undefined && { serviceType: body.serviceType }),
@@ -258,13 +260,14 @@ export async function PUT(
 // DELETE maintenance record (soft delete)
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     // Check if maintenance record exists
     const record = await db.maintenanceRecord.findUnique({
       where: { 
-        id: params.id,
+        id: id,
         isDeleted: false 
       }
     })
@@ -278,7 +281,7 @@ export async function DELETE(
 
     // Soft delete maintenance record
     await db.maintenanceRecord.update({
-      where: { id: params.id },
+      where: { id: id },
       data: {
         isDeleted: true,
         deletedAt: new Date(),

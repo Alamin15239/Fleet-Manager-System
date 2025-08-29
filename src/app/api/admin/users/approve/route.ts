@@ -4,7 +4,7 @@ import { requireAdmin } from '@/lib/auth'
 
 export async function POST(request: NextRequest) {
   try {
-    const user = requireAdmin(request)
+    const user = await requireAdmin(request)
     const body = await request.json()
     const { userId, approved } = body
 

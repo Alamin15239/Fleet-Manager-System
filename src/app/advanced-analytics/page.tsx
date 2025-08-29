@@ -38,17 +38,38 @@ export default function AdvancedAnalytics() {
   const fetchAnalyticsData = async () => {
     try {
       setLoading(true)
+      
+      // Always fetch dashboard data first for fallback
+      const dashboardResponse = await apiGet('/api/dashboard/stats')
+      let dashboardData = {}
+      
+      if (dashboardResponse.ok) {
+        dashboardData = await dashboardResponse.json()
+      }
+      
+      // Try to fetch analytics data
       const response = await apiGet(`/api/analytics?period=${selectedPeriod}&truckId=${selectedTruck}`)
       
       if (response.ok) {
         const analyticsData = await response.json()
         setAnalyticsData(analyticsData)
       } else {
-        // Fallback to dashboard data if analytics API fails
+        // Use dashboard data as fallback
+        setAnalyticsData({
+          maintenanceTrends: generateMaintenanceTrends(dashboardData.monthlyMaintenanceData || []),
+          costAnalysis: generateCostAnalysis(dashboardData.monthlyMaintenanceData || []),
+          truckPerformance: generateTruckPerformance(dashboardData.recentTrucks || []),
+          mechanicProductivity: generateMechanicProductivity(dashboardData.recentMaintenance || []),
+          predictiveInsights: generatePredictiveInsights(dashboardData)
+        })
+      }
+    } catch (error) {
+      console.error('Error fetching analytics data:', error)
+      // Fetch basic data for display
+      try {
         const dashboardResponse = await apiGet('/api/dashboard/stats')
         if (dashboardResponse.ok) {
           const dashboardData = await dashboardResponse.json()
-          
           setAnalyticsData({
             maintenanceTrends: generateMaintenanceTrends(dashboardData.monthlyMaintenanceData || []),
             costAnalysis: generateCostAnalysis(dashboardData.monthlyMaintenanceData || []),
@@ -57,17 +78,9 @@ export default function AdvancedAnalytics() {
             predictiveInsights: generatePredictiveInsights(dashboardData)
           })
         }
+      } catch (fallbackError) {
+        console.error('Fallback data fetch failed:', fallbackError)
       }
-    } catch (error) {
-      console.error('Error fetching analytics data:', error)
-      // Set default empty data on error
-      setAnalyticsData({
-        maintenanceTrends: generateMaintenanceTrends([]),
-        costAnalysis: generateCostAnalysis([]),
-        truckPerformance: generateTruckPerformance([]),
-        mechanicProductivity: generateMechanicProductivity([]),
-        predictiveInsights: generatePredictiveInsights({})
-      })
     } finally {
       setLoading(false)
     }

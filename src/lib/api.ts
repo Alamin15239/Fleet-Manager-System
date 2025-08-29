@@ -46,7 +46,17 @@ export async function apiFetch(url: string, options: RequestInit = {}) {
     console.log('API Fetch - Response status:', response.status)
     
     if (!response.ok) {
-      const errorData = await response.json()
+      let errorData
+      try {
+        const text = await response.text()
+        if (text.startsWith('<!DOCTYPE') || text.startsWith('<html')) {
+          errorData = { error: 'Server returned HTML instead of JSON', status: response.status }
+        } else {
+          errorData = JSON.parse(text)
+        }
+      } catch (e) {
+        errorData = { error: 'Failed to parse error response', status: response.status }
+      }
       console.log('API Fetch - Error response:', errorData)
       
       // If authentication error, try to redirect to login

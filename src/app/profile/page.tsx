@@ -248,9 +248,12 @@ export default function ProfilePage() {
           <CardContent className="flex flex-col items-center space-y-4">
             <Avatar className="h-32 w-32">
               <AvatarImage 
-                src={profile.profileImage || ''} 
+                src={profile.profileImage ? `${profile.profileImage}?t=${Date.now()}` : ''} 
                 alt={profile.name || 'User'} 
-                key={profile.profileImage}
+                key={`${profile.profileImage}-${profile.updatedAt}`}
+                onError={(e) => {
+                  console.log('Avatar image failed to load:', profile.profileImage)
+                }}
               />
               <AvatarFallback className="text-2xl">
                 {profile.name?.charAt(0).toUpperCase() || 'U'}

@@ -187,7 +187,11 @@ export default function AdminMonitoring() {
     setLoading(true)
     try {
       const token = localStorage.getItem('authToken')
-      if (!token) return
+      if (!token) {
+        console.log('No auth token available, skipping data fetch')
+        setLoading(false)
+        return
+      }
 
       const queryParams = new URLSearchParams()
       Object.entries(filters).forEach(([key, value]) => {

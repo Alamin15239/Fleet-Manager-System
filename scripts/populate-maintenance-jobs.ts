@@ -1,6 +1,12 @@
 import { PrismaClient } from '@prisma/client'
 
-const prisma = new PrismaClient()
+const prisma = new PrismaClient({
+  datasources: {
+    db: {
+      url: process.env.DATABASE_URL
+    }
+  }
+})
 
 interface MaintenanceJobData {
   name: string
@@ -595,6 +601,10 @@ async function main() {
   console.log('Populating maintenance jobs...')
 
   try {
+    // Connect to database
+    await prisma.$connect()
+    console.log('Connected to database')
+    
     // Clear existing jobs (optional - comment out if you want to keep existing jobs)
     console.log('Clearing existing maintenance jobs...')
     await prisma.maintenanceJob.deleteMany()

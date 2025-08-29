@@ -1,16 +1,32 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  serverExternalPackages: ['prisma', '@prisma/client'],
+  serverExternalPackages: ['@prisma/client', 'prisma'],
   images: {
     domains: ['localhost'],
-    unoptimized: true
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: '**',
+      },
+    ],
   },
-  eslint: {
-    ignoreDuringBuilds: true
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        net: false,
+        tls: false,
+      };
+    }
+    return config;
   },
-  typescript: {
-    ignoreBuildErrors: true
+  env: {
+    DATABASE_URL: process.env.DATABASE_URL,
+    JWT_SECRET: process.env.JWT_SECRET,
+    NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET,
+    RESEND_API_KEY: process.env.RESEND_API_KEY,
   }
-}
+};
 
-module.exports = nextConfig
+module.exports = nextConfig;
