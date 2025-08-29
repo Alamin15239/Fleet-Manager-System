@@ -26,11 +26,17 @@ export async function POST(request: NextRequest) {
     // Check if user exists and is active
     const user = await db.user.findUnique({
       where: { 
-        email,
-        isActive: true,
-        isDeleted: false 
+        email: email.toLowerCase()
       }
     })
+
+    // Check if user is active and not deleted
+    if (user && (!user.isActive || user.isDeleted)) {
+      return NextResponse.json({
+        success: true,
+        message: 'If your email address is in our database, you will receive a password reset link shortly.'
+      })
+    }
 
     // Always return success message even if user doesn't exist (security best practice)
     if (!user) {
