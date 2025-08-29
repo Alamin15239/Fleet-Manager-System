@@ -38,6 +38,7 @@ export default function ImageEditor({ imageUrl, onSave, onCancel }: ImageEditorP
   useEffect(() => {
     const img = new Image();
     img.crossOrigin = 'anonymous';
+    img.alt = 'Image to edit';
     img.onload = () => {
       setImage(img);
       setDimensions({ width: img.width, height: img.height });
@@ -134,6 +135,7 @@ export default function ImageEditor({ imageUrl, onSave, onCancel }: ImageEditorP
       if (response.ok) {
         const resultBlob = await response.blob();
         const img = new Image();
+        img.alt = 'Background removed image';
         img.onload = () => {
           canvas.width = img.width;
           canvas.height = img.height;

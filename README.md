@@ -212,11 +212,10 @@ JWT_SECRET="your-super-secret-jwt-key-at-least-32-characters-long"
 NEXTAUTH_URL="http://localhost:3000"
 NEXTAUTH_SECRET="your-nextauth-secret"
 
-# Email (Optional - for notifications)
-SMTP_HOST="smtp.gmail.com"
-SMTP_PORT="587"
-SMTP_USER="your-email@gmail.com"
-SMTP_PASS="your-app-password"
+# Email (Resend - for notifications and authentication)
+RESEND_API_KEY="your-resend-api-key"
+EMAIL_FROM="Fleet Manager <noreply@yourdomain.com>"
+RESEND_DOMAIN="yourdomain.com"
 
 # External APIs (Optional)
 OPENAI_API_KEY="your-openai-api-key"  # For AI features
@@ -601,6 +600,9 @@ DATABASE_URL="postgresql://user:password@localhost:5432/fleet_management"
 JWT_SECRET="your-production-jwt-secret"
 NEXTAUTH_URL="https://yourdomain.com"
 NEXTAUTH_SECRET="your-production-nextauth-secret"
+RESEND_API_KEY="your-production-resend-api-key"
+EMAIL_FROM="Fleet Manager <noreply@yourdomain.com>"
+RESEND_DOMAIN="yourdomain.com"
 ```
 
 #### 4. Start Production Server
@@ -701,6 +703,50 @@ Build and run:
 ```bash
 docker-compose up --build
 ```
+
+## 📧 Email Service Setup (Resend)
+
+The application uses Resend for email notifications and authentication emails.
+
+### Setup Resend
+
+1. **Create Resend Account**
+   - Go to [resend.com](https://resend.com)
+   - Sign up for a free account
+   - Verify your email address
+
+2. **Get API Key**
+   - Go to API Keys in your Resend dashboard
+   - Create a new API key
+   - Copy the API key
+
+3. **Add Domain (Optional)**
+   - Go to Domains in your Resend dashboard
+   - Add your domain for custom email addresses
+   - Verify domain ownership
+
+4. **Configure Environment Variables**
+   ```env
+   RESEND_API_KEY="re_your_api_key_here"
+   EMAIL_FROM="Fleet Manager <noreply@yourdomain.com>"
+   RESEND_DOMAIN="yourdomain.com"
+   ```
+
+### Email Features
+
+- **OTP Authentication**: Secure login with one-time passwords
+- **Email Verification**: Verify user email addresses during registration
+- **Password Reset**: Send secure password reset links
+- **Maintenance Alerts**: Automated maintenance notifications
+- **System Notifications**: Important system updates and alerts
+
+### Development Mode
+
+If `RESEND_API_KEY` is not configured, the system will:
+- Log emails to console instead of sending
+- Display OTP codes in terminal
+- Show verification links in logs
+- Continue functioning without email dependency
 
 ## 🔧 Troubleshooting
 
