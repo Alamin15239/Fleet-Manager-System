@@ -2,17 +2,15 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireAuth } from '@/lib/auth'
 
-interface RouteParams {
-  params: {
-    id: string
-  }
-}
-
 // GET /api/tires/[id] - Get single tire
-export async function GET(request: NextRequest, context: RouteParams) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
+    const { id } = await params;
     const tire = await db.tire.findUnique({
-      where: { id: context.params.id },
+      where: { id: id },
       include: {
         createdBy: {
           select: { id: true, name: true, email: true }
@@ -38,8 +36,12 @@ export async function GET(request: NextRequest, context: RouteParams) {
 }
 
 // PUT /api/tires/[id] - Update tire
-export async function PUT(request: NextRequest, context: RouteParams) {
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
+    const { id } = await params;
     const user = await requireAuth(request)
     const body = await request.json()
     const { 
@@ -55,7 +57,7 @@ export async function PUT(request: NextRequest, context: RouteParams) {
 
     // Check if tire exists
     const existingTire = await db.tire.findUnique({
-      where: { id: context.params.id }
+      where: { id: id }
     })
 
     if (!existingTire) {
@@ -67,7 +69,7 @@ export async function PUT(request: NextRequest, context: RouteParams) {
 
     // Update the tire
     const updatedTire = await db.tire.update({
-      where: { id: context.params.id },
+      where: { id: id },
       data: {
         ...(tireSize && { tireSize }),
         ...(manufacturer && { manufacturer }),
@@ -135,13 +137,17 @@ export async function PUT(request: NextRequest, context: RouteParams) {
 }
 
 // DELETE /api/tires/[id] - Delete tire
-export async function DELETE(request: NextRequest, context: RouteParams) {
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
+    const { id } = await params;
     const user = await requireAuth(request)
 
     // Check if tire exists
     const existingTire = await db.tire.findUnique({
-      where: { id: context.params.id }
+      where: { id: id }
     })
 
     if (!existingTire) {
@@ -153,7 +159,7 @@ export async function DELETE(request: NextRequest, context: RouteParams) {
 
     // Delete the tire
     await db.tire.delete({
-      where: { id: context.params.id }
+      where: { id: id }
     })
 
     return NextResponse.json({ 
