@@ -14,9 +14,11 @@ import ExcelEditor from '@/components/ExcelEditor';
 import AdvancedPDFEditor from '@/components/AdvancedPDFEditor';
 import { Save, FileText, Table, FileSpreadsheet, Upload, List } from 'lucide-react';
 import { toast } from 'sonner';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 export default function EditorPage() {
   const router = useRouter();
+  const isMobile = useIsMobile();
   const [title, setTitle] = useState('');
   const [documentType, setDocumentType] = useState<'text' | 'table' | 'excel' | 'pdf'>('text');
   const [orientation, setOrientation] = useState<'portrait' | 'landscape'>('portrait');
@@ -215,24 +217,24 @@ export default function EditorPage() {
 
   return (
     <div className="min-h-screen bg-gray-50/30">
-      <div className="container mx-auto p-6 max-w-7xl">
+      <div className="container mx-auto p-4 sm:p-6 max-w-7xl">
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">Document Editor</h1>
-          <p className="text-gray-600 mt-1">Create and manage your documents with rich editing capabilities</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Document Editor</h1>
+          <p className="text-gray-600 mt-1 text-sm sm:text-base">Create and manage your documents with rich editing capabilities</p>
         </div>
         
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 lg:gap-6">
           {/* Main Editor */}
-          <div className="lg:col-span-3">
+          <div className="lg:col-span-3 order-2 lg:order-1">
             <Card className="shadow-sm border-gray-200">
               <CardHeader className="border-b border-gray-200 bg-white">
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <FileText className="h-5 w-5 text-blue-600" />
+                <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                  <FileText className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
                   Create Document
                 </CardTitle>
               </CardHeader>
-              <CardContent className="p-6 space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <CardContent className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="title" className="text-sm font-medium">Document Title</Label>
                     <Input
@@ -302,43 +304,43 @@ export default function EditorPage() {
                 </div>
 
                 <Tabs value={documentType} onValueChange={(value: any) => setDocumentType(value)} className="w-full">
-                  <TabsList className="grid w-full grid-cols-4">
-                    <TabsTrigger value="text" className="flex items-center gap-2">
-                      <FileText className="h-4 w-4" />
-                      Rich Text
+                  <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 gap-1">
+                    <TabsTrigger value="text" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+                      <FileText className="h-3 w-3 sm:h-4 sm:w-4" />
+                      {isMobile ? 'Text' : 'Rich Text'}
                     </TabsTrigger>
-                    <TabsTrigger value="table" className="flex items-center gap-2">
-                      <Table className="h-4 w-4" />
+                    <TabsTrigger value="table" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+                      <Table className="h-3 w-3 sm:h-4 sm:w-4" />
                       Table
                     </TabsTrigger>
-                    <TabsTrigger value="excel" className="flex items-center gap-2">
-                      <FileSpreadsheet className="h-4 w-4" />
+                    <TabsTrigger value="excel" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+                      <FileSpreadsheet className="h-3 w-3 sm:h-4 sm:w-4" />
                       Excel
                     </TabsTrigger>
-                    <TabsTrigger value="pdf" className="flex items-center gap-2">
-                      <FileText className="h-4 w-4" />
+                    <TabsTrigger value="pdf" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+                      <FileText className="h-3 w-3 sm:h-4 sm:w-4" />
                       PDF
                     </TabsTrigger>
                   </TabsList>
-                  <TabsContent value="text" className="mt-6">
+                  <TabsContent value="text" className="mt-4 sm:mt-6">
                     <Editor content={editorContent} onChange={setEditorContent} />
                   </TabsContent>
-                  <TabsContent value="table" className="mt-6">
+                  <TabsContent value="table" className="mt-4 sm:mt-6">
                     <TableEditor 
                       data={tableData}
                       onChange={setTableData} 
                     />
                   </TabsContent>
-                  <TabsContent value="excel" className="mt-6">
+                  <TabsContent value="excel" className="mt-4 sm:mt-6">
                     <ExcelEditor data={excelData} onChange={setExcelData} />
                   </TabsContent>
-                  <TabsContent value="pdf" className="mt-6">
+                  <TabsContent value="pdf" className="mt-4 sm:mt-6">
                     <AdvancedPDFEditor 
                       initialData={pdfData}
                       onChange={setPdfData}
                     />
                     <div className="flex gap-2 mt-4">
-                      <Button onClick={() => window.document.getElementById('file-upload')?.click()} variant="outline" size="sm">
+                      <Button onClick={() => window.document.getElementById('file-upload')?.click()} variant="outline" size="sm" className="w-full sm:w-auto">
                         <Upload className="h-4 w-4 mr-2" />
                         Upload PDF
                       </Button>
@@ -346,15 +348,15 @@ export default function EditorPage() {
                   </TabsContent>
                 </Tabs>
 
-                <div className="flex gap-3 pt-4 border-t border-gray-200">
-                  <Button onClick={handleSave} disabled={isLoading} className="h-10">
+                <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-gray-200">
+                  <Button onClick={handleSave} disabled={isLoading} className="h-10 w-full sm:w-auto">
                     <Save className="h-4 w-4 mr-2" />
-                    {isLoading ? 'Saving...' : 'Save Document'}
+                    {isLoading ? 'Saving...' : (isMobile ? 'Save' : 'Save Document')}
                   </Button>
                   {(userRole === 'ADMIN' || userRole === 'MANAGER') && (
-                    <Button variant="outline" onClick={() => document.getElementById('file-upload')?.click()} className="h-10">
+                    <Button variant="outline" onClick={() => document.getElementById('file-upload')?.click()} className="h-10 w-full sm:w-auto">
                       <Upload className="h-4 w-4 mr-2" />
-                      Upload File
+                      {isMobile ? 'Upload' : 'Upload File'}
                     </Button>
                   )}
                   <input
@@ -370,16 +372,16 @@ export default function EditorPage() {
           </div>
 
           {/* Document List */}
-          <div className="lg:col-span-1">
+          <div className="lg:col-span-1 order-1 lg:order-2">
             <Card className="shadow-sm border-gray-200">
               <CardHeader className="border-b border-gray-200 bg-white">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center gap-2 text-lg">
-                    <List className="h-5 w-5 text-green-600" />
-                    Recent Documents
+                  <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                    <List className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" />
+                    {isMobile ? 'Recent' : 'Recent Documents'}
                   </CardTitle>
                   <Button variant="outline" size="sm" onClick={() => router.push('/documents')}>
-                    View All
+                    {isMobile ? 'All' : 'View All'}
                   </Button>
                 </div>
               </CardHeader>
@@ -403,8 +405,10 @@ export default function EditorPage() {
                           <span className="text-xs text-gray-500 capitalize bg-gray-100 px-2 py-1 rounded">{doc.type}</span>
                         </div>
                         <div className="text-xs text-gray-400 mt-2">
-                          <div>Created: {new Date(doc.createdAt).toLocaleDateString()} {new Date(doc.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
-                          <div className="mt-1">v{doc.version} • Updated: {new Date(doc.updatedAt).toLocaleDateString()}</div>
+                          <div className="truncate">Created: {new Date(doc.createdAt).toLocaleDateString()}</div>
+                          {!isMobile && (
+                            <div className="mt-1">v{doc.version} • Updated: {new Date(doc.updatedAt).toLocaleDateString()}</div>
+                          )}
                         </div>
                       </div>
                     ))

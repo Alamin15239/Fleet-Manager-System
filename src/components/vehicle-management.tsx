@@ -268,16 +268,16 @@ export default function VehicleManagement() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">Vehicle Management</h2>
-          <p className="text-muted-foreground">
+          <h2 className="text-xl sm:text-2xl font-bold tracking-tight">Vehicle Management</h2>
+          <p className="text-muted-foreground text-sm">
             Manage trucks, trailers, and driver assignments
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row gap-2">
           <Dialog open={showVehicleForm} onOpenChange={setShowVehicleForm}>
             <DialogTrigger asChild>
               <Button onClick={() => {
@@ -288,18 +288,18 @@ export default function VehicleManagement() {
                 Add Vehicle
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-md">
+            <DialogContent className="max-w-md mx-4 sm:mx-auto">
               <DialogHeader>
-                <DialogTitle>
+                <DialogTitle className="text-lg">
                   {editingVehicle ? 'Edit Vehicle' : 'Add New Vehicle'}
                 </DialogTitle>
-                <DialogDescription>
+                <DialogDescription className="text-sm">
                   {editingVehicle ? 'Update vehicle information' : 'Add a new truck or trailer to the system'}
                 </DialogDescription>
               </DialogHeader>
               <form onSubmit={handleVehicleSubmit} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="plateNumber">Plate Number *</Label>
+                  <Label htmlFor="plateNumber" className="text-sm">Plate Number *</Label>
                   <Input
                     id="plateNumber"
                     value={vehicleForm.plateNumber}
@@ -309,7 +309,7 @@ export default function VehicleManagement() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="trailerNumber">Trailer Number</Label>
+                  <Label htmlFor="trailerNumber" className="text-sm">Trailer Number</Label>
                   <Input
                     id="trailerNumber"
                     value={vehicleForm.trailerNumber}
@@ -319,7 +319,7 @@ export default function VehicleManagement() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="driverName">Driver Name</Label>
+                  <Label htmlFor="driverName" className="text-sm">Driver Name</Label>
                   <Input
                     id="driverName"
                     value={vehicleForm.driverName}
@@ -336,7 +336,7 @@ export default function VehicleManagement() {
                     onChange={(e) => setVehicleForm({ ...vehicleForm, isActive: e.target.checked })}
                     className="rounded"
                   />
-                  <Label htmlFor="isActive">Active</Label>
+                  <Label htmlFor="isActive" className="text-sm">Active</Label>
                 </div>
 
                 {error && (
@@ -353,15 +353,16 @@ export default function VehicleManagement() {
                   </Alert>
                 )}
 
-                <div className="flex justify-end space-x-2">
+                <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-2">
                   <Button 
                     type="button" 
                     variant="outline" 
                     onClick={() => setShowVehicleForm(false)}
+                    className="w-full sm:w-auto"
                   >
                     Cancel
                   </Button>
-                  <Button type="submit" disabled={loading}>
+                  <Button type="submit" disabled={loading} className="w-full sm:w-auto">
                     {loading ? (
                       <>
                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
@@ -386,16 +387,16 @@ export default function VehicleManagement() {
                 Add Driver
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-md">
+            <DialogContent className="max-w-md mx-4 sm:mx-auto">
               <DialogHeader>
-                <DialogTitle>Add New Driver</DialogTitle>
-                <DialogDescription>
+                <DialogTitle className="text-lg">Add New Driver</DialogTitle>
+                <DialogDescription className="text-sm">
                   Add driver information to the system
                 </DialogDescription>
               </DialogHeader>
               <form onSubmit={handleDriverSubmit} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="driverName">Driver Name *</Label>
+                  <Label htmlFor="driverName" className="text-sm">Driver Name *</Label>
                   <Input
                     id="driverName"
                     value={driverForm.name}
@@ -405,7 +406,7 @@ export default function VehicleManagement() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="phone">Phone Number</Label>
+                  <Label htmlFor="phone" className="text-sm">Phone Number</Label>
                   <Input
                     id="phone"
                     value={driverForm.phone}
@@ -415,7 +416,7 @@ export default function VehicleManagement() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="license">License Number</Label>
+                  <Label htmlFor="license" className="text-sm">License Number</Label>
                   <Input
                     id="license"
                     value={driverForm.license}
@@ -425,7 +426,7 @@ export default function VehicleManagement() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="notes">Notes</Label>
+                  <Label htmlFor="notes" className="text-sm">Notes</Label>
                   <Textarea
                     id="notes"
                     value={driverForm.notes}
@@ -435,15 +436,16 @@ export default function VehicleManagement() {
                   />
                 </div>
 
-                <div className="flex justify-end space-x-2">
+                <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-2">
                   <Button 
                     type="button" 
                     variant="outline" 
                     onClick={() => setShowDriverForm(false)}
+                    className="w-full sm:w-auto"
                   >
                     Cancel
                   </Button>
-                  <Button type="submit" disabled={loading}>
+                  <Button type="submit" disabled={loading} className="w-full sm:w-auto">
                     {loading ? 'Saving...' : 'Save Driver'}
                   </Button>
                 </div>
@@ -456,12 +458,12 @@ export default function VehicleManagement() {
       {/* Filters */}
       <Card>
         <CardContent className="pt-6">
-          <div className="flex flex-col md:flex-row gap-4">
+          <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <Input
-                  placeholder="Search vehicles by plate, trailer, or driver..."
+                  placeholder="Search vehicles..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10"
@@ -470,7 +472,7 @@ export default function VehicleManagement() {
             </div>
             <div className="flex gap-2">
               <Select value={filterStatus} onValueChange={(value: any) => setFilterStatus(value)}>
-                <SelectTrigger className="w-40">
+                <SelectTrigger className="w-full sm:w-40">
                   <Filter className="mr-2 h-4 w-4" />
                   <SelectValue />
                 </SelectTrigger>
@@ -499,16 +501,28 @@ export default function VehicleManagement() {
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
             </div>
           ) : (
-            <div className="rounded-md border">
+            <div className="rounded-md border overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Plate Number</TableHead>
-                    <TableHead>Trailer Number</TableHead>
-                    <TableHead>Driver Name</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Created</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                    <TableHead className="min-w-[120px]">
+                      <span className="text-xs sm:text-sm">Plate Number</span>
+                    </TableHead>
+                    <TableHead className="min-w-[120px] hidden sm:table-cell">
+                      <span className="text-xs sm:text-sm">Trailer Number</span>
+                    </TableHead>
+                    <TableHead className="min-w-[140px]">
+                      <span className="text-xs sm:text-sm">Driver Name</span>
+                    </TableHead>
+                    <TableHead className="min-w-[80px]">
+                      <span className="text-xs sm:text-sm">Status</span>
+                    </TableHead>
+                    <TableHead className="min-w-[100px] hidden lg:table-cell">
+                      <span className="text-xs sm:text-sm">Created</span>
+                    </TableHead>
+                    <TableHead className="text-right min-w-[100px]">
+                      <span className="text-xs sm:text-sm">Actions</span>
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -521,45 +535,54 @@ export default function VehicleManagement() {
                   ) : (
                     filteredVehicles.map((vehicle) => (
                       <TableRow key={vehicle.id}>
-                        <TableCell className="font-medium">{vehicle.plateNumber}</TableCell>
-                        <TableCell>{vehicle.trailerNumber || '-'}</TableCell>
+                        <TableCell className="font-medium text-sm">
+                          <div>
+                            {vehicle.plateNumber}
+                            <div className="sm:hidden text-xs text-gray-500 mt-1">
+                              {vehicle.trailerNumber && `Trailer: ${vehicle.trailerNumber}`}
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell className="hidden sm:table-cell text-sm">{vehicle.trailerNumber || '-'}</TableCell>
                         <TableCell>
                           {vehicle.driverName ? (
-                            <Badge variant="secondary" className="flex items-center gap-1">
+                            <Badge variant="secondary" className="flex items-center gap-1 text-xs">
                               <User className="h-3 w-3" />
-                              {vehicle.driverName}
+                              <span className="truncate max-w-20 sm:max-w-none">{vehicle.driverName}</span>
                             </Badge>
                           ) : (
-                            <span className="text-gray-400">Unassigned</span>
+                            <span className="text-gray-400 text-xs">Unassigned</span>
                           )}
                         </TableCell>
                         <TableCell>
                           <Badge 
                             variant={vehicle.isActive ? "default" : "secondary"}
-                            className="cursor-pointer"
+                            className="cursor-pointer text-xs"
                             onClick={() => toggleVehicleStatus(vehicle.id, vehicle.isActive)}
                           >
                             {vehicle.isActive ? 'Active' : 'Inactive'}
                           </Badge>
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="hidden lg:table-cell text-xs">
                           {new Date(vehicle.createdAt).toLocaleDateString()}
                         </TableCell>
                         <TableCell className="text-right">
-                          <div className="flex justify-end space-x-2">
+                          <div className="flex justify-end space-x-1">
                             <Button
                               variant="outline"
                               size="sm"
                               onClick={() => handleEditVehicle(vehicle)}
+                              className="h-8 w-8 p-0"
                             >
-                              <Edit className="h-4 w-4" />
+                              <Edit className="h-3 w-3" />
                             </Button>
                             <Button
                               variant="outline"
                               size="sm"
                               onClick={() => handleDeleteVehicle(vehicle.id)}
+                              className="h-8 w-8 p-0"
                             >
-                              <Trash2 className="h-4 w-4" />
+                              <Trash2 className="h-3 w-3" />
                             </Button>
                           </div>
                         </TableCell>

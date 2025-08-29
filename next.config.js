@@ -1,6 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   serverExternalPackages: ['@prisma/client', 'prisma'],
+  typescript: {
+    ignoreBuildErrors: true,
+  },
   images: {
     domains: ['localhost'],
     remotePatterns: [
@@ -29,8 +32,4 @@ const nextConfig = {
   }
 };
 
-module.exports = {
-  typescript: {
-    ignoreBuildErrors: true,
-  },
-};
+module.exports = nextConfig;

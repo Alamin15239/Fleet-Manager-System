@@ -158,91 +158,96 @@ export default function TireReports() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Tire Analytics</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl sm:text-3xl font-bold">Tire Analytics</h1>
+          <p className="text-muted-foreground text-sm">
             Comprehensive tire management insights and reports
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={handleRefresh} disabled={refreshing}>
-            <RefreshCw className={`mr-2 h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
-            Refresh
+          <Button variant="outline" onClick={handleRefresh} disabled={refreshing} size="sm">
+            <RefreshCw className={`mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4 ${refreshing ? 'animate-spin' : ''}`} />
+            <span className="hidden sm:inline">Refresh</span>
           </Button>
-          <Button variant="outline" onClick={handleExport}>
-            <Download className="mr-2 h-4 w-4" />
-            Export
+          <Button variant="outline" onClick={handleExport} size="sm">
+            <Download className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+            <span className="hidden sm:inline">Export</span>
+            <span className="sm:hidden">CSV</span>
           </Button>
         </div>
       </div>
 
       {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Tires</CardTitle>
-            <Package className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-xs sm:text-sm font-medium">Total Tires</CardTitle>
+            <Package className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{analytics.summary.totalTires.toLocaleString()}</div>
+            <div className="text-lg sm:text-2xl font-bold">{analytics.summary.totalTires.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">
-              Across all vehicles
+              <span className="hidden sm:inline">Across all vehicles</span>
+              <span className="sm:hidden">All vehicles</span>
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Recent Additions</CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-xs sm:text-sm font-medium">Recent</CardTitle>
+            <Calendar className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{analytics.summary.recentTires.toLocaleString()}</div>
+            <div className="text-lg sm:text-2xl font-bold">{analytics.summary.recentTires.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">
-              Last 30 days
+              <span className="hidden sm:inline">Last 30 days</span>
+              <span className="sm:hidden">30 days</span>
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Vehicles</CardTitle>
-            <Truck className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-xs sm:text-sm font-medium">Vehicles</CardTitle>
+            <Truck className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{analytics.summary.totalVehicles}</div>
+            <div className="text-lg sm:text-2xl font-bold">{analytics.summary.totalVehicles}</div>
             <p className="text-xs text-muted-foreground">
-              With tire records
+              <span className="hidden sm:inline">With tire records</span>
+              <span className="sm:hidden">Active</span>
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Drivers</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-xs sm:text-sm font-medium">Drivers</CardTitle>
+            <Users className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{analytics.summary.totalDrivers}</div>
+            <div className="text-lg sm:text-2xl font-bold">{analytics.summary.totalDrivers}</div>
             <p className="text-xs text-muted-foreground">
-              Assigned tires
+              <span className="hidden sm:inline">Assigned tires</span>
+              <span className="sm:hidden">Active</span>
             </p>
           </CardContent>
         </Card>
       </div>
 
       {/* Charts */}
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 lg:grid-cols-2">
         {/* Monthly Trends */}
-        <Card className="col-span-2">
+        <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle>Monthly Tire Addition Trends</CardTitle>
+            <CardTitle className="text-lg">Monthly Tire Addition Trends</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
+            <ResponsiveContainer width="100%" height={250}>
               <LineChart data={analytics.monthlyData}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="month" />
@@ -271,10 +276,10 @@ export default function TireReports() {
         {/* Manufacturer Distribution */}
         <Card>
           <CardHeader>
-            <CardTitle>Tires by Manufacturer</CardTitle>
+            <CardTitle className="text-lg">Tires by Manufacturer</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
+            <ResponsiveContainer width="100%" height={250}>
               <BarChart data={analytics.byManufacturer.slice(0, 10)}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="manufacturer" angle={-45} textAnchor="end" height={80} />
@@ -289,10 +294,10 @@ export default function TireReports() {
         {/* Origin Distribution */}
         <Card>
           <CardHeader>
-            <CardTitle>Tires by Origin</CardTitle>
+            <CardTitle className="text-lg">Tires by Origin</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
+            <ResponsiveContainer width="100%" height={250}>
               <PieChart>
                 <Pie
                   data={analytics.byOrigin}
@@ -316,29 +321,29 @@ export default function TireReports() {
       </div>
 
       {/* Top Performers */}
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 lg:grid-cols-2">
         {/* Top Vehicles */}
         <Card>
           <CardHeader>
-            <CardTitle>Top Vehicles by Tire Count</CardTitle>
+            <CardTitle className="text-lg">Top Vehicles by Tire Count</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {analytics.topVehicles.slice(0, 10).map((vehicle, index) => (
+              {analytics.topVehicles.slice(0, 8).map((vehicle, index) => (
                 <div key={vehicle.plateNumber} className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <div className="flex items-center justify-center w-8 h-8 bg-primary/10 rounded-full">
-                      <span className="text-sm font-medium">{index + 1}</span>
+                  <div className="flex items-center space-x-2 sm:space-x-3 min-w-0 flex-1">
+                    <div className="flex items-center justify-center w-6 h-6 sm:w-8 sm:h-8 bg-primary/10 rounded-full flex-shrink-0">
+                      <span className="text-xs sm:text-sm font-medium">{index + 1}</span>
                     </div>
-                    <div>
-                      <div className="font-medium">{vehicle.plateNumber}</div>
-                      <div className="text-sm text-muted-foreground">
+                    <div className="min-w-0 flex-1">
+                      <div className="font-medium text-sm truncate">{vehicle.plateNumber}</div>
+                      <div className="text-xs text-muted-foreground truncate">
                         {vehicle.driverName || 'N/A'} {vehicle.trailerNumber ? `• ${vehicle.trailerNumber}` : ''}
                       </div>
                     </div>
                   </div>
-                  <Badge variant="secondary">
-                    {vehicle.tireCount} tires
+                  <Badge variant="secondary" className="text-xs flex-shrink-0">
+                    {vehicle.tireCount}
                   </Badge>
                 </div>
               ))}
@@ -349,25 +354,25 @@ export default function TireReports() {
         {/* Top Drivers */}
         <Card>
           <CardHeader>
-            <CardTitle>Top Drivers by Tire Count</CardTitle>
+            <CardTitle className="text-lg">Top Drivers by Tire Count</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {analytics.topDrivers.slice(0, 10).map((driver, index) => (
+              {analytics.topDrivers.slice(0, 8).map((driver, index) => (
                 <div key={driver.driverName} className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <div className="flex items-center justify-center w-8 h-8 bg-primary/10 rounded-full">
-                      <span className="text-sm font-medium">{index + 1}</span>
+                  <div className="flex items-center space-x-2 sm:space-x-3 min-w-0 flex-1">
+                    <div className="flex items-center justify-center w-6 h-6 sm:w-8 sm:h-8 bg-primary/10 rounded-full flex-shrink-0">
+                      <span className="text-xs sm:text-sm font-medium">{index + 1}</span>
                     </div>
-                    <div>
-                      <div className="font-medium">{driver.driverName}</div>
-                      <div className="text-sm text-muted-foreground">
+                    <div className="min-w-0 flex-1">
+                      <div className="font-medium text-sm truncate">{driver.driverName}</div>
+                      <div className="text-xs text-muted-foreground">
                         {driver.recordCount} records
                       </div>
                     </div>
                   </div>
-                  <Badge variant="secondary">
-                    {driver.tireCount} tires
+                  <Badge variant="secondary" className="text-xs flex-shrink-0">
+                    {driver.tireCount}
                   </Badge>
                 </div>
               ))}
@@ -377,14 +382,14 @@ export default function TireReports() {
       </div>
 
       {/* Detailed Breakdown */}
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 lg:grid-cols-2">
         {/* Vehicle Breakdown */}
         <Card>
           <CardHeader>
-            <CardTitle>Tires by Vehicle (Top 15)</CardTitle>
+            <CardTitle className="text-lg">Tires by Vehicle (Top 15)</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
+            <ResponsiveContainer width="100%" height={250}>
               <BarChart data={analytics.byVehicle.slice(0, 15)} layout="horizontal">
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis type="number" />
@@ -399,10 +404,10 @@ export default function TireReports() {
         {/* Driver Breakdown */}
         <Card>
           <CardHeader>
-            <CardTitle>Tires by Driver (Top 15)</CardTitle>
+            <CardTitle className="text-lg">Tires by Driver (Top 15)</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
+            <ResponsiveContainer width="100%" height={250}>
               <BarChart data={analytics.byDriver.slice(0, 15)} layout="horizontal">
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis type="number" />

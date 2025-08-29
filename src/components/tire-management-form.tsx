@@ -49,7 +49,6 @@ export default function TireManagementForm() {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
-  const [authTest, setAuthTest] = useState<string | null>(null)
   const [autoFilled, setAutoFilled] = useState({
     driverName: false,
     trailerNumber: false
@@ -79,22 +78,7 @@ export default function TireManagementForm() {
     }
   }
 
-  const testAuthentication = async () => {
-    try {
-      setAuthTest('Testing authentication...')
-      const response = await apiGet('/api/test-auth')
-      
-      if (response.ok) {
-        const data = await response.json()
-        setAuthTest(`✅ Auth test successful: ${data.user.email} (${data.user.role})`)
-      } else {
-        const errorData = await response.json()
-        setAuthTest(`❌ Auth test failed: ${errorData.error}`)
-      }
-    } catch (error) {
-      setAuthTest(`❌ Auth test error: ${error}`)
-    }
-  }
+
 
   const handlePlateNumberChange = async (plateNumber: string) => {
     setFormData(prev => ({ ...prev, plateNumber }))
@@ -240,7 +224,7 @@ export default function TireManagementForm() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -250,22 +234,7 @@ export default function TireManagementForm() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Authentication Test */}
-            <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
-              <div className="flex items-center space-x-2">
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  size="sm"
-                  onClick={testAuthentication}
-                >
-                  Test Auth
-                </Button>
-                {authTest && (
-                  <span className="text-sm text-blue-700">{authTest}</span>
-                )}
-              </div>
-            </div>
+
 
             {error && (
               <Alert variant="destructive">
@@ -289,9 +258,9 @@ export default function TireManagementForm() {
                   Vehicle Information
                 </h3>
                 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="plateNumber" className="font-medium text-gray-700">
+                    <Label htmlFor="plateNumber" className="font-medium text-gray-700 text-sm">
                       Plate Number *
                     </Label>
                     <Select value={formData.plateNumber} onValueChange={handlePlateNumberChange}>
@@ -310,7 +279,7 @@ export default function TireManagementForm() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="trailerNumber" className="font-medium text-gray-700">
+                    <Label htmlFor="trailerNumber" className="font-medium text-gray-700 text-sm">
                       Trailer Number
                     </Label>
                     <Select value={formData.trailerNumber} onValueChange={handleTrailerNumberChange}>
@@ -335,8 +304,8 @@ export default function TireManagementForm() {
                     <p className="text-xs text-gray-500">Optional trailer number</p>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="quantity" className="font-medium text-gray-700">
+                  <div className="space-y-2 sm:col-span-2 lg:col-span-1">
+                    <Label htmlFor="quantity" className="font-medium text-gray-700 text-sm">
                       Quantity *
                     </Label>
                     <Input
@@ -389,9 +358,9 @@ export default function TireManagementForm() {
                   Tire Information
                 </h3>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="tireSize" className="font-medium text-gray-700">
+                    <Label htmlFor="tireSize" className="font-medium text-gray-700 text-sm">
                       Tire Size *
                     </Label>
                     <Input
@@ -406,7 +375,7 @@ export default function TireManagementForm() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="manufacturer" className="font-medium text-gray-700">
+                    <Label htmlFor="manufacturer" className="font-medium text-gray-700 text-sm">
                       Manufacturer *
                     </Label>
                     <Input
@@ -422,7 +391,7 @@ export default function TireManagementForm() {
                 </div>
 
                 <div className="mt-4 space-y-2">
-                  <Label htmlFor="origin" className="font-medium text-gray-700">
+                  <Label htmlFor="origin" className="font-medium text-gray-700 text-sm">
                     Origin *
                   </Label>
                   <Select value={formData.origin} onValueChange={(value) => setFormData({ ...formData, origin: value })}>
@@ -441,7 +410,7 @@ export default function TireManagementForm() {
                 </div>
 
                 <div className="mt-4 space-y-2">
-                  <Label htmlFor="notes" className="font-medium text-gray-700">
+                  <Label htmlFor="notes" className="font-medium text-gray-700 text-sm">
                     Additional Notes
                   </Label>
                   <Input
@@ -460,7 +429,7 @@ export default function TireManagementForm() {
               <Button 
                 type="submit" 
                 disabled={submitting || !formData.tireSize || !formData.manufacturer || !formData.plateNumber}
-                className="w-full md:w-auto"
+                className="w-full sm:w-auto"
               >
                 {submitting ? (
                   <>
@@ -511,35 +480,35 @@ export default function TireManagementForm() {
                 </div>
               ) : (
                 filteredVehicles.map((vehicle) => (
-                  <div key={vehicle.id} className="flex items-center justify-between p-4 border border-blue-100 rounded-lg hover:bg-blue-50 transition-colors">
-                    <div className="flex items-center space-x-4">
+                  <div key={vehicle.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 sm:p-4 border border-blue-100 rounded-lg hover:bg-blue-50 transition-colors gap-3 sm:gap-0">
+                    <div className="flex items-center space-x-3 sm:space-x-4">
                       <div className="flex-shrink-0">
-                        <Truck className="h-6 w-6 text-blue-500" />
+                        <Truck className="h-5 w-5 sm:h-6 sm:w-6 text-blue-500" />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold text-blue-900">{vehicle.plateNumber}</span>
-                          <Badge variant="outline" className="text-xs">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
+                          <span className="font-semibold text-blue-900 text-sm sm:text-base">{vehicle.plateNumber}</span>
+                          <Badge variant="outline" className="text-xs w-fit">
                             {vehicle.isActive ? 'Active' : 'Inactive'}
                           </Badge>
                         </div>
-                        <div className="text-sm text-blue-700 mt-1">
+                        <div className="text-xs sm:text-sm text-blue-700 mt-1">
                           {vehicle.trailerNumber && (
-                            <span className="inline-flex items-center gap-1 mr-3">
+                            <span className="inline-flex items-center gap-1">
                               <span className="font-medium">Trailer:</span> {vehicle.trailerNumber}
                             </span>
                           )}
                         </div>
                       </div>
                     </div>
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center justify-end sm:justify-start">
                       {vehicle.driverName ? (
-                        <Badge variant="secondary" className="flex items-center gap-1 bg-green-100 text-green-800 border-green-200">
+                        <Badge variant="secondary" className="flex items-center gap-1 bg-green-100 text-green-800 border-green-200 text-xs">
                           <User className="h-3 w-3" />
-                          {vehicle.driverName}
+                          <span className="truncate max-w-24 sm:max-w-none">{vehicle.driverName}</span>
                         </Badge>
                       ) : (
-                        <Badge variant="outline" className="text-gray-500 border-gray-300">
+                        <Badge variant="outline" className="text-gray-500 border-gray-300 text-xs">
                           <User className="h-3 w-3 mr-1" />
                           Unassigned
                         </Badge>
