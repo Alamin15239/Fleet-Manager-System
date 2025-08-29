@@ -4,12 +4,13 @@ import { db } from '@/lib/db'
 // GET single truck by ID
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const truck = await db.truck.findUnique({
       where: { 
-        id: params.id,
+        id: id,
         isDeleted: false 
       },
       include: {
@@ -53,15 +54,16 @@ export async function GET(
 // PUT update truck
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const body = await request.json()
 
     // Check if truck exists
     const existingTruck = await db.truck.findUnique({
       where: { 
-        id: params.id,
+        id: id,
         isDeleted: false 
       }
     })
@@ -109,7 +111,7 @@ export async function PUT(
 
     // Update truck
     const updatedTruck = await db.truck.update({
-      where: { id: params.id },
+      where: { id: id },
       data: {
         ...(body.vin && { vin: body.vin }),
         ...(body.make && { make: body.make }),
@@ -185,7 +187,7 @@ export async function DELETE(
 
     // Soft delete truck
     await db.truck.update({
-      where: { id: params.id },
+      where: { id: id },
       data: {
         isDeleted: true,
         deletedAt: new Date(),
