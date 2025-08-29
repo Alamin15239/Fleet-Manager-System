@@ -2,17 +2,15 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireAuth } from '@/lib/auth'
 
-interface RouteParams {
-  params: {
-    id: string
-  }
-}
-
 // GET /api/vehicles/[id] - Get single vehicle
-export async function GET(request: NextRequest, context: RouteParams) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
+    const { id } = await params;
     const vehicle = await db.vehicle.findUnique({
-      where: { id: context.params.id }
+      where: { id: id }
     })
 
     if (!vehicle) {
@@ -33,15 +31,19 @@ export async function GET(request: NextRequest, context: RouteParams) {
 }
 
 // PUT /api/vehicles/[id] - Update vehicle
-export async function PUT(request: NextRequest, context: RouteParams) {
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
+    const { id } = await params;
     const user = await requireAuth(request)
     const body = await request.json()
     const { plateNumber, trailerNumber, driverName, isActive } = body
 
     // Check if vehicle exists
     const existingVehicle = await db.vehicle.findUnique({
-      where: { id: context.params.id }
+      where: { id: id }
     })
 
     if (!existingVehicle) {
@@ -66,7 +68,7 @@ export async function PUT(request: NextRequest, context: RouteParams) {
     }
 
     const vehicle = await db.vehicle.update({
-      where: { id: context.params.id },
+      where: { id: id },
       data: {
         ...(plateNumber && { plateNumber }),
         ...(trailerNumber !== undefined && { trailerNumber: trailerNumber || null }),
@@ -94,13 +96,17 @@ export async function PUT(request: NextRequest, context: RouteParams) {
 }
 
 // DELETE /api/vehicles/[id] - Delete vehicle
-export async function DELETE(request: NextRequest, context: RouteParams) {
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
+    const { id } = await params;
     const user = await requireAuth(request)
 
     // Check if vehicle exists
     const existingVehicle = await db.vehicle.findUnique({
-      where: { id: context.params.id }
+      where: { id: id }
     })
 
     if (!existingVehicle) {
@@ -123,7 +129,7 @@ export async function DELETE(request: NextRequest, context: RouteParams) {
     }
 
     await db.vehicle.delete({
-      where: { id: context.params.id }
+      where: { id: id }
     })
 
     return NextResponse.json({ 
