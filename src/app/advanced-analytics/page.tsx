@@ -41,7 +41,7 @@ export default function AdvancedAnalytics() {
       
       // Always fetch dashboard data first for fallback
       const dashboardResponse = await apiGet('/api/dashboard/stats')
-      let dashboardData = {}
+      let dashboardData: any = {}
       
       if (dashboardResponse.ok) {
         dashboardData = await dashboardResponse.json()
