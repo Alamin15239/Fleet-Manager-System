@@ -168,7 +168,7 @@ export class EmailService {
             <p>Please log into the Fleet Management System to view more details and schedule the required maintenance.</p>
             
             <div style="text-align: center; margin: 30px 0;">
-                <a href="${process.env.NEXTAUTH_URL || 'http://localhost:3000'}" 
+                <a href="https://fleet-manager-system-q1keynpu6-alamins-projects-d8a281b1.vercel.app" 
                    style="background: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
                     Open Fleet Manager
                 </a>

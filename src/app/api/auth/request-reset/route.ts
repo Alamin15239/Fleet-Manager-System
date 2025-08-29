@@ -34,8 +34,8 @@ export async function POST(request: NextRequest) {
     await db.user.update({
       where: { id: user.id },
       data: {
-        resetToken,
-        resetTokenExpires
+        emailVerificationToken: resetToken,
+        emailVerificationExpires: resetTokenExpires
       }
     })
 
