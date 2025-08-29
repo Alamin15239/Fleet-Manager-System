@@ -285,7 +285,7 @@ export default function TireInventoryList() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Filters */}
       <Card>
         <CardHeader>
@@ -295,9 +295,9 @@ export default function TireInventoryList() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-            <div className="space-y-2">
-              <Label>Search</Label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+            <div className="space-y-2 sm:col-span-2 lg:col-span-1">
+              <Label className="text-sm">Search</Label>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <Input
@@ -310,7 +310,7 @@ export default function TireInventoryList() {
             </div>
 
             <div className="space-y-2">
-              <Label>Manufacturer</Label>
+              <Label className="text-sm">Manufacturer</Label>
               <Select value={selectedManufacturer} onValueChange={setSelectedManufacturer}>
                 <SelectTrigger>
                   <SelectValue placeholder="All manufacturers" />
@@ -327,7 +327,7 @@ export default function TireInventoryList() {
             </div>
 
             <div className="space-y-2">
-              <Label>Origin</Label>
+              <Label className="text-sm">Origin</Label>
               <Select value={selectedOrigin} onValueChange={setSelectedOrigin}>
                 <SelectTrigger>
                   <SelectValue placeholder="All origins" />
@@ -344,7 +344,7 @@ export default function TireInventoryList() {
             </div>
 
             <div className="space-y-2">
-              <Label>Plate Number</Label>
+              <Label className="text-sm">Plate Number</Label>
               <Select value={selectedPlate} onValueChange={setSelectedPlate}>
                 <SelectTrigger>
                   <SelectValue placeholder="All plates" />
@@ -361,7 +361,7 @@ export default function TireInventoryList() {
             </div>
 
             <div className="space-y-2">
-              <Label>Driver</Label>
+              <Label className="text-sm">Driver</Label>
               <Select value={selectedDriver} onValueChange={setSelectedDriver}>
                 <SelectTrigger>
                   <SelectValue placeholder="All drivers" />
@@ -381,21 +381,22 @@ export default function TireInventoryList() {
       </Card>
 
       {/* Actions */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <div>
-          <h2 className="text-2xl font-bold">Tire Inventory</h2>
-          <p className="text-muted-foreground">
+          <h2 className="text-xl sm:text-2xl font-bold">Tire Inventory</h2>
+          <p className="text-muted-foreground text-sm">
             Showing {tires.length} of {pagination.total} tires
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={handleRefresh} disabled={refreshing}>
-            <RefreshCw className={`mr-2 h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
-            Refresh
+          <Button variant="outline" onClick={handleRefresh} disabled={refreshing} size="sm">
+            <RefreshCw className={`mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4 ${refreshing ? 'animate-spin' : ''}`} />
+            <span className="hidden sm:inline">Refresh</span>
           </Button>
-          <Button variant="outline" onClick={handleExport}>
-            <Download className="mr-2 h-4 w-4" />
-            Export CSV
+          <Button variant="outline" onClick={handleExport} size="sm">
+            <Download className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+            <span className="hidden sm:inline">Export CSV</span>
+            <span className="sm:hidden">Export</span>
           </Button>
         </div>
       </div>
@@ -422,24 +423,36 @@ export default function TireInventoryList() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Tire Details</TableHead>
-                  <TableHead>
-                    <div className="flex items-center gap-2">
-                      <Truck className="h-4 w-4 text-blue-600" />
-                      Vehicle Information
+                  <TableHead className="min-w-[150px]">
+                    <div className="text-xs sm:text-sm">Tire Details</div>
+                  </TableHead>
+                  <TableHead className="min-w-[180px]">
+                    <div className="flex items-center gap-1 sm:gap-2">
+                      <Truck className="h-3 w-3 sm:h-4 sm:w-4 text-blue-600" />
+                      <span className="text-xs sm:text-sm">Vehicle Info</span>
                     </div>
                   </TableHead>
-                  <TableHead>
-                    <div className="flex items-center gap-2">
-                      <User className="h-4 w-4 text-green-600" />
-                      Driver Assignment
+                  <TableHead className="min-w-[140px]">
+                    <div className="flex items-center gap-1 sm:gap-2">
+                      <User className="h-3 w-3 sm:h-4 sm:w-4 text-green-600" />
+                      <span className="text-xs sm:text-sm">Driver</span>
                     </div>
                   </TableHead>
-                  <TableHead>Quantity</TableHead>
-                  <TableHead>Origin</TableHead>
-                  <TableHead>Created</TableHead>
-                  <TableHead>Created By</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead className="min-w-[80px]">
+                    <div className="text-xs sm:text-sm">Qty</div>
+                  </TableHead>
+                  <TableHead className="min-w-[90px]">
+                    <div className="text-xs sm:text-sm">Origin</div>
+                  </TableHead>
+                  <TableHead className="min-w-[100px] hidden sm:table-cell">
+                    <div className="text-xs sm:text-sm">Created</div>
+                  </TableHead>
+                  <TableHead className="min-w-[120px] hidden lg:table-cell">
+                    <div className="text-xs sm:text-sm">Created By</div>
+                  </TableHead>
+                  <TableHead className="text-right min-w-[100px]">
+                    <div className="text-xs sm:text-sm">Actions</div>
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -457,90 +470,80 @@ export default function TireInventoryList() {
                     <TableRow key={tire.id}>
                       <TableCell>
                         <div className="space-y-1">
-                          <div className="font-medium">{tire.manufacturer}</div>
-                          <div className="text-sm text-gray-500">{tire.tireSize}</div>
+                          <div className="font-medium text-sm">{tire.manufacturer}</div>
+                          <div className="text-xs text-gray-500">{tire.tireSize}</div>
                           {tire.notes && (
-                            <div className="text-xs text-gray-400">{tire.notes}</div>
+                            <div className="text-xs text-gray-400 truncate max-w-32">{tire.notes}</div>
                           )}
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                          <div className="flex items-center gap-2 mb-2">
-                            <Truck className="h-4 w-4 text-blue-600" />
-                            <span className="font-semibold text-blue-900">Vehicle Details</span>
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-2">
+                          <div className="flex items-center gap-1 mb-1">
+                            <Truck className="h-3 w-3 text-blue-600" />
+                            <span className="font-semibold text-blue-900 text-xs">Vehicle</span>
                           </div>
                           <div className="space-y-1">
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm font-medium text-blue-700">Plate:</span>
-                              <span className="text-sm font-semibold">{tire.plateNumber}</span>
-                            </div>
+                            <div className="text-xs font-semibold">{tire.plateNumber}</div>
                             {tire.trailerNumber && (
-                              <div className="flex items-center gap-2">
-                                <span className="text-sm font-medium text-blue-700">Trailer:</span>
-                                <span className="text-sm">{tire.trailerNumber}</span>
-                              </div>
+                              <div className="text-xs text-blue-700">{tire.trailerNumber}</div>
                             )}
                           </div>
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-                          <div className="flex items-center gap-2 mb-2">
-                            <User className="h-4 w-4 text-green-600" />
-                            <span className="font-semibold text-green-900">Driver</span>
-                          </div>
+                        <div className="bg-green-50 border border-green-200 rounded-lg p-2">
                           {tire.driverName ? (
-                            <div className="flex items-center gap-2">
-                              <Badge variant="secondary" className="bg-green-100 text-green-800 border-green-300 flex items-center gap-1">
-                                <User className="h-3 w-3" />
-                                {tire.driverName}
-                              </Badge>
-                            </div>
+                            <Badge variant="secondary" className="bg-green-100 text-green-800 border-green-300 text-xs">
+                              <User className="h-3 w-3 mr-1" />
+                              <span className="truncate max-w-16">{tire.driverName}</span>
+                            </Badge>
                           ) : (
-                            <span className="text-sm text-gray-500 italic">Unassigned</span>
+                            <span className="text-xs text-gray-500 italic">Unassigned</span>
                           )}
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Package className="h-4 w-4 text-gray-400" />
-                          <span className="font-medium">{tire.quantity}</span>
+                        <div className="flex items-center gap-1">
+                          <Package className="h-3 w-3 text-gray-400" />
+                          <span className="font-medium text-sm">{tire.quantity}</span>
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge className={getOriginColor(tire.origin)}>
-                          {tire.origin}
+                        <Badge className={`${getOriginColor(tire.origin)} text-xs`}>
+                          {tire.origin.slice(0, 3)}
                         </Badge>
                       </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Calendar className="h-4 w-4 text-gray-400" />
-                          <span className="text-sm">
-                            {format(new Date(tire.createdAt), 'MMM dd, yyyy')}
+                      <TableCell className="hidden sm:table-cell">
+                        <div className="flex items-center gap-1">
+                          <Calendar className="h-3 w-3 text-gray-400" />
+                          <span className="text-xs">
+                            {format(new Date(tire.createdAt), 'MMM dd')}
                           </span>
                         </div>
                       </TableCell>
-                      <TableCell>
-                        <div className="text-sm">
+                      <TableCell className="hidden lg:table-cell">
+                        <div className="text-xs truncate max-w-24">
                           {tire.createdBy.name || tire.createdBy.email}
                         </div>
                       </TableCell>
                       <TableCell className="text-right">
-                        <div className="flex justify-end space-x-2">
+                        <div className="flex justify-end space-x-1">
                           <Button
                             variant="outline"
                             size="sm"
                             onClick={() => handleEditTire(tire)}
+                            className="h-8 w-8 p-0"
                           >
-                            <Edit className="h-4 w-4" />
+                            <Edit className="h-3 w-3" />
                           </Button>
                           <Button
                             variant="outline"
                             size="sm"
                             onClick={() => handleDeleteTire(tire.id)}
+                            className="h-8 w-8 p-0"
                           >
-                            <Trash2 className="h-4 w-4" />
+                            <Trash2 className="h-3 w-3" />
                           </Button>
                         </div>
                       </TableCell>
@@ -555,19 +558,23 @@ export default function TireInventoryList() {
 
       {/* Pagination */}
       {pagination.pages > 1 && (
-        <div className="flex justify-center gap-2">
+        <div className="flex justify-center items-center gap-2">
           <Button
             variant="outline"
+            size="sm"
             onClick={() => setPagination(prev => ({ ...prev, page: prev.page - 1 }))}
             disabled={pagination.page === 1}
           >
-            Previous
+            <span className="hidden sm:inline">Previous</span>
+            <span className="sm:hidden">Prev</span>
           </Button>
-          <span className="flex items-center px-4">
-            Page {pagination.page} of {pagination.pages}
+          <span className="flex items-center px-2 sm:px-4 text-sm">
+            <span className="hidden sm:inline">Page {pagination.page} of {pagination.pages}</span>
+            <span className="sm:hidden">{pagination.page}/{pagination.pages}</span>
           </span>
           <Button
             variant="outline"
+            size="sm"
             onClick={() => setPagination(prev => ({ ...prev, page: prev.page + 1 }))}
             disabled={pagination.page === pagination.pages}
           >
@@ -578,15 +585,15 @@ export default function TireInventoryList() {
 
       {/* Edit Tire Dialog */}
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md mx-4 sm:mx-auto">
           <DialogHeader>
-            <DialogTitle>Edit Tire</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-lg">Edit Tire</DialogTitle>
+            <DialogDescription className="text-sm">
               Update tire information
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleUpdateTire} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="tireSize">Tire Size</Label>
                 <Input
@@ -624,9 +631,9 @@ export default function TireInventoryList() {
               </Select>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="plateNumber">Plate Number</Label>
+                <Label htmlFor="plateNumber" className="text-sm">Plate Number</Label>
                 <Input
                   id="plateNumber"
                   value={tireForm.plateNumber}
@@ -636,7 +643,7 @@ export default function TireInventoryList() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="trailerNumber">Trailer Number</Label>
+                <Label htmlFor="trailerNumber" className="text-sm">Trailer Number</Label>
                 <Input
                   id="trailerNumber"
                   value={tireForm.trailerNumber}
@@ -645,9 +652,9 @@ export default function TireInventoryList() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="driverName">Driver Name</Label>
+                <Label htmlFor="driverName" className="text-sm">Driver Name</Label>
                 <Input
                   id="driverName"
                   value={tireForm.driverName}
@@ -656,7 +663,7 @@ export default function TireInventoryList() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="quantity">Quantity</Label>
+                <Label htmlFor="quantity" className="text-sm">Quantity</Label>
                 <Input
                   id="quantity"
                   type="number"
@@ -669,7 +676,7 @@ export default function TireInventoryList() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="notes">Notes</Label>
+              <Label htmlFor="notes" className="text-sm">Notes</Label>
               <Textarea
                 id="notes"
                 value={tireForm.notes}
@@ -693,16 +700,17 @@ export default function TireInventoryList() {
               </Alert>
             )}
 
-            <div className="flex justify-end space-x-2">
+            <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-2">
               <Button 
                 type="button" 
                 variant="outline" 
                 onClick={() => setShowEditDialog(false)}
+                className="w-full sm:w-auto"
               >
                 <X className="mr-2 h-4 w-4" />
                 Cancel
               </Button>
-              <Button type="submit" disabled={submitting}>
+              <Button type="submit" disabled={submitting} className="w-full sm:w-auto">
                 {submitting ? (
                   <>
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>

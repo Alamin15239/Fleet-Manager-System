@@ -12,9 +12,11 @@ import {
   Calendar, User, Grid, List, ArrowLeft
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 export default function DocumentsPage() {
   const router = useRouter();
+  const isMobile = useIsMobile();
   const [documents, setDocuments] = useState([]);
   const [filteredDocuments, setFilteredDocuments] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -142,29 +144,29 @@ export default function DocumentsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50/30">
-      <div className="container mx-auto p-6 max-w-7xl">
-        <div className="flex justify-between items-center mb-6">
+      <div className="container mx-auto p-4 sm:p-6 max-w-7xl">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
           <div className="flex items-center gap-3">
             <Button variant="outline" size="sm" onClick={() => router.back()}>
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">All Documents</h1>
-              <p className="text-gray-600 mt-1">Manage and view your documents</p>
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900">All Documents</h1>
+              <p className="text-gray-600 mt-1 text-sm sm:text-base">Manage and view your documents</p>
             </div>
           </div>
           {(userRole === 'ADMIN' || userRole === 'MANAGER' || userRole === 'USER') && (
-            <Button onClick={() => router.push('/editor')}>
+            <Button onClick={() => router.push('/editor')} className="w-full sm:w-auto">
               <Plus className="h-4 w-4 mr-2" />
-              New Document
+              {isMobile ? 'New' : 'New Document'}
             </Button>
           )}
         </div>
 
         <Card className="mb-6">
           <CardContent className="p-4">
-            <div className="flex flex-wrap gap-4 items-center">
-              <div className="flex-1 min-w-64">
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="flex-1">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                   <Input
@@ -176,35 +178,37 @@ export default function DocumentsPage() {
                 </div>
               </div>
               
-              <Select value={filterType} onValueChange={setFilterType}>
-                <SelectTrigger className="w-40">
-                  <SelectValue placeholder="Filter by type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Types</SelectItem>
-                  <SelectItem value="text">Text</SelectItem>
-                  <SelectItem value="pdf">PDF</SelectItem>
-                  <SelectItem value="table">Table</SelectItem>
-                  <SelectItem value="excel">Excel</SelectItem>
-                  <SelectItem value="image">Image</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="flex gap-2">
+                <Select value={filterType} onValueChange={setFilterType}>
+                  <SelectTrigger className="w-full sm:w-40">
+                    <SelectValue placeholder="Filter by type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Types</SelectItem>
+                    <SelectItem value="text">Text</SelectItem>
+                    <SelectItem value="pdf">PDF</SelectItem>
+                    <SelectItem value="table">Table</SelectItem>
+                    <SelectItem value="excel">Excel</SelectItem>
+                    <SelectItem value="image">Image</SelectItem>
+                  </SelectContent>
+                </Select>
 
-              <div className="flex gap-1">
-                <Button
-                  variant={viewMode === 'grid' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setViewMode('grid')}
-                >
-                  <Grid className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant={viewMode === 'list' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setViewMode('list')}
-                >
-                  <List className="h-4 w-4" />
-                </Button>
+                <div className="flex gap-1">
+                  <Button
+                    variant={viewMode === 'grid' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setViewMode('grid')}
+                  >
+                    <Grid className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant={viewMode === 'list' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setViewMode('list')}
+                  >
+                    <List className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             </div>
           </CardContent>
@@ -229,16 +233,16 @@ export default function DocumentsPage() {
           </Card>
         ) : (
           <div className={viewMode === 'grid' 
-            ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6'
+            ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6'
             : 'space-y-4'
           }>
             {filteredDocuments.map((doc: any) => (
               <Card key={doc.id} className="hover:shadow-md transition-shadow">
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="text-2xl">{getTypeIcon(doc.type)}</span>
-                      <div>
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                      <span className="text-xl sm:text-2xl flex-shrink-0">{getTypeIcon(doc.type)}</span>
+                      <div className="min-w-0 flex-1">
                         <CardTitle className="text-sm font-medium truncate">
                           {doc.title}
                         </CardTitle>
@@ -264,7 +268,7 @@ export default function DocumentsPage() {
                     )}
                   </div>
                   
-                  <div className="flex gap-1 mt-4">
+                  <div className="flex gap-2 mt-4">
                     <Button
                       variant="outline"
                       size="sm"
@@ -279,6 +283,7 @@ export default function DocumentsPage() {
                         variant="outline"
                         size="sm"
                         onClick={() => handleDelete(doc.id)}
+                        className="px-2"
                       >
                         <Trash2 className="h-3 w-3" />
                       </Button>

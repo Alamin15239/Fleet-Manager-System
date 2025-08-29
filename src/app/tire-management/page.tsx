@@ -85,17 +85,17 @@ export default function TireManagementPage() {
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex justify-between items-center">
+    <div className="container mx-auto p-4 sm:p-6 space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Tire Management System</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Tire Management System</h1>
+          <p className="text-muted-foreground text-sm sm:text-base">
             Comprehensive tire distribution and tracking system
           </p>
         </div>
         <div className="flex items-center gap-2">
           {initializationStatus && (
-            <Badge variant={initializationStatus.initialized ? "default" : "secondary"}>
+            <Badge variant={initializationStatus.initialized ? "default" : "secondary"} className="text-xs">
               {initializationStatus.initialized ? `${initializationStatus.count} Vehicles` : "Not Initialized"}
             </Badge>
           )}
@@ -149,26 +149,26 @@ export default function TireManagementPage() {
       )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="form" className="flex items-center gap-2">
+        <TabsList className="grid w-full grid-cols-5 h-auto p-1">
+          <TabsTrigger value="form" className="flex flex-col items-center gap-1 text-xs p-1.5 min-h-[60px]">
             <Plus className="h-4 w-4" />
-            Add Tires
+            <span className="leading-tight">Add</span>
           </TabsTrigger>
-          <TabsTrigger value="inventory" className="flex items-center gap-2">
+          <TabsTrigger value="inventory" className="flex flex-col items-center gap-1 text-xs p-1.5 min-h-[60px]">
             <List className="h-4 w-4" />
-            Inventory
+            <span className="leading-tight">List</span>
           </TabsTrigger>
-          <TabsTrigger value="vehicles" className="flex items-center gap-2">
+          <TabsTrigger value="vehicles" className="flex flex-col items-center gap-1 text-xs p-1.5 min-h-[60px]">
             <Truck className="h-4 w-4" />
-            Vehicles
+            <span className="leading-tight">Cars</span>
           </TabsTrigger>
-          <TabsTrigger value="analytics" className="flex items-center gap-2">
+          <TabsTrigger value="analytics" className="flex flex-col items-center gap-1 text-xs p-1.5 min-h-[60px]">
             <BarChart3 className="h-4 w-4" />
-            Analytics
+            <span className="leading-tight">Stats</span>
           </TabsTrigger>
-          <TabsTrigger value="reports" className="flex items-center gap-2">
+          <TabsTrigger value="reports" className="flex flex-col items-center gap-1 text-xs p-1.5 min-h-[60px]">
             <FileText className="h-4 w-4" />
-            Reports
+            <span className="leading-tight">Reports</span>
           </TabsTrigger>
         </TabsList>
 

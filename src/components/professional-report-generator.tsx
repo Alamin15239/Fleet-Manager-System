@@ -514,16 +514,16 @@ RECOMMENDATIONS
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex justify-between items-center">
+    <div className="container mx-auto p-4 sm:p-6 space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Report Generator</h1>
-          <p className="text-muted-foreground">Generate professional tire management reports</p>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Report Generator</h1>
+          <p className="text-muted-foreground text-sm">Generate professional tire management reports</p>
         </div>
         <Button variant="outline" onClick={() => {
           console.log('Reset button clicked')
           resetFilters()
-        }}>
+        }} size="sm">
           <RefreshCw className="mr-2 h-4 w-4" />
           Reset
         </Button>
@@ -563,11 +563,11 @@ RECOMMENDATIONS
                 </div>
               )}
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
               {reportTemplates.map((template) => (
                 <div
                   key={template.id}
-                  className={`p-4 border rounded-lg cursor-pointer transition-all duration-200 transform hover:scale-105 ${
+                  className={`p-3 sm:p-4 border rounded-lg cursor-pointer transition-all duration-200 hover:scale-105 ${
                     reportConfig.template === template.id
                       ? 'border-primary bg-primary/10 shadow-md ring-2 ring-primary/20'
                       : 'border-gray-200 hover:border-gray-300 hover:shadow-md'
@@ -580,16 +580,18 @@ RECOMMENDATIONS
                     setSuccess(`Selected: ${template.name}`)
                   }}
                 >
-                  <div className="flex items-center gap-3 mb-2">
-                    {getTemplateIcon(template.type)}
-                    <div className="flex-1">
-                      <h3 className="font-semibold">{template.name}</h3>
-                      <p className="text-sm text-gray-600">{template.description}</p>
+                  <div className="flex items-start gap-2 sm:gap-3 mb-2">
+                    <div className="flex-shrink-0 mt-1">
+                      {getTemplateIcon(template.type)}
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline">{template.type}</Badge>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold text-sm sm:text-base truncate">{template.name}</h3>
+                      <p className="text-xs sm:text-sm text-gray-600 line-clamp-2">{template.description}</p>
+                    </div>
+                    <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                      <Badge variant="outline" className="text-xs">{template.type}</Badge>
                       {reportConfig.template === template.id && (
-                        <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+                        <div className="w-2 h-2 sm:w-3 sm:h-3 bg-green-500 rounded-full animate-pulse"></div>
                       )}
                     </div>
                   </div>
@@ -599,9 +601,9 @@ RECOMMENDATIONS
           </div>
 
           {/* Date Range */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Start Date</Label>
+              <Label className="text-sm">Start Date</Label>
               <Input
                 type="date"
                 value={reportConfig.dateRange.start}
@@ -612,7 +614,7 @@ RECOMMENDATIONS
               />
             </div>
             <div className="space-y-2">
-              <Label>End Date</Label>
+              <Label className="text-sm">End Date</Label>
               <Input
                 type="date"
                 value={reportConfig.dateRange.end}
@@ -630,9 +632,9 @@ RECOMMENDATIONS
               <Filter className="h-4 w-4" />
               Filters (Optional)
             </Label>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="space-y-2">
-                <Label>Manufacturer</Label>
+                <Label className="text-sm">Manufacturer</Label>
                 <Select value={reportConfig.filters.manufacturer || ''} onValueChange={(value) => 
                   setReportConfig({
                     ...reportConfig,
@@ -652,7 +654,7 @@ RECOMMENDATIONS
               </div>
 
               <div className="space-y-2">
-                <Label>Origin</Label>
+                <Label className="text-sm">Origin</Label>
                 <Select value={reportConfig.filters.origin || ''} onValueChange={(value) => 
                   setReportConfig({
                     ...reportConfig,
@@ -672,7 +674,7 @@ RECOMMENDATIONS
               </div>
 
               <div className="space-y-2">
-                <Label>Plate Number</Label>
+                <Label className="text-sm">Plate Number</Label>
                 <Select value={reportConfig.filters.plateNumber || ''} onValueChange={(value) => 
                   setReportConfig({
                     ...reportConfig,
@@ -692,7 +694,7 @@ RECOMMENDATIONS
               </div>
 
               <div className="space-y-2">
-                <Label>Driver Name</Label>
+                <Label className="text-sm">Driver Name</Label>
                 <Select value={reportConfig.filters.driverName || ''} onValueChange={(value) => 
                   setReportConfig({
                     ...reportConfig,
@@ -714,9 +716,9 @@ RECOMMENDATIONS
           </div>
 
           {/* Output Options */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
             <div className="space-y-3">
-              <Label>Include Charts</Label>
+              <Label className="text-sm">Include Charts</Label>
               <div className="flex items-center space-x-2">
                 <input
                   type="checkbox"
@@ -725,12 +727,12 @@ RECOMMENDATIONS
                   onChange={(e) => setReportConfig({ ...reportConfig, includeCharts: e.target.checked })}
                   className="rounded"
                 />
-                <Label htmlFor="includeCharts">Include charts and graphs in report</Label>
+                <Label htmlFor="includeCharts" className="text-sm">Include charts and graphs in report</Label>
               </div>
             </div>
 
             <div className="space-y-3">
-              <Label>Output Format</Label>
+              <Label className="text-sm">Output Format</Label>
               <Select value={reportConfig.format} onValueChange={(value: any) => 
                 setReportConfig({ ...reportConfig, format: value })
               }>
@@ -746,7 +748,7 @@ RECOMMENDATIONS
             </div>
           </div>
 
-          <div className="flex justify-end space-x-2">
+          <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-2">
             <Button 
               variant="outline" 
               onClick={() => {
@@ -755,6 +757,7 @@ RECOMMENDATIONS
                 setShowPreview(true)
               }}
               disabled={!reportData}
+              className="w-full sm:w-auto"
             >
               <Eye className="mr-2 h-4 w-4" />
               Preview
@@ -766,16 +769,19 @@ RECOMMENDATIONS
                 generateReport()
               }}
               disabled={generating || !reportConfig.template}
+              className="w-full sm:w-auto"
             >
               {generating ? (
                 <>
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  Generating...
+                  <span className="hidden sm:inline">Generating...</span>
+                  <span className="sm:hidden">Generating</span>
                 </>
               ) : (
                 <>
                   <FileText className="mr-2 h-4 w-4" />
-                  Generate Report
+                  <span className="hidden sm:inline">Generate Report</span>
+                  <span className="sm:hidden">Generate</span>
                 </>
               )}
             </Button>
@@ -785,10 +791,10 @@ RECOMMENDATIONS
 
       {/* Report Preview Dialog */}
       <Dialog open={showPreview} onOpenChange={setShowPreview}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto mx-4 sm:mx-auto">
           <DialogHeader>
-            <DialogTitle>Report Preview</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-lg">Report Preview</DialogTitle>
+            <DialogDescription className="text-sm">
               Preview of your generated report
             </DialogDescription>
           </DialogHeader>
@@ -814,11 +820,11 @@ RECOMMENDATIONS
                 <div className="space-y-6">
                   {/* Report Header */}
                   <div className="text-center space-y-2 border-b pb-4">
-                    <h1 className="text-2xl font-bold">TIRE MANAGEMENT REPORT</h1>
-                    <p className="text-gray-600">
+                    <h1 className="text-xl sm:text-2xl font-bold">TIRE MANAGEMENT REPORT</h1>
+                    <p className="text-gray-600 text-sm sm:text-base">
                       {reportTemplates.find(t => t.id === reportConfig.template)?.name}
                     </p>
-                    <p className="text-sm text-gray-500">
+                    <p className="text-xs sm:text-sm text-gray-500">
                       {reportConfig.dateRange.start} to {reportConfig.dateRange.end}
                     </p>
                   </div>
@@ -826,31 +832,31 @@ RECOMMENDATIONS
                   {/* Executive Summary */}
                   {reportData.summary && (
                     <div className="space-y-4">
-                      <h2 className="text-xl font-semibold">Executive Summary</h2>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div className="text-center p-4 bg-gray-50 rounded-lg">
-                          <div className="text-2xl font-bold text-blue-600">
+                      <h2 className="text-lg sm:text-xl font-semibold">Executive Summary</h2>
+                      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                        <div className="text-center p-3 sm:p-4 bg-gray-50 rounded-lg">
+                          <div className="text-lg sm:text-2xl font-bold text-blue-600">
                             {reportData.summary.totalTires || 0}
                           </div>
-                          <div className="text-sm text-gray-600">Total Tires</div>
+                          <div className="text-xs sm:text-sm text-gray-600">Total Tires</div>
                         </div>
-                        <div className="text-center p-4 bg-gray-50 rounded-lg">
-                          <div className="text-2xl font-bold text-green-600">
+                        <div className="text-center p-3 sm:p-4 bg-gray-50 rounded-lg">
+                          <div className="text-lg sm:text-2xl font-bold text-green-600">
                             {reportData.summary.totalVehicles || 0}
                           </div>
-                          <div className="text-sm text-gray-600">Vehicles</div>
+                          <div className="text-xs sm:text-sm text-gray-600">Vehicles</div>
                         </div>
-                        <div className="text-center p-4 bg-gray-50 rounded-lg">
-                          <div className="text-2xl font-bold text-purple-600">
+                        <div className="text-center p-3 sm:p-4 bg-gray-50 rounded-lg">
+                          <div className="text-lg sm:text-2xl font-bold text-purple-600">
                             {reportData.summary.totalDrivers || 0}
                           </div>
-                          <div className="text-sm text-gray-600">Drivers</div>
+                          <div className="text-xs sm:text-sm text-gray-600">Drivers</div>
                         </div>
-                        <div className="text-center p-4 bg-gray-50 rounded-lg">
-                          <div className="text-2xl font-bold text-orange-600">
+                        <div className="text-center p-3 sm:p-4 bg-gray-50 rounded-lg">
+                          <div className="text-lg sm:text-2xl font-bold text-orange-600">
                             {reportData.summary.averageTiresPerVehicle || 0}
                           </div>
-                          <div className="text-sm text-gray-600">Avg Tires/Vehicle</div>
+                          <div className="text-xs sm:text-sm text-gray-600">Avg Tires/Vehicle</div>
                         </div>
                       </div>
                     </div>
@@ -859,8 +865,8 @@ RECOMMENDATIONS
                   {/* Detailed Data */}
                   {reportData.tires && reportData.tires.length > 0 && (
                     <div className="space-y-4">
-                      <h2 className="text-xl font-semibold">Detailed Tire Inventory</h2>
-                      <div className="border rounded-lg overflow-hidden">
+                      <h2 className="text-lg sm:text-xl font-semibold">Detailed Tire Inventory</h2>
+                      <div className="border rounded-lg overflow-x-auto">
                         <Table>
                           <TableHeader>
                             <TableRow>
@@ -920,9 +926,9 @@ RECOMMENDATIONS
 
                   {/* Recommendations */}
                   <div className="space-y-4">
-                    <h2 className="text-xl font-semibold">Recommendations</h2>
-                    <div className="bg-blue-50 p-4 rounded-lg">
-                      <ul className="space-y-2 text-sm">
+                    <h2 className="text-lg sm:text-xl font-semibold">Recommendations</h2>
+                    <div className="bg-blue-50 p-3 sm:p-4 rounded-lg">
+                      <ul className="space-y-2 text-xs sm:text-sm">
                         <li>• Implement regular tire maintenance schedule</li>
                         <li>• Monitor tire wear patterns and replace proactively</li>
                         <li>• Maintain detailed records for warranty claims</li>
@@ -936,12 +942,12 @@ RECOMMENDATIONS
             </>
           )}
 
-          <div className="flex justify-end space-x-2 pt-4 border-t">
-            <Button variant="outline" onClick={() => setShowPreview(false)}>
+          <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-2 pt-4 border-t">
+            <Button variant="outline" onClick={() => setShowPreview(false)} className="w-full sm:w-auto">
               <X className="mr-2 h-4 w-4" />
               Close
             </Button>
-            <Button onClick={downloadReport} disabled={reportData?.isEmpty}>
+            <Button onClick={downloadReport} disabled={reportData?.isEmpty} className="w-full sm:w-auto">
               <Download className="mr-2 h-4 w-4" />
               Download Report
             </Button>

@@ -127,11 +127,11 @@ export function Navigation({ userRole = 'USER' }: NavigationProps) {
   if (isLoading) {
     return (
       <nav className={cn(
-        'flex flex-col bg-white border-r border-gray-200 min-h-screen transition-all duration-300',
+        'flex flex-col bg-sidebar border-r border-sidebar-border min-h-screen transition-all duration-300',
         isSidebarOpen ? 'w-64' : 'w-16'
       )}>
         <div className="flex-1 flex items-center justify-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-sidebar-foreground"></div>
         </div>
       </nav>
     )
@@ -139,15 +139,15 @@ export function Navigation({ userRole = 'USER' }: NavigationProps) {
 
   return (
     <nav className={cn(
-      'flex flex-col bg-white border-r border-gray-200 min-h-screen transition-all duration-300',
+      'flex flex-col bg-sidebar border-r border-sidebar-border min-h-screen transition-all duration-300',
       isSidebarOpen ? 'w-64' : 'w-16'
     )}>
       <div className={cn(
-        'flex items-center border-b border-gray-200',
+        'flex items-center border-b border-sidebar-border',
         isSidebarOpen ? 'px-6 py-4 justify-between' : 'px-4 py-4 justify-center'
       )}>
         {isSidebarOpen && (
-          <h1 className="text-xl font-bold text-gray-900">Fleet Manager</h1>
+          <h1 className="text-xl font-bold text-sidebar-foreground">Fleet Manager</h1>
         )}
         <Button
           variant="ghost"
@@ -176,7 +176,7 @@ export function Navigation({ userRole = 'USER' }: NavigationProps) {
                   key={item.name}
                   className={cn(
                     'flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors cursor-not-allowed',
-                    'text-gray-400 bg-gray-50',
+                    'text-muted-foreground bg-muted/50',
                     !isSidebarOpen && 'justify-center'
                   )}
                   title={!isSidebarOpen ? `${item.name} (Access Denied)` : undefined}
@@ -202,8 +202,8 @@ export function Navigation({ userRole = 'USER' }: NavigationProps) {
                 className={cn(
                   'flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors',
                   isActive
-                    ? 'bg-gray-100 text-gray-900'
-                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900',
+                    ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+                    : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground',
                   !isSidebarOpen && 'justify-center'
                 )}
                 title={!isSidebarOpen ? item.name : undefined}
@@ -220,14 +220,14 @@ export function Navigation({ userRole = 'USER' }: NavigationProps) {
       </div>
       
       {/* User Info */}
-      <div className="px-3 py-4 border-t border-gray-200">
+      <div className="px-3 py-4 border-t border-sidebar-border">
         {isSidebarOpen ? (
           <>
             <div className="mb-3 px-3">
-              <p className="text-sm font-medium text-gray-900 truncate">
+              <p className="text-sm font-medium text-sidebar-foreground truncate">
                 {user?.name || user?.email || 'User'}
               </p>
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-sidebar-foreground/70">
                 {user?.role || 'USER'}
               </p>
             </div>

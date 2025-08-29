@@ -484,33 +484,34 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex justify-between items-center">
+    <div className="container mx-auto p-3 sm:p-6 space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
-          <p className="text-muted-foreground">Configure your fleet management system</p>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Settings</h1>
+          <p className="text-muted-foreground text-sm sm:text-base">Configure your fleet management system</p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={handleReset} disabled={!hasChanges}>
+        <div className="flex gap-2 w-full sm:w-auto">
+          <Button variant="outline" onClick={handleReset} disabled={!hasChanges} className="flex-1 sm:flex-none">
             <RefreshCw className="h-4 w-4 mr-2" />
-            Reset
+            <span className="hidden sm:inline">Reset</span>
           </Button>
-          <Button onClick={handleSave} disabled={!hasChanges || saving}>
+          <Button onClick={handleSave} disabled={!hasChanges || saving} className="flex-1 sm:flex-none">
             <Save className="h-4 w-4 mr-2" />
-            {saving ? 'Saving...' : 'Save Changes'}
+            <span className="hidden sm:inline">{saving ? 'Saving...' : 'Save Changes'}</span>
+            <span className="sm:hidden">{saving ? 'Save...' : 'Save'}</span>
           </Button>
         </div>
       </div>
 
       <Tabs defaultValue="company" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-7">
-          <TabsTrigger value="company">Company</TabsTrigger>
-          <TabsTrigger value="currency">Currency</TabsTrigger>
-          <TabsTrigger value="maintenance">Maintenance</TabsTrigger>
-          <TabsTrigger value="notifications">Notifications</TabsTrigger>
-          <TabsTrigger value="system">System Status</TabsTrigger>
-          {isAdmin && <TabsTrigger value="roles">Roles</TabsTrigger>}
-          {isAdmin && <TabsTrigger value="activity">User Activity</TabsTrigger>}
+        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-1">
+          <TabsTrigger value="company" className="text-xs sm:text-sm">Company</TabsTrigger>
+          <TabsTrigger value="currency" className="text-xs sm:text-sm">Currency</TabsTrigger>
+          <TabsTrigger value="maintenance" className="text-xs sm:text-sm">Maintenance</TabsTrigger>
+          <TabsTrigger value="notifications" className="text-xs sm:text-sm">Notifications</TabsTrigger>
+          <TabsTrigger value="system" className="text-xs sm:text-sm">System</TabsTrigger>
+          {isAdmin && <TabsTrigger value="roles" className="text-xs sm:text-sm">Roles</TabsTrigger>}
+          {isAdmin && <TabsTrigger value="activity" className="text-xs sm:text-sm">Activity</TabsTrigger>}
         </TabsList>
 
         {/* Company Settings */}
@@ -526,7 +527,7 @@ export default function SettingsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="companyName">Company Name</Label>
                   <Input
@@ -601,7 +602,7 @@ export default function SettingsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                 <div className="space-y-2">
                   <Label htmlFor="currencySymbol">Currency Symbol</Label>
                   <Input
@@ -716,7 +717,7 @@ export default function SettingsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                 <div className="space-y-2">
                   <Label htmlFor="oilChange">Oil Change Interval</Label>
                   <Input
@@ -890,7 +891,7 @@ export default function SettingsPage() {
               </CardHeader>
               <CardContent className="space-y-6">
                 {/* Role Overview */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {Object.entries(roleDefinitions).map(([roleKey, role]) => {
                     const IconComponent = role.icon
                     return (
@@ -926,12 +927,12 @@ export default function SettingsPage() {
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="pt-0">
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                         {Object.entries(roleDefinitions).map(([roleKey, role]) => (
                           <div key={roleKey} className="flex items-center justify-between p-3 border rounded-lg">
                             <div className="flex items-center gap-2">
                               <role.icon className="h-4 w-4" />
-                              <span className="font-medium">{role.name}</span>
+                              <span className="font-medium text-sm">{role.name}</span>
                             </div>
                             <Switch
                               checked={hasPermission(roleKey, 'dashboard')}
