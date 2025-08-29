@@ -32,9 +32,8 @@ export default function ForgotPasswordPage() {
         body: JSON.stringify({ email })
       })
 
-      const data = await response.json()
-
       if (response.ok) {
+        const data = await response.json()
         setSuccess(true)
         toast.success('Password reset link sent to your email!')
         
@@ -43,6 +42,7 @@ export default function ForgotPasswordPage() {
           console.log('Reset link:', data.resetLink)
         }
       } else {
+        const data = await response.json().catch(() => ({}))
         console.error('API Error:', response.status, data)
         setError(data.error || `API Error: ${response.status} - ${response.statusText}`)
       }
