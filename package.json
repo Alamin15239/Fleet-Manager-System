@@ -67,6 +67,7 @@
     "@types/pg": "^8.15.5",
     "@types/puppeteer": "^5.4.7",
     "@types/qrcode": "^1.5.5",
+    "@vercel/analytics": "^1.5.0",
     "axios": "^1.10.0",
     "bcryptjs": "^3.0.2",
     "class-variance-authority": "^0.7.1",
