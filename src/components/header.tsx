@@ -20,6 +20,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { getProfileImageUrl, handleImageError } from '@/lib/image-utils'
 
 interface Notification {
   id: string
@@ -230,13 +231,12 @@ export function Header() {
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="relative h-9 w-9 rounded-full">
-              <Avatar className="h-9 w-9" key={`avatar-${user?.profileImage}-${Date.now()}`}>
+              <Avatar className="h-9 w-9">
                 <AvatarImage 
-                  src={user?.profileImage || ''} 
+                  src={getProfileImageUrl(user?.profileImage)} 
                   alt={user?.name || 'User'}
-                  onError={(e) => {
-                    console.log('Header avatar failed to load:', user?.profileImage)
-                  }}
+                  className="object-cover"
+                  onError={handleImageError}
                 />
                 <AvatarFallback>
                   {user?.name?.charAt(0).toUpperCase() || 'U'}
