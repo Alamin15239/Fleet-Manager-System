@@ -38,6 +38,7 @@ export default function ProfilePage() {
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
+  const [imageLoading, setImageLoading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [formData, setFormData] = useState({
     name: '',
@@ -164,9 +165,14 @@ export default function ProfilePage() {
 
         if (updateResponse.ok) {
           const updateData = await updateResponse.json()
+          // Update profile state immediately
           setProfile(updateData.user)
           // Refresh user data in auth context to update header avatar
           await refreshUser()
+          // Force a small delay to ensure state updates are processed
+          setTimeout(() => {
+            setImageLoading(false)
+          }, 100)
           toast({
             title: 'Success',
             description: 'Profile image updated successfully'
@@ -247,17 +253,33 @@ export default function ProfilePage() {
             <CardDescription>Your profile photo</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col items-center space-y-4">
-            <Avatar className="h-32 w-32">
-              <AvatarImage 
-                src={getProfileImageUrl(profile.profileImage)} 
-                alt={profile.name || 'User'}
-                className="object-cover"
-                onError={handleImageError}
-              />
-              <AvatarFallback className="text-2xl">
-                {profile.name?.charAt(0).toUpperCase() || 'U'}
-              </AvatarFallback>
-            </Avatar>
+            <div className="relative">
+              <Avatar className="h-32 w-32" key={profile.profileImage || 'no-image'}>
+                <AvatarImage 
+                  src={getProfileImageUrl(profile.profileImage)} 
+                  alt={profile.name || 'User'}
+                  className="object-cover"
+                  onError={handleImageError}
+                  onLoad={() => setImageLoading(false)}
+                  onLoadStart={() => setImageLoading(true)}
+                />
+                <AvatarFallback className="text-2xl">
+                  {imageLoading ? (
+                    <Loader2 className="h-8 w-8 animate-spin" />
+                  ) : (
+                    profile.name?.charAt(0).toUpperCase() || 'U'
+                  )}
+                </AvatarFallback>
+              </Avatar>
+            </div>
+            {/* Debug info - remove in production */}
+            {process.env.NODE_ENV === 'development' && (
+              <div className="text-xs text-muted-foreground mt-2 p-2 bg-gray-100 rounded">
+                <p>Profile Image: {profile.profileImage ? 'Present' : 'None'}</p>
+                <p>URL: {getProfileImageUrl(profile.profileImage)}</p>
+                <p>Type: {profile.profileImage?.startsWith('data:') ? 'Base64' : 'URL'}</p>
+              </div>
+            )}
             <input
               ref={fileInputRef}
               type="file"

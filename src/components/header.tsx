@@ -231,7 +231,7 @@ export function Header() {
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="relative h-9 w-9 rounded-full">
-              <Avatar className="h-9 w-9">
+              <Avatar className="h-9 w-9" key={user?.profileImage || 'no-image'}>
                 <AvatarImage 
                   src={getProfileImageUrl(user?.profileImage)} 
                   alt={user?.name || 'User'}
