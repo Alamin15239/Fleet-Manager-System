@@ -51,20 +51,20 @@ export async function GET(
             email: true
           }
         },
-        predictiveAlert: {
-          select: {
-            id: true,
-            alertType: true,
-            title: true,
-            description: true,
-            severity: true,
-            confidence: true,
-            predictedFailureDate: true,
-            recommendedAction: true,
-            costImpact: true,
-            probability: true
-          }
-        }
+        // predictiveAlert: {
+        //   select: {
+        //     id: true,
+        //     alertType: true,
+        //     title: true,
+        //     description: true,
+        //     severity: true,
+        //     confidence: true,
+        //     predictedFailureDate: true,
+        //     recommendedAction: true,
+        //     costImpact: true,
+        //     probability: true
+        //   }
+        // }
       }
     })
 
@@ -231,7 +231,7 @@ export async function PUT(
     }
 
     // Resolve predictive alert if this maintenance was predicted
-    if (body.wasPredicted && body.predictionId && !existingRecord.isResolved) {
+    if (body.wasPredicted && body.predictionId) {
       await db.predictiveAlert.update({
         where: { id: body.predictionId },
         data: {
