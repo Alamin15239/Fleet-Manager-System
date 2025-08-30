@@ -38,16 +38,37 @@ export async function GET() {
     const totalEstimatedMB = totalEstimatedKB / 1024
 
     let actualDatabaseSize = null
+    let availableSpace = null
     try {
-      const sizeQuery = await db.$queryRaw`
-        SELECT pg_size_pretty(pg_database_size(current_database())) as size,
-               pg_database_size(current_database()) as size_bytes
-      ` as any[]
+      const [sizeQuery, spaceQuery] = await Promise.all([
+        db.$queryRaw`
+          SELECT pg_size_pretty(pg_database_size(current_database())) as size,
+                 pg_database_size(current_database()) as size_bytes
+        ` as any[],
+        db.$queryRaw`
+          SELECT 
+            pg_size_pretty(pg_tablespace_size('pg_default')) as tablespace_size,
+            pg_tablespace_size('pg_default') as tablespace_bytes,
+            pg_size_pretty(pg_total_relation_size('pg_class')) as total_size
+        ` as any[]
+      ])
       
       if (sizeQuery && sizeQuery[0]) {
+        const usedBytes = parseInt(sizeQuery[0].size_bytes)
+        const diskSpaceBytes = 50 * 1024 * 1024 * 1024 // Assume 50GB disk limit
+        const availableBytes = diskSpaceBytes - usedBytes
+        
         actualDatabaseSize = {
           formatted: sizeQuery[0].size,
-          bytes: parseInt(sizeQuery[0].size_bytes)
+          bytes: usedBytes
+        }
+        
+        availableSpace = {
+          totalGB: Math.round((diskSpaceBytes / (1024 * 1024 * 1024)) * 100) / 100,
+          usedGB: Math.round((usedBytes / (1024 * 1024 * 1024)) * 100) / 100,
+          availableGB: Math.round((availableBytes / (1024 * 1024 * 1024)) * 100) / 100,
+          availableKB: Math.round(availableBytes / 1024),
+          usagePercent: Math.round((usedBytes / diskSpaceBytes) * 100)
         }
       }
     } catch (error) {
@@ -74,7 +95,8 @@ export async function GET() {
             totalMB: Math.round(totalEstimatedMB * 100) / 100,
             breakdown: estimatedStorage
           },
-          actual: actualDatabaseSize
+          actual: actualDatabaseSize,
+          available: availableSpace
         },
         timestamp: new Date().toISOString()
       }
