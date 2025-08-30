@@ -15,10 +15,13 @@ import AdvancedPDFEditor from '@/components/AdvancedPDFEditor';
 import { Save, FileText, Table, FileSpreadsheet, Upload, List } from 'lucide-react';
 import { toast } from 'sonner';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useAuth } from '@/contexts/auth-context';
+import { TruckLoader } from '@/components/ui/truck-loader';
 
 export default function EditorPage() {
   const router = useRouter();
   const isMobile = useIsMobile();
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const [title, setTitle] = useState('');
   const [documentType, setDocumentType] = useState<'text' | 'table' | 'excel' | 'pdf'>('text');
   const [orientation, setOrientation] = useState<'portrait' | 'landscape'>('portrait');
@@ -29,40 +32,14 @@ export default function EditorPage() {
 
   const [documents, setDocuments] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [userRole, setUserRole] = useState<string>('');
 
-  // Check authentication and role
+
+
   useEffect(() => {
-    checkAuth();
-  }, [router]);
-
-  const checkAuth = async () => {
-    try {
-      const token = localStorage.getItem('authToken');
-      if (!token) {
-        router.push('/login');
-        return;
-      }
-      
-      const response = await fetch('/api/auth/me', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      
-      if (response.ok) {
-        const user = await response.json();
-        setUserRole(user.role);
-        localStorage.setItem('userId', user.id);
-      } else {
-        router.push('/login');
-      }
-    } catch (error) {
-      router.push('/login');
+    if (isAuthenticated) {
+      fetchDocuments();
     }
-  };
-
-  useEffect(() => {
-    fetchDocuments();
-  }, []);
+  }, [isAuthenticated]);
 
   const fetchDocuments = async () => {
     try {
@@ -215,6 +192,19 @@ export default function EditorPage() {
     }
   };
 
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50/30 flex items-center justify-center">
+        <TruckLoader size="lg" />
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    router.push('/login');
+    return null;
+  }
+
   return (
     <div className="min-h-screen bg-gray-50/30">
       <div className="container mx-auto p-4 sm:p-6 max-w-7xl">
@@ -353,7 +343,7 @@ export default function EditorPage() {
                     <Save className="h-4 w-4 mr-2" />
                     {isLoading ? 'Saving...' : (isMobile ? 'Save' : 'Save Document')}
                   </Button>
-                  {(userRole === 'ADMIN' || userRole === 'MANAGER') && (
+                  {(user?.role === 'ADMIN' || user?.role === 'MANAGER') && (
                     <Button variant="outline" onClick={() => document.getElementById('file-upload')?.click()} className="h-10 w-full sm:w-auto">
                       <Upload className="h-4 w-4 mr-2" />
                       {isMobile ? 'Upload' : 'Upload File'}

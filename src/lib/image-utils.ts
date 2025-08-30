@@ -1,9 +1,8 @@
 export const getProfileImageUrl = (profileImage: string | null | undefined): string => {
   if (!profileImage) return ''
   
-  // If it's a base64 data URL, validate and return
+  // If it's a base64 data URL, return as is (no cache busting needed)
   if (profileImage.startsWith('data:')) {
-    // Basic validation for data URL format
     if (profileImage.includes('base64,')) {
       return profileImage
     }
