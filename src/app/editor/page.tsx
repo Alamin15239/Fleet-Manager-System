@@ -28,7 +28,7 @@ export default function EditorPage() {
   const [editorContent, setEditorContent] = useState(null);
   const [tableData, setTableData] = useState({ rows: [], columns: [] });
   const [excelData, setExcelData] = useState([]);
-  const [pdfData, setPdfData] = useState({ header: '', content: '', footer: '', pageSettings: {} });
+  const [pdfData, setPdfData] = useState({ header: '', content: '', footer: '', pageSettings: { orientation: 'portrait', margin: '20', pageSize: 'A4' } });
 
   const [documents, setDocuments] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -84,7 +84,7 @@ export default function EditorPage() {
       } else if (documentType === 'excel') {
         editorState = excelData;
       } else if (documentType === 'pdf') {
-        editorState = pdfData && Object.keys(pdfData).length > 0 ? pdfData : { header: '', content: '', footer: '', pageSettings: {} };
+        editorState = pdfData;
       }
 
       const payload = {
@@ -125,7 +125,7 @@ export default function EditorPage() {
         setEditorContent('');
         setTableData({ rows: [], columns: [] });
         setExcelData([]);
-        setPdfData({ header: '', content: '', footer: '', pageSettings: {} });
+        setPdfData({ header: '', content: '', footer: '', pageSettings: { orientation: 'portrait', margin: '20', pageSize: 'A4' } });
       } else {
         let errorData;
         try {
