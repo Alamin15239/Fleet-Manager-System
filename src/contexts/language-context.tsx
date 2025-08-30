@@ -214,6 +214,7 @@ const translations = {
     'placeholder.selectStatus': 'Select status',
     
     // Mechanics specific
+    'mechanics.specialtyPlaceholder': 'e.g., Engine Specialist, Electrician',
     'mechanics.addMechanic': 'Add Mechanic',
     'mechanics.editMechanic': 'Edit Mechanic',
     'mechanics.updateMechanic': 'Update Mechanic',
@@ -678,6 +679,7 @@ const translations = {
     'placeholder.selectStatus': 'اختر الحالة',
     
     // Mechanics specific
+    'mechanics.specialtyPlaceholder': 'مثل: متخصص محركات، فني كهرباء',
     'mechanics.addMechanic': 'إضافة ميكانيكي',
     'mechanics.editMechanic': 'تعديل ميكانيكي',
     'mechanics.updateMechanic': 'تحديث ميكانيكي',
