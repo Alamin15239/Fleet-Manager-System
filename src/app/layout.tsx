@@ -22,6 +22,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://www.primeofferonline.shop'),
   title: "Fleet Maintenance Tracker",
   description: "Track and manage your truck fleet maintenance",
   keywords: ["fleet", "maintenance", "trucks", "management"],
