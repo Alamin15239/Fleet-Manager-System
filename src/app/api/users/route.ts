@@ -8,69 +8,21 @@ export async function GET(request: NextRequest) {
   try {
     await requireAdmin(request)
 
-    const { searchParams } = new URL(request.url)
-    const page = parseInt(searchParams.get('page') || '1')
-    const limit = parseInt(searchParams.get('limit') || '10')
-    const search = searchParams.get('search')
-    const role = searchParams.get('role')
-    const isActive = searchParams.get('isActive')
-    const includeInactive = searchParams.get('includeInactive') === 'true'
-
-    const skip = (page - 1) * limit
-
-    const whereClause: any = {
-      isDeleted: false
-    }
-
-    if (search) {
-      whereClause.OR = [
-        { email: { contains: search, mode: 'insensitive' } },
-        { name: { contains: search, mode: 'insensitive' } }
-      ]
-    }
-
-    if (role && role !== 'all') {
-      whereClause.role = role
-    }
-
-    if (isActive !== null && isActive !== 'all') {
-      whereClause.isActive = isActive === 'true'
-    }
-
-    if (!includeInactive) {
-      whereClause.isActive = true
-    }
-
-    const [users, totalCount] = await Promise.all([
-      db.user.findMany({
-        where: whereClause,
-        select: {
-          id: true,
-          email: true,
-          name: true,
-          role: true,
-          isActive: true,
-          isApproved: true,
-          createdAt: true,
-          updatedAt: true
-        },
-        orderBy: { createdAt: 'desc' },
-        skip,
-        take: limit
-      }),
-      db.user.count({ where: whereClause })
-    ])
-
-    return NextResponse.json({
-      success: true,
-      data: users,
-      pagination: {
-        page,
-        limit,
-        total: totalCount,
-        pages: Math.ceil(totalCount / limit)
-      }
+    const users = await db.user.findMany({
+      where: { isDeleted: false },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true
+      },
+      orderBy: { createdAt: 'desc' }
     })
+
+    return NextResponse.json(users)
 
   } catch (error) {
     console.error('Error fetching users:', error)
