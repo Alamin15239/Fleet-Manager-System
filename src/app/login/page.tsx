@@ -12,6 +12,7 @@ import { Truck, Shield, Mail, Lock, Eye, EyeOff, Loader2, Clock } from 'lucide-r
 import { toast } from 'sonner'
 import { useAuth } from '@/contexts/auth-context'
 import { useLanguage } from '@/contexts/language-context'
+import { TruckLoader } from '@/components/ui/truck-loader'
 import Link from 'next/link'
 
 function SearchParamsHandler() {
@@ -189,7 +190,7 @@ export default function LoginPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <TruckLoader size="md" className="mx-auto mb-4" />
           <p className="text-gray-600 dark:text-gray-400">
             {isRedirecting ? 'Redirecting...' : 'Loading...'}
           </p>
@@ -201,7 +202,7 @@ export default function LoginPage() {
   return (
     <Suspense fallback={
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900"></div>
+        <TruckLoader size="lg" className="mx-auto" />
       </div>
     }>
       <SearchParamsHandler />

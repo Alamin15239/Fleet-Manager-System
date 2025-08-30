@@ -27,6 +27,7 @@ import {
 } from 'lucide-react'
 import { useLanguage } from '@/contexts/language-context'
 import { LanguageToggle } from '@/components/language-toggle'
+import { TruckLoader } from '@/components/ui/truck-loader'
 
 const getNavigation = (t: (key: string) => string) => [
   { 
@@ -139,7 +140,7 @@ export function Navigation({ userRole = 'USER' }: NavigationProps) {
         isSidebarOpen ? 'w-64' : 'w-16'
       )}>
         <div className="flex-1 flex items-center justify-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-sidebar-foreground"></div>
+          <TruckLoader size="sm" />
         </div>
       </nav>
     )
