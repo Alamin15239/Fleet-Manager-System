@@ -240,18 +240,7 @@ export default function Dashboard() {
       </div>
 
       {/* Database Storage Monitor */}
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Database className="h-5 w-5" />
-            Database Storage Monitor
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-lg font-bold">Storage: 50 GB Available</div>
-          <div className="text-sm text-muted-foreground">Real-time database monitoring</div>
-        </CardContent>
-      </Card>
+      <DatabaseStorageMonitor />
       
       {/* KPI Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
