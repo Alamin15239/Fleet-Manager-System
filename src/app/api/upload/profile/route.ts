@@ -4,7 +4,15 @@ import { db } from '@/lib/db'
 
 export async function POST(request: NextRequest) {
   try {
-    const user = await requireAuth(request)
+    // Get user ID from token manually
+    const authHeader = request.headers.get('authorization')
+    if (!authHeader) {
+      return NextResponse.json({ error: 'No token provided' }, { status: 401 })
+    }
+    
+    const token = authHeader.substring(7)
+    const decoded = require('jsonwebtoken').verify(token, process.env.JWT_SECRET)
+    const user = { id: decoded.id }
     
     const data = await request.formData()
     const file: File | null = data.get('file') as unknown as File
