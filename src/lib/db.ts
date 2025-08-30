@@ -15,8 +15,8 @@ export const db =
     },
     errorFormat: 'pretty',
     transactionOptions: {
-      timeout: 10000,
-      maxWait: 5000,
+      timeout: 20000,
+      maxWait: 10000,
     },
   })
 

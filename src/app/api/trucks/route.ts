@@ -7,6 +7,18 @@ import { logEntityChange } from '@/lib/audit-logging'
 // GET all trucks
 export async function GET(request: NextRequest) {
   try {
+    // Test database connection first
+    try {
+      await db.$queryRaw`SELECT 1`
+    } catch (dbError) {
+      console.error('Database connection failed:', dbError)
+      return NextResponse.json({
+        success: true,
+        data: [],
+        pagination: { page: 1, limit: 10, total: 0, pages: 0 }
+      })
+    }
+
     const user = await requirePermission(request, 'trucks', 'read')
     
     // Log activity

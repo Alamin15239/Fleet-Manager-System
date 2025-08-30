@@ -5,6 +5,17 @@ import { requireAuth } from '@/lib/auth'
 // GET /api/tires - Get all tires with filtering and pagination
 export async function GET(request: NextRequest) {
   try {
+    // Test database connection first
+    try {
+      await db.$queryRaw`SELECT 1`
+    } catch (dbError) {
+      console.error('Database connection failed:', dbError)
+      return NextResponse.json({
+        tires: [],
+        pagination: { page: 1, limit: 20, total: 0, pages: 0 }
+      })
+    }
+
     const { searchParams } = new URL(request.url)
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '20')

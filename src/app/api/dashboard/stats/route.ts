@@ -3,6 +3,23 @@ import { db } from '@/lib/db'
 
 export async function GET(request: NextRequest) {
   try {
+    // Test database connection first
+    try {
+      await db.$queryRaw`SELECT 1`
+    } catch (dbError) {
+      console.error('Database connection failed:', dbError)
+      return NextResponse.json({
+        totalTrucks: 0,
+        activeTrucks: 0,
+        upcomingMaintenance: 0,
+        overdueRepairs: 0,
+        totalMaintenanceCost: 0,
+        recentTrucks: [],
+        recentMaintenance: [],
+        monthlyMaintenanceData: []
+      })
+    }
+
     // Get total trucks count (only user-created trucks)
     const totalTrucks = await db.truck.count({
       where: { isDeleted: false }

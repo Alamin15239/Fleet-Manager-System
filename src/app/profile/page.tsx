@@ -142,14 +142,25 @@ export default function ProfilePage() {
           description: 'Profile image updated successfully'
         })
       } else {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to upload image')
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+        console.error('Upload error response:', {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorData
+        })
+        throw new Error(errorData.error || `Upload failed with status ${response.status}`)
       }
     } catch (error) {
-      console.error('Error uploading image:', error)
+      console.error('Error uploading image:', {
+        error,
+        message: error instanceof Error ? error.message : 'Unknown error',
+        token: token ? 'Present' : 'Missing',
+        fileSize: file?.size,
+        fileType: file?.type
+      })
       toast({
         title: 'Error',
-        description: 'Failed to upload profile image',
+        description: error instanceof Error ? error.message : 'Failed to upload profile image',
         variant: 'destructive'
       })
     } finally {
