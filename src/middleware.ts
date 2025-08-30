@@ -10,7 +10,7 @@ export function middleware(request: NextRequest) {
     const ip = request.ip || 'anonymous'
     const now = Date.now()
     const windowMs = 15 * 60 * 1000 // 15 minutes
-    const maxRequests = 10
+    const maxRequests = 50 // Increased for production
 
     const key = `${ip}:${request.nextUrl.pathname}`
     const requests = rateLimit.get(key) || []
