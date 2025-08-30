@@ -1,6 +1,7 @@
 'use client'
 
 import React, { createContext, useContext, useEffect, useState } from 'react'
+import { TruckLoader } from '@/components/ui/truck-loader'
 
 interface User {
   id: string
@@ -327,7 +328,7 @@ export function ProtectedRoute({
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900"></div>
+        <TruckLoader size="lg" className="mx-auto" />
       </div>
     )
   }

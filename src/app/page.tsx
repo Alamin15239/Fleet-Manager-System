@@ -13,6 +13,7 @@ import { apiGet } from '@/lib/api'
 import { useAuth } from '@/contexts/auth-context'
 import { useLanguage } from '@/contexts/language-context'
 import { DatabaseStorageMonitor } from '@/components/database-storage-monitor'
+import { TruckLoader } from '@/components/ui/truck-loader'
 
 interface DashboardStats {
   totalTrucks: number
@@ -218,7 +219,7 @@ export default function Dashboard() {
   if (isLoading || loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+        <TruckLoader size="lg" className="mx-auto" />
       </div>
     )
   }
