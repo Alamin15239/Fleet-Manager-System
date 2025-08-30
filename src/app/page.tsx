@@ -11,6 +11,7 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/
 import { Bar, BarChart, Line, LineChart, XAxis, YAxis, CartesianGrid } from 'recharts'
 import { apiGet } from '@/lib/api'
 import { useAuth } from '@/contexts/auth-context'
+import { useLanguage } from '@/contexts/language-context'
 
 interface DashboardStats {
   totalTrucks: number
@@ -46,6 +47,7 @@ interface MaintenanceRecord {
 export default function Dashboard() {
   const router = useRouter()
   const { isAuthenticated, isLoading, user } = useAuth()
+  const { t } = useLanguage()
   const [stats, setStats] = useState<DashboardStats>({
     totalTrucks: 0,
     activeTrucks: 0,
