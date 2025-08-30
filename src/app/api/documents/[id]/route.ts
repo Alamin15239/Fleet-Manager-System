@@ -4,7 +4,9 @@ import { requireAuth } from '@/lib/auth';
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    await requireAuth(request);
     const { id } = await params;
+    
     const document = await db.document.findUnique({
       where: { id },
       include: {
@@ -21,7 +23,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     return NextResponse.json(document);
   } catch (error) {
     console.error('Error fetching document:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    if (error instanceof Error && error.message === 'No token provided') {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+    }
+    return NextResponse.json({ error: 'Failed to fetch document' }, { status: 500 });
   }
 }
 
@@ -51,7 +56,10 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     return NextResponse.json(document);
   } catch (error) {
     console.error('Error updating document:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    if (error instanceof Error && error.message === 'No token provided') {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+    }
+    return NextResponse.json({ error: 'Failed to update document' }, { status: 500 });
   }
 }
 
@@ -67,6 +75,9 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error deleting document:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    if (error instanceof Error && error.message === 'No token provided') {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+    }
+    return NextResponse.json({ error: 'Failed to delete document' }, { status: 500 });
   }
 }
