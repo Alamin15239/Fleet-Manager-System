@@ -10,11 +10,11 @@ import { useSidebar } from '@/contexts/sidebar-context'
 import { 
   Home, 
   Truck, 
-  Wrench2, 
+  Wrench, 
   UserCheck,
-  Settings2,
+  Settings,
   FileText,
-  Users2,
+  Users,
   LogOut,
   ChevronLeft,
   ChevronRight,
@@ -46,7 +46,7 @@ const getNavigation = (t: (key: string) => string) => [
   { 
     name: t('nav.maintenance'), 
     href: '/maintenance', 
-    icon: Wrench2,
+    icon: Wrench,
     resource: 'maintenance',
     action: 'read'
   },
@@ -88,7 +88,7 @@ const getNavigation = (t: (key: string) => string) => [
   { 
     name: t('nav.users'), 
     href: '/users', 
-    icon: Users2,
+    icon: Users,
     resource: 'users',
     action: 'read'
   },
@@ -102,7 +102,7 @@ const getNavigation = (t: (key: string) => string) => [
   { 
     name: t('nav.settings'), 
     href: '/settings', 
-    icon: Settings2,
+    icon: Settings,
     resource: 'settings',
     action: 'read'
   },
