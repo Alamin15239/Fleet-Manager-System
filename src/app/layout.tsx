@@ -26,11 +26,22 @@ export const metadata: Metadata = {
   description: "Track and manage your truck fleet maintenance",
   keywords: ["fleet", "maintenance", "trucks", "management"],
   authors: [{ name: "Fleet Manager Team" }],
+  icons: {
+    icon: '/favicon.ico',
+    shortcut: '/favicon.ico',
+    apple: '/icon-192.svg',
+  },
   openGraph: {
     title: "Fleet Maintenance Tracker",
     description: "Track and manage your truck fleet maintenance",
     siteName: "Fleet Manager",
     type: "website",
+    images: [{
+      url: '/logo.svg',
+      width: 200,
+      height: 120,
+      alt: 'Fleet Manager Logo'
+    }]
   },
 };
 
