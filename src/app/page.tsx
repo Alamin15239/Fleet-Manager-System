@@ -12,6 +12,7 @@ import { Bar, BarChart, Line, LineChart, XAxis, YAxis, CartesianGrid } from 'rec
 import { apiGet } from '@/lib/api'
 import { useAuth } from '@/contexts/auth-context'
 import { useLanguage } from '@/contexts/language-context'
+import { DatabaseStorageMonitor } from '@/components/database-storage-monitor'
 
 interface DashboardStats {
   totalTrucks: number
@@ -239,7 +240,8 @@ export default function Dashboard() {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-6">
+        <DatabaseStorageMonitor />
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">{t('dashboard.totalTrucks')}</CardTitle>
