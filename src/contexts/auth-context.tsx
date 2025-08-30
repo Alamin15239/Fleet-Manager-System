@@ -129,7 +129,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           'Content-Type': 'application/json'
         },
         credentials: 'include',
-        body: JSON.stringify({ email, otp })
+        body: JSON.stringify({ email, otp, isLogin: true })
       })
 
       if (response.status === 429) {
