@@ -24,6 +24,7 @@ import TireInventoryList from '@/components/tire-inventory-list'
 import TireReports from '@/components/tire-reports'
 import VehicleManagement from '@/components/vehicle-management'
 import ProfessionalReportGenerator from '@/components/professional-report-generator'
+import { useLanguage } from '@/contexts/language-context'
 
 interface InitializationStatus {
   initialized: boolean
@@ -36,6 +37,7 @@ interface InitializationStatus {
 }
 
 export default function TireManagementPage() {
+  const { t } = useLanguage()
   const [activeTab, setActiveTab] = useState('form')
   const [initializationStatus, setInitializationStatus] = useState<InitializationStatus | null>(null)
   const [initializing, setInitializing] = useState(false)
@@ -88,9 +90,9 @@ export default function TireManagementPage() {
     <div className="container mx-auto p-4 sm:p-6 space-y-4 sm:space-y-6">
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Tire Management System</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">{t('tires.title')}</h1>
           <p className="text-muted-foreground text-sm sm:text-base">
-            Comprehensive tire distribution and tracking system
+            {t('tires.subtitle')}
           </p>
         </div>
         <div className="flex items-center gap-2">
