@@ -257,10 +257,11 @@ class ResendEmailService {
       console.error('❌ Error sending verification email:', error)
       
       // Fallback to development mode if email fails
+      const fallbackLink = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/verify-email?token=${verificationToken}`
       console.log('\n\n=== 📧 FALLBACK - DEVELOPMENT MODE ===')
       console.log(`📧 Email Verification for ${email}`)
       console.log(`👤 Name: ${name || 'N/A'}`)
-      console.log(`🔗 Verification Link: ${verificationLink}`)
+      console.log(`🔗 Verification Link: ${fallbackLink}`)
       console.log(`❌ Email sending failed, showing link in console`)
       console.log(`=========================================\n\n`)
     }
