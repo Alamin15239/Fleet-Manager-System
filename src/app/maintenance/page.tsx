@@ -18,6 +18,8 @@ import { formatCurrency, type CurrencySettings } from '@/lib/currency'
 import { CurrencyInput } from '@/components/ui/currency-input'
 import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api'
 import { MaintenanceJobSelector } from '@/components/maintenance-job-selector'
+import { useLanguage } from '@/contexts/language-context'
+import { PageHeader } from '@/components/page-header'
 
 interface MaintenanceJob {
   id: string
@@ -80,6 +82,7 @@ interface DashboardStats {
 }
 
 export default function MaintenancePage() {
+  const { t } = useLanguage()
   const [maintenanceRecords, setMaintenanceRecords] = useState<MaintenanceRecord[]>([])
   const [trucks, setTrucks] = useState<Truck[]>([])
   const [mechanics, setMechanics] = useState<Mechanic[]>([])
@@ -398,16 +401,15 @@ export default function MaintenancePage() {
 
   return (
     <div className="container mx-auto p-6 space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Maintenance Tracking</h1>
-          <p className="text-muted-foreground">Track and manage vehicle maintenance records</p>
-        </div>
+      <PageHeader 
+        titleKey="maintenance.title" 
+        subtitleKey="maintenance.subtitle"
+      >
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button onClick={resetForm}>
               <Plus className="h-4 w-4 mr-2" />
-              Add Maintenance
+              {t('maintenance.addRecord')}
             </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-[600px]">
@@ -641,7 +643,7 @@ export default function MaintenancePage() {
             </form>
           </DialogContent>
         </Dialog>
-      </div>
+      </PageHeader>
 
       {/* KPI Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
