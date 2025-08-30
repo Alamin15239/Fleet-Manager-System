@@ -184,10 +184,10 @@ export default function MechanicsPage() {
           <DialogContent className="sm:max-w-[500px]">
             <DialogHeader>
               <DialogTitle>
-                {editingMechanic ? 'Edit Mechanic' : 'Add New Mechanic'}
+                {editingMechanic ? t('mechanics.editMechanic') : t('mechanics.addMechanic')}
               </DialogTitle>
               <DialogDescription>
-                {editingMechanic ? 'Update the mechanic information below.' : 'Enter the mechanic details to add them to the system.'}
+                {editingMechanic ? t('mechanics.updateDetails') : t('mechanics.mechanicDetails')}
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="grid gap-4 py-4">
@@ -238,7 +238,7 @@ export default function MechanicsPage() {
                   value={formData.specialty}
                   onChange={(e) => setFormData({...formData, specialty: e.target.value})}
                   className="col-span-3"
-                  placeholder="e.g., Engine Specialist, Electrician"
+                  placeholder={t('mechanics.specialtyPlaceholder')}
                 />
               </div>
               
@@ -248,7 +248,7 @@ export default function MechanicsPage() {
                 </Label>
                 <Select value={formData.isActive ? 'true' : 'false'} onValueChange={(value) => setFormData({...formData, isActive: value === 'true'})}>
                   <SelectTrigger className="col-span-3">
-                    <SelectValue placeholder="Select status" />
+                    <SelectValue placeholder={t('placeholder.selectStatus')} />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="true">{t('status.active')}</SelectItem>
@@ -269,9 +269,9 @@ export default function MechanicsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Mechanics</CardTitle>
+          <CardTitle>{t('mechanics.title')}</CardTitle>
           <CardDescription>
-            Manage your mechanics and their information
+            {t('mechanics.subtitle')}
           </CardDescription>
         </CardHeader>
         <CardContent>
