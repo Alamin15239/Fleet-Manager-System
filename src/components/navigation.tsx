@@ -8,26 +8,29 @@ import { useAuth } from '@/contexts/auth-context'
 import { usePermissions } from '@/contexts/permissions-context'
 import { useSidebar } from '@/contexts/sidebar-context'
 import { 
-  LayoutDashboard, 
+  Home, 
   Truck, 
-  Wrench, 
-  User,
-  Settings,
+  Wrench2, 
+  UserCheck,
+  Settings2,
   FileText,
-  Users,
+  Users2,
   LogOut,
   ChevronLeft,
   ChevronRight,
   Lock,
-  BarChart3,
-  Package
+  TrendingUp,
+  Zap,
+  User,
+  Shield,
+  Edit3
 } from 'lucide-react'
 
 const navigation = [
   { 
     name: 'Dashboard', 
     href: '/', 
-    icon: LayoutDashboard,
+    icon: Home,
     resource: 'dashboard',
     action: 'read'
   },
@@ -41,28 +44,28 @@ const navigation = [
   { 
     name: 'Maintenance', 
     href: '/maintenance', 
-    icon: Wrench,
+    icon: Wrench2,
     resource: 'maintenance',
     action: 'read'
   },
   { 
     name: 'Mechanics', 
     href: '/mechanics', 
-    icon: User,
+    icon: UserCheck,
     resource: 'mechanics',
     action: 'read'
   },
   { 
     name: 'Tire Management', 
     href: '/tire-management', 
-    icon: Package,
+    icon: Zap,
     resource: 'tire-management',
     action: 'read'
   },
   { 
     name: 'Advanced Analytics', 
     href: '/advanced-analytics', 
-    icon: BarChart3,
+    icon: TrendingUp,
     resource: 'advanced-analytics',
     action: 'read'
   },
@@ -76,14 +79,14 @@ const navigation = [
   { 
     name: 'Document Editor', 
     href: '/editor', 
-    icon: FileText,
+    icon: Edit3,
     resource: 'documents',
     action: 'read'
   },
   { 
     name: 'Users', 
     href: '/users', 
-    icon: Users,
+    icon: Users2,
     resource: 'users',
     action: 'read'
   },
@@ -97,14 +100,14 @@ const navigation = [
   { 
     name: 'Settings', 
     href: '/settings', 
-    icon: Settings,
+    icon: Settings2,
     resource: 'settings',
     action: 'read'
   },
   { 
     name: 'Admin', 
     href: '/admin', 
-    icon: Settings,
+    icon: Shield,
     resource: 'admin',
     action: 'read'
   },

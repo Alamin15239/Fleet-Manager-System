@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Truck, Wrench, AlertTriangle, TrendingUp, Plus } from 'lucide-react'
+import { Truck, Wrench2, AlertTriangle, TrendingUp, Plus, Activity, DollarSign } from 'lucide-react'
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
 import { Bar, BarChart, Line, LineChart, XAxis, YAxis, CartesianGrid } from 'recharts'
 import { apiGet } from '@/lib/api'
@@ -254,7 +254,7 @@ export default function Dashboard() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Upcoming Maintenance</CardTitle>
-            <Wrench className="h-4 w-4 text-muted-foreground" />
+            <Wrench2 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.upcomingMaintenance}</div>
@@ -280,7 +280,7 @@ export default function Dashboard() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Monthly Maintenance Cost</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">${(stats.totalMaintenanceCost / 6).toLocaleString()}</div>
@@ -293,7 +293,7 @@ export default function Dashboard() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Cost (6mo)</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            <Activity className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">${stats.totalMaintenanceCost.toLocaleString()}</div>
@@ -419,7 +419,7 @@ export default function Dashboard() {
                     stats.recentMaintenance.map((record: MaintenanceRecord) => (
                       <div key={record.id} className="flex items-center justify-between p-4 border rounded-lg">
                         <div className="flex items-center space-x-4">
-                          <Wrench className="h-8 w-8 text-muted-foreground" />
+                          <Wrench2 className="h-8 w-8 text-muted-foreground" />
                           <div>
                             <h3 className="font-semibold">{record.serviceType}</h3>
                             <p className="text-sm text-muted-foreground">
