@@ -244,7 +244,7 @@ export default function DocumentsPage() {
                     {doc.createdBy && (
                       <div className="flex items-center gap-1">
                         <User className="h-3 w-3" />
-                        {doc.createdBy.name || doc.createdBy.email}
+                        {doc.createdBy?.name || doc.createdBy?.email || 'Unknown'}
                       </div>
                     )}
                   </div>
