@@ -67,17 +67,11 @@ export default function Dashboard() {
   useEffect(() => {
     if (isLoading) return
     
-    // Redirect to login if not authenticated
-    if (!isAuthenticated) {
-      router.push('/login')
-      return
-    }
-    
-    // Only fetch data if authenticated
     if (isAuthenticated) {
       fetchDashboardData()
     } else {
-      setLoading(false)
+      // Only redirect after auth has finished loading
+      router.push('/login')
     }
   }, [isAuthenticated, isLoading, router])
 
