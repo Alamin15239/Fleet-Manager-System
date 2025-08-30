@@ -63,6 +63,63 @@ const translations = {
     'common.active': 'Active',
     'common.inactive': 'Inactive',
     'common.maintenance': 'Maintenance',
+    
+    // Login/Auth
+    'auth.login': 'Login',
+    'auth.email': 'Email',
+    'auth.password': 'Password',
+    'auth.forgotPassword': 'Forgot Password?',
+    'auth.signIn': 'Sign In',
+    'auth.welcome': 'Welcome Back',
+    'auth.loginSubtitle': 'Sign in to your account to continue',
+    
+    // Trucks
+    'trucks.title': 'Fleet Management',
+    'trucks.subtitle': 'Manage your truck fleet',
+    'trucks.addTruck': 'Add Truck',
+    'trucks.vin': 'VIN',
+    'trucks.make': 'Make',
+    'trucks.model': 'Model',
+    'trucks.year': 'Year',
+    'trucks.licensePlate': 'License Plate',
+    'trucks.mileage': 'Mileage',
+    
+    // Maintenance
+    'maintenance.title': 'Maintenance Records',
+    'maintenance.subtitle': 'Track and manage maintenance activities',
+    'maintenance.addRecord': 'Add Maintenance Record',
+    'maintenance.serviceType': 'Service Type',
+    'maintenance.description': 'Description',
+    'maintenance.datePerformed': 'Date Performed',
+    'maintenance.partsCost': 'Parts Cost',
+    'maintenance.laborCost': 'Labor Cost',
+    'maintenance.totalCost': 'Total Cost',
+    
+    // Settings
+    'settings.title': 'Settings',
+    'settings.subtitle': 'Configure your application preferences',
+    'settings.general': 'General',
+    'settings.notifications': 'Notifications',
+    'settings.maintenance': 'Maintenance',
+    'settings.permissions': 'Permissions',
+    
+    // Profile
+    'profile.title': 'Profile',
+    'profile.subtitle': 'Manage your account information',
+    'profile.name': 'Name',
+    'profile.phone': 'Phone',
+    'profile.department': 'Department',
+    'profile.title': 'Title',
+    'profile.bio': 'Bio',
+    'profile.updateProfile': 'Update Profile',
+    
+    // Users
+    'users.title': 'User Management',
+    'users.subtitle': 'Manage system users and permissions',
+    'users.addUser': 'Add User',
+    'users.role': 'Role',
+    'users.approved': 'Approved',
+    'users.emailVerified': 'Email Verified',
   },
   ar: {
     // Navigation
@@ -116,6 +173,63 @@ const translations = {
     'common.active': 'نشط',
     'common.inactive': 'غير نشط',
     'common.maintenance': 'صيانة',
+    
+    // Login/Auth
+    'auth.login': 'تسجيل الدخول',
+    'auth.email': 'البريد الإلكتروني',
+    'auth.password': 'كلمة المرور',
+    'auth.forgotPassword': 'نسيت كلمة المرور؟',
+    'auth.signIn': 'تسجيل الدخول',
+    'auth.welcome': 'مرحباً بعودتك',
+    'auth.loginSubtitle': 'سجل دخولك إلى حسابك للمتابعة',
+    
+    // Trucks
+    'trucks.title': 'إدارة الأسطول',
+    'trucks.subtitle': 'إدارة أسطول الشاحنات الخاص بك',
+    'trucks.addTruck': 'إضافة شاحنة',
+    'trucks.vin': 'رقم الهيكل',
+    'trucks.make': 'الصانع',
+    'trucks.model': 'الطراز',
+    'trucks.year': 'السنة',
+    'trucks.licensePlate': 'رقم اللوحة',
+    'trucks.mileage': 'المسافة المقطوعة',
+    
+    // Maintenance
+    'maintenance.title': 'سجلات الصيانة',
+    'maintenance.subtitle': 'تتبع وإدارة أنشطة الصيانة',
+    'maintenance.addRecord': 'إضافة سجل صيانة',
+    'maintenance.serviceType': 'نوع الخدمة',
+    'maintenance.description': 'الوصف',
+    'maintenance.datePerformed': 'تاريخ التنفيذ',
+    'maintenance.partsCost': 'تكلفة القطع',
+    'maintenance.laborCost': 'تكلفة العمالة',
+    'maintenance.totalCost': 'التكلفة الإجمالية',
+    
+    // Settings
+    'settings.title': 'الإعدادات',
+    'settings.subtitle': 'تكوين تفضيلات التطبيق الخاص بك',
+    'settings.general': 'عام',
+    'settings.notifications': 'الإشعارات',
+    'settings.maintenance': 'الصيانة',
+    'settings.permissions': 'الصلاحيات',
+    
+    // Profile
+    'profile.title': 'الملف الشخصي',
+    'profile.subtitle': 'إدارة معلومات حسابك',
+    'profile.name': 'الاسم',
+    'profile.phone': 'الهاتف',
+    'profile.department': 'القسم',
+    'profile.title': 'المسمى الوظيفي',
+    'profile.bio': 'النبذة الشخصية',
+    'profile.updateProfile': 'تحديث الملف الشخصي',
+    
+    // Users
+    'users.title': 'إدارة المستخدمين',
+    'users.subtitle': 'إدارة مستخدمي النظام والصلاحيات',
+    'users.addUser': 'إضافة مستخدم',
+    'users.role': 'الدور',
+    'users.approved': 'موافق عليه',
+    'users.emailVerified': 'البريد الإلكتروني مُتحقق منه',
   }
 }
 
