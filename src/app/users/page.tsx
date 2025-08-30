@@ -10,8 +10,8 @@ import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Users, Plus, Edit, Trash2, Shield, UserCheck, UserX } from 'lucide-react'
-import { toast } from 'sonner'
+import { Users, Plus, Edit, Trash2, Shield, UserCheck, UserX, RefreshCw, Bug } from 'lucide-react'
+import { useRealtimeUsers } from '@/hooks/use-realtime-users'
 
 interface User {
   id: string
@@ -32,8 +32,7 @@ interface UserFormData {
 }
 
 export default function UsersPage() {
-  const [users, setUsers] = useState<User[]>([])
-  const [loading, setLoading] = useState(true)
+  const { users, loading, error, deleteUser, createUser, updateUser, refresh } = useRealtimeUsers()
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingUser, setEditingUser] = useState<User | null>(null)
   const [formData, setFormData] = useState<UserFormData>({
@@ -43,12 +42,34 @@ export default function UsersPage() {
     password: '',
     isActive: true
   })
-  const [currentUser, setCurrentUser] = useState<{ role: string } | null>(null)
+  const [currentUser, setCurrentUser] = useState<{ role: string; id: string } | null>(null)
+  const [dbHealth, setDbHealth] = useState<any>(null)
+  const [showDebug, setShowDebug] = useState(false)
 
   useEffect(() => {
-    fetchUsers()
     fetchCurrentUser()
+    checkDbHealth()
   }, [])
+
+  const checkDbHealth = async () => {
+    try {
+      const token = localStorage.getItem('authToken')
+      if (!token) return
+
+      const response = await fetch('/api/admin/db-health', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      if (response.ok) {
+        const health = await response.json()
+        setDbHealth(health)
+      }
+    } catch (error) {
+      console.error('Error checking database health:', error)
+    }
+  }
 
   const fetchCurrentUser = async () => {
     try {
@@ -70,63 +91,18 @@ export default function UsersPage() {
     }
   }
 
-  const fetchUsers = async () => {
-    try {
-      const token = localStorage.getItem('authToken')
-      if (!token) return
 
-      const response = await fetch('/api/users', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        // Check if the response has a data property or if it's directly the array
-        setUsers(Array.isArray(data) ? data : (data.data || []))
-      } else {
-        toast.error('Failed to fetch users')
-      }
-    } catch (error) {
-      console.error('Error fetching users:', error)
-      toast.error('Failed to fetch users')
-    } finally {
-      setLoading(false)
-    }
-  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    try {
-      const token = localStorage.getItem('authToken')
-      if (!token) return
-
-      const url = editingUser ? `/api/users/${editingUser.id}` : '/api/users'
-      const method = editingUser ? 'PUT' : 'POST'
-
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(formData)
-      })
-
-      if (response.ok) {
-        toast.success(editingUser ? 'User updated successfully' : 'User created successfully')
-        setIsDialogOpen(false)
-        resetForm()
-        fetchUsers()
-      } else {
-        const error = await response.json()
-        toast.error(error.error || 'Failed to save user')
-      }
-    } catch (error) {
-      console.error('Error saving user:', error)
-      toast.error('Failed to save user')
+    const success = editingUser 
+      ? await updateUser(editingUser.id, formData)
+      : await createUser(formData)
+    
+    if (success) {
+      setIsDialogOpen(false)
+      resetForm()
     }
   }
 
@@ -142,31 +118,12 @@ export default function UsersPage() {
     setIsDialogOpen(true)
   }
 
-  const handleDelete = async (userId: string) => {
-    if (!confirm('Are you sure you want to delete this user?')) return
-
-    try {
-      const token = localStorage.getItem('authToken')
-      if (!token) return
-
-      const response = await fetch(`/api/users/${userId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      })
-
-      if (response.ok) {
-        toast.success('User deleted successfully')
-        fetchUsers()
-      } else {
-        const error = await response.json()
-        toast.error(error.error || 'Failed to delete user')
-      }
-    } catch (error) {
-      console.error('Error deleting user:', error)
-      toast.error('Failed to delete user')
-    }
+  const handleDelete = async (userId: string, userEmail: string) => {
+    const confirmed = confirm(
+      `Are you sure you want to delete the user "${userEmail}"?\n\nThis action cannot be undone. The user will be soft-deleted and can be restored by an administrator if needed.`
+    )
+    if (!confirmed) return
+    await deleteUser(userId)
   }
 
   const resetForm = () => {
@@ -226,13 +183,29 @@ export default function UsersPage() {
           <h1 className="text-3xl font-bold tracking-tight">User Management</h1>
           <p className="text-muted-foreground">Manage user accounts and permissions</p>
         </div>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={resetForm}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add User
-            </Button>
-          </DialogTrigger>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={refresh}
+            disabled={loading}
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => setShowDebug(!showDebug)}
+            size="sm"
+          >
+            Debug
+          </Button>
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button onClick={resetForm}>
+                <Plus className="h-4 w-4 mr-2" />
+                Add User
+              </Button>
+            </DialogTrigger>
           <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
               <DialogTitle>
@@ -308,13 +281,72 @@ export default function UsersPage() {
             </form>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
+
+      {error && (
+        <Alert className="mb-4">
+          <Shield className="h-4 w-4" />
+          <AlertDescription>
+            Error loading users: {error}
+            <Button variant="link" onClick={refresh} className="ml-2 p-0 h-auto">
+              Try again
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {showDebug && (
+        <Card className="mb-4">
+          <CardHeader>
+            <CardTitle className="text-sm">Debug Information</CardTitle>
+          </CardHeader>
+          <CardContent className="text-sm">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <strong>Frontend Status:</strong>
+                <ul className="mt-1 space-y-1">
+                  <li>Users loaded: {users.length}</li>
+                  <li>Loading: {loading ? 'Yes' : 'No'}</li>
+                  <li>Error: {error || 'None'}</li>
+                  <li>Last refresh: {new Date().toLocaleTimeString()}</li>
+                </ul>
+              </div>
+              <div>
+                <strong>Database Health:</strong>
+                {dbHealth ? (
+                  <ul className="mt-1 space-y-1">
+                    <li>Status: {dbHealth.status}</li>
+                    <li>Response time: {dbHealth.responseTime}</li>
+                    <li>Total users: {dbHealth.data?.totalUsers}</li>
+                    <li>Active users: {dbHealth.data?.activeUsers}</li>
+                    <li>Deleted users: {dbHealth.data?.deletedUsers}</li>
+                  </ul>
+                ) : (
+                  <p className="mt-1">Loading...</p>
+                )}
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={checkDbHealth}
+                  className="mt-2"
+                >
+                  Refresh DB Health
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>
-          <CardTitle>Users</CardTitle>
+          <CardTitle className="flex items-center justify-between">
+            <span>Users ({users.length})</span>
+            {loading && <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-900"></div>}
+          </CardTitle>
           <CardDescription>
-            Manage all user accounts in the system
+            Manage all user accounts in the system - Auto-refreshes every 10 seconds
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -366,8 +398,10 @@ export default function UsersPage() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => handleDelete(user.id)}
+                          onClick={() => handleDelete(user.id, user.email)}
                           disabled={user.id === currentUser?.id}
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          title={user.id === currentUser?.id ? 'Cannot delete your own account' : 'Delete user'}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
