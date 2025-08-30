@@ -242,65 +242,65 @@ export default function Dashboard() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Trucks</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('dashboard.totalTrucks')}</CardTitle>
             <Truck className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.totalTrucks}</div>
             <p className="text-xs text-muted-foreground">
-              {stats.activeTrucks} active vehicles
+              {stats.activeTrucks} {t('dashboard.activeTrucks')}
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Upcoming Maintenance</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('dashboard.upcomingMaintenance')}</CardTitle>
             <Wrench className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.upcomingMaintenance}</div>
             <p className="text-xs text-muted-foreground">
-              Due within 30 days
+              {t('dashboard.dueWithin30Days')}
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Overdue Repairs</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('dashboard.overdueRepairs')}</CardTitle>
             <AlertTriangle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-destructive">{stats.overdueRepairs}</div>
             <p className="text-xs text-muted-foreground">
-              Require immediate attention
+              {t('dashboard.requireAttention')}
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Monthly Maintenance Cost</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('dashboard.monthlyMaintenanceCost')}</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">${(stats.totalMaintenanceCost / 6).toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">
-              Average monthly cost
+              {t('dashboard.averageMonthlyCost')}
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Cost (6mo)</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('dashboard.totalCost6mo')}</CardTitle>
             <Activity className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">${stats.totalMaintenanceCost.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">
-              Last 6 months
+              {t('dashboard.last6Months')}
             </p>
           </CardContent>
         </Card>
@@ -311,8 +311,8 @@ export default function Dashboard() {
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
           <Card className="col-span-4">
             <CardHeader>
-              <CardTitle>Monthly Maintenance Costs</CardTitle>
-              <CardDescription>Cost trends over the last 6 months</CardDescription>
+              <CardTitle>{t('dashboard.monthlyMaintenanceCosts')}</CardTitle>
+              <CardDescription>{t('dashboard.costTrends')}</CardDescription>
             </CardHeader>
             <CardContent className="pl-2">
               <ChartContainer config={{}} className="h-[300px]">
@@ -329,8 +329,8 @@ export default function Dashboard() {
 
           <Card className="col-span-3">
             <CardHeader>
-              <CardTitle>Maintenance Types</CardTitle>
-              <CardDescription>Distribution of service types</CardDescription>
+              <CardTitle>{t('dashboard.maintenanceTypes')}</CardTitle>
+              <CardDescription>{t('dashboard.serviceDistribution')}</CardDescription>
             </CardHeader>
             <CardContent className="pl-2">
               <ChartContainer config={{}} className="h-[300px]">
@@ -349,14 +349,14 @@ export default function Dashboard() {
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <Truck className="h-12 w-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold mb-2">No Data Available</h3>
+            <h3 className="text-lg font-semibold mb-2">{t('dashboard.noDataAvailable')}</h3>
             <p className="text-muted-foreground text-center max-w-md">
               Add trucks and maintenance records to see analytics and charts here. 
               Start by adding your first truck to begin tracking your fleet maintenance.
             </p>
             <Button className="mt-4" onClick={() => router.push('/trucks')}>
               <Plus className="h-4 w-4 mr-2" />
-              Add Your First Truck
+              {t('dashboard.addFirstTruck')}
             </Button>
           </CardContent>
         </Card>
@@ -366,21 +366,21 @@ export default function Dashboard() {
       {stats.totalTrucks > 0 ? (
         <Tabs defaultValue="trucks" className="space-y-4">
           <TabsList>
-            <TabsTrigger value="trucks">Recent Trucks</TabsTrigger>
-            <TabsTrigger value="maintenance">Recent Maintenance</TabsTrigger>
+            <TabsTrigger value="trucks">{t('dashboard.recentTrucks')}</TabsTrigger>
+            <TabsTrigger value="maintenance">{t('dashboard.recentMaintenance')}</TabsTrigger>
           </TabsList>
 
           <TabsContent value="trucks" className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle>Recently Added Trucks</CardTitle>
-                <CardDescription>Latest additions to your fleet</CardDescription>
+                <CardTitle>{t('dashboard.recentlyAddedTrucks')}</CardTitle>
+                <CardDescription>{t('dashboard.latestAdditions')}</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
                   {stats.recentTrucks.length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground">
-                      No trucks found
+                      {t('dashboard.noTrucksFound')}
                     </div>
                   ) : (
                     stats.recentTrucks.map((truck: Truck) => (
@@ -408,14 +408,14 @@ export default function Dashboard() {
           <TabsContent value="maintenance" className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle>Recent Maintenance Records</CardTitle>
-                <CardDescription>Latest service activities</CardDescription>
+                <CardTitle>{t('dashboard.recentMaintenanceRecords')}</CardTitle>
+                <CardDescription>{t('dashboard.latestServiceActivities')}</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
                   {stats.recentMaintenance.length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground">
-                      No maintenance records found
+                      {t('dashboard.noMaintenanceFound')}
                     </div>
                   ) : (
                     stats.recentMaintenance.map((record: MaintenanceRecord) => (
