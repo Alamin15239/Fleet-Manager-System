@@ -129,32 +129,21 @@ export default function ProfilePage() {
       if (response.ok) {
         const data = await response.json()
         
-        // Update user profile with new image URL
-        const updateResponse = await fetch('/api/users/me', {
-          method: 'PUT',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ profileImage: data.url })
-        })
-
-        if (updateResponse.ok) {
-          const updateData = await updateResponse.json()
-          // Update profile state immediately
-          setProfile(updateData.user)
-          // Refresh user data in auth context to update header avatar
-          await refreshUser()
-
-          toast({
-            title: 'Success',
-            description: 'Profile image updated successfully'
-          })
-        } else {
-          throw new Error('Failed to update profile with new image')
+        // Update profile state immediately
+        if (profile) {
+          setProfile({ ...profile, profileImage: data.url })
         }
+        
+        // Refresh user data in auth context to update header avatar
+        await refreshUser()
+
+        toast({
+          title: 'Success',
+          description: 'Profile image updated successfully'
+        })
       } else {
-        throw new Error('Failed to upload image')
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to upload image')
       }
     } catch (error) {
       console.error('Error uploading image:', error)
