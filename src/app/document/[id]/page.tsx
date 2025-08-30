@@ -36,7 +36,12 @@ export default function DocumentViewPage() {
 
   const fetchDocument = async () => {
     try {
-      const response = await fetch(`/api/documents/${params.id}`);
+      const token = localStorage.getItem('authToken');
+      const response = await fetch(`/api/documents/${params.id}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       if (response.ok) {
         const data = await response.json();
         setDocument(data);
@@ -246,8 +251,7 @@ export default function DocumentViewPage() {
       case 'table':
         return (
           <TableEditor 
-            data={document.editorState?.rows || []} 
-            columns={document.editorState?.columns || []}
+            data={document.editorState || { rows: [], columns: [] }}
             editable={false}
           />
         );

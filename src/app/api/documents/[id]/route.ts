@@ -4,7 +4,7 @@ import { requireAuth } from '@/lib/auth';
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    await requireAuth(request);
+    const user = await requireAuth(request);
     const { id } = await params;
     
     const document = await db.document.findUnique({
