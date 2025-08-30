@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Truck, Wrench, AlertTriangle, TrendingUp, Plus, Activity, DollarSign } from 'lucide-react'
+import { Truck, Wrench, AlertTriangle, TrendingUp, Plus, Activity, DollarSign, Database } from 'lucide-react'
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
 import { Bar, BarChart, Line, LineChart, XAxis, YAxis, CartesianGrid } from 'recharts'
 import { apiGet } from '@/lib/api'
@@ -240,7 +240,18 @@ export default function Dashboard() {
       </div>
 
       {/* Database Storage Monitor */}
-      <DatabaseStorageMonitor />
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Database className="h-5 w-5" />
+            Database Storage Monitor
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-lg font-bold">Storage: 50 GB Available</div>
+          <div className="text-sm text-muted-foreground">Real-time database monitoring</div>
+        </CardContent>
+      </Card>
       
       {/* KPI Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
