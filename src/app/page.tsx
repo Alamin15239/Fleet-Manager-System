@@ -239,9 +239,11 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* Database Storage Monitor */}
+      <DatabaseStorageMonitor />
+      
       {/* KPI Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-6">
-        <DatabaseStorageMonitor />
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">{t('dashboard.totalTrucks')}</CardTitle>
