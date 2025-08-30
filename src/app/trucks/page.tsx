@@ -14,6 +14,7 @@ import { toast } from 'sonner'
 import { FileUpload } from '@/components/file-upload'
 import { usePermissions } from '@/contexts/permissions-context'
 import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api'
+import { useLanguage } from '@/contexts/language-context'
 
 interface Truck {
   id: string
@@ -40,6 +41,7 @@ interface DashboardStats {
 
 export default function TrucksPage() {
   const { canAccess, canCreate, canUpdate, canDelete, loading: permissionsLoading } = usePermissions()
+  const { t } = useLanguage()
   const [trucks, setTrucks] = useState<Truck[]>([])
   const [dashboardStats, setDashboardStats] = useState<DashboardStats>({
     totalTrucks: 0,
@@ -380,8 +382,8 @@ export default function TrucksPage() {
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Truck Management</h1>
-          <p className="text-muted-foreground">Manage your fleet of vehicles</p>
+          <h1 className="text-3xl font-bold tracking-tight">{t('trucks.title')}</h1>
+          <p className="text-muted-foreground">{t('trucks.subtitle')}</p>
         </div>
         {canCreate('trucks') && (
           <Dialog open={isDialogOpen} onOpenChange={(open) => {
@@ -393,7 +395,7 @@ export default function TrucksPage() {
             <DialogTrigger asChild>
               <Button onClick={handleAddTruck}>
                 <Plus className="h-4 w-4 mr-2" />
-                Add Truck
+                {t('trucks.addTruck')}
               </Button>
             </DialogTrigger>
           <DialogContent className="sm:max-w-[425px]">

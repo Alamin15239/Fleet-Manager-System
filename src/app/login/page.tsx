@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Truck, Shield, Mail, Lock, Eye, EyeOff, Loader2, Clock } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '@/contexts/auth-context'
+import { useLanguage } from '@/contexts/language-context'
 import Link from 'next/link'
 
 function SearchParamsHandler() {
@@ -39,6 +40,7 @@ export default function LoginPage() {
   const [otpCooldown, setOtpCooldown] = useState(0)
   const [isRedirecting, setIsRedirecting] = useState(false)
   const { login, isAuthenticated, isLoading } = useAuth()
+  const { t } = useLanguage()
   const router = useRouter()
 
   // Redirect if already authenticated
@@ -214,17 +216,17 @@ export default function LoginPage() {
             </div>
           </div>
           <h1 className="mt-6 text-3xl font-bold text-gray-900 dark:text-white">
-            Welcome Back
+            {t('auth.welcome')}
           </h1>
           <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-            Sign in to your account to continue
+            {t('auth.loginSubtitle')}
           </p>
         </div>
 
         {/* Login Card */}
         <Card>
           <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl text-center">Sign In</CardTitle>
+            <CardTitle className="text-2xl text-center">{t('auth.signIn')}</CardTitle>
             <CardDescription className="text-center">
               Choose your preferred login method
             </CardDescription>
@@ -245,7 +247,7 @@ export default function LoginPage() {
                   )}
 
                   <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
+                    <Label htmlFor="email">{t('auth.email')}</Label>
                     <div className="relative">
                       <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                       <Input
@@ -261,7 +263,7 @@ export default function LoginPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="password">Password</Label>
+                    <Label htmlFor="password">{t('auth.password')}</Label>
                     <div className="relative">
                       <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                       <Input
@@ -286,7 +288,7 @@ export default function LoginPage() {
                         href="/forgot-password"
                         className="text-sm text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
                       >
-                        Forgot password?
+                        {t('auth.forgotPassword')}
                       </Link>
                     </div>
                   </div>
@@ -302,7 +304,7 @@ export default function LoginPage() {
                         Signing In...
                       </>
                     ) : (
-                      'Sign In'
+                      t('auth.signIn')
                     )}
                   </Button>
                 </form>
