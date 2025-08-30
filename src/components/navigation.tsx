@@ -81,7 +81,7 @@ const getNavigation = (t: (key: string) => string) => [
   },
   { 
     name: t('nav.documents'), 
-    href: '/editor', 
+    href: '/documents', 
     icon: Edit3,
     resource: 'documents',
     action: 'read'

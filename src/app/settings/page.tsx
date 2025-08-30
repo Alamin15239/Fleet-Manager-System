@@ -856,13 +856,29 @@ export default function SettingsPage() {
                   size="sm"
                   onClick={async () => {
                     try {
-                      const response = await fetch('/api/notifications/check', { method: 'POST' })
+                      const token = localStorage.getItem('authToken')
+                      if (!token) {
+                        toast.error('Authentication required')
+                        return
+                      }
+                      
+                      const response = await fetch('/api/notifications/check', { 
+                        method: 'POST',
+                        headers: {
+                          'Authorization': `Bearer ${token}`,
+                          'Content-Type': 'application/json'
+                        }
+                      })
+                      
                       if (response.ok) {
+                        const data = await response.json()
                         toast.success('Notification check completed! Check your notifications panel.')
                       } else {
-                        toast.error('Failed to run notification check')
+                        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+                        toast.error(`Failed to run notification check: ${errorData.error || 'Unknown error'}`)
                       }
                     } catch (error) {
+                      console.error('Notification check error:', error)
                       toast.error('Failed to run notification check')
                     }
                   }}
