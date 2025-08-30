@@ -37,16 +37,18 @@ export function verifyToken(token: string): JWTPayload | null {
 
 export async function authenticateUser(email: string, password: string) {
   try {
+    // First, check if user exists at all
     const user = await db.user.findUnique({
-      where: { 
-        email,
-        isActive: true, // Only allow login for active users
-        isDeleted: false
-      }
+      where: { email }
     })
 
     if (!user) {
-      throw new Error('Invalid credentials')
+      throw new Error('User not found')
+    }
+
+    // Check if user is deleted
+    if (user.isDeleted) {
+      throw new Error('Account has been deleted')
     }
 
     // Check if user is disabled by admin
