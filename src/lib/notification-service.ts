@@ -359,8 +359,13 @@ export class NotificationService {
    * Run all notification checks (to be called by cron job or scheduler)
    */
   static async runNotificationChecks(): Promise<void> {
-    console.log('Running notification checks...')
-    await this.checkMaintenanceNotifications()
-    console.log('Notification checks completed')
+    try {
+      console.log('Running notification checks...')
+      await this.checkMaintenanceNotifications()
+      console.log('Notification checks completed')
+    } catch (error) {
+      console.error('Error in runNotificationChecks:', error)
+      throw error
+    }
   }
 }
