@@ -4,9 +4,9 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  // Keep server for API routes
-  // output: 'export',
-  // trailingSlash: true,
+  // Static export for Cloudflare Pages
+  output: 'export',
+  trailingSlash: true,
   outputFileTracingExcludes: {
     '*': [
       'node_modules/@swc/core-linux-x64-gnu',
