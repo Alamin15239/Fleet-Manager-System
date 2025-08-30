@@ -153,7 +153,7 @@ async function generateUserSummaryReport(userIds?: string[], startDate?: Date, e
       const loginWhere: any = { userId: user.id };
       
       if (startDate || endDate) {
-        const dateFilter = {};
+        const dateFilter: any = {};
         if (startDate) dateFilter.gte = startDate;
         if (endDate) dateFilter.lte = endDate;
         activityWhere.createdAt = dateFilter;

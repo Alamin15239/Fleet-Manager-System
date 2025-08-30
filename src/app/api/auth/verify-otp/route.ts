@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
         role: result.user.role,
         isActive: result.user.isActive,
         isApproved: result.user.isApproved,
-        isEmailVerified: result.user.isEmailVerified
+        // isEmailVerified: result.user.isEmailVerified
       })
 
       // Log login activity
