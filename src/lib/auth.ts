@@ -2,7 +2,10 @@ import jwt from 'jsonwebtoken'
 import bcrypt from 'bcryptjs'
 import { db } from '@/lib/db'
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key'
+const JWT_SECRET = process.env.JWT_SECRET
+if (!JWT_SECRET) {
+  throw new Error('JWT_SECRET environment variable is required')
+}
 
 export interface JWTPayload {
   id: string
@@ -100,7 +103,7 @@ export async function authenticateUser(email: string, password: string) {
         role: user.role,
         isActive: user.isActive,
         isApproved: user.isApproved,
-        isEmailVerified: user.isEmailVerified,
+        // isEmailVerified: user.isEmailVerified,
         permissions: user.permissions
       },
       token
@@ -196,7 +199,7 @@ export async function createUser(userData: {
         email: userData.email,
         password: hashedPassword,
         name: userData.name,
-        role: userData.role || 'USER',
+        role: (userData.role as any) || 'USER',
         permissions: userData.permissions || {},
         isActive: true,
         isApproved: false, // All new users require admin approval
@@ -231,7 +234,7 @@ export async function updateUser(userId: string, updateData: {
   try {
     const user = await db.user.update({
       where: { id: userId },
-      data: updateData,
+      data: updateData as any,
       select: {
         id: true,
         email: true,
