@@ -12,6 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Users, Plus, Edit, Trash2, Shield, UserCheck, UserX, RefreshCw, Bug } from 'lucide-react'
 import { useRealtimeUsers } from '@/hooks/use-realtime-users'
+import { useAuth } from '@/contexts/auth-context'
 
 interface User {
   id: string
@@ -32,6 +33,7 @@ interface UserFormData {
 }
 
 export default function UsersPage() {
+  const { user: currentUser } = useAuth()
   const { users, loading, error, deleteUser, createUser, updateUser, refresh } = useRealtimeUsers()
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingUser, setEditingUser] = useState<User | null>(null)
@@ -42,12 +44,10 @@ export default function UsersPage() {
     password: '',
     isActive: true
   })
-  const [currentUser, setCurrentUser] = useState<{ role: string; id: string } | null>(null)
   const [dbHealth, setDbHealth] = useState<any>(null)
   const [showDebug, setShowDebug] = useState(false)
 
   useEffect(() => {
-    fetchCurrentUser()
     checkDbHealth()
   }, [])
 
@@ -70,27 +70,6 @@ export default function UsersPage() {
       console.error('Error checking database health:', error)
     }
   }
-
-  const fetchCurrentUser = async () => {
-    try {
-      const token = localStorage.getItem('authToken')
-      if (!token) return
-
-      const response = await fetch('/api/auth/me', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        setCurrentUser(data.user)
-      }
-    } catch (error) {
-      console.error('Error fetching current user:', error)
-    }
-  }
-
 
 
   const handleSubmit = async (e: React.FormEvent) => {
