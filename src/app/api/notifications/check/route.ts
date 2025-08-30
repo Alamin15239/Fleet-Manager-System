@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { NotificationService } from '@/lib/notification-service'
+import { verifyToken } from '@/lib/auth'
 
 export async function POST(request: NextRequest) {
   try {
+    const authResult = await verifyToken(request)
+    if (!authResult.success) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     await NotificationService.runNotificationChecks()
     
     return NextResponse.json({ 
@@ -20,6 +26,11 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
+    const authResult = await verifyToken(request)
+    if (!authResult.success) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     await NotificationService.runNotificationChecks()
     
     return NextResponse.json({ 
