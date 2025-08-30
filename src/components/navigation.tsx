@@ -58,7 +58,7 @@ const getNavigation = (t: (key: string) => string) => [
     action: 'read'
   },
   { 
-    name: t('nav.tireManagement'), 
+    name: t('nav.tires'), 
     href: '/tire-management', 
     icon: Zap,
     resource: 'tire-management',
@@ -79,7 +79,7 @@ const getNavigation = (t: (key: string) => string) => [
     action: 'read'
   },
   { 
-    name: t('nav.editor'), 
+    name: t('nav.documents'), 
     href: '/editor', 
     icon: Edit3,
     resource: 'documents',
@@ -190,7 +190,7 @@ export function Navigation({ userRole = 'USER' }: NavigationProps) {
                     'text-muted-foreground bg-muted/50',
                     !isSidebarOpen && 'justify-center'
                   )}
-                  title={!isSidebarOpen ? `${item.name} (Access Denied)` : undefined}
+                  title={!isSidebarOpen ? `${item.name} (${t('message.accessDenied')})` : undefined}
                 >
                   <item.icon className={cn(
                     'h-5 w-5',
@@ -257,7 +257,7 @@ export function Navigation({ userRole = 'USER' }: NavigationProps) {
             size="sm"
             className="w-full justify-center p-2"
             onClick={handleLogout}
-            title="Logout"
+            title={t('nav.logout')}
           >
             <LogOut className="h-5 w-5" />
           </Button>
