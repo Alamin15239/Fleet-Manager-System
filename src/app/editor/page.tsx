@@ -38,11 +38,38 @@ export default function EditorPage() {
   useEffect(() => {
     if (isAuthenticated) {
       fetchDocuments();
+      // Check if editing existing document
+      const urlParams = new URLSearchParams(window.location.search);
+      const editId = urlParams.get('edit');
+      if (editId) {
+        loadDocumentForEditing(editId);
+      }
     }
   }, [isAuthenticated]);
 
+  const loadDocumentForEditing = async (docId: string) => {
+    try {
+      const token = localStorage.getItem('authToken');
+      const response = await fetch(`/api/documents/${docId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const doc = await response.json();
+        setTitle(doc.title);
+        setDocumentType(doc.type);
+        if (doc.type === 'text') setEditorContent(doc.editorState);
+        else if (doc.type === 'table') setTableData(doc.editorState || { rows: [], columns: [] });
+        else if (doc.type === 'excel') setExcelData(doc.editorState || []);
+        else if (doc.type === 'pdf') setPdfData(doc.editorState || { header: '', content: '', footer: '', pageSettings: { orientation: 'portrait', margin: '20', pageSize: 'A4' } });
+      }
+    } catch (error) {
+      console.error('Error loading document for editing:', error);
+    }
+  };
+
   const fetchDocuments = async () => {
     try {
+      const token = localStorage.getItem('authToken');
       const token = localStorage.getItem('authToken');
       const response = await fetch('/api/documents', {
         headers: {
@@ -122,7 +149,7 @@ export default function EditorPage() {
         fetchDocuments();
         // Clear form
         setTitle('');
-        setEditorContent('');
+        setEditorContent(null);
         setTableData({ rows: [], columns: [] });
         setExcelData([]);
         setPdfData({ header: '', content: '', footer: '', pageSettings: { orientation: 'portrait', margin: '20', pageSize: 'A4' } });

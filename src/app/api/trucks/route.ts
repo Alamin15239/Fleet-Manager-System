@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { requirePermission } from '@/lib/api-permissions'
+import { requireAuth } from '@/lib/auth'
 import { logUserActivity } from '@/lib/activity-tracking'
 import { logEntityChange } from '@/lib/audit-logging'
 
@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    const user = await requirePermission(request, 'trucks', 'read')
+    const user = await requireAuth(request)
     
     // Log activity
     await logUserActivity({
@@ -94,10 +94,10 @@ export async function GET(request: NextRequest) {
 
   } catch (error) {
     console.error('Error fetching trucks:', error)
-    if (error instanceof Error && error.message.includes('Insufficient permissions')) {
+    if (error instanceof Error && (error.message === 'No token provided' || error.message === 'Invalid token')) {
       return NextResponse.json(
-        { error: error.message },
-        { status: 403 }
+        { error: 'Authentication required' },
+        { status: 401 }
       )
     }
     return NextResponse.json(
@@ -110,7 +110,7 @@ export async function GET(request: NextRequest) {
 // POST create new truck
 export async function POST(request: NextRequest) {
   try {
-    const user = await requirePermission(request, 'trucks', 'create')
+    const user = await requireAuth(request)
     const body = await request.json()
     console.log('Received truck data:', body)
 
@@ -199,10 +199,10 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Error creating truck:', error)
-    if (error instanceof Error && error.message.includes('Insufficient permissions')) {
+    if (error instanceof Error && (error.message === 'No token provided' || error.message === 'Invalid token')) {
       return NextResponse.json(
-        { error: error.message },
-        { status: 403 }
+        { error: 'Authentication required' },
+        { status: 401 }
       )
     }
     return NextResponse.json(

@@ -4,7 +4,7 @@ import { requireAuth } from '@/lib/auth';
 
 export async function GET(request: NextRequest) {
   try {
-    await requireAuth(request);
+    const user = await requireAuth(request);
     
     const documents = await db.document.findMany({
       orderBy: { updatedAt: 'desc' },
