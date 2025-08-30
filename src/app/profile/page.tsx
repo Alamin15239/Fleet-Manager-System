@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge'
 import { useAuth } from '@/contexts/auth-context'
 import { useToast } from '@/hooks/use-toast'
 import { Loader2, Camera, Save, User, Mail, Phone, Building, Briefcase, Edit, Upload } from 'lucide-react'
+import { getProfileImageUrl, handleImageError } from '@/lib/image-utils'
 
 interface UserProfile {
   id: string
@@ -246,13 +247,12 @@ export default function ProfilePage() {
             <CardDescription>Your profile photo</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col items-center space-y-4">
-            <Avatar className="h-32 w-32" key={`profile-avatar-${profile.profileImage}-${Date.now()}`}>
+            <Avatar className="h-32 w-32">
               <AvatarImage 
-                src={profile.profileImage || ''} 
+                src={getProfileImageUrl(profile.profileImage)} 
                 alt={profile.name || 'User'}
-                onError={(e) => {
-                  console.log('Profile avatar failed to load:', profile.profileImage)
-                }}
+                className="object-cover"
+                onError={handleImageError}
               />
               <AvatarFallback className="text-2xl">
                 {profile.name?.charAt(0).toUpperCase() || 'U'}
