@@ -125,7 +125,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Add delay to avoid rate limiting
       await new Promise(resolve => setTimeout(resolve, 1000))
       
-      const response = await fetch('/api/auth/login', {
+      // Determine the base URL for API calls
+      const baseUrl = typeof window !== 'undefined' 
+        ? window.location.origin 
+        : process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+      
+      console.log('Making login request to:', `${baseUrl}/api/auth/login`)
+      
+      const response = await fetch(`${baseUrl}/api/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -138,44 +145,50 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw new Error('Too many login attempts. Please wait a moment and try again.')
       }
       
+      if (!response.ok) {
+        let errorMessage = 'Login failed'
+        try {
+          const errorData = await response.json()
+          errorMessage = errorData.error || errorMessage
+        } catch {
+          // If we can't parse the error response, use the status text
+          errorMessage = response.statusText || `HTTP ${response.status}`
+        }
+        throw new Error(errorMessage)
+      }
+      
       const data = await response.json()
 
-      if (response.ok) {
-        // Validate the data structure before storing
-        if (data.token && data.user && typeof data.user === 'object') {
-          // Note: Removed email verification and approval checks
-          // Users can now log in regardless of verification/approval status
-          // These will be checked at feature level instead
-          
-          console.log('Login successful - storing token and user data')
-          
-          // Safely store in localStorage first
-          try {
-            localStorage.setItem('authToken', data.token)
-            localStorage.setItem('user', JSON.stringify(data.user))
-            console.log('Auth data stored in localStorage successfully')
-          } catch (storageError) {
-            console.error('Error storing auth data in localStorage:', storageError)
-          }
-          
-          // Then update state
-          setToken(data.token)
-          setUser(data.user)
-          
-          return true
-        } else {
-          console.error('Invalid login response structure:', data)
-          return false
+      // Validate the data structure before storing
+      if (data.token && data.user && typeof data.user === 'object') {
+        console.log('Login successful - storing token and user data')
+        
+        // Safely store in localStorage first
+        try {
+          localStorage.setItem('authToken', data.token)
+          localStorage.setItem('user', JSON.stringify(data.user))
+          console.log('Auth data stored in localStorage successfully')
+        } catch (storageError) {
+          console.error('Error storing auth data in localStorage:', storageError)
         }
+        
+        // Then update state
+        setToken(data.token)
+        setUser(data.user)
+        
+        return true
       } else {
-        // Handle specific error messages
-        if (data.error) {
-          throw new Error(data.error)
-        }
-        return false
+        console.error('Invalid login response structure:', data)
+        throw new Error('Invalid response from server')
       }
     } catch (error) {
       console.error('Login error:', error)
+      
+      // Handle network errors specifically
+      if (error instanceof TypeError && error.message === 'Failed to fetch') {
+        throw new Error('Unable to connect to server. Please check your internet connection and try again.')
+      }
+      
       throw error // Re-throw to let the component handle the error message
     }
   }

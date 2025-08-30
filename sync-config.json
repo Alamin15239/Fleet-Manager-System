@@ -1,0 +1,17 @@
+{
+  "production": {
+    "url": "https://your-production-domain.vercel.app",
+    "apiKey": "your-production-api-key"
+  },
+  "local": {
+    "url": "http://localhost:3000",
+    "port": 3000
+  },
+  "syncEnabled": true,
+  "syncInterval": 1000,
+  "watchPaths": [
+    "src/app/api/**/*.ts",
+    "prisma/schema.prisma",
+    "src/lib/**/*.ts"
+  ]
+}

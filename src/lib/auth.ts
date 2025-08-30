@@ -46,7 +46,7 @@ export async function authenticateUser(email: string, password: string) {
     })
 
     if (!user) {
-      throw new Error('User not found')
+      throw new Error('Invalid credentials')
     }
 
     // Check if user is deleted
@@ -74,15 +74,19 @@ export async function authenticateUser(email: string, password: string) {
       throw new Error('Invalid credentials')
     }
 
-    // Log login activity
-    await db.loginHistory.create({
-      data: {
-        userId: user.id,
-        loginTime: new Date(),
-        ipAddress: '127.0.0.1', // In real app, get from request
-        userAgent: 'Mozilla/5.0' // In real app, get from request
-      }
-    })
+    // Try to log login activity, but don't fail if it doesn't work
+    try {
+      await db.loginHistory.create({
+        data: {
+          userId: user.id,
+          loginTime: new Date(),
+          ipAddress: '127.0.0.1',
+          userAgent: 'Mozilla/5.0'
+        }
+      })
+    } catch (logError) {
+      console.warn('Failed to log login activity:', logError)
+    }
 
     const token = generateToken({
       id: user.id,
@@ -103,7 +107,7 @@ export async function authenticateUser(email: string, password: string) {
         role: user.role,
         isActive: user.isActive,
         isApproved: user.isApproved,
-        // isEmailVerified: user.isEmailVerified,
+        isEmailVerified: user.isEmailVerified,
         permissions: user.permissions
       },
       token

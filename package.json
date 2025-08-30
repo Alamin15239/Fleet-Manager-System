@@ -18,6 +18,8 @@
     "db:setup-vercel": "tsx scripts/vercel-setup.ts",
     "test:email": "tsx test-email-config.ts",
     "db:studio": "prisma studio",
+    "auto-deploy": "node auto-deploy.js",
+    "dev:sync": "concurrently \"npm run dev\" \"npm run auto-deploy\"",
     "postinstall": "prisma generate"
   },
   "dependencies": {
