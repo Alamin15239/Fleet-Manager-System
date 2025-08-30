@@ -1,16 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { NotificationService } from '@/lib/notification-service'
-import { verifyToken } from '@/lib/auth'
+import { requireAuth } from '@/lib/auth'
 
 export async function POST(request: NextRequest) {
   try {
-    const authResult = await verifyToken(request)
-    if (!authResult.success) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
+    const user = await requireAuth(request)
+    
     // Simple notification check without database operations for now
-    console.log('Notification check requested by user:', authResult.user?.email)
+    console.log('Notification check requested by user:', user.email)
     
     return NextResponse.json({ 
       success: true, 
@@ -30,10 +27,7 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    const authResult = await verifyToken(request)
-    if (!authResult.success) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const user = await requireAuth(request)
 
     await NotificationService.runNotificationChecks()
     
