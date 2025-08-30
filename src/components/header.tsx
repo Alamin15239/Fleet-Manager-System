@@ -230,11 +230,13 @@ export function Header() {
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="relative h-9 w-9 rounded-full">
-              <Avatar className="h-9 w-9">
+              <Avatar className="h-9 w-9" key={`avatar-${user?.profileImage}-${Date.now()}`}>
                 <AvatarImage 
-                  src={user?.profileImage ? `${user.profileImage}?t=${Date.now()}` : ''} 
-                  alt={user?.name || 'User'} 
-                  key={user?.profileImage} // Force re-render when image changes
+                  src={user?.profileImage || ''} 
+                  alt={user?.name || 'User'}
+                  onError={(e) => {
+                    console.log('Header avatar failed to load:', user?.profileImage)
+                  }}
                 />
                 <AvatarFallback>
                   {user?.name?.charAt(0).toUpperCase() || 'U'}
