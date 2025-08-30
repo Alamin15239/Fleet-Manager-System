@@ -51,17 +51,8 @@ export async function GET(request: NextRequest) {
           role: true,
           isActive: true,
           isApproved: true,
-          permissions: true,
           createdAt: true,
-          updatedAt: true,
-          _count: {
-            select: {
-              maintenanceRecords: true,
-              auditLogs: true,
-              userActivities: true,
-              loginHistory: true
-            }
-          }
+          updatedAt: true
         },
         orderBy: { createdAt: 'desc' },
         skip,
