@@ -40,7 +40,6 @@ export default function DocumentsPage() {
   const fetchDocuments = async () => {
     try {
       const token = localStorage.getItem('authToken');
-      const token = localStorage.getItem('authToken');
       const response = await fetch('/api/documents', {
         headers: {
           'Authorization': `Bearer ${token}`
