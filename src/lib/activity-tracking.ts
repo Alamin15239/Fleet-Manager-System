@@ -32,7 +32,6 @@ export async function logUserActivity(data: ActivityData) {
     });
   } catch (error) {
     console.error('Failed to log user activity:', error);
-    // Don't throw error to avoid disrupting the main operation
   }
 }
 
@@ -41,7 +40,6 @@ export async function logUserLogin(userId: string, request: NextRequest) {
     const ipAddress = getClientIP(request);
     const userAgent = request.headers.get('user-agent') || '';
     
-    // Create login history record
     const loginHistory = await db.loginHistory.create({
       data: {
         userId,
@@ -52,7 +50,6 @@ export async function logUserLogin(userId: string, request: NextRequest) {
       },
     });
 
-    // Log activity
     await logUserActivity({
       userId,
       action: 'LOGIN',
@@ -75,7 +72,6 @@ export async function logUserLogout(userId: string, loginHistoryId?: string) {
     const logoutTime = new Date();
     
     if (loginHistoryId) {
-      // Update login history
       const loginHistory = await db.loginHistory.findUnique({
         where: { id: loginHistoryId },
       });
@@ -96,7 +92,6 @@ export async function logUserLogout(userId: string, loginHistoryId?: string) {
       }
     }
 
-    // Log activity
     await logUserActivity({
       userId,
       action: 'LOGOUT',
@@ -111,7 +106,6 @@ export async function logUserLogout(userId: string, loginHistoryId?: string) {
 }
 
 function getClientIP(request: NextRequest): string {
-  // Try to get real IP from various headers
   const forwarded = request.headers.get('x-forwarded-for');
   const realIP = request.headers.get('x-real-ip');
   const cfIP = request.headers.get('cf-connecting-ip');
@@ -128,7 +122,6 @@ function getClientIP(request: NextRequest): string {
     return cfIP;
   }
   
-  // Fallback to remote address
   return '127.0.0.1';
 }
 
@@ -143,38 +136,43 @@ export async function getUserActivities(params: {
 }) {
   const { userId, action, entityType, startDate, endDate, limit = 50, offset = 0 } = params;
   
-  const where: any = {};
-  
-  if (userId) where.userId = userId;
-  if (action) where.action = action;
-  if (entityType) where.entityType = entityType;
-  if (startDate || endDate) {
-    where.createdAt = {};
-    if (startDate) where.createdAt.gte = startDate;
-    if (endDate) where.createdAt.lte = endDate;
-  }
+  try {
+    const where: any = {};
+    
+    if (userId) where.userId = userId;
+    if (action) where.action = action;
+    if (entityType) where.entityType = entityType;
+    if (startDate || endDate) {
+      where.createdAt = {};
+      if (startDate) where.createdAt.gte = startDate;
+      if (endDate) where.createdAt.lte = endDate;
+    }
 
-  const [activities, total] = await Promise.all([
-    db.userActivity.findMany({
-      where,
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            role: true,
+    const [activities, total] = await Promise.all([
+      db.userActivity.findMany({
+        where,
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              role: true,
+            },
           },
         },
-      },
-      orderBy: { createdAt: 'desc' },
-      take: limit,
-      skip: offset,
-    }),
-    db.userActivity.count({ where }),
-  ]);
+        orderBy: { createdAt: 'desc' },
+        take: limit,
+        skip: offset,
+      }),
+      db.userActivity.count({ where }),
+    ]);
 
-  return { activities, total };
+    return { activities, total };
+  } catch (error) {
+    console.error('Database error in getUserActivities:', error);
+    return { activities: [], total: 0 };
+  }
 }
 
 export async function getLoginHistory(params: {
@@ -187,35 +185,40 @@ export async function getLoginHistory(params: {
 }) {
   const { userId, startDate, endDate, isActive, limit = 50, offset = 0 } = params;
   
-  const where: any = {};
-  
-  if (userId) where.userId = userId;
-  if (startDate || endDate) {
-    where.createdAt = {};
-    if (startDate) where.createdAt.gte = startDate;
-    if (endDate) where.createdAt.lte = endDate;
-  }
-  if (isActive !== undefined) where.isActive = isActive;
+  try {
+    const where: any = {};
+    
+    if (userId) where.userId = userId;
+    if (startDate || endDate) {
+      where.createdAt = {};
+      if (startDate) where.createdAt.gte = startDate;
+      if (endDate) where.createdAt.lte = endDate;
+    }
+    if (isActive !== undefined) where.isActive = isActive;
 
-  const [history, total] = await Promise.all([
-    db.loginHistory.findMany({
-      where,
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            role: true,
+    const [history, total] = await Promise.all([
+      db.loginHistory.findMany({
+        where,
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              role: true,
+            },
           },
         },
-      },
-      orderBy: { loginTime: 'desc' },
-      take: limit,
-      skip: offset,
-    }),
-    db.loginHistory.count({ where }),
-  ]);
+        orderBy: { loginTime: 'desc' },
+        take: limit,
+        skip: offset,
+      }),
+      db.loginHistory.count({ where }),
+    ]);
 
-  return { history, total };
+    return { history, total };
+  } catch (error) {
+    console.error('Database error in getLoginHistory:', error);
+    return { history: [], total: 0 };
+  }
 }

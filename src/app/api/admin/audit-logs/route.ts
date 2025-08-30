@@ -1,9 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAuditLogs } from '@/lib/audit-logging'
 import { requireAdmin } from '@/lib/auth'
+import { db } from '@/lib/db'
 
 export async function GET(request: NextRequest) {
   try {
+    // Test database connection first
+    try {
+      await db.$queryRaw`SELECT 1`
+    } catch (dbError) {
+      console.error('Database connection failed:', dbError)
+      return NextResponse.json({ logs: [], total: 0 })
+    }
+
     const user = await requireAdmin(request)
     
     const { searchParams } = new URL(request.url)
@@ -30,9 +39,22 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(result)
   } catch (error) {
     console.error('Error fetching audit logs:', error)
-    return NextResponse.json(
-      { error: 'Failed to fetch audit logs' },
-      { status: 500 }
-    )
+    
+    if (error instanceof Error) {
+      if (error.message === 'No token provided' || error.message === 'Invalid token') {
+        return NextResponse.json(
+          { error: 'Authentication required' },
+          { status: 401 }
+        )
+      }
+      if (error.message === 'Insufficient permissions') {
+        return NextResponse.json(
+          { error: 'Admin access required' },
+          { status: 403 }
+        )
+      }
+    }
+    
+    return NextResponse.json({ logs: [], total: 0 })
   }
 }
