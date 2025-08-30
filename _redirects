@@ -1,6 +1,0 @@
-# Redirect all traffic to HTTPS
-http://primeofferonline.shop/* https://www.primeofferonline.shop/:splat 301!
-http://www.primeofferonline.shop/* https://www.primeofferonline.shop/:splat 301!
-
-# SPA fallback for client-side routing
-/*    /index.html   200
