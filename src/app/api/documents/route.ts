@@ -4,15 +4,7 @@ import { requireAuth } from '@/lib/auth';
 
 export async function GET(request: NextRequest) {
   try {
-    const user = await requireAuth(request);
-
-    // Role-based document access
-    const whereClause = user.role === 'ADMIN' || user.role === 'MANAGER' 
-      ? {} // Admin and Manager can see all documents
-      : { createdById: user.id }; // Users can only see their own documents
-
     const documents = await db.document.findMany({
-      where: whereClause,
       orderBy: { updatedAt: 'desc' },
       include: {
         createdBy: {
@@ -30,8 +22,6 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const user = await requireAuth(request);
-
     const body = await request.json();
     const { title, type, fileUrl, editorState } = body;
 
@@ -44,13 +34,7 @@ export async function POST(request: NextRequest) {
         title,
         type,
         fileUrl,
-        editorState,
-        createdById: user.id
-      },
-      include: {
-        createdBy: {
-          select: { id: true, name: true, email: true }
-        }
+        editorState
       }
     });
 
