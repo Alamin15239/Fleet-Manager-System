@@ -119,7 +119,7 @@ export default function TableEditor({ data, onChange, editable = true }: TableEd
           <thead>
             <tr className="bg-gray-50">
               {tableData.columns.map((col: string, colIndex: number) => (
-                <th key={colIndex} className={`border border-gray-200 ${isMobile ? 'p-1 min-w-[100px]' : 'p-2 min-w-[120px]'}`}>
+                <th key={colIndex} className={`border border-gray-200 ${isMobile ? 'p-1 min-w-[100px]' : 'p-2 min-w-[120px]'} resize-x overflow-hidden relative`} style={{resize: 'horizontal', minWidth: '100px', maxWidth: '300px'}}>
                   {editable ? (
                     <Input
                       value={col}
@@ -138,7 +138,7 @@ export default function TableEditor({ data, onChange, editable = true }: TableEd
             {tableData.rows.map((row: string[], rowIndex: number) => (
               <tr key={rowIndex} className="hover:bg-gray-50/50">
                 {row.map((cell: string, colIndex: number) => (
-                  <td key={colIndex} className={`border border-gray-200 ${isMobile ? 'p-1' : 'p-2'}`}>
+                  <td key={colIndex} className={`border border-gray-200 ${isMobile ? 'p-1' : 'p-2'} resize-x overflow-hidden relative`} style={{resize: 'horizontal', minWidth: '100px', maxWidth: '300px'}}>
                     {editable ? (
                       <Input
                         value={cell || ''}
