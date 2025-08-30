@@ -13,45 +13,25 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useAuth } from '@/contexts/auth-context';
+import { TruckLoader } from '@/components/ui/truck-loader';
 
 export default function DocumentsPage() {
   const router = useRouter();
   const isMobile = useIsMobile();
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const [documents, setDocuments] = useState([]);
   const [filteredDocuments, setFilteredDocuments] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('all');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [isLoading, setIsLoading] = useState(true);
-  const [userRole, setUserRole] = useState<string>('');
 
   useEffect(() => {
-    checkAuth();
-    fetchDocuments();
-  }, []);
-
-  const checkAuth = async () => {
-    try {
-      const token = localStorage.getItem('authToken');
-      if (!token) {
-        router.push('/login');
-        return;
-      }
-      
-      const response = await fetch('/api/auth/me', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      
-      if (response.ok) {
-        const user = await response.json();
-        setUserRole(user.role);
-      } else {
-        router.push('/login');
-      }
-    } catch (error) {
-      router.push('/login');
+    if (!authLoading && isAuthenticated) {
+      fetchDocuments();
     }
-  };
+  }, [authLoading, isAuthenticated]);
 
   useEffect(() => {
     filterDocuments();
@@ -131,15 +111,17 @@ export default function DocumentsPage() {
     }
   };
 
-  if (isLoading) {
+  if (authLoading || isLoading) {
     return (
       <div className="min-h-screen bg-gray-50/30 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading documents...</p>
-        </div>
+        <TruckLoader size="lg" />
       </div>
     );
+  }
+
+  if (!isAuthenticated) {
+    router.push('/login');
+    return null;
   }
 
   return (
@@ -155,7 +137,7 @@ export default function DocumentsPage() {
               <p className="text-gray-600 mt-1 text-sm sm:text-base">Manage and view your documents</p>
             </div>
           </div>
-          {(userRole === 'ADMIN' || userRole === 'MANAGER' || userRole === 'USER') && (
+          {(user?.role === 'ADMIN' || user?.role === 'MANAGER' || user?.role === 'USER') && (
             <Button onClick={() => router.push('/editor')} className="w-full sm:w-auto">
               <Plus className="h-4 w-4 mr-2" />
               {isMobile ? 'New' : 'New Document'}
@@ -278,7 +260,7 @@ export default function DocumentsPage() {
                       <Eye className="h-3 w-3 mr-1" />
                       View
                     </Button>
-                    {(userRole === 'ADMIN' || userRole === 'MANAGER' || doc.createdBy?.id === localStorage.getItem('userId')) && (
+                    {(user?.role === 'ADMIN' || user?.role === 'MANAGER' || doc.createdBy?.id === user?.id) && (
                       <Button
                         variant="outline"
                         size="sm"
