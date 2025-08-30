@@ -1,17 +1,34 @@
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
+import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
 
-// Store active sessions in memory (in production, use Redis or similar)
-const activeSessions = new Map<string, { userId: string; loginHistoryId: string }>();
+// Rate limiting store
+const rateLimit = new Map()
 
-export async function middleware(request: NextRequest) {
-  // Allow all requests to pass through
-  return NextResponse.next();
+export function middleware(request: NextRequest) {
+  // Rate limiting for auth endpoints
+  if (request.nextUrl.pathname.startsWith('/api/auth/')) {
+    const ip = request.ip || 'anonymous'
+    const now = Date.now()
+    const windowMs = 15 * 60 * 1000 // 15 minutes
+    const maxRequests = 10
+
+    const key = `${ip}:${request.nextUrl.pathname}`
+    const requests = rateLimit.get(key) || []
+    
+    // Clean old requests
+    const validRequests = requests.filter((time: number) => now - time < windowMs)
+    
+    if (validRequests.length >= maxRequests) {
+      return new NextResponse('Too many requests', { status: 429 })
+    }
+    
+    validRequests.push(now)
+    rateLimit.set(key, validRequests)
+  }
+
+  return NextResponse.next()
 }
 
 export const config = {
-  matcher: [
-    '/dashboard/:path*',
-    '/admin/:path*',
-  ],
-};
+  matcher: ['/api/auth/:path*']
+}

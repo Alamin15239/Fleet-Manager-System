@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import * as XLSX from 'xlsx';
+// import * as XLSX from 'xlsx'; // Removed due to security vulnerability
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Upload, Download } from 'lucide-react';
