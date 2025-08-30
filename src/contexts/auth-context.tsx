@@ -22,7 +22,7 @@ interface User {
 interface AuthContextType {
   user: User | null
   token: string | null
-  login: (email: string, password: string) => Promise<boolean>
+  login: (email: string, otp: string) => Promise<boolean>
   logout: () => Promise<void>
   refreshUser: () => Promise<void>
   isLoading: boolean
@@ -121,25 +121,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  const login = async (email: string, password: string): Promise<boolean> => {
+  const login = async (email: string, otp: string): Promise<boolean> => {
     try {
-      // Add delay to avoid rate limiting
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      
-      // Determine the base URL for API calls
-      const baseUrl = typeof window !== 'undefined' 
-        ? window.location.origin 
-        : process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
-      
-      console.log('Making login request to:', `${baseUrl}/api/auth/login`)
-      
-      const response = await fetch(`${baseUrl}/api/auth/login`, {
+      const response = await fetch('/api/auth/verify-otp', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        credentials: 'include', // Include cookies in the request
-        body: JSON.stringify({ email, password })
+        credentials: 'include',
+        body: JSON.stringify({ email, otp })
       })
 
       if (response.status === 429) {
@@ -147,50 +137,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       
       if (!response.ok) {
-        let errorMessage = 'Login failed'
-        try {
-          const errorData = await response.json()
-          errorMessage = errorData.error || errorMessage
-        } catch {
-          // If we can't parse the error response, use the status text
-          errorMessage = response.statusText || `HTTP ${response.status}`
-        }
-        throw new Error(errorMessage)
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'OTP verification failed')
       }
       
       const data = await response.json()
 
-      // Validate the data structure before storing
-      if (data.token && data.user && typeof data.user === 'object') {
-        console.log('Login successful - storing token and user data')
-        
-        // Safely store in localStorage first
-        try {
-          localStorage.setItem('authToken', data.token)
-          localStorage.setItem('user', JSON.stringify(data.user))
-          console.log('Auth data stored in localStorage successfully')
-        } catch (storageError) {
-          console.error('Error storing auth data in localStorage:', storageError)
-        }
-        
-        // Then update state
+      if (data.token && data.user) {
+        localStorage.setItem('authToken', data.token)
+        localStorage.setItem('user', JSON.stringify(data.user))
         setToken(data.token)
         setUser(data.user)
-        
         return true
       } else {
-        console.error('Invalid login response structure:', data)
         throw new Error('Invalid response from server')
       }
     } catch (error) {
       console.error('Login error:', error)
-      
-      // Handle network errors specifically
-      if (error instanceof TypeError && error.message === 'Failed to fetch') {
-        throw new Error('Unable to connect to server. Please check your internet connection and try again.')
-      }
-      
-      throw error // Re-throw to let the component handle the error message
+      throw error
     }
   }
 
