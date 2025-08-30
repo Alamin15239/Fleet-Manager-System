@@ -112,46 +112,41 @@ export async function POST(request: NextRequest) {
     const base64 = buffer.toString('base64')
     const dataUrl = `data:${file.type};base64,${base64}`
 
-    // Update profile image with retry logic
+    // Update profile image in database
     try {
-      await db.user.update({
+      const updatedUser = await db.user.update({
         where: { id: userId },
         data: { profileImage: dataUrl }
       })
 
       console.log(`Profile image updated for user ${userId}`)
 
-      const response = NextResponse.json({
+      return NextResponse.json({
         success: true,
         url: dataUrl,
+        user: {
+          id: updatedUser.id,
+          email: updatedUser.email,
+          name: updatedUser.name,
+          role: updatedUser.role,
+          profileImage: updatedUser.profileImage,
+          phone: updatedUser.phone,
+          department: updatedUser.department,
+          title: updatedUser.title,
+          bio: updatedUser.bio,
+          isActive: updatedUser.isActive,
+          isApproved: updatedUser.isApproved,
+          isEmailVerified: updatedUser.isEmailVerified
+        },
         message: 'Profile image uploaded successfully'
       })
 
-      response.headers.set('Access-Control-Allow-Origin', '*')
-      response.headers.set('Access-Control-Allow-Methods', 'POST, OPTIONS')
-      response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization')
-
-      return response
-
     } catch (dbError) {
       console.error('Database error:', dbError)
-      
-      // If database fails, still return success with the image data
-      // The frontend can use the base64 image even if DB update fails
-      console.warn('Database update failed, returning image data anyway')
-      
-      const response = NextResponse.json({
-        success: true,
-        url: dataUrl,
-        message: 'Profile image processed (database update pending)',
-        warning: 'Database temporarily unavailable'
-      })
-
-      response.headers.set('Access-Control-Allow-Origin', '*')
-      response.headers.set('Access-Control-Allow-Methods', 'POST, OPTIONS')
-      response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization')
-
-      return response
+      return NextResponse.json(
+        { error: 'Failed to save profile image to database' },
+        { status: 500 }
+      )
     }
 
   } catch (error) {

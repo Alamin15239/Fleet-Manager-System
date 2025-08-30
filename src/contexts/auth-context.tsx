@@ -122,7 +122,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (response.ok) {
         const data = await response.json()
         const userData = data.user
-        setUser(userData)
+        setUser({ ...userData })
         localStorage.setItem('user', JSON.stringify(userData))
         console.log('User data refreshed:', userData)
       }

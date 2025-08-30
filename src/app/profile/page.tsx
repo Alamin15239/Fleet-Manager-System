@@ -130,8 +130,13 @@ export default function ProfilePage() {
         const data = await response.json()
         
         // Update profile state immediately
-        if (profile) {
-          setProfile({ ...profile, profileImage: data.url })
+        if (profile && data.user) {
+          setProfile({ ...profile, profileImage: data.user.profileImage })
+        }
+        
+        // Update auth context with new user data
+        if (data.user) {
+          localStorage.setItem('user', JSON.stringify(data.user))
         }
         
         // Refresh user data in auth context to update header avatar
@@ -226,7 +231,7 @@ export default function ProfilePage() {
             <CardDescription>Your profile photo</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col items-center space-y-4">
-            <Avatar className="h-32 w-32" key={profile.profileImage || 'no-image'}>
+            <Avatar className="h-32 w-32" key={`profile-${profile.id}-${profile.profileImage ? 'with-image' : 'no-image'}-${Date.now()}`}>
               <AvatarImage 
                 src={getProfileImageUrl(profile.profileImage)} 
                 alt={profile.name || 'User'}
