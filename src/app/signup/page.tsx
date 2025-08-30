@@ -85,9 +85,9 @@ export default function SignupPage() {
 
       if (response.ok) {
         setSuccess(true)
-        toast.success('Account created successfully! Please check your email for verification.')
+        toast.success('Account created successfully! Please check your email for the OTP.')
         setTimeout(() => {
-          router.push('/verify-email')
+          router.push(`/verify-otp?email=${encodeURIComponent(formData.email)}`)
         }, 3000)
       } else {
         setError(data.error || 'Registration failed')
@@ -115,8 +115,7 @@ export default function SignupPage() {
               <p className="text-gray-600 dark:text-gray-400 mb-4">
                 Please check your email for verification instructions. You will be redirected to the verification page...
               </p>
-              <Button onClick={() => router.push('/verify-email')}>
-                Go to Verification
+              <Button onClick={() => router.push(`/verify-otp?email=${encodeURIComponent(formData.email)}`)}>                Go to OTP Verification
               </Button>
             </div>
           </CardContent>
