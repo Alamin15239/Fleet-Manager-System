@@ -148,6 +148,70 @@ const translations = {
     'verifyEmail.subtitle': 'Confirm your email address',
     'pendingApproval.title': 'Pending Approval',
     'pendingApproval.subtitle': 'Your account is awaiting admin approval',
+    
+    // Form Fields
+    'form.name': 'Name',
+    'form.email': 'Email',
+    'form.phone': 'Phone',
+    'form.specialty': 'Specialty',
+    'form.description': 'Description',
+    'form.notes': 'Notes',
+    'form.required': 'Required',
+    'form.optional': 'Optional',
+    
+    // Actions
+    'action.add': 'Add',
+    'action.edit': 'Edit',
+    'action.delete': 'Delete',
+    'action.view': 'View',
+    'action.update': 'Update',
+    'action.create': 'Create',
+    'action.close': 'Close',
+    'action.refresh': 'Refresh',
+    'action.export': 'Export',
+    'action.import': 'Import',
+    'action.submit': 'Submit',
+    'action.reset': 'Reset',
+    'action.clear': 'Clear',
+    
+    // Status
+    'status.active': 'Active',
+    'status.inactive': 'Inactive',
+    'status.pending': 'Pending',
+    'status.completed': 'Completed',
+    'status.inProgress': 'In Progress',
+    'status.scheduled': 'Scheduled',
+    'status.cancelled': 'Cancelled',
+    'status.overdue': 'Overdue',
+    
+    // Table Headers
+    'table.name': 'Name',
+    'table.contact': 'Contact',
+    'table.specialty': 'Specialty',
+    'table.status': 'Status',
+    'table.actions': 'Actions',
+    'table.date': 'Date',
+    'table.cost': 'Cost',
+    'table.truck': 'Truck',
+    'table.mechanic': 'Mechanic',
+    'table.serviceType': 'Service Type',
+    'table.category': 'Category',
+    'table.maintenanceCount': 'Maintenance Count',
+    
+    // Messages
+    'message.noData': 'No data found',
+    'message.loading': 'Loading...',
+    'message.success': 'Operation completed successfully',
+    'message.error': 'An error occurred',
+    'message.confirm': 'Are you sure?',
+    'message.deleteConfirm': 'Are you sure you want to delete this item?',
+    
+    // Placeholders
+    'placeholder.search': 'Search...',
+    'placeholder.selectOption': 'Select an option',
+    'placeholder.enterText': 'Enter text',
+    'placeholder.selectDate': 'Select date',
+    'placeholder.selectStatus': 'Select status',
   },
   ar: {
     // Navigation
@@ -286,6 +350,70 @@ const translations = {
     'verifyEmail.subtitle': 'تأكيد عنوان بريدك الإلكتروني',
     'pendingApproval.title': 'في انتظار الموافقة',
     'pendingApproval.subtitle': 'حسابك في انتظار موافقة المدير',
+    
+    // Form Fields
+    'form.name': 'الاسم',
+    'form.email': 'البريد الإلكتروني',
+    'form.phone': 'الهاتف',
+    'form.specialty': 'التخصص',
+    'form.description': 'الوصف',
+    'form.notes': 'الملاحظات',
+    'form.required': 'مطلوب',
+    'form.optional': 'اختياري',
+    
+    // Actions
+    'action.add': 'إضافة',
+    'action.edit': 'تعديل',
+    'action.delete': 'حذف',
+    'action.view': 'عرض',
+    'action.update': 'تحديث',
+    'action.create': 'إنشاء',
+    'action.close': 'إغلاق',
+    'action.refresh': 'تحديث',
+    'action.export': 'تصدير',
+    'action.import': 'استيراد',
+    'action.submit': 'إرسال',
+    'action.reset': 'إعادة تعيين',
+    'action.clear': 'مسح',
+    
+    // Status
+    'status.active': 'نشط',
+    'status.inactive': 'غير نشط',
+    'status.pending': 'في الانتظار',
+    'status.completed': 'مكتمل',
+    'status.inProgress': 'قيد التنفيذ',
+    'status.scheduled': 'مجدول',
+    'status.cancelled': 'ملغي',
+    'status.overdue': 'متأخر',
+    
+    // Table Headers
+    'table.name': 'الاسم',
+    'table.contact': 'جهة الاتصال',
+    'table.specialty': 'التخصص',
+    'table.status': 'الحالة',
+    'table.actions': 'الإجراءات',
+    'table.date': 'التاريخ',
+    'table.cost': 'التكلفة',
+    'table.truck': 'الشاحنة',
+    'table.mechanic': 'الميكانيكي',
+    'table.serviceType': 'نوع الخدمة',
+    'table.category': 'الفئة',
+    'table.maintenanceCount': 'عدد الصيانات',
+    
+    // Messages
+    'message.noData': 'لا توجد بيانات',
+    'message.loading': 'جاري التحميل...',
+    'message.success': 'تمت العملية بنجاح',
+    'message.error': 'حدث خطأ',
+    'message.confirm': 'هل أنت متأكد؟',
+    'message.deleteConfirm': 'هل أنت متأكد من حذف هذا العنصر؟',
+    
+    // Placeholders
+    'placeholder.search': 'بحث...',
+    'placeholder.selectOption': 'اختر خياراً',
+    'placeholder.enterText': 'أدخل النص',
+    'placeholder.selectDate': 'اختر التاريخ',
+    'placeholder.selectStatus': 'اختر الحالة',
   }
 }
 

@@ -178,7 +178,7 @@ export default function MechanicsPage() {
           <DialogTrigger asChild>
             <Button onClick={resetForm}>
               <Plus className="h-4 w-4 mr-2" />
-              Add Mechanic
+              {t('action.add')} {t('mechanics.title').split(' ')[0]}
             </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-[500px]">
@@ -193,7 +193,7 @@ export default function MechanicsPage() {
             <form onSubmit={handleSubmit} className="grid gap-4 py-4">
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="name" className="text-right">
-                  Name *
+                  {t('form.name')} *
                 </Label>
                 <Input
                   id="name"
@@ -206,7 +206,7 @@ export default function MechanicsPage() {
               
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="email" className="text-right">
-                  Email
+                  {t('form.email')}
                 </Label>
                 <Input
                   id="email"
@@ -219,7 +219,7 @@ export default function MechanicsPage() {
               
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="phone" className="text-right">
-                  Phone
+                  {t('form.phone')}
                 </Label>
                 <Input
                   id="phone"
@@ -231,7 +231,7 @@ export default function MechanicsPage() {
               
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="specialty" className="text-right">
-                  Specialty
+                  {t('form.specialty')}
                 </Label>
                 <Input
                   id="specialty"
@@ -244,22 +244,22 @@ export default function MechanicsPage() {
               
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="isActive" className="text-right">
-                  Status
+                  {t('table.status')}
                 </Label>
                 <Select value={formData.isActive ? 'true' : 'false'} onValueChange={(value) => setFormData({...formData, isActive: value === 'true'})}>
                   <SelectTrigger className="col-span-3">
                     <SelectValue placeholder="Select status" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="true">Active</SelectItem>
-                    <SelectItem value="false">Inactive</SelectItem>
+                    <SelectItem value="true">{t('status.active')}</SelectItem>
+                    <SelectItem value="false">{t('status.inactive')}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               
               <DialogFooter>
                 <Button type="submit">
-                  {editingMechanic ? 'Update Mechanic' : 'Add Mechanic'}
+                  {editingMechanic ? t('action.update') + ' ' + t('mechanics.title') : t('action.add') + ' ' + t('mechanics.title')}
                 </Button>
               </DialogFooter>
             </form>
@@ -280,7 +280,7 @@ export default function MechanicsPage() {
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                 <Input
-                  placeholder="Search mechanics..."
+                  placeholder={t('placeholder.search')}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10"
@@ -289,12 +289,12 @@ export default function MechanicsPage() {
             </div>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-48">
-                <SelectValue placeholder="Filter by status" />
+                <SelectValue placeholder={t('placeholder.selectStatus')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="inactive">Inactive</SelectItem>
+                <SelectItem value="all">{t('status.active')} & {t('status.inactive')}</SelectItem>
+                <SelectItem value="active">{t('status.active')}</SelectItem>
+                <SelectItem value="inactive">{t('status.inactive')}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -302,12 +302,12 @@ export default function MechanicsPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Contact</TableHead>
-                <TableHead>Specialty</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Maintenance Count</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead>{t('table.name')}</TableHead>
+                <TableHead>{t('table.contact')}</TableHead>
+                <TableHead>{t('table.specialty')}</TableHead>
+                <TableHead>{t('table.status')}</TableHead>
+                <TableHead>{t('table.maintenanceCount')}</TableHead>
+                <TableHead className="text-right">{t('table.actions')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -316,7 +316,7 @@ export default function MechanicsPage() {
                   <TableCell colSpan={6} className="text-center py-8">
                     <div className="flex flex-col items-center gap-2">
                       <Wrench className="h-8 w-8 text-gray-400" />
-                      <p className="text-gray-500">No mechanics found</p>
+                      <p className="text-gray-500">{t('message.noData')}</p>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -354,7 +354,7 @@ export default function MechanicsPage() {
                     </TableCell>
                     <TableCell>
                       <Badge variant={mechanic.isActive ? "default" : "secondary"}>
-                        {mechanic.isActive ? "Active" : "Inactive"}
+                        {mechanic.isActive ? t('status.active') : t('status.inactive')}
                       </Badge>
                     </TableCell>
                     <TableCell>{mechanic.maintenanceCount || 0}</TableCell>
