@@ -432,7 +432,7 @@ export default function DocumentViewPage() {
                   {document.createdBy && (
                     <div className="p-3 bg-gray-50 rounded-lg">
                       <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">Created By</div>
-                      <div className="text-sm font-medium text-gray-900 mt-1">{document.createdBy.name || document.createdBy.email}</div>
+                      <div className="text-sm font-medium text-gray-900 mt-1">{document.createdBy?.name || document.createdBy?.email || 'Unknown'}</div>
                     </div>
                   )}
                 </div>
