@@ -9,7 +9,6 @@ export async function GET(request: NextRequest) {
     await requireAdmin(request)
 
     const users = await db.user.findMany({
-      where: { isDeleted: false },
       select: {
         id: true,
         email: true,
@@ -18,8 +17,7 @@ export async function GET(request: NextRequest) {
         isActive: true,
         createdAt: true,
         updatedAt: true
-      },
-      orderBy: { createdAt: 'desc' }
+      }
     })
 
     return NextResponse.json(users)
