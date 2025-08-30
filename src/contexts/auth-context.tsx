@@ -80,25 +80,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             return
           }
           
-          // Verify token is still valid by checking with server
-          const response = await fetch('/api/auth/me', {
+          // Set auth state immediately, then verify in background
+          setToken(token)
+          setUser(parsedUser)
+          console.log('Auth initialized from stored data')
+          
+          // Verify token is still valid in background
+          fetch('/api/auth/me', {
             headers: {
               'Authorization': `Bearer ${token}`
             }
+          }).then(response => {
+            if (!response.ok) {
+              // Token is invalid, clear storage
+              localStorage.removeItem('authToken')
+              localStorage.removeItem('user')
+              setToken(null)
+              setUser(null)
+              console.log('Stored token was invalid, cleared auth data')
+            }
+          }).catch(error => {
+            console.error('Error verifying token:', error)
           })
-
-          if (response.ok) {
-            setToken(token)
-            setUser(parsedUser)
-            console.log('Auth initialized successfully from stored data')
-          } else {
-            // Token is invalid, clear storage
-            localStorage.removeItem('authToken')
-            localStorage.removeItem('user')
-            setToken(null)
-            setUser(null)
-            console.log('Stored token was invalid, cleared auth data')
-          }
         } catch (error) {
           console.error('Error validating saved auth:', error)
           // Clear invalid data
