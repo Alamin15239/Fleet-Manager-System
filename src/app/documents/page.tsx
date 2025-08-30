@@ -120,7 +120,6 @@ export default function DocumentsPage() {
   }
 
   if (!isAuthenticated) {
-    router.push('/login');
     return null;
   }
 
