@@ -172,7 +172,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!token) return
     
     try {
-      const response = await fetch('/api/users/me', {
+      const response = await fetch('/api/auth/me', {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -184,9 +184,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(userData)
         localStorage.setItem('user', JSON.stringify(userData))
         console.log('User data refreshed:', userData)
-        
-        // Force re-render of components using user data
-        setUser(prevUser => ({ ...userData }))
       }
     } catch (error) {
       console.error('Error refreshing user data:', error)
