@@ -1,3 +1,0 @@
-@echo off
-echo Starting Fleet Manager Development Server...
-nodemon --exec "npx tsx server.ts" --watch server.ts --watch src --ext ts,tsx,js,jsx
