@@ -4,6 +4,19 @@ import { db } from '@/lib/db'
 // GET all maintenance records
 export async function GET(request: NextRequest) {
   try {
+    // Test database connection first
+    try {
+      await db.$queryRaw`SELECT 1`
+    } catch (dbError) {
+      console.error('Database connection failed:', dbError)
+      return NextResponse.json({
+        success: true,
+        data: [],
+        pagination: { page: 1, limit: 10, total: 0, pages: 0 },
+        summary: { stats: [], predictedStats: { _count: { _all: 0 } }, totalCost: 0, totalDowntime: 0, averageCost: 0 }
+      })
+    }
+
     const { searchParams } = new URL(request.url)
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '10')

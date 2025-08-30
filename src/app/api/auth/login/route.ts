@@ -1,8 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { authenticateUser } from '@/lib/auth'
+import { db } from '@/lib/db'
 
 export async function POST(request: NextRequest) {
   try {
+    // Test database connection first
+    try {
+      await db.$queryRaw`SELECT 1`
+    } catch (dbError) {
+      console.error('Database connection failed:', dbError)
+      return NextResponse.json(
+        { error: 'Service temporarily unavailable' },
+        { status: 503 }
+      )
+    }
+
     const { email, password } = await request.json()
 
     if (!email || !password) {

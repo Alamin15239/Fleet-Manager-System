@@ -4,6 +4,14 @@ import { requireManager } from '@/lib/auth'
 
 export async function GET(request: NextRequest) {
   try {
+    // Test database connection first
+    try {
+      await db.$queryRaw`SELECT 1`
+    } catch (dbError) {
+      console.error('Database connection failed:', dbError)
+      return NextResponse.json([])
+    }
+
     requireManager(request)
     const { searchParams } = new URL(request.url)
     const includeInactive = searchParams.get('includeInactive') === 'true'
