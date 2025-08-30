@@ -122,6 +122,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
+      // Add delay to avoid rate limiting
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: {
@@ -131,6 +134,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         body: JSON.stringify({ email, password })
       })
 
+      if (response.status === 429) {
+        throw new Error('Too many login attempts. Please wait a moment and try again.')
+      }
+      
       const data = await response.json()
 
       if (response.ok) {
@@ -160,8 +167,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           console.error('Invalid login response structure:', data)
           return false
         }
+      } else {
+        // Handle specific error messages
+        if (data.error) {
+          throw new Error(data.error)
+        }
+        return false
       }
-      return false
     } catch (error) {
       console.error('Login error:', error)
       throw error // Re-throw to let the component handle the error message
