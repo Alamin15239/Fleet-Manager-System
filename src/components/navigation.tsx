@@ -25,87 +25,89 @@ import {
   Shield,
   Edit3
 } from 'lucide-react'
+import { useLanguage } from '@/contexts/language-context'
+import { LanguageToggle } from '@/components/language-toggle'
 
-const navigation = [
+const getNavigation = (t: (key: string) => string) => [
   { 
-    name: 'Dashboard', 
+    name: t('nav.dashboard'), 
     href: '/', 
     icon: Home,
     resource: 'dashboard',
     action: 'read'
   },
   { 
-    name: 'Trucks', 
+    name: t('nav.trucks'), 
     href: '/trucks', 
     icon: Truck,
     resource: 'trucks',
     action: 'read'
   },
   { 
-    name: 'Maintenance', 
+    name: t('nav.maintenance'), 
     href: '/maintenance', 
     icon: Wrench2,
     resource: 'maintenance',
     action: 'read'
   },
   { 
-    name: 'Mechanics', 
+    name: t('nav.mechanics'), 
     href: '/mechanics', 
     icon: UserCheck,
     resource: 'mechanics',
     action: 'read'
   },
   { 
-    name: 'Tire Management', 
+    name: t('nav.tireManagement'), 
     href: '/tire-management', 
     icon: Zap,
     resource: 'tire-management',
     action: 'read'
   },
   { 
-    name: 'Advanced Analytics', 
+    name: t('nav.analytics'), 
     href: '/advanced-analytics', 
     icon: TrendingUp,
     resource: 'advanced-analytics',
     action: 'read'
   },
   { 
-    name: 'Reports', 
+    name: t('nav.reports'), 
     href: '/reports', 
     icon: FileText,
     resource: 'reports',
     action: 'read'
   },
   { 
-    name: 'Document Editor', 
+    name: t('nav.editor'), 
     href: '/editor', 
     icon: Edit3,
     resource: 'documents',
     action: 'read'
   },
   { 
-    name: 'Users', 
+    name: t('nav.users'), 
     href: '/users', 
     icon: Users2,
     resource: 'users',
     action: 'read'
   },
   { 
-    name: 'Profile', 
+    name: t('nav.profile'), 
     href: '/profile', 
     icon: User,
     resource: 'profile',
     action: 'read'
   },
   { 
-    name: 'Settings', 
+    name: t('nav.settings'), 
     href: '/settings', 
     icon: Settings2,
     resource: 'settings',
     action: 'read'
   },
   { 
-    name: 'Admin', 
+    name: t('nav.admin'), 
     href: '/admin', 
     icon: Shield,
     resource: 'admin',
@@ -122,6 +124,9 @@ export function Navigation({ userRole = 'USER' }: NavigationProps) {
   const { user, logout } = useAuth()
   const { hasPermission, isLoading } = usePermissions()
   const { isSidebarOpen, toggleSidebar } = useSidebar()
+  const { t } = useLanguage()
+  
+  const navigation = getNavigation(t)
 
   const handleLogout = () => {
     logout()
@@ -152,18 +157,21 @@ export function Navigation({ userRole = 'USER' }: NavigationProps) {
         {isSidebarOpen && (
           <h1 className="text-xl font-bold text-sidebar-foreground">Fleet Manager</h1>
         )}
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={toggleSidebar}
-          className="p-2 h-8 w-8"
-        >
-          {isSidebarOpen ? (
-            <ChevronLeft className="h-4 w-4" />
-          ) : (
-            <ChevronRight className="h-4 w-4" />
-          )}
-        </Button>
+        <div className="flex items-center gap-2">
+          <LanguageToggle />
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={toggleSidebar}
+            className="p-2 h-8 w-8"
+          >
+            {isSidebarOpen ? (
+              <ChevronLeft className="h-4 w-4" />
+            ) : (
+              <ChevronRight className="h-4 w-4" />
+            )}
+          </Button>
+        </div>
       </div>
       
       <div className="flex-1 px-3 py-4">
@@ -240,7 +248,7 @@ export function Navigation({ userRole = 'USER' }: NavigationProps) {
               onClick={handleLogout}
             >
               <LogOut className="mr-3 h-5 w-5" />
-              Logout
+              {t('nav.logout')}
             </Button>
           </>
         ) : (
