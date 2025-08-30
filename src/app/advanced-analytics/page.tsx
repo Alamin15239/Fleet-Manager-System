@@ -10,6 +10,8 @@ import { Calendar, TrendingUp, BarChart3, PieChart, Download, RefreshCw } from '
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
 import { Bar, BarChart, Line, LineChart, XAxis, YAxis, CartesianGrid, Pie, PieChart as RechartsPieChart, Cell, Legend } from 'recharts'
 import { apiGet } from '@/lib/api'
+import { useLanguage } from '@/contexts/language-context'
+import { PageHeader } from '@/components/page-header'
 
 interface AnalyticsData {
   maintenanceTrends: any[]
@@ -20,6 +22,7 @@ interface AnalyticsData {
 }
 
 export default function AdvancedAnalytics() {
+  const { t } = useLanguage()
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData>({
     maintenanceTrends: [],
     costAnalysis: [],
@@ -270,11 +273,10 @@ export default function AdvancedAnalytics() {
 
   return (
     <div className="container mx-auto p-6 space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Advanced Analytics</h1>
-          <p className="text-muted-foreground">Comprehensive fleet performance and maintenance analytics</p>
-        </div>
+      <PageHeader 
+        titleKey="analytics.title" 
+        subtitleKey="analytics.subtitle"
+      >
         <div className="flex gap-2">
           <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
             <SelectTrigger className="w-[180px]">
@@ -309,7 +311,7 @@ export default function AdvancedAnalytics() {
             Export
           </Button>
         </div>
-      </div>
+      </PageHeader>
 
       {/* Key Metrics */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

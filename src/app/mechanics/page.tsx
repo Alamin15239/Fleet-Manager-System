@@ -12,6 +12,8 @@ import { Label } from '@/components/ui/label'
 import { Plus, Edit, Trash2, Search, User, Wrench, Phone, Star } from 'lucide-react'
 import { toast } from 'sonner'
 import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api'
+import { useLanguage } from '@/contexts/language-context'
+import { PageHeader } from '@/components/page-header'
 
 interface Mechanic {
   id: string
@@ -24,6 +26,7 @@ interface Mechanic {
 }
 
 export default function MechanicsPage() {
+  const { t } = useLanguage()
   const [mechanics, setMechanics] = useState<Mechanic[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
@@ -167,11 +170,10 @@ export default function MechanicsPage() {
 
   return (
     <div className="container mx-auto p-6 space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Mechanics Management</h1>
-          <p className="text-muted-foreground">Manage mechanics and their information</p>
-        </div>
+      <PageHeader 
+        titleKey="mechanics.title" 
+        subtitleKey="mechanics.subtitle"
+      >
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button onClick={resetForm}>
@@ -263,7 +265,7 @@ export default function MechanicsPage() {
             </form>
           </DialogContent>
         </Dialog>
-      </div>
+      </PageHeader>
 
       <Card>
         <CardHeader>
