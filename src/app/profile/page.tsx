@@ -246,13 +246,12 @@ export default function ProfilePage() {
             <CardDescription>Your profile photo</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col items-center space-y-4">
-            <Avatar className="h-32 w-32">
+            <Avatar className="h-32 w-32" key={`profile-avatar-${profile.profileImage}-${Date.now()}`}>
               <AvatarImage 
-                src={profile.profileImage ? `${profile.profileImage}?t=${Date.now()}` : ''} 
-                alt={profile.name || 'User'} 
-                key={`${profile.profileImage}-${profile.updatedAt}`}
+                src={profile.profileImage || ''} 
+                alt={profile.name || 'User'}
                 onError={(e) => {
-                  console.log('Avatar image failed to load:', profile.profileImage)
+                  console.log('Profile avatar failed to load:', profile.profileImage)
                 }}
               />
               <AvatarFallback className="text-2xl">

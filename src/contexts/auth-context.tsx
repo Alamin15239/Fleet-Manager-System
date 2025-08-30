@@ -184,6 +184,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(userData)
         localStorage.setItem('user', JSON.stringify(userData))
         console.log('User data refreshed:', userData)
+        
+        // Force re-render of components using user data
+        setUser(prevUser => ({ ...userData }))
       }
     } catch (error) {
       console.error('Error refreshing user data:', error)
