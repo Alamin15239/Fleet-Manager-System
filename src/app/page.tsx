@@ -230,8 +230,8 @@ export default function Dashboard() {
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Fleet Maintenance Dashboard</h1>
-          <p className="text-muted-foreground">Monitor and manage your truck fleet maintenance</p>
+          <h1 className="text-3xl font-bold tracking-tight">{t('dashboard.title')}</h1>
+          <p className="text-muted-foreground">{t('dashboard.subtitle')}</p>
         </div>
         <div className="flex gap-2">
           {/* Button removed - Simple Tire Management deleted */}

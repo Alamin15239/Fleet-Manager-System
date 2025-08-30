@@ -6,6 +6,7 @@ import { Layout } from "@/components/layout";
 import { AuthProvider } from "@/contexts/auth-context";
 import { SidebarProvider } from "@/contexts/sidebar-context";
 import { PermissionsProvider } from "@/contexts/permissions-context";
+import { LanguageProvider } from "@/contexts/language-context";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
@@ -50,16 +51,18 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <AuthProvider>
-            <SidebarProvider>
-              <PermissionsProvider>
-                <Layout>
-                  {children}
-                </Layout>
-              </PermissionsProvider>
-            </SidebarProvider>
-          </AuthProvider>
-          <Toaster />
+          <LanguageProvider>
+            <AuthProvider>
+              <SidebarProvider>
+                <PermissionsProvider>
+                  <Layout>
+                    {children}
+                  </Layout>
+                </PermissionsProvider>
+              </SidebarProvider>
+            </AuthProvider>
+            <Toaster />
+          </LanguageProvider>
         </ThemeProvider>
         <Analytics />
         <SpeedInsights />
