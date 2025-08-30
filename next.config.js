@@ -4,8 +4,9 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  // Optimize for Cloudflare Pages
-  output: 'standalone',
+  // Keep server for API routes
+  // output: 'export',
+  // trailingSlash: true,
   experimental: {
     outputFileTracingExcludes: {
       '*': [
@@ -16,13 +17,7 @@ const nextConfig = {
     },
   },
   images: {
-    domains: ['localhost'],
-    remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: '**',
-      },
-    ],
+    unoptimized: true
   },
   webpack: (config, { isServer }) => {
     if (!isServer) {
