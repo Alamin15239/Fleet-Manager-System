@@ -293,9 +293,9 @@ export default function MaintenancePage() {
 
       if (response.ok) {
         if (editingRecord) {
-          toast.success('Maintenance record updated successfully')
+          toast.success(t('message.success'))
         } else {
-          toast.success('Maintenance record added successfully')
+          toast.success(t('message.success'))
           if (formData.isOilChange) {
             toast.info('Next oil change date has been calculated and set')
           }
@@ -373,12 +373,12 @@ export default function MaintenancePage() {
   }
 
   const handleDelete = async (recordId: string) => {
-    if (confirm('Are you sure you want to delete this maintenance record?')) {
+    if (confirm(t('message.deleteConfirm'))) {
       try {
         const response = await apiDelete(`/api/maintenance/${recordId}`)
 
         if (response.ok) {
-          toast.success('Maintenance record deleted successfully')
+          toast.success(t('message.success'))
           fetchMaintenanceRecords() // Refresh the list
         } else {
           const errorData = await response.json()
@@ -415,20 +415,20 @@ export default function MaintenancePage() {
           <DialogContent className="sm:max-w-[600px]">
             <DialogHeader>
               <DialogTitle>
-                {editingRecord ? 'Edit Maintenance Record' : 'Add New Maintenance Record'}
+                {editingRecord ? t('maintenance.editMaintenance') : t('maintenance.addMaintenance')}
               </DialogTitle>
               <DialogDescription>
-                {editingRecord ? 'Update the maintenance record below.' : 'Enter the details for the new maintenance record.'}
+                {editingRecord ? t('maintenance.updateDetails') : t('maintenance.mechanicDetails')}
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="grid gap-4 py-4 max-h-[60vh] overflow-y-auto">
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="truckId" className="text-right">
-                  Truck
+                  {t('maintenance.truck')}
                 </Label>
                 <Select value={formData.truckId} onValueChange={(value) => setFormData({...formData, truckId: value})}>
                   <SelectTrigger className="col-span-3">
-                    <SelectValue placeholder="Select truck" />
+                    <SelectValue placeholder={t('maintenance.selectTruck')} />
                   </SelectTrigger>
                   <SelectContent>
                     {trucks.map((truck) => (
@@ -442,7 +442,7 @@ export default function MaintenancePage() {
               
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label className="text-right">
-                  Service Type
+                  {t('maintenance.serviceType')}
                 </Label>
                 <div className="col-span-3 space-y-2">
                   <MaintenanceJobSelector
@@ -451,14 +451,14 @@ export default function MaintenancePage() {
                   >
                     <Button variant="outline" className="w-full justify-start">
                       <BookOpen className="h-4 w-4 mr-2" />
-                      {selectedJob ? selectedJob.name : 'Select predefined job (optional)'}
+                      {selectedJob ? selectedJob.name : t('maintenance.selectJob')}
                     </Button>
                   </MaintenanceJobSelector>
                   <Input
                     id="serviceType"
                     value={formData.serviceType}
                     onChange={(e) => setFormData({...formData, serviceType: e.target.value})}
-                    placeholder="Or enter custom service type"
+                    placeholder={t('maintenance.customServiceType')}
                     className="w-full"
                     required
                   />
@@ -467,7 +467,7 @@ export default function MaintenancePage() {
               
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="isOilChange" className="text-right">
-                  Oil Change Service
+                  {t('maintenance.oilChangeService')}
                 </Label>
                 <div className="flex items-center space-x-2 col-span-3">
                   <input
@@ -477,7 +477,7 @@ export default function MaintenancePage() {
                     onChange={(e) => setFormData({...formData, isOilChange: e.target.checked})}
                     className="rounded"
                   />
-                  <Label htmlFor="isOilChange">This is an oil change service</Label>
+                  <Label htmlFor="isOilChange">{t('maintenance.isOilChange')}</Label>
                 </div>
               </div>
               
@@ -485,7 +485,7 @@ export default function MaintenancePage() {
                 <>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="oilChangeInterval" className="text-right">
-                      Oil Change Interval (km)
+                      {t('maintenance.oilChangeInterval')}
                     </Label>
                     <Input
                       id="oilChangeInterval"
@@ -499,7 +499,7 @@ export default function MaintenancePage() {
                   
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="currentMileage" className="text-right">
-                      Current Mileage (km)
+                      {t('maintenance.currentMileage')}
                     </Label>
                     <Input
                       id="currentMileage"
@@ -514,7 +514,7 @@ export default function MaintenancePage() {
               
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="description" className="text-right">
-                  Description
+                  {t('form.description')}
                 </Label>
                 <Textarea
                   id="description"
@@ -527,7 +527,7 @@ export default function MaintenancePage() {
               
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="datePerformed" className="text-right">
-                  Date Performed
+                  {t('maintenance.datePerformed')}
                 </Label>
                 <Input
                   id="datePerformed"
@@ -541,14 +541,14 @@ export default function MaintenancePage() {
               
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="mechanicId" className="text-right">
-                  Mechanic
+                  {t('maintenance.mechanic')}
                 </Label>
                 <Select value={formData.mechanicId} onValueChange={(value) => setFormData({...formData, mechanicId: value})}>
                   <SelectTrigger className="col-span-3">
-                    <SelectValue placeholder="Select mechanic (optional)" />
+                    <SelectValue placeholder={t('maintenance.selectMechanic')} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">No Mechanic</SelectItem>
+                    <SelectItem value="none">{t('maintenance.noMechanic')}</SelectItem>
                     {mechanics.map((mechanic) => (
                       <SelectItem key={mechanic.id} value={mechanic.id}>
                         {mechanic.name}
@@ -560,7 +560,7 @@ export default function MaintenancePage() {
               
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="partsCost" className="text-right">
-                  Parts Cost
+                  {t('maintenance.partsCost')}
                 </Label>
                 <div className="col-span-3">
                   <CurrencyInput
@@ -577,7 +577,7 @@ export default function MaintenancePage() {
               
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="laborCost" className="text-right">
-                  Labor Cost
+                  {t('maintenance.laborCost')}
                 </Label>
                 <div className="col-span-3">
                   <CurrencyInput
@@ -594,7 +594,7 @@ export default function MaintenancePage() {
               
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="nextServiceDue" className="text-right">
-                  Next Service Due
+                  {t('maintenance.nextServiceDue')}
                 </Label>
                 <Input
                   id="nextServiceDue"
@@ -607,24 +607,24 @@ export default function MaintenancePage() {
               
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="status" className="text-right">
-                  Status
+                  {t('table.status')}
                 </Label>
                 <Select value={formData.status} onValueChange={(value) => setFormData({...formData, status: value as any})}>
                   <SelectTrigger className="col-span-3">
-                    <SelectValue placeholder="Select status" />
+                    <SelectValue placeholder={t('placeholder.selectStatus')} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="SCHEDULED">Scheduled</SelectItem>
-                    <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
-                    <SelectItem value="COMPLETED">Completed</SelectItem>
-                    <SelectItem value="CANCELLED">Cancelled</SelectItem>
+                    <SelectItem value="SCHEDULED">{t('status.scheduled')}</SelectItem>
+                    <SelectItem value="IN_PROGRESS">{t('status.inProgress')}</SelectItem>
+                    <SelectItem value="COMPLETED">{t('status.completed')}</SelectItem>
+                    <SelectItem value="CANCELLED">{t('status.cancelled')}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="notes" className="text-right">
-                  Notes
+                  {t('form.notes')}
                 </Label>
                 <Textarea
                   id="notes"
@@ -637,7 +637,7 @@ export default function MaintenancePage() {
               
               <DialogFooter>
                 <Button type="submit">
-                  {editingRecord ? 'Update Record' : 'Add Record'}
+                  {editingRecord ? t('maintenance.updateMaintenance') : t('maintenance.addRecord')}
                 </Button>
               </DialogFooter>
             </form>
@@ -649,65 +649,65 @@ export default function MaintenancePage() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Trucks</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('dashboard.totalTrucks')}</CardTitle>
             <Truck className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{dashboardStats.totalTrucks}</div>
             <p className="text-xs text-muted-foreground">
-              {dashboardStats.activeTrucks} active vehicles
+              {dashboardStats.activeTrucks} {t('dashboard.activeTrucks')}
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Upcoming Maintenance</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('dashboard.upcomingMaintenance')}</CardTitle>
             <Wrench className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{dashboardStats.upcomingMaintenance}</div>
             <p className="text-xs text-muted-foreground">
-              Due within 30 days
+              {t('dashboard.dueWithin30Days')}
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Overdue Repairs</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('dashboard.overdueRepairs')}</CardTitle>
             <AlertTriangle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-red-600">{dashboardStats.overdueRepairs}</div>
             <p className="text-xs text-muted-foreground">
-              Require immediate attention
+              {t('dashboard.requireAttention')}
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Monthly Maintenance Cost</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('dashboard.monthlyMaintenanceCost')}</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">${(dashboardStats.totalMaintenanceCost / 6).toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
             <p className="text-xs text-muted-foreground">
-              Average monthly cost
+              {t('dashboard.averageMonthlyCost')}
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Cost (6mo)</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('dashboard.totalCost6mo')}</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">${dashboardStats.totalMaintenanceCost.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">
-              Last 6 months
+              {t('dashboard.last6Months')}
             </p>
           </CardContent>
         </Card>
@@ -717,27 +717,27 @@ export default function MaintenancePage() {
       <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
-            <DialogTitle>Maintenance Record Details</DialogTitle>
+            <DialogTitle>{t('maintenance.maintenanceDetails')}</DialogTitle>
             <DialogDescription>
-              View the complete maintenance record information
+              {t('maintenance.completeInformation')}
             </DialogDescription>
           </DialogHeader>
           {viewingRecord && (
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-sm font-medium text-gray-500">Truck</Label>
+                  <Label className="text-sm font-medium text-gray-500">{t('maintenance.truck')}</Label>
                   <p className="text-lg font-semibold">
                     {viewingRecord.truck.year} {viewingRecord.truck.make} {viewingRecord.truck.model}
                   </p>
                   <p className="text-sm text-gray-600">{viewingRecord.truck.licensePlate}</p>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium text-gray-500">Service Type</Label>
+                  <Label className="text-sm font-medium text-gray-500">{t('maintenance.serviceType')}</Label>
                   <p className="text-lg font-semibold">{viewingRecord.serviceType}</p>
                   {viewingRecord.isOilChange && (
                     <Badge variant="secondary" className="mt-1">
-                      Oil Change
+                      {t('maintenance.oilChange')}
                     </Badge>
                   )}
                 </div>
@@ -745,11 +745,11 @@ export default function MaintenancePage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-sm font-medium text-gray-500">Date Performed</Label>
+                  <Label className="text-sm font-medium text-gray-500">{t('maintenance.datePerformed')}</Label>
                   <p className="text-lg">{new Date(viewingRecord.datePerformed).toLocaleDateString()}</p>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium text-gray-500">Status</Label>
+                  <Label className="text-sm font-medium text-gray-500">{t('table.status')}</Label>
                   <Badge className={getStatusColor(viewingRecord.status)}>
                     {viewingRecord.status.replace('_', ' ')}
                   </Badge>
@@ -758,7 +758,7 @@ export default function MaintenancePage() {
 
               {viewingRecord.mechanic && (
                 <div>
-                  <Label className="text-sm font-medium text-gray-500">Mechanic</Label>
+                  <Label className="text-sm font-medium text-gray-500">{t('maintenance.mechanic')}</Label>
                   <p className="text-lg">{viewingRecord.mechanic.name}</p>
                   <p className="text-sm text-gray-600">{viewingRecord.mechanic.email}</p>
                 </div>
@@ -766,15 +766,15 @@ export default function MaintenancePage() {
 
               <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <Label className="text-sm font-medium text-gray-500">Parts Cost</Label>
+                  <Label className="text-sm font-medium text-gray-500">{t('maintenance.partsCost')}</Label>
                   <p className="text-lg font-semibold">{formatCurrencyWithSettings(viewingRecord.partsCost)}</p>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium text-gray-500">Labor Cost</Label>
+                  <Label className="text-sm font-medium text-gray-500">{t('maintenance.laborCost')}</Label>
                   <p className="text-lg font-semibold">{formatCurrencyWithSettings(viewingRecord.laborCost)}</p>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium text-gray-500">Total Cost</Label>
+                  <Label className="text-sm font-medium text-gray-500">{t('table.cost')}</Label>
                   <p className="text-lg font-semibold text-green-600">{formatCurrencyWithSettings(viewingRecord.totalCost)}</p>
                 </div>
               </div>
@@ -782,11 +782,11 @@ export default function MaintenancePage() {
               {viewingRecord.isOilChange && (
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label className="text-sm font-medium text-gray-500">Oil Change Interval</Label>
+                    <Label className="text-sm font-medium text-gray-500">{t('maintenance.oilChangeInterval')}</Label>
                     <p className="text-lg">{viewingRecord.oilChangeInterval || 5000} km</p>
                   </div>
                   <div>
-                    <Label className="text-sm font-medium text-gray-500">Current Mileage</Label>
+                    <Label className="text-sm font-medium text-gray-500">{t('maintenance.currentMileage')}</Label>
                     <p className="text-lg">{viewingRecord.currentMileage || 0} km</p>
                   </div>
                 </div>
@@ -794,32 +794,32 @@ export default function MaintenancePage() {
 
               {viewingRecord.nextServiceDue && (
                 <div>
-                  <Label className="text-sm font-medium text-gray-500">Next Service Due</Label>
+                  <Label className="text-sm font-medium text-gray-500">{t('maintenance.nextServiceDue')}</Label>
                   <p className="text-lg">{new Date(viewingRecord.nextServiceDue).toLocaleDateString()}</p>
                 </div>
               )}
 
               {viewingRecord.description && (
                 <div>
-                  <Label className="text-sm font-medium text-gray-500">Description</Label>
+                  <Label className="text-sm font-medium text-gray-500">{t('form.description')}</Label>
                   <p className="text-sm mt-1">{viewingRecord.description}</p>
                 </div>
               )}
 
               {viewingRecord.notes && (
                 <div>
-                  <Label className="text-sm font-medium text-gray-500">Notes</Label>
+                  <Label className="text-sm font-medium text-gray-500">{t('form.notes')}</Label>
                   <p className="text-sm mt-1">{viewingRecord.notes}</p>
                 </div>
               )}
 
               <div className="grid grid-cols-2 gap-4 text-sm text-gray-500">
                 <div>
-                  <Label>Created</Label>
+                  <Label>{t('maintenance.created')}</Label>
                   <p>{new Date(viewingRecord.createdAt).toLocaleDateString()}</p>
                 </div>
                 <div>
-                  <Label>Last Updated</Label>
+                  <Label>{t('maintenance.lastUpdated')}</Label>
                   <p>{new Date(viewingRecord.updatedAt).toLocaleDateString()}</p>
                 </div>
               </div>
@@ -827,7 +827,7 @@ export default function MaintenancePage() {
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsViewDialogOpen(false)}>
-              Close
+              {t('action.close')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -836,9 +836,9 @@ export default function MaintenancePage() {
       {/* Maintenance Records Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Maintenance Records</CardTitle>
+          <CardTitle>{t('maintenance.maintenanceRecords')}</CardTitle>
           <CardDescription>
-            Showing {maintenanceRecords.length} maintenance records
+            {t('maintenance.showingRecords').replace('{count}', maintenanceRecords.length.toString())}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -846,14 +846,14 @@ export default function MaintenancePage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Service Type</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Truck</TableHead>
-                  <TableHead>Mechanic</TableHead>
-                  <TableHead>Cost</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead>{t('table.date')}</TableHead>
+                  <TableHead>{t('table.serviceType')}</TableHead>
+                  <TableHead>{t('table.category')}</TableHead>
+                  <TableHead>{t('table.truck')}</TableHead>
+                  <TableHead>{t('table.mechanic')}</TableHead>
+                  <TableHead>{t('table.cost')}</TableHead>
+                  <TableHead>{t('table.status')}</TableHead>
+                  <TableHead className="text-right">{t('table.actions')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -864,7 +864,7 @@ export default function MaintenancePage() {
                         <div className="font-medium">{format(new Date(record.datePerformed), 'MMM dd, yyyy')}</div>
                         {record.nextServiceDue && (
                           <div className="text-sm text-muted-foreground">
-                            Next: {format(new Date(record.nextServiceDue), 'MMM dd, yyyy')}
+                            {t('maintenance.nextService')}: {format(new Date(record.nextServiceDue), 'MMM dd, yyyy')}
                           </div>
                         )}
                       </div>
@@ -874,7 +874,7 @@ export default function MaintenancePage() {
                         <span className="font-medium">{record.serviceType}</span>
                         {record.isOilChange && (
                           <Badge variant="secondary" className="text-xs">
-                            🛢️ Oil Change
+                            🛢️ {t('maintenance.oilChange')}
                           </Badge>
                         )}
                       </div>
@@ -908,14 +908,14 @@ export default function MaintenancePage() {
                           </div>
                         </div>
                       ) : (
-                        <span className="text-muted-foreground">No Mechanic</span>
+                        <span className="text-muted-foreground">{t('maintenance.noMechanic')}</span>
                       )}
                     </TableCell>
                     <TableCell>
                       <div>
                         <div className="font-medium">{formatCurrencyWithSettings(record.totalCost)}</div>
                         <div className="text-sm text-muted-foreground">
-                          Parts: {formatCurrencyWithSettings(record.partsCost)} • Labor: {formatCurrencyWithSettings(record.laborCost)}
+                          {t('maintenance.partsCost')}: {formatCurrencyWithSettings(record.partsCost)} • {t('maintenance.laborCost')}: {formatCurrencyWithSettings(record.laborCost)}
                         </div>
                       </div>
                     </TableCell>

@@ -548,7 +548,9 @@ const translations = {
     'mechanics.filterByStatus': 'تصفية حسب الحالة',
     'mechanics.allStatus': 'جميع الحالات',
     'mechanics.mechanicDetails': 'أدخل تفاصيل الميكانيكي لإضافته إلى النظام',
+    'maintenance.mechanicDetails': 'أدخل تفاصيل سجل الصيانة الجديد',
     'mechanics.updateDetails': 'حدث معلومات الميكانيكي أدناه',
+    'maintenance.updateDetails': 'حدث معلومات سجل الصيانة أدناه',
     
     // Dashboard specific
     'dashboard.totalTrucks': 'إجمالي الشاحنات',
