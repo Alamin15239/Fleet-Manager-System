@@ -6,6 +6,8 @@ import { createUser, updateUser } from '@/lib/auth'
 // GET all users (admin only)
 export async function GET(request: NextRequest) {
   try {
+    await requireAdmin(request)
+
     const users = await db.user.findMany({
       select: {
         id: true,
@@ -48,6 +50,7 @@ export async function GET(request: NextRequest) {
 // POST create new user (admin only)
 export async function POST(request: NextRequest) {
   try {
+    await requireAdmin(request)
 
     const body = await request.json()
 
