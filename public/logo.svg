@@ -1,118 +1,46 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" viewBox="0 0 2000 1700">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 120" width="200" height="120">
   <defs>
-    <style>
-      .cls-1 {
-        fill: url(#gradient1);
-      }
-
-      .cls-2 {
-        fill: url(#gradient2);
-      }
-
-      .cls-3 {
-        fill: url(#gradient3);
-      }
-      
-      .glow {
-        filter: url(#glow-filter);
-      }
-      
-      .pulse {
-        animation: pulse 2s ease-in-out infinite;
-      }
-      
-      @keyframes pulse {
-        0%, 100% { opacity: 0.4; }
-        50% { opacity: 1; }
-      }
-      
-      @keyframes shimmer {
-        0% { transform: translateX(-200%); }
-        100% { transform: translateX(200%); }
-      }
-      
-      .shimmer {
-        animation: shimmer 3s ease-in-out infinite;
-      }
-    </style>
-    
-    <!-- 发光滤镜 -->
-    <filter id="glow-filter" x="-50%" y="-50%" width="200%" height="200%">
-      <feGaussianBlur stdDeviation="8" result="coloredBlur"/>
-      <feMerge> 
-        <feMergeNode in="coloredBlur"/>
-        <feMergeNode in="SourceGraphic"/>
-      </feMerge>
-    </filter>
-    
-    <!-- 动态渐变 -->
-    <linearGradient id="gradient1" x1="531.58" y1="-4.02" x2="531.58" y2="1661.41" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#070606">
-        <animate attributeName="stop-color" values="#070606;#5a5a5a;#070606" dur="1.8s" repeatCount="indefinite"/>
-      </stop>
-      <stop offset=".37" stop-color="#1b1b1b">
-        <animate attributeName="stop-color" values="#1b1b1b;#888888;#1b1b1b" dur="1.8s" repeatCount="indefinite"/>
-      </stop>
-      <stop offset="1" stop-color="#3b3b3b">
-        <animate attributeName="stop-color" values="#3b3b3b;#cccccc;#3b3b3b" dur="1.8s" repeatCount="indefinite"/>
-      </stop>
+    <linearGradient id="truckGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#2563eb;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1d4ed8;stop-opacity:1" />
     </linearGradient>
-    
-    <linearGradient id="gradient2" x1="1000" y1="-4.02" x2="1000" y2="1661.41" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#070606">
-        <animate attributeName="stop-color" values="#070606;#5a5a5a;#070606" dur="1.8s" repeatCount="indefinite" begin="0.6s"/>
-      </stop>
-      <stop offset=".37" stop-color="#1b1b1b">
-        <animate attributeName="stop-color" values="#1b1b1b;#888888;#1b1b1b" dur="1.8s" repeatCount="indefinite" begin="0.6s"/>
-      </stop>
-      <stop offset="1" stop-color="#3b3b3b">
-        <animate attributeName="stop-color" values="#3b3b3b;#cccccc;#3b3b3b" dur="1.8s" repeatCount="indefinite" begin="0.6s"/>
-      </stop>
+    <linearGradient id="wheelGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#374151;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1f2937;stop-opacity:1" />
     </linearGradient>
-    
-    <linearGradient id="gradient3" x1="1462.04" y1="-4.02" x2="1462.04" y2="1661.41" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#070606">
-        <animate attributeName="stop-color" values="#070606;#5a5a5a;#070606" dur="1.8s" repeatCount="indefinite" begin="1.2s"/>
-      </stop>
-      <stop offset=".37" stop-color="#1b1b1b">
-        <animate attributeName="stop-color" values="#1b1b1b;#888888;#1b1b1b" dur="1.8s" repeatCount="indefinite" begin="1.2s"/>
-      </stop>
-      <stop offset="1" stop-color="#3b3b3b">
-        <animate attributeName="stop-color" values="#3b3b3b;#cccccc;#3b3b3b" dur="1.8s" repeatCount="indefinite" begin="1.2s"/>
-      </stop>
-    </linearGradient>
-    
-    <!-- 光晕渐变 -->
-    <radialGradient id="glow-gradient" cx="50%" cy="50%" r="50%">
-      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.3"/>
-      <stop offset="70%" stop-color="#888888" stop-opacity="0.1"/>
-      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
-    </radialGradient>
-    
-    <!-- 闪光效果 -->
-    <linearGradient id="shine-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#ffffff" stop-opacity="0"/>
-      <stop offset="45%" stop-color="#ffffff" stop-opacity="0"/>
-      <stop offset="50%" stop-color="#ffffff" stop-opacity="0.8"/>
-      <stop offset="55%" stop-color="#ffffff" stop-opacity="0"/>
-      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
-    </linearGradient>
-    
-    <!-- 裁切路径 -->
-    <clipPath id="shape-clip">
-      <polygon points="1008.73 0 827.29 251.03 54.43 251.03 235.74 0 1008.73 0"/>
-      <polygon points="1937.79 1449.1 1756.47 1700 986.3 1700 1167.48 1449.1 1937.79 1449.1"/>
-      <polygon points="2000 0 771.98 1700 0 1700 1228.02 0 2000 0"/>
-    </clipPath>
   </defs>
   
-  <g class="glow breathe">
-    <g class="pulse wave-effect">
-      <!-- 主要几何形状 -->
-      <polygon class="cls-1" points="1008.73 0 827.29 251.03 54.43 251.03 235.74 0 1008.73 0"/>
-      <polygon class="cls-3" points="1937.79 1449.1 1756.47 1700 986.3 1700 1167.48 1449.1 1937.79 1449.1"/>
-      <polygon class="cls-2" points="2000 0 771.98 1700 0 1700 1228.02 0 2000 0"/>
-    </g>
-  </g>
+  <!-- Truck Body -->
+  <rect x="20" y="40" width="120" height="40" rx="4" fill="url(#truckGradient)" stroke="#1e40af" stroke-width="1"/>
+  
+  <!-- Truck Cab -->
+  <rect x="140" y="30" width="40" height="50" rx="4" fill="url(#truckGradient)" stroke="#1e40af" stroke-width="1"/>
+  
+  <!-- Windshield -->
+  <rect x="145" y="35" width="30" height="20" rx="2" fill="#e5e7eb" stroke="#9ca3af" stroke-width="1"/>
+  
+  <!-- Front Grille -->
+  <rect x="175" y="45" width="5" height="20" fill="#374151"/>
+  <line x1="177" y1="48" x2="177" y2="62" stroke="#6b7280" stroke-width="1"/>
+  
+  <!-- Wheels -->
+  <circle cx="50" cy="90" r="12" fill="url(#wheelGradient)" stroke="#111827" stroke-width="2"/>
+  <circle cx="50" cy="90" r="6" fill="#6b7280"/>
+  
+  <circle cx="110" cy="90" r="12" fill="url(#wheelGradient)" stroke="#111827" stroke-width="2"/>
+  <circle cx="110" cy="90" r="6" fill="#6b7280"/>
+  
+  <circle cx="160" cy="90" r="12" fill="url(#wheelGradient)" stroke="#111827" stroke-width="2"/>
+  <circle cx="160" cy="90" r="6" fill="#6b7280"/>
+  
+  <!-- Headlight -->
+  <circle cx="175" cy="40" r="4" fill="#fbbf24" stroke="#f59e0b" stroke-width="1"/>
+  
+  <!-- Side Details -->
+  <rect x="25" y="45" width="110" height="2" fill="#1e40af"/>
+  <rect x="25" y="70" width="110" height="2" fill="#1e40af"/>
+  
+  <!-- Door Handle -->
+  <rect x="150" y="55" width="3" height="8" rx="1" fill="#374151"/>
 </svg>
