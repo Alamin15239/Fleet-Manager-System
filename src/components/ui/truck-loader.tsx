@@ -9,7 +9,7 @@ export function TruckLoader({ size = 'md', className = '' }: TruckLoaderProps) {
   const sizeClasses = {
     sm: 'h-6 w-12',
     md: 'h-8 w-16', 
-    lg: 'h-12 w-24'
+    lg: 'h-16 w-32'
   }
 
   return (
@@ -19,7 +19,7 @@ export function TruckLoader({ size = 'md', className = '' }: TruckLoaderProps) {
         <div className="absolute bottom-1 left-0 right-0 h-0.5 bg-current opacity-30"></div>
         
         {/* Truck */}
-        <div className="truck-moving absolute">
+        <div className="truck-moving absolute w-full h-full">
           <svg viewBox="0 0 60 30" className="w-full h-full text-current">
             {/* Truck Body */}
             <rect x="5" y="12" width="25" height="8" rx="1" fill="currentColor"/>
@@ -41,22 +41,7 @@ export function TruckLoader({ size = 'md', className = '' }: TruckLoaderProps) {
         </div>
       </div>
       
-      <style jsx>{`
-        .truck-moving {
-          animation: truck-drive 2s linear infinite;
-          width: 100%;
-          height: 100%;
-        }
-        
-        @keyframes truck-drive {
-          0% {
-            transform: translateX(100%);
-          }
-          100% {
-            transform: translateX(-100%);
-          }
-        }
-      `}</style>
+
     </div>
   )
 }

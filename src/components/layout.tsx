@@ -6,6 +6,7 @@ import { Header } from './header'
 import { useAuth } from '@/contexts/auth-context'
 import { useSidebar } from '@/contexts/sidebar-context'
 import { ThemeToggle } from './theme-toggle'
+import { PageTransition } from './ui/page-transition'
 
 
 interface LayoutProps {
@@ -41,7 +42,9 @@ export function Layout({ children, userRole = 'MECHANIC', isAuthenticated: force
       <div className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ${isSidebarOpen ? 'ml-0' : 'ml-0'}`}>
         <Header />
         <main className="flex-1 overflow-auto bg-background">
-          {children}
+          <PageTransition>
+            {children}
+          </PageTransition>
         </main>
       </div>
     </div>
