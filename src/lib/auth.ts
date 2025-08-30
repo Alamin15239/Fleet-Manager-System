@@ -166,25 +166,6 @@ export async function requireAuth(request: Request): Promise<JWTPayload> {
     throw new Error('Invalid token')
   }
 
-  // For now, skip database check to avoid connection issues
-  // TODO: Re-enable user validation when database connection is stable
-  try {
-    const user = await db.user.findUnique({
-      where: { 
-        id: decoded.id,
-        isActive: true,
-        isDeleted: false
-      }
-    })
-
-    if (!user) {
-      throw new Error('User not found or inactive')
-    }
-  } catch (dbError) {
-    console.warn('Database check failed in requireAuth, proceeding with token validation only:', dbError)
-    // Continue with just token validation if database is unavailable
-  }
-
   return decoded
 }
 

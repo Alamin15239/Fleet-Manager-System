@@ -231,12 +231,12 @@ export function Header() {
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="relative h-9 w-9 rounded-full">
-              <Avatar className="h-9 w-9" key={`header-${user?.id}-${user?.profileImage ? 'with-image' : 'no-image'}-${Date.now()}`}>
+              <Avatar className="h-9 w-9">
                 <AvatarImage 
-                  src={getProfileImageUrl(user?.profileImage)} 
+                  src={user?.profileImage || ''} 
                   alt={user?.name || 'User'}
                   className="object-cover"
-                  onError={handleImageError}
+                  key={user?.profileImage || 'fallback'}
                 />
                 <AvatarFallback>
                   {user?.name?.charAt(0).toUpperCase() || 'U'}

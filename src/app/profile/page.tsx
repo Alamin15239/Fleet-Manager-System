@@ -130,17 +130,17 @@ export default function ProfilePage() {
         const data = await response.json()
         
         // Update profile state immediately
-        if (profile && data.user) {
-          setProfile({ ...profile, profileImage: data.user.profileImage })
+        if (profile) {
+          const updatedProfile = { ...profile, profileImage: data.url }
+          setProfile(updatedProfile)
         }
         
         // Update auth context with new user data
         if (data.user) {
           localStorage.setItem('user', JSON.stringify(data.user))
+          // Force re-render by updating user state
+          window.location.reload()
         }
-        
-        // Refresh user data in auth context to update header avatar
-        await refreshUser()
 
         toast({
           title: 'Success',
@@ -231,12 +231,12 @@ export default function ProfilePage() {
             <CardDescription>Your profile photo</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col items-center space-y-4">
-            <Avatar className="h-32 w-32" key={`profile-${profile.id}-${profile.profileImage ? 'with-image' : 'no-image'}-${Date.now()}`}>
+            <Avatar className="h-32 w-32">
               <AvatarImage 
-                src={getProfileImageUrl(profile.profileImage)} 
+                src={profile.profileImage || ''} 
                 alt={profile.name || 'User'}
                 className="object-cover"
-                onError={handleImageError}
+                key={profile.profileImage || 'fallback'}
               />
               <AvatarFallback className="text-2xl">
                 {profile.name?.charAt(0).toUpperCase() || 'U'}

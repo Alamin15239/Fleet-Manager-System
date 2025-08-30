@@ -37,24 +37,29 @@ export default function ExcelEditor({ data = [], onChange, editable = true }: Ex
 
     const reader = new FileReader();
     reader.onload = (e) => {
-      const data = new Uint8Array(e.target?.result as ArrayBuffer);
-      const workbook = XLSX.read(data, { type: 'array' });
-      const sheetName = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[sheetName];
-      const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-      setSheetData(jsonData as any[][]);
-      if (onChange) {
-        onChange(jsonData as any[][]);
+      try {
+        const text = e.target?.result as string;
+        const rows = text.split('\n').map(row => row.split(','));
+        setSheetData(rows);
+        if (onChange) {
+          onChange(rows);
+        }
+      } catch (error) {
+        console.error('Error parsing CSV:', error);
       }
     };
-    reader.readAsArrayBuffer(file);
+    reader.readAsText(file);
   };
 
   const handleDownload = () => {
-    const worksheet = XLSX.utils.aoa_to_sheet(sheetData);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Sheet1');
-    XLSX.writeFile(workbook, 'document.xlsx');
+    const csvContent = sheetData.map(row => row.join(',')).join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'document.csv';
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const addRow = () => {
@@ -80,11 +85,11 @@ export default function ExcelEditor({ data = [], onChange, editable = true }: Ex
         <div className="flex gap-2 flex-wrap p-3 bg-gray-50/50 border border-gray-200 rounded-lg">
           <Button onClick={() => fileInputRef.current?.click()} size="sm" variant="outline" className="h-8">
             <Upload className="h-4 w-4 mr-1" />
-            Upload Excel
+            Upload CSV
           </Button>
           <Button onClick={handleDownload} size="sm" variant="outline" className="h-8">
             <Download className="h-4 w-4 mr-1" />
-            Download Excel
+            Download CSV
           </Button>
           <Button onClick={addRow} size="sm" variant="outline" className="h-8">
             Add Row
@@ -95,7 +100,7 @@ export default function ExcelEditor({ data = [], onChange, editable = true }: Ex
           <Input
             ref={fileInputRef}
             type="file"
-            accept=".xlsx,.xls,.csv"
+            accept=".csv"
             onChange={handleFileUpload}
             className="hidden"
           />
