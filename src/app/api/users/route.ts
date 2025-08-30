@@ -158,6 +158,17 @@ export async function POST(request: NextRequest) {
       permissions: body.permissions || {}
     })
 
+    // Broadcast real-time update (if socket.io is available)
+    try {
+      const { broadcastUserUpdate } = await import('@/lib/socket')
+      const { io } = await import('@/lib/socket-server')
+      if (io) {
+        broadcastUserUpdate(io, 'created', user)
+      }
+    } catch (error) {
+      console.log('Socket.io not available for real-time updates')
+    }
+
     return NextResponse.json({
       success: true,
       data: user,

@@ -151,6 +151,17 @@ export async function PUT(
       permissions: body.permissions
     })
 
+    // Broadcast real-time update (if socket.io is available)
+    try {
+      const { broadcastUserUpdate } = await import('@/lib/socket')
+      const { io } = await import('@/lib/socket-server')
+      if (io) {
+        broadcastUserUpdate(io, 'updated', updatedUser)
+      }
+    } catch (error) {
+      console.log('Socket.io not available for real-time updates')
+    }
+
     return NextResponse.json({
       success: true,
       data: updatedUser,
@@ -207,7 +218,7 @@ export async function DELETE(
     }
 
     // Soft delete user
-    await db.user.update({
+    const deletedUser = await db.user.update({
       where: { id: id },
       data: {
         isDeleted: true,
@@ -216,6 +227,17 @@ export async function DELETE(
         isActive: false
       }
     })
+
+    // Broadcast real-time update (if socket.io is available)
+    try {
+      const { broadcastUserUpdate } = await import('@/lib/socket')
+      const { io } = await import('@/lib/socket-server')
+      if (io) {
+        broadcastUserUpdate(io, 'deleted', { id: deletedUser.id, email: deletedUser.email })
+      }
+    } catch (error) {
+      console.log('Socket.io not available for real-time updates')
+    }
 
     return NextResponse.json({
       success: true,
