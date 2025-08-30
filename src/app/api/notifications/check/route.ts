@@ -18,7 +18,10 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Error running notification checks:', error)
     return NextResponse.json(
-      { error: 'Failed to run notification checks' },
+      { 
+        error: 'Failed to run notification checks',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      },
       { status: 500 }
     )
   }
