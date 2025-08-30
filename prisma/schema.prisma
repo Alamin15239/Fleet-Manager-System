@@ -235,6 +235,11 @@ model AuditLog {
   changes    Json?
   ipAddress  String?
   userAgent  String?
+  deviceName String?
+  deviceType String?
+  browser    String?
+  os         String?
+  location   Json?    // {country, city, region, latitude, longitude}
   createdAt  DateTime @default(now())
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -252,6 +257,11 @@ model UserActivity {
   newValues  Json?
   ipAddress  String?
   userAgent  String?
+  deviceName String?
+  deviceType String?
+  browser    String?
+  os         String?
+  location   Json?    // {country, city, region, latitude, longitude}
   metadata   Json?
   createdAt  DateTime @default(now())
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -266,6 +276,11 @@ model LoginHistory {
   logoutTime      DateTime?
   ipAddress       String?
   userAgent       String?
+  deviceName      String?
+  deviceType      String?
+  browser         String?
+  os              String?
+  location        Json?     // {country, city, region, latitude, longitude}
   sessionDuration Int?
   isActive        Boolean   @default(true)
   createdAt       DateTime  @default(now())

@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const result = await authenticateUser(email, password)
+    const result = await authenticateUser(email, password, request)
 
     // Create response with token in cookie
     const response = NextResponse.json({

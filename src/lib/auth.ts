@@ -1,6 +1,8 @@
 import jwt from 'jsonwebtoken'
 import bcrypt from 'bcryptjs'
 import { db } from '@/lib/db'
+import { getTrackingInfo, TrackingInfo } from '@/lib/device-tracking'
+import { NextRequest } from 'next/server'
 
 const JWT_SECRET = process.env.JWT_SECRET
 if (!JWT_SECRET) {
@@ -38,7 +40,7 @@ export function verifyToken(token: string): JWTPayload | null {
   }
 }
 
-export async function authenticateUser(email: string, password: string) {
+export async function authenticateUser(email: string, password: string, request?: NextRequest) {
   try {
     // First, check if user exists at all
     const user = await db.user.findUnique({
@@ -74,14 +76,47 @@ export async function authenticateUser(email: string, password: string) {
       throw new Error('Invalid credentials')
     }
 
-    // Try to log login activity, but don't fail if it doesn't work
+    // Try to log login activity with tracking info
     try {
+      let trackingInfo: TrackingInfo | null = null
+      
+      if (request) {
+        trackingInfo = await getTrackingInfo(request)
+      }
+      
       await db.loginHistory.create({
         data: {
           userId: user.id,
           loginTime: new Date(),
-          ipAddress: '127.0.0.1',
-          userAgent: 'Mozilla/5.0'
+          ipAddress: trackingInfo?.ipAddress || '127.0.0.1',
+          userAgent: trackingInfo?.device.userAgent || 'Unknown',
+          deviceName: trackingInfo?.device.deviceName,
+          deviceType: trackingInfo?.device.deviceType,
+          browser: trackingInfo?.device.browser,
+          os: trackingInfo?.device.os,
+          location: trackingInfo?.location ? JSON.parse(JSON.stringify(trackingInfo.location)) : null
+        }
+      })
+      
+      // Also log as user activity
+      await db.userActivity.create({
+        data: {
+          userId: user.id,
+          action: 'LOGIN',
+          entityType: 'USER',
+          entityId: user.id,
+          entityName: user.email,
+          ipAddress: trackingInfo?.ipAddress || '127.0.0.1',
+          userAgent: trackingInfo?.device.userAgent || 'Unknown',
+          deviceName: trackingInfo?.device.deviceName,
+          deviceType: trackingInfo?.device.deviceType,
+          browser: trackingInfo?.device.browser,
+          os: trackingInfo?.device.os,
+          location: trackingInfo?.location ? JSON.parse(JSON.stringify(trackingInfo.location)) : null,
+          metadata: {
+            loginSuccess: true,
+            timestamp: new Date().toISOString()
+          }
         }
       })
     } catch (logError) {

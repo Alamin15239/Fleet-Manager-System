@@ -3,6 +3,7 @@ import { createUser } from '@/lib/auth'
 import { Resend } from 'resend'
 import { db } from '@/lib/db'
 import crypto from 'crypto'
+import { trackRegistration } from '@/lib/activity-tracker'
 
 export async function POST(request: NextRequest) {
   try {
@@ -55,6 +56,13 @@ export async function POST(request: NextRequest) {
     } catch (emailError) {
       console.error('Failed to send OTP:', emailError)
       // Don't fail the registration if email fails, just log it
+    }
+
+    // Track registration activity
+    try {
+      await trackRegistration(user.id, user.email, request)
+    } catch (trackingError) {
+      console.warn('Failed to track registration:', trackingError)
     }
 
     return NextResponse.json({
