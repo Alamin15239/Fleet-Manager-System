@@ -599,7 +599,7 @@ export default function ReportsPage() {
                             <div className="flex items-center space-x-2">
                               <Checkbox
                                 checked={filters.selectedTrucks.includes(truck.id)}
-                                readOnly
+                                disabled
                               />
                               <div>
                                 <p className="font-medium">{truck.licensePlate}</p>
@@ -658,7 +658,7 @@ export default function ReportsPage() {
                             <div className="flex items-center space-x-2">
                               <Checkbox
                                 checked={filters.selectedMaintenance.includes(record.id)}
-                                readOnly
+                                disabled
                               />
                               <div className="flex-1">
                                 <p className="font-medium">{record.serviceType}</p>
@@ -717,7 +717,7 @@ export default function ReportsPage() {
                             <div className="flex items-center space-x-2">
                               <Checkbox
                                 checked={filters.selectedUsers.includes(user.id)}
-                                readOnly
+                                disabled
                               />
                               <div>
                                 <p className="font-medium">{user.name || user.email}</p>

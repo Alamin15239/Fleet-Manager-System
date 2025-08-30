@@ -9,6 +9,7 @@ interface PermissionsContextType {
   permissionManager: PermissionManager | null
   settingsPermissions: SettingsPermissions | null
   loading: boolean
+  isLoading: boolean
   hasPermission: (resource: string, action: string) => boolean
   canAccess: (resource: string) => boolean
   canCreate: (resource: string) => boolean
@@ -133,6 +134,7 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
         permissionManager,
         settingsPermissions,
         loading,
+        isLoading: loading,
         hasPermission,
         canAccess,
         canCreate,
