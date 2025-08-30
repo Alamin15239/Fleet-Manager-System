@@ -17,7 +17,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { TruckLoader } from '@/components/ui/truck-loader';
 
 export default function DocumentsPage() {
-  const router = useRouter();
+  // const router = useRouter();
   const isMobile = useIsMobile();
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const [documents, setDocuments] = useState([]);
