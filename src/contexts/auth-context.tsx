@@ -48,70 +48,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const savedToken = typeof window !== 'undefined' ? localStorage.getItem('authToken') : null
     const savedUser = typeof window !== 'undefined' ? localStorage.getItem('user') : null
 
-    const initializeAuth = async () => {
-      let token = savedToken
-      let user = savedUser
-
-      // If no token in localStorage, check cookies
-      if (!token && typeof window !== 'undefined') {
-        const cookies = document.cookie.split(';')
-        const authCookie = cookies.find(cookie => cookie.trim().startsWith('auth-token='))
-        if (authCookie) {
-          token = authCookie.split('=')[1]
-          console.log('Found token in cookie during initialization')
-          // Store it in localStorage
-          localStorage.setItem('authToken', token)
-        }
-      }
-
-      if (token && user) {
+    const initializeAuth = () => {
+      if (savedToken && savedUser) {
         try {
-          let parsedUser
-          try {
-            parsedUser = JSON.parse(user)
-          } catch (parseError) {
-            console.error('Error parsing user data from localStorage:', parseError)
-            // Clear invalid data
-            localStorage.removeItem('authToken')
-            localStorage.removeItem('user')
-            setToken(null)
-            setUser(null)
-            setIsLoading(false)
-            return
-          }
-          
-          // Set auth state immediately, then verify in background
-          setToken(token)
+          const parsedUser = JSON.parse(savedUser)
+          setToken(savedToken)
           setUser(parsedUser)
-          console.log('Auth initialized from stored data')
-          
-          // Verify token is still valid in background
-          fetch('/api/auth/me', {
-            headers: {
-              'Authorization': `Bearer ${token}`
-            }
-          }).then(response => {
-            if (!response.ok) {
-              // Token is invalid, clear storage
-              localStorage.removeItem('authToken')
-              localStorage.removeItem('user')
-              setToken(null)
-              setUser(null)
-              console.log('Stored token was invalid, cleared auth data')
-            }
-          }).catch(error => {
-            console.error('Error verifying token:', error)
-          })
+          console.log('Auth initialized from localStorage')
         } catch (error) {
-          console.error('Error validating saved auth:', error)
-          // Clear invalid data
+          console.error('Error parsing stored user data:', error)
           localStorage.removeItem('authToken')
           localStorage.removeItem('user')
-          setToken(null)
-          setUser(null)
         }
-      } else {
-        // No stored auth data - user needs to login
       }
       setIsLoading(false)
     }
