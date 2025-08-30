@@ -108,7 +108,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setUser(null)
         }
       } else {
-        console.log('No auth data found during initialization')
+        // No stored auth data - user needs to login
       }
       setIsLoading(false)
     }
