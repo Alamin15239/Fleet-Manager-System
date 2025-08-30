@@ -335,6 +335,24 @@ const translations = {
     'analytics.improvement': 'improvement',
     'analytics.fromLastMonth': 'from last month',
     'analytics.noDataAvailable': 'No data available',
+    
+    // Trucks specific
+    'trucks.updateDetails': 'Update the truck information below',
+    'trucks.truckDetails': 'Enter the details for the new truck',
+    'trucks.viewDetailedInformation': 'View detailed information about this truck',
+    'trucks.enterUniqueVin': 'Enter unique VIN',
+    'trucks.enterUniqueLicensePlate': 'Enter unique license plate',
+    'trucks.vinMustBeUnique': 'Vehicle Identification Number must be unique',
+    'trucks.licensePlateMustBeUnique': 'License plate must be unique',
+    'trucks.vinAlreadyExists': 'This VIN already exists',
+    'trucks.licensePlateAlreadyExists': 'This license plate already exists',
+    
+    // Messages
+    'message.accessDenied': 'Access Denied',
+    'message.noPermission': 'You don\'t have permission to access this feature',
+    'message.fixErrors': 'Please fix the following errors:',
+    'message.fillRequiredFields': 'Please fill in all required fields',
+    'message.fixValidationErrors': 'Please fix validation errors before submitting',
   },
   ar: {
     // Navigation
@@ -662,6 +680,24 @@ const translations = {
     'analytics.improvement': 'تحسن',
     'analytics.fromLastMonth': 'من الشهر الماضي',
     'analytics.noDataAvailable': 'لا توجد بيانات متاحة',
+    
+    // Trucks specific
+    'trucks.updateDetails': 'حدث معلومات الشاحنة أدناه',
+    'trucks.truckDetails': 'أدخل تفاصيل الشاحنة الجديدة',
+    'trucks.viewDetailedInformation': 'عرض معلومات تفصيلية عن هذه الشاحنة',
+    'trucks.enterUniqueVin': 'أدخل رقم هيكل فريد',
+    'trucks.enterUniqueLicensePlate': 'أدخل رقم لوحة فريد',
+    'trucks.vinMustBeUnique': 'رقم تعريف المركبة يجب أن يكون فريداً',
+    'trucks.licensePlateMustBeUnique': 'رقم اللوحة يجب أن يكون فريداً',
+    'trucks.vinAlreadyExists': 'رقم الهيكل هذا موجود بالفعل',
+    'trucks.licensePlateAlreadyExists': 'رقم اللوحة هذا موجود بالفعل',
+    
+    // Messages
+    'message.accessDenied': 'تم رفض الوصول',
+    'message.noPermission': 'ليس لديك إذن للوصول إلى هذه الميزة',
+    'message.fixErrors': 'يرجى إصلاح الأخطاء التالية:',
+    'message.fillRequiredFields': 'يرجى ملء جميع الحقول المطلوبة',
+    'message.fixValidationErrors': 'يرجى إصلاح أخطاء التحقق قبل الإرسال',
   }
 }
 

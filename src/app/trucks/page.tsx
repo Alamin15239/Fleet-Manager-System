@@ -137,7 +137,7 @@ export default function TrucksPage() {
         
         if (existingTruck && (!editingTruck || existingTruck.id !== editingTruck.id)) {
           console.log('VIN validation failed - already exists:', vin)
-          setValidationErrors(prev => ({ ...prev, vin: 'This VIN already exists' }))
+          setValidationErrors(prev => ({ ...prev, vin: t('trucks.vinAlreadyExists') }))
         } else {
           console.log('VIN validation passed:', vin)
           setValidationErrors(prev => ({ ...prev, vin: '' }))
@@ -167,7 +167,7 @@ export default function TrucksPage() {
         
         if (existingTruck && (!editingTruck || existingTruck.id !== editingTruck.id)) {
           console.log('License plate validation failed - already exists:', licensePlate)
-          setValidationErrors(prev => ({ ...prev, licensePlate: 'This license plate already exists' }))
+          setValidationErrors(prev => ({ ...prev, licensePlate: t('trucks.licensePlateAlreadyExists') }))
         } else {
           console.log('License plate validation passed:', licensePlate)
           setValidationErrors(prev => ({ ...prev, licensePlate: '' }))
@@ -245,14 +245,14 @@ export default function TrucksPage() {
     // Simple validation - just check required fields
     if (!formData.vin || !formData.make || !formData.model || !formData.licensePlate) {
       console.log('Required fields missing')
-      toast.error('Please fill in all required fields')
+      toast.error(t('message.fillRequiredFields'))
       return
     }
     
     // Check for validation errors
     if (validationErrors.vin || validationErrors.licensePlate) {
       console.log('Validation errors present:', validationErrors)
-      toast.error('Please fix validation errors before submitting')
+      toast.error(t('message.fixValidationErrors'))
       return
     }
     
@@ -265,7 +265,7 @@ export default function TrucksPage() {
       if (response.ok) {
         const result = await response.json()
         console.log('API response data:', result)
-        toast.success('Truck added successfully')
+        toast.success(t('message.success'))
         setIsDialogOpen(false)
         resetForm()
         fetchTrucks() // Refresh the list
@@ -317,12 +317,12 @@ export default function TrucksPage() {
   }
 
   const handleDelete = async (truckId: string) => {
-    if (confirm('Are you sure you want to delete this truck?')) {
+    if (confirm(t('message.deleteConfirm'))) {
       try {
         const response = await apiDelete(`/api/trucks/${truckId}`)
 
         if (response.ok) {
-          toast.success('Truck deleted successfully')
+          toast.success(t('message.success'))
           fetchTrucks() // Refresh the list
         } else {
           const errorData = await response.json()
@@ -371,8 +371,8 @@ export default function TrucksPage() {
       <div className="container mx-auto p-6">
         <div className="text-center">
           <Truck className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-          <h2 className="text-xl font-semibold mb-2">Access Denied</h2>
-          <p className="text-gray-600">You don't have permission to access truck management.</p>
+          <h2 className="text-xl font-semibold mb-2">{t('message.accessDenied')}</h2>
+          <p className="text-gray-600">{t('message.noPermission')}</p>
         </div>
       </div>
     )
@@ -401,10 +401,10 @@ export default function TrucksPage() {
           <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
               <DialogTitle>
-                {editingTruck ? 'Edit Truck' : 'Add New Truck'}
+                {editingTruck ? t('trucks.editTruck') : t('trucks.addTruck')}
               </DialogTitle>
               <DialogDescription>
-                {editingTruck ? 'Update the truck information below.' : 'Enter the details for the new truck.'}
+                {editingTruck ? t('trucks.updateDetails') : t('trucks.truckDetails')}
               </DialogDescription>
             </DialogHeader>
             
@@ -419,7 +419,7 @@ export default function TrucksPage() {
                   </div>
                   <div className="ml-3">
                     <h3 className="text-sm font-medium text-red-800">
-                      Please fix the following errors:
+                      {t('message.fixErrors')}
                     </h3>
                     <div className="mt-2 text-sm text-red-700">
                       <ul className="list-disc pl-5 space-y-1">
@@ -435,7 +435,7 @@ export default function TrucksPage() {
             <form onSubmit={handleSubmit} className="grid gap-4 py-4">
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="vin" className="text-right">
-                  VIN
+                  {t('trucks.vin')}
                 </Label>
                 <div className="col-span-3 relative">
                   <Input
@@ -444,7 +444,7 @@ export default function TrucksPage() {
                     onChange={(e) => setFormData({...formData, vin: e.target.value})}
                     className={validationErrors.vin ? 'border-red-500' : ''}
                     required
-                    placeholder="Enter unique VIN"
+                    placeholder={t('trucks.enterUniqueVin')}
                   />
                   {isCheckingVin && (
                     <div className="absolute right-3 top-3">
@@ -461,12 +461,12 @@ export default function TrucksPage() {
                   {validationErrors.vin && (
                     <p className="text-red-500 text-sm mt-1">{validationErrors.vin}</p>
                   )}
-                  <p className="text-gray-500 text-xs mt-1">Vehicle Identification Number must be unique</p>
+                  <p className="text-gray-500 text-xs mt-1">{t('trucks.vinMustBeUnique')}</p>
                 </div>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="make" className="text-right">
-                  Make
+                  {t('trucks.make')}
                 </Label>
                 <Input
                   id="make"
@@ -478,7 +478,7 @@ export default function TrucksPage() {
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="model" className="text-right">
-                  Model
+                  {t('trucks.model')}
                 </Label>
                 <Input
                   id="model"
@@ -490,7 +490,7 @@ export default function TrucksPage() {
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="year" className="text-right">
-                  Year
+                  {t('trucks.year')}
                 </Label>
                 <Input
                   id="year"
@@ -503,7 +503,7 @@ export default function TrucksPage() {
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="licensePlate" className="text-right">
-                  License Plate
+                  {t('trucks.licensePlate')}
                 </Label>
                 <div className="col-span-3 relative">
                   <Input
@@ -512,7 +512,7 @@ export default function TrucksPage() {
                     onChange={(e) => setFormData({...formData, licensePlate: e.target.value})}
                     className={validationErrors.licensePlate ? 'border-red-500' : ''}
                     required
-                    placeholder="Enter unique license plate"
+                    placeholder={t('trucks.enterUniqueLicensePlate')}
                   />
                   {isCheckingLicensePlate && (
                     <div className="absolute right-3 top-3">
@@ -529,12 +529,12 @@ export default function TrucksPage() {
                   {validationErrors.licensePlate && (
                     <p className="text-red-500 text-sm mt-1">{validationErrors.licensePlate}</p>
                   )}
-                  <p className="text-gray-500 text-xs mt-1">License plate must be unique</p>
+                  <p className="text-gray-500 text-xs mt-1">{t('trucks.licensePlateMustBeUnique')}</p>
                 </div>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="currentMileage" className="text-right">
-                  Mileage
+                  {t('trucks.mileage')}
                 </Label>
                 <Input
                   id="currentMileage"
@@ -552,16 +552,16 @@ export default function TrucksPage() {
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="status" className="text-right">
-                  Status
+                  {t('table.status')}
                 </Label>
                 <Select value={formData.status} onValueChange={(value) => setFormData({...formData, status: value as any})}>
                   <SelectTrigger className="col-span-3">
-                    <SelectValue placeholder="Select status" />
+                    <SelectValue placeholder={t('placeholder.selectStatus')} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="ACTIVE">Active</SelectItem>
-                    <SelectItem value="INACTIVE">Inactive</SelectItem>
-                    <SelectItem value="MAINTENANCE">Maintenance</SelectItem>
+                    <SelectItem value="ACTIVE">{t('status.active')}</SelectItem>
+                    <SelectItem value="INACTIVE">{t('status.inactive')}</SelectItem>
+                    <SelectItem value="MAINTENANCE">{t('common.maintenance')}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -570,13 +570,13 @@ export default function TrucksPage() {
                   setIsDialogOpen(false)
                   resetForm()
                 }}>
-                  Cancel
+                  {t('common.cancel')}
                 </Button>
                 <Button 
                   type="submit" 
                   disabled={!isFormValid}
                 >
-                  Add Truck
+                  {editingTruck ? t('trucks.updateTruck') : t('trucks.addTruck')}
                 </Button>
               </DialogFooter>
             </form>
@@ -589,65 +589,65 @@ export default function TrucksPage() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Trucks</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('dashboard.totalTrucks')}</CardTitle>
             <Truck className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{dashboardStats.totalTrucks}</div>
             <p className="text-xs text-muted-foreground">
-              {dashboardStats.activeTrucks} active vehicles
+              {dashboardStats.activeTrucks} {t('dashboard.activeTrucks')}
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Upcoming Maintenance</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('dashboard.upcomingMaintenance')}</CardTitle>
             <Wrench className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{dashboardStats.upcomingMaintenance}</div>
             <p className="text-xs text-muted-foreground">
-              Due within 30 days
+              {t('dashboard.dueWithin30Days')}
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Overdue Repairs</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('dashboard.overdueRepairs')}</CardTitle>
             <AlertTriangle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-red-600">{dashboardStats.overdueRepairs}</div>
             <p className="text-xs text-muted-foreground">
-              Require immediate attention
+              {t('dashboard.requireAttention')}
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Monthly Maintenance Cost</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('dashboard.monthlyMaintenanceCost')}</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">${(dashboardStats.totalMaintenanceCost / 6).toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
             <p className="text-xs text-muted-foreground">
-              Average monthly cost
+              {t('dashboard.averageMonthlyCost')}
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Cost (6mo)</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('dashboard.totalCost6mo')}</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">${dashboardStats.totalMaintenanceCost.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">
-              Last 6 months
+              {t('dashboard.last6Months')}
             </p>
           </CardContent>
         </Card>
@@ -658,10 +658,10 @@ export default function TrucksPage() {
         <DialogContent className="sm:max-w-[800px] max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
-              Manage Files - {selectedTruck?.year} {selectedTruck?.make} {selectedTruck?.model}
+              {t('trucks.manageFiles')} - {selectedTruck?.year} {selectedTruck?.make} {selectedTruck?.model}
             </DialogTitle>
             <DialogDescription>
-              Upload and manage documents for this truck
+              {t('trucks.uploadDocuments')}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -678,7 +678,7 @@ export default function TrucksPage() {
           </div>
           <DialogFooter>
             <Button onClick={() => setIsFilesDialogOpen(false)}>
-              Done
+              {t('trucks.done')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -689,65 +689,65 @@ export default function TrucksPage() {
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle>
-              Truck Details - {selectedTruck?.licensePlate}
+              {t('trucks.truckDetails')} - {selectedTruck?.licensePlate}
             </DialogTitle>
             <DialogDescription>
-              View detailed information about this truck
+              {t('trucks.viewDetailedInformation')}
             </DialogDescription>
           </DialogHeader>
           {selectedTruck && (
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-sm font-medium text-gray-500">VIN</Label>
+                  <Label className="text-sm font-medium text-gray-500">{t('trucks.vin')}</Label>
                   <p className="text-lg font-semibold">{selectedTruck.vin}</p>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium text-gray-500">License Plate</Label>
+                  <Label className="text-sm font-medium text-gray-500">{t('trucks.licensePlate')}</Label>
                   <p className="text-lg font-semibold">{selectedTruck.licensePlate}</p>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium text-gray-500">Make</Label>
+                  <Label className="text-sm font-medium text-gray-500">{t('trucks.make')}</Label>
                   <p className="text-lg font-semibold">{selectedTruck.make}</p>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium text-gray-500">Model</Label>
+                  <Label className="text-sm font-medium text-gray-500">{t('trucks.model')}</Label>
                   <p className="text-lg font-semibold">{selectedTruck.model}</p>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium text-gray-500">Year</Label>
+                  <Label className="text-sm font-medium text-gray-500">{t('trucks.year')}</Label>
                   <p className="text-lg font-semibold">{selectedTruck.year}</p>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium text-gray-500">Current Mileage</Label>
-                  <p className="text-lg font-semibold">{selectedTruck.currentMileage.toLocaleString()} miles</p>
+                  <Label className="text-sm font-medium text-gray-500">{t('trucks.currentMileage')}</Label>
+                  <p className="text-lg font-semibold">{selectedTruck.currentMileage.toLocaleString()} {t('trucks.miles')}</p>
                 </div>
               </div>
               
               <div>
-                <Label className="text-sm font-medium text-gray-500">Status</Label>
+                <Label className="text-sm font-medium text-gray-500">{t('table.status')}</Label>
                 <Badge className={`mt-1 ${getStatusColor(selectedTruck.status)}`}>
                   {selectedTruck.status}
                 </Badge>
               </div>
 
               <div>
-                <Label className="text-sm font-medium text-gray-500">Documents</Label>
+                <Label className="text-sm font-medium text-gray-500">{t('trucks.documents')}</Label>
                 <p className="text-sm text-gray-600">
                   {selectedTruck.documents && selectedTruck.documents.length > 0 
-                    ? `${selectedTruck.documents.length} document${selectedTruck.documents.length > 1 ? 's' : ''} attached`
-                    : 'No documents attached'
+                    ? t('trucks.documentsAttached').replace('{count}', selectedTruck.documents.length.toString())
+                    : t('trucks.noDocuments')
                   }
                 </p>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-sm font-medium text-gray-500">Created</Label>
+                  <Label className="text-sm font-medium text-gray-500">{t('maintenance.created')}</Label>
                   <p className="text-sm">{new Date(selectedTruck.createdAt).toLocaleDateString()}</p>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium text-gray-500">Last Updated</Label>
+                  <Label className="text-sm font-medium text-gray-500">{t('maintenance.lastUpdated')}</Label>
                   <p className="text-sm">{new Date(selectedTruck.updatedAt).toLocaleDateString()}</p>
                 </div>
               </div>
@@ -755,14 +755,14 @@ export default function TrucksPage() {
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsViewDialogOpen(false)}>
-              Close
+              {t('action.close')}
             </Button>
             {canUpdate('trucks') && selectedTruck && (
               <Button onClick={() => {
                 setIsViewDialogOpen(false)
                 handleEdit(selectedTruck)
               }}>
-                Edit Truck
+                {t('trucks.editTruck')}
               </Button>
             )}
           </DialogFooter>
@@ -772,9 +772,9 @@ export default function TrucksPage() {
       {/* Trucks Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Fleet Overview</CardTitle>
+          <CardTitle>{t('trucks.fleetOverview')}</CardTitle>
           <CardDescription>
-            Showing {trucks.length} trucks
+            {t('trucks.showingTrucks').replace('{count}', trucks.length.toString())}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -782,12 +782,12 @@ export default function TrucksPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>VIN</TableHead>
-                  <TableHead>Vehicle</TableHead>
-                  <TableHead>License Plate</TableHead>
-                  <TableHead>Mileage</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead>{t('trucks.vin')}</TableHead>
+                  <TableHead>{t('trucks.vehicle')}</TableHead>
+                  <TableHead>{t('trucks.licensePlate')}</TableHead>
+                  <TableHead>{t('trucks.mileage')}</TableHead>
+                  <TableHead>{t('table.status')}</TableHead>
+                  <TableHead className="text-right">{t('table.actions')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -798,12 +798,12 @@ export default function TrucksPage() {
                       <div>
                         <div className="font-medium">{truck.year} {truck.make} {truck.model}</div>
                         <div className="text-sm text-muted-foreground">
-                          Added {new Date(truck.createdAt).toLocaleDateString()}
+                          {t('trucks.added')} {new Date(truck.createdAt).toLocaleDateString()}
                         </div>
                       </div>
                     </TableCell>
                     <TableCell>{truck.licensePlate}</TableCell>
-                    <TableCell>{truck.currentMileage.toLocaleString()} miles</TableCell>
+                    <TableCell>{truck.currentMileage.toLocaleString()} {t('trucks.miles')}</TableCell>
                     <TableCell>
                       <Badge className={getStatusColor(truck.status)}>
                         {truck.status}
