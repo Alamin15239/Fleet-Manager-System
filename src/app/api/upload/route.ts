@@ -2,25 +2,25 @@ import { NextRequest, NextResponse } from 'next/server';
 import { writeFile } from 'fs/promises';
 import { join } from 'path';
 import jwt from 'jsonwebtoken';
-import { prisma } from '@/lib/db';
+import { db } from '@/lib/db';
 
 async function getUserFromToken(request: NextRequest) {
   const authHeader = request.headers.get('authorization');
-  console.log('Auth header:', authHeader ? 'Present' : 'Missing');
   
-  const token = authHeader?.replace('Bearer ', '');
-  if (!token) {
-    console.log('No token found');
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return null;
   }
   
+  const token = authHeader.substring(7);
+  
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { userId: string };
-    const user = await prisma.user.findUnique({ where: { id: decoded.userId } });
-    console.log('User found:', user ? user.email : 'Not found');
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { id?: string, userId?: string };
+    const userId = decoded.id || decoded.userId;
+    if (!userId) return null;
+    
+    const user = await db.user.findUnique({ where: { id: userId } });
     return user;
   } catch (error) {
-    console.log('Token verification failed:', error);
     return null;
   }
 }
