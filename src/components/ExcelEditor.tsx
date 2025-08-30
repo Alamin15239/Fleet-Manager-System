@@ -107,7 +107,7 @@ export default function ExcelEditor({ data = [], onChange, editable = true }: Ex
             {sheetData.map((row, rowIndex) => (
               <tr key={rowIndex} className={rowIndex === 0 ? 'bg-gray-50' : 'hover:bg-gray-50/50'}>
                 {row.map((cell, colIndex) => (
-                  <td key={colIndex} className="border border-gray-200 p-2 min-w-[120px]">
+                  <td key={colIndex} className="border border-gray-200 p-2 min-w-[120px] resize-x overflow-hidden relative" style={{resize: 'horizontal', minWidth: '120px', maxWidth: '400px'}}>
                     {editable ? (
                       <Input
                         value={cell || ''}
