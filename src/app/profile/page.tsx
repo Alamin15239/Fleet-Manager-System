@@ -49,40 +49,17 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (user) {
-      fetchProfile()
-    }
-  }, [user])
-
-  const fetchProfile = async () => {
-    try {
-      const response = await fetch('/api/auth/me', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+      setProfile(user as UserProfile)
+      setFormData({
+        name: user.name || '',
+        phone: user.phone || '',
+        department: user.department || '',
+        title: user.title || '',
+        bio: user.bio || ''
       })
-
-      if (response.ok) {
-        const data = await response.json()
-        setProfile(data.user)
-        setFormData({
-          name: data.user.name || '',
-          phone: data.user.phone || '',
-          department: data.user.department || '',
-          title: data.user.title || '',
-          bio: data.user.bio || ''
-        })
-      }
-    } catch (error) {
-      console.error('Error fetching profile:', error)
-      toast({
-        title: 'Error',
-        description: 'Failed to fetch profile data',
-        variant: 'destructive'
-      })
-    } finally {
       setLoading(false)
     }
-  }
+  }, [user])
 
   const handleSave = async () => {
     setSaving(true)
