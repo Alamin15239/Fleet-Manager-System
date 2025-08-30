@@ -42,7 +42,7 @@ export default function DocumentViewPage() {
         setDocument(data);
       } else {
         toast.error('Document not found');
-        router.push('/editor');
+        router.push('/documents');
       }
     } catch (error) {
       console.error('Error fetching document:', error);
@@ -106,7 +106,7 @@ export default function DocumentViewPage() {
 
       if (response.ok) {
         toast.success('Document deleted successfully');
-        router.push('/editor');
+        router.push('/documents');
       } else {
         toast.error('Failed to delete document');
       }
@@ -313,9 +313,9 @@ export default function DocumentViewPage() {
           <FileText className="h-16 w-16 text-gray-300 mx-auto mb-4" />
           <h2 className="text-xl font-semibold text-gray-900 mb-2">Document not found</h2>
           <p className="text-gray-600 mb-4">The document you're looking for doesn't exist or has been removed.</p>
-          <Button onClick={() => router.push('/editor')} variant="outline">
+          <Button onClick={() => router.push('/documents')} variant="outline">
             <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Editor
+            Back to Documents
           </Button>
         </div>
       </div>
@@ -355,7 +355,7 @@ export default function DocumentViewPage() {
                       <Eye className="h-4 w-4 mr-1" />
                       {showPreview ? 'Hide Preview' : 'Preview'}
                     </Button>
-                    <Button variant="outline" size="sm" onClick={() => router.push('/editor')} className="h-9">
+                    <Button variant="outline" size="sm" onClick={() => router.push(`/editor?edit=${params.id}`)} className="h-9">
                       <Edit className="h-4 w-4 mr-1" />
                       Edit
                     </Button>
