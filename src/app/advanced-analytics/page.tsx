@@ -151,16 +151,16 @@ export default function AdvancedAnalytics() {
     
     const result = []
     if (partsCost > 0) {
-      result.push({ category: 'Parts', cost: Math.round(partsCost), percentage: Math.round((partsCost / totalCost) * 100) })
+      result.push({ category: t('analytics.parts'), cost: Math.round(partsCost), percentage: Math.round((partsCost / totalCost) * 100) })
     }
     if (laborCost > 0) {
-      result.push({ category: 'Labor', cost: Math.round(laborCost), percentage: Math.round((laborCost / totalCost) * 100) })
+      result.push({ category: t('analytics.labor'), cost: Math.round(laborCost), percentage: Math.round((laborCost / totalCost) * 100) })
     }
     if (externalCost > 0) {
-      result.push({ category: 'External Services', cost: Math.round(externalCost), percentage: Math.round((externalCost / totalCost) * 100) })
+      result.push({ category: t('analytics.externalServices'), cost: Math.round(externalCost), percentage: Math.round((externalCost / totalCost) * 100) })
     }
     if (otherCost > 0) {
-      result.push({ category: 'Other', cost: Math.round(otherCost), percentage: Math.round((otherCost / totalCost) * 100) })
+      result.push({ category: t('analytics.other'), cost: Math.round(otherCost), percentage: Math.round((otherCost / totalCost) * 100) })
     }
     
     return result
@@ -280,21 +280,21 @@ export default function AdvancedAnalytics() {
         <div className="flex gap-2">
           <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
             <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Select period" />
+              <SelectValue placeholder={t('analytics.selectPeriod')} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="1month">Last Month</SelectItem>
-              <SelectItem value="3months">Last 3 Months</SelectItem>
-              <SelectItem value="6months">Last 6 Months</SelectItem>
-              <SelectItem value="1year">Last Year</SelectItem>
+              <SelectItem value="1month">{t('analytics.lastMonth')}</SelectItem>
+              <SelectItem value="3months">{t('analytics.last3Months')}</SelectItem>
+              <SelectItem value="6months">{t('analytics.last6Months')}</SelectItem>
+              <SelectItem value="1year">{t('analytics.lastYear')}</SelectItem>
             </SelectContent>
           </Select>
           <Select value={selectedTruck} onValueChange={setSelectedTruck}>
             <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="All Trucks" />
+              <SelectValue placeholder={t('analytics.allTrucks')} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Trucks</SelectItem>
+              <SelectItem value="all">{t('analytics.allTrucks')}</SelectItem>
               {analyticsData.truckPerformance.map(truck => (
                 <SelectItem key={truck.name} value={truck.name}>
                   {truck.name}
@@ -304,11 +304,11 @@ export default function AdvancedAnalytics() {
           </Select>
           <Button variant="outline" onClick={fetchAnalyticsData}>
             <RefreshCw className="h-4 w-4 mr-2" />
-            Refresh
+            {t('analytics.refresh')}
           </Button>
           <Button>
             <Download className="h-4 w-4 mr-2" />
-            Export
+            {t('analytics.export')}
           </Button>
         </div>
       </PageHeader>
@@ -317,7 +317,7 @@ export default function AdvancedAnalytics() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Fleet Uptime</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('analytics.fleetUptime')}</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -328,14 +328,14 @@ export default function AdvancedAnalytics() {
               }
             </div>
             <p className="text-xs text-muted-foreground">
-              {analyticsData.truckPerformance.length > 0 ? '+2.1% from last month' : 'No data available'}
+              {analyticsData.truckPerformance.length > 0 ? '+2.1% ' + t('analytics.fromLastMonth') : t('analytics.noDataAvailable')}
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Maintenance Costs</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('analytics.maintenanceCosts')}</CardTitle>
             <BarChart3 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -346,14 +346,14 @@ export default function AdvancedAnalytics() {
               }
             </div>
             <p className="text-xs text-muted-foreground">
-              {analyticsData.costAnalysis.length > 0 ? '-5.3% from last month' : 'No data available'}
+              {analyticsData.costAnalysis.length > 0 ? '-5.3% ' + t('analytics.fromLastMonth') : t('analytics.noDataAvailable')}
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Mechanic Efficiency</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('analytics.mechanicEfficiency')}</CardTitle>
             <PieChart className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -364,7 +364,7 @@ export default function AdvancedAnalytics() {
               }
             </div>
             <p className="text-xs text-muted-foreground">
-              {analyticsData.mechanicProductivity.length > 0 ? '+4.2% improvement' : 'No data available'}
+              {analyticsData.mechanicProductivity.length > 0 ? '+4.2% ' + t('analytics.improvement') : t('analytics.noDataAvailable')}
             </p>
           </CardContent>
         </Card>
@@ -373,17 +373,17 @@ export default function AdvancedAnalytics() {
       {/* Analytics Charts */}
       <Tabs defaultValue="trends" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="trends">Maintenance Trends</TabsTrigger>
-          <TabsTrigger value="costs">Cost Analysis</TabsTrigger>
-          <TabsTrigger value="performance">Truck Performance</TabsTrigger>
-          <TabsTrigger value="productivity">Mechanic Productivity</TabsTrigger>
+          <TabsTrigger value="trends">{t('analytics.maintenanceTrends')}</TabsTrigger>
+          <TabsTrigger value="costs">{t('analytics.costAnalysis')}</TabsTrigger>
+          <TabsTrigger value="performance">{t('analytics.truckPerformance')}</TabsTrigger>
+          <TabsTrigger value="productivity">{t('analytics.mechanicProductivity')}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="trends" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Maintenance Trends</CardTitle>
-              <CardDescription>Maintenance activities over time</CardDescription>
+              <CardTitle>{t('analytics.maintenanceTrends')}</CardTitle>
+              <CardDescription>{t('analytics.activitiesOverTime')}</CardDescription>
             </CardHeader>
             <CardContent className="pl-2">
               <ChartContainer config={{}} className="h-[400px]">
@@ -393,10 +393,10 @@ export default function AdvancedAnalytics() {
                   <YAxis />
                   <ChartTooltip content={<ChartTooltipContent />} />
                   <Legend />
-                  <Bar dataKey="scheduled" fill="#8884d8" name="Scheduled" />
-                  <Bar dataKey="completed" fill="#82ca9d" name="Completed" />
-                  <Bar dataKey="inProgress" fill="#ffc658" name="In Progress" />
-                  <Bar dataKey="overdue" fill="#ff7300" name="Overdue" />
+                  <Bar dataKey="scheduled" fill="#8884d8" name={t('analytics.scheduled')} />
+                  <Bar dataKey="completed" fill="#82ca9d" name={t('analytics.completed')} />
+                  <Bar dataKey="inProgress" fill="#ffc658" name={t('analytics.inProgress')} />
+                  <Bar dataKey="overdue" fill="#ff7300" name={t('analytics.overdue')} />
                 </BarChart>
               </ChartContainer>
             </CardContent>
@@ -406,8 +406,8 @@ export default function AdvancedAnalytics() {
         <TabsContent value="costs" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Cost Analysis</CardTitle>
-              <CardDescription>Breakdown of maintenance costs</CardDescription>
+              <CardTitle>{t('analytics.costAnalysis')}</CardTitle>
+              <CardDescription>{t('analytics.costBreakdown')}</CardDescription>
             </CardHeader>
             <CardContent className="pl-2">
               <ChartContainer config={{}} className="h-[400px]">
@@ -437,8 +437,8 @@ export default function AdvancedAnalytics() {
         <TabsContent value="performance" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Truck Performance</CardTitle>
-              <CardDescription>Key performance indicators for each truck</CardDescription>
+              <CardTitle>{t('analytics.truckPerformance')}</CardTitle>
+              <CardDescription>{t('analytics.performanceIndicators')}</CardDescription>
             </CardHeader>
             <CardContent className="pl-2">
               <ChartContainer config={{}} className="h-[400px]">
@@ -448,8 +448,8 @@ export default function AdvancedAnalytics() {
                   <YAxis />
                   <ChartTooltip content={<ChartTooltipContent />} />
                   <Legend />
-                  <Bar dataKey="uptime" fill="#82ca9d" name="Uptime %" />
-                  <Bar dataKey="maintenanceCost" fill="#8884d8" name="Maintenance Cost $" />
+                  <Bar dataKey="uptime" fill="#82ca9d" name={t('analytics.uptime')} />
+                  <Bar dataKey="maintenanceCost" fill="#8884d8" name={t('analytics.maintenanceCost')} />
                 </BarChart>
               </ChartContainer>
             </CardContent>
@@ -459,8 +459,8 @@ export default function AdvancedAnalytics() {
         <TabsContent value="productivity" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Mechanic Productivity</CardTitle>
-              <CardDescription>Performance metrics for maintenance staff</CardDescription>
+              <CardTitle>{t('analytics.mechanicProductivity')}</CardTitle>
+              <CardDescription>{t('analytics.performanceMetrics')}</CardDescription>
             </CardHeader>
             <CardContent className="pl-2">
               <ChartContainer config={{}} className="h-[400px]">
@@ -470,8 +470,8 @@ export default function AdvancedAnalytics() {
                   <YAxis />
                   <ChartTooltip content={<ChartTooltipContent />} />
                   <Legend />
-                  <Line type="monotone" dataKey="completedJobs" stroke="#8884d8" name="Completed Jobs" />
-                  <Line type="monotone" dataKey="efficiency" stroke="#82ca9d" name="Efficiency %" />
+                  <Line type="monotone" dataKey="completedJobs" stroke="#8884d8" name={t('analytics.completedJobs')} />
+                  <Line type="monotone" dataKey="efficiency" stroke="#82ca9d" name={t('analytics.efficiency')} />
                 </LineChart>
               </ChartContainer>
             </CardContent>
