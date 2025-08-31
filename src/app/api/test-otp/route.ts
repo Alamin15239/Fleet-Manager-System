@@ -2,9 +2,28 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { resendEmailService } from '@/lib/resend-email'
 
+export async function GET(request: NextRequest) {
+  const url = new URL(request.url)
+  const email = url.searchParams.get('email')
+  
+  if (!email) {
+    return NextResponse.json({ error: 'Email parameter required' }, { status: 400 })
+  }
+  
+  return await testOTP(email)
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { email } = await request.json()
+    return await testOTP(email)
+  } catch (error) {
+    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
+  }
+}
+
+async function testOTP(email: string) {
+  try {
 
     console.log('=== OTP Test Debug ===')
     console.log('Email:', email)
