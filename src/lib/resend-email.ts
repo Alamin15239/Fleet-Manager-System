@@ -76,6 +76,12 @@ class ResendEmailService {
         return
       }
 
+      console.log('Sending OTP email with config:', {
+        from: this.config.from,
+        to: email,
+        apiKeyPresent: !!this.config.apiKey
+      })
+      
       const { data, error } = await resend.emails.send({
         from: this.config.from,
         to: email,
@@ -147,8 +153,13 @@ class ResendEmailService {
       })
 
       if (error) {
-        console.error('❌ Resend API error:', error)
-        throw new Error('Failed to send OTP email')
+        console.error('❌ Resend API error:', {
+          error,
+          message: error.message,
+          name: error.name,
+          details: error
+        })
+        throw new Error(`Failed to send OTP email: ${error.message}`)
       }
 
       console.log(`✅ OTP email sent successfully to ${email}`)
