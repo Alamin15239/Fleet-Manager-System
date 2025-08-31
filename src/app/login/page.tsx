@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 
-import { Truck, Shield, Mail, Loader2, Clock } from 'lucide-react'
+import { Truck, Shield, Mail, Loader2, Clock, Lock } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '@/contexts/auth-context'
 import { useLanguage } from '@/contexts/language-context'
@@ -31,12 +31,14 @@ function SearchParamsHandler() {
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [otp, setOtp] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [otpRequested, setOtpRequested] = useState(false)
   const [otpCooldown, setOtpCooldown] = useState(0)
   const [isRedirecting, setIsRedirecting] = useState(false)
+  const [loginMethod, setLoginMethod] = useState<'password' | 'otp'>('password')
   const { login, isAuthenticated, isLoading } = useAuth()
   const { t } = useLanguage()
   const router = useRouter()
@@ -86,6 +88,43 @@ export default function LoginPage() {
     } catch (error) {
       console.error('OTP request error:', error)
       setError('An error occurred while requesting OTP')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handlePasswordLogin = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    setError('')
+
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ email, password })
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        localStorage.setItem('authToken', data.token)
+        localStorage.setItem('user', JSON.stringify(data.user))
+        
+        setIsRedirecting(true)
+        toast.success('Login successful!')
+        
+        const redirectPath = localStorage.getItem('redirectAfterLogin') || '/'
+        localStorage.removeItem('redirectAfterLogin')
+        window.location.href = redirectPath
+      } else {
+        setError(data.error || 'Login failed')
+      }
+    } catch (error: any) {
+      console.error('Login error:', error)
+      setError('Login failed. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -172,11 +211,37 @@ export default function LoginPage() {
           <CardHeader className="space-y-1">
             <CardTitle className="text-2xl text-center">{t('auth.signIn')}</CardTitle>
             <CardDescription className="text-center">
-              Enter your email to receive an OTP
+              Choose your preferred login method
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleOtpLogin} className="space-y-4">
+            {/* Login Method Toggle */}
+            <div className="flex rounded-lg bg-gray-100 p-1 mb-4">
+              <button
+                type="button"
+                onClick={() => setLoginMethod('password')}
+                className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
+                  loginMethod === 'password'
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                🔐 Password
+              </button>
+              <button
+                type="button"
+                onClick={() => setLoginMethod('otp')}
+                className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
+                  loginMethod === 'otp'
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                📧 OTP
+              </button>
+            </div>
+
+            <form onSubmit={loginMethod === 'password' ? handlePasswordLogin : handleOtpLogin} className="space-y-4">
               {error && (
                 <Alert variant="destructive">
                   <AlertDescription>{error}</AlertDescription>
@@ -199,77 +264,124 @@ export default function LoginPage() {
                 </div>
               </div>
 
-              {!otpRequested ? (
-                <Button 
-                  type="button" 
-                  className="w-full" 
-                  disabled={loading || !email || otpCooldown > 0}
-                  onClick={handleRequestOtp}
-                >
-                  {loading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Sending OTP...
-                    </>
-                  ) : otpCooldown > 0 ? (
-                    <>
-                      <Clock className="mr-2 h-4 w-4" />
-                      Wait {otpCooldown}s
-                    </>
-                  ) : (
-                    'Send OTP'
-                  )}
-                </Button>
-              ) : (
+              {loginMethod === 'password' ? (
                 <>
                   <div className="space-y-2">
-                    <Label htmlFor="otp">One-Time Password</Label>
-                    <Input
-                      id="otp"
-                      type="text"
-                      placeholder="Enter OTP from email"
-                      value={otp}
-                      onChange={(e) => setOtp(e.target.value)}
-                      required
-                    />
+                    <Label htmlFor="password">Password</Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                      <Input
+                        id="password"
+                        type="password"
+                        placeholder="Enter your password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className="pl-10"
+                        required
+                      />
+                    </div>
                   </div>
 
                   <Button 
                     type="submit" 
                     className="w-full" 
-                    disabled={loading || !otp}
+                    disabled={loading || !email || !password}
                   >
                     {loading ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Verifying...
+                        Signing in...
                       </>
                     ) : (
-                      'Verify OTP & Sign In'
+                      'Sign In with Password'
                     )}
                   </Button>
-                  
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    className="w-full" 
-                    disabled={loading || otpCooldown > 0}
-                    onClick={handleRequestOtp}
-                  >
-                    {otpCooldown > 0 ? (
-                      <>
-                        <Clock className="mr-2 h-4 w-4" />
-                        Resend in {otpCooldown}s
-                      </>
-                    ) : (
-                      'Resend OTP'
-                    )}
-                  </Button>
+                </>
+              ) : (
+                <>
+                  {!otpRequested ? (
+                    <Button 
+                      type="button" 
+                      className="w-full" 
+                      disabled={loading || !email || otpCooldown > 0}
+                      onClick={handleRequestOtp}
+                    >
+                      {loading ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Sending OTP...
+                        </>
+                      ) : otpCooldown > 0 ? (
+                        <>
+                          <Clock className="mr-2 h-4 w-4" />
+                          Wait {otpCooldown}s
+                        </>
+                      ) : (
+                        'Send OTP'
+                      )}
+                    </Button>
+                  ) : (
+                    <>
+                      <div className="space-y-2">
+                        <Label htmlFor="otp">One-Time Password</Label>
+                        <Input
+                          id="otp"
+                          type="text"
+                          placeholder="Enter OTP from email"
+                          value={otp}
+                          onChange={(e) => setOtp(e.target.value)}
+                          required
+                        />
+                      </div>
+
+                      <Button 
+                        type="submit" 
+                        className="w-full" 
+                        disabled={loading || !otp}
+                      >
+                        {loading ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Verifying...
+                          </>
+                        ) : (
+                          'Verify OTP & Sign In'
+                        )}
+                      </Button>
+                      
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        className="w-full" 
+                        disabled={loading || otpCooldown > 0}
+                        onClick={handleRequestOtp}
+                      >
+                        {otpCooldown > 0 ? (
+                          <>
+                            <Clock className="mr-2 h-4 w-4" />
+                            Resend in {otpCooldown}s
+                          </>
+                        ) : (
+                          'Resend OTP'
+                        )}
+                      </Button>
+                    </>
+                  )}
                 </>
               )}
             </form>
 
-            <div className="mt-4 text-center">
+            <div className="mt-4 text-center space-y-2">
+              {loginMethod === 'password' && (
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  <Link 
+                    href="/forgot-password"
+                    className="font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
+                  >
+                    Forgot your password?
+                  </Link>
+                </p>
+              )}
               <p className="text-sm text-gray-600 dark:text-gray-400">
                 Don't have an account?{' '}
                 <Link 
@@ -291,7 +403,7 @@ export default function LoginPage() {
                 OTP Authentication
               </h3>
               <div className="space-y-1 text-xs text-blue-700 dark:text-blue-300">
-                <p>• Enter your email to receive a one-time password</p>
+                <p>• Choose between password or OTP login</p>
                 <p>• OTP is sent to your registered email address</p>
                 <p>• Your account must be verified and approved</p>
                 <p>• Contact admin if you have login issues</p>
