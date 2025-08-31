@@ -5,6 +5,10 @@ import { db } from '@/lib/db'
 export async function POST(request: NextRequest) {
   try {
     const { email } = await request.json()
+    
+    console.log('=== SEND OTP DEBUG ===')
+    console.log('Email requested:', email)
+    console.log('RESEND_API_KEY configured:', !!process.env.RESEND_API_KEY)
 
     if (!email) {
       return NextResponse.json(
@@ -29,8 +33,19 @@ export async function POST(request: NextRequest) {
         isDeleted: false
       }
     })
+    
+    console.log('User found:', {
+      found: !!user,
+      id: user?.id,
+      email: user?.email,
+      isActive: user?.isActive,
+      isDeleted: user?.isDeleted,
+      isEmailVerified: user?.isEmailVerified,
+      lastOtpRequest: user?.lastOtpRequest
+    })
 
     if (!user) {
+      console.log('User not found in database')
       return NextResponse.json(
         { error: 'User not found' },
         { status: 404 }
@@ -39,6 +54,7 @@ export async function POST(request: NextRequest) {
 
     // Check if user is disabled by admin
     if (!user.isActive) {
+      console.log('User account is disabled')
       return NextResponse.json(
         { error: 'Account has been disabled by administrator' },
         { status: 403 }
@@ -55,12 +71,16 @@ export async function POST(request: NextRequest) {
 
     // Generate OTP
     const otp = resendEmailService.generateOTP()
+    console.log('Generated OTP:', otp)
 
     // Store OTP in database
     await resendEmailService.storeOTP(user.id, otp)
+    console.log('OTP stored in database')
 
     // Send OTP email
+    console.log('Attempting to send OTP email...')
     await resendEmailService.sendOTPEmail(email, otp, user.name)
+    console.log('OTP email sending completed')
 
     // In development mode without RESEND_API_KEY, return OTP for testing
     const isDevelopment = process.env.NODE_ENV !== 'production'
