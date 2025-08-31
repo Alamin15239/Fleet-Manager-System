@@ -138,8 +138,8 @@ export default function ProfilePage() {
         // Update auth context with new user data
         if (data.user) {
           localStorage.setItem('user', JSON.stringify(data.user))
-          // Force re-render by updating user state
-          window.location.reload()
+          // Refresh user data in auth context
+          await refreshUser()
         }
 
         toast({
