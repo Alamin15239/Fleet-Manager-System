@@ -48,9 +48,16 @@ export async function POST(request: NextRequest) {
 
     // If this is a login attempt, generate token and return user data
     if (isLogin) {
-      if (!user.isActive) {
+      if (!updatedUser.isActive) {
         return NextResponse.json(
-          { error: 'Account is deactivated' },
+          { error: 'Account has been disabled by administrator' },
+          { status: 403 }
+        );
+      }
+
+      if (!updatedUser.isApproved) {
+        return NextResponse.json(
+          { error: 'Your account is pending admin approval' },
           { status: 403 }
         );
       }
@@ -58,9 +65,9 @@ export async function POST(request: NextRequest) {
       // Generate JWT token
       const token = jwt.sign(
         { 
-          userId: user.id, 
-          email: user.email, 
-          role: user.role 
+          userId: updatedUser.id, 
+          email: updatedUser.email, 
+          role: updatedUser.role 
         },
         process.env.JWT_SECRET!,
         { expiresIn: '7d' }
