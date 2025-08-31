@@ -42,19 +42,24 @@ export async function POST(request: NextRequest) {
       permissions: {}
     })
 
+    console.log('=== REGISTRATION OTP DEBUG ===')
+    console.log('User created:', { id: user.id, email: user.email, isActive: user.isActive })
+    
     // Generate and send OTP for email verification
     const { resendEmailService } = await import('@/lib/resend-email')
     const otp = resendEmailService.generateOTP()
+    console.log('Generated OTP for registration:', otp)
     
     // Store OTP for verification
     await resendEmailService.storeOTP(user.id, otp)
+    console.log('OTP stored in database')
     
     // Send OTP email
     try {
       await resendEmailService.sendOTPEmail(email, otp, name)
-      console.log('OTP sent to:', email)
+      console.log('Registration OTP sent successfully to:', email)
     } catch (emailError) {
-      console.error('Failed to send OTP:', emailError)
+      console.error('Failed to send registration OTP:', emailError)
       // Don't fail the registration if email fails, just log it
     }
 

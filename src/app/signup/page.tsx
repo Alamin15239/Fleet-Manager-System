@@ -88,7 +88,7 @@ export default function SignupPage() {
         toast.success('Account created successfully! Please check your email for the OTP.')
         setTimeout(() => {
           router.push(`/verify-otp?email=${encodeURIComponent(formData.email)}`)
-        }, 3000)
+        }, 2000)
       } else {
         setError(data.error || 'Registration failed')
       }
