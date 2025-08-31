@@ -22,11 +22,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Check if user exists and is active
+    // Check if user exists (allow unverified users to receive OTP)
     const user = await db.user.findUnique({
       where: { 
         email,
-        isActive: true,
         isDeleted: false
       }
     })
@@ -35,6 +34,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'User not found' },
         { status: 404 }
+      )
+    }
+
+    // Check if user is disabled by admin
+    if (!user.isActive) {
+      return NextResponse.json(
+        { error: 'Account has been disabled by administrator' },
+        { status: 403 }
       )
     }
 
