@@ -304,8 +304,18 @@ export default function MaintenancePage() {
         resetForm()
         fetchMaintenanceRecords() // Refresh the list
       } else {
-        const errorData = await response.json()
-        toast.error(errorData.error || 'Failed to save maintenance record')
+        let errorMessage = 'Failed to save maintenance record'
+        try {
+          const responseClone = response.clone()
+          const text = await responseClone.text()
+          if (text && !text.startsWith('<!DOCTYPE')) {
+            const errorData = JSON.parse(text)
+            errorMessage = errorData.error || errorMessage
+          }
+        } catch (e) {
+          console.error('Failed to parse error response:', e)
+        }
+        toast.error(errorMessage)
       }
     } catch (error) {
       console.error('Error saving maintenance record:', error)

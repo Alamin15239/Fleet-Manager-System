@@ -475,13 +475,28 @@ class ResendEmailService {
   // Send OTP for login
   async sendLoginOTP(email: string): Promise<{ success: boolean; message: string }> {
     try {
-      const user = await db.user.findUnique({
-        where: { 
-          email,
-          isActive: true,
-          isDeleted: false
-        }
-      })
+      // Try to restart database connection
+      try {
+        await db.$disconnect()
+        await new Promise(resolve => setTimeout(resolve, 1000))
+        await db.$connect()
+        console.log('Database reconnected successfully')
+      } catch (e) {
+        console.log('Database reconnection failed:', e.message)
+      }
+
+      const user = await Promise.race([
+        db.user.findUnique({
+          where: { 
+            email,
+            isActive: true,
+            isDeleted: false
+          }
+        }),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Database timeout')), 5000)
+        )
+      ]) as any
 
       if (!user) {
         return { success: false, message: 'User not found' }

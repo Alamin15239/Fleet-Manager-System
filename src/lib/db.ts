@@ -15,10 +15,38 @@ export const db =
     },
     errorFormat: 'pretty',
     transactionOptions: {
-      timeout: 60000,
-      maxWait: 30000,
+      timeout: 10000,
+      maxWait: 5000,
     },
   })
+
+// Database reconnection helper
+export async function reconnectDB() {
+  try {
+    await db.$disconnect()
+    await new Promise(resolve => setTimeout(resolve, 1000))
+    await db.$connect()
+    return true
+  } catch (error) {
+    console.error('DB reconnection failed:', error)
+    return false
+  }
+}
+
+// Force disconnect and reconnect on connection issues
+process.on('beforeExit', async () => {
+  await db.$disconnect()
+})
+
+process.on('SIGINT', async () => {
+  await db.$disconnect()
+  process.exit(0)
+})
+
+process.on('SIGTERM', async () => {
+  await db.$disconnect()
+  process.exit(0)
+})
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = db
 

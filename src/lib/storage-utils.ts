@@ -3,23 +3,13 @@ export class StorageUtils {
   // Check if persistent storage is available and request it
   static async requestPersistentStorage(): Promise<boolean> {
     if (!('storage' in navigator) || !('persist' in navigator.storage)) {
-      console.warn('Persistent storage not supported')
       return false
     }
 
     try {
-      // Check if already persistent
       const isPersistent = await navigator.storage.persist()
-      
-      if (isPersistent) {
-        console.log('Persistent storage granted')
-      } else {
-        console.log('Persistent storage denied')
-      }
-      
       return isPersistent
     } catch (error) {
-      console.error('Error requesting persistent storage:', error)
       return false
     }
   }
@@ -33,12 +23,11 @@ export class StorageUtils {
     try {
       const estimate = await navigator.storage.estimate()
       return {
-        quota: estimate.quota,
-        usage: estimate.usage,
+        quota: estimate.quota || 0,
+        usage: estimate.usage || 0,
         usagePercentage: estimate.quota ? (estimate.usage! / estimate.quota) * 100 : 0
       }
     } catch (error) {
-      console.error('Error getting storage estimate:', error)
       return null
     }
   }
@@ -46,16 +35,20 @@ export class StorageUtils {
   // Initialize storage with modern APIs
   static async initializeStorage() {
     try {
-      // Request persistent storage for better reliability
+      // Silently request persistent storage
       await this.requestPersistentStorage()
       
-      // Get storage info
+      // Get storage info without logging errors
       const estimate = await this.getStorageEstimate()
-      if (estimate) {
-        console.log(`Storage: ${estimate.usage} / ${estimate.quota} bytes (${estimate.usagePercentage.toFixed(1)}%)`)
+      if (estimate && estimate.quota > 0) {
+        // Only log if we have valid storage info
+        const percentage = estimate.usagePercentage.toFixed(1)
+        if (percentage !== '0.0') {
+          console.log(`Storage: ${estimate.usage} / ${estimate.quota} bytes (${percentage}%)`)
+        }
       }
     } catch (error) {
-      console.error('Storage initialization error:', error)
+      // Silently handle storage errors
     }
   }
 }

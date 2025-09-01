@@ -1,8 +1,0 @@
-.next/cache/
-.next/trace
-node_modules/
-.env*
-.git/
-*.log
-.DS_Store
-Thumbs.db

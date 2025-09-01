@@ -99,32 +99,19 @@ export default function LoginPage() {
     setError('')
 
     try {
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ email, password })
-      })
+      const success = await login(email, password, false)
 
-      const data = await response.json()
-
-      if (response.ok) {
-        localStorage.setItem('authToken', data.token)
-        localStorage.setItem('user', JSON.stringify(data.user))
-        
+      if (success) {
         setIsRedirecting(true)
         toast.success('Login successful!')
         
         const redirectPath = localStorage.getItem('redirectAfterLogin') || '/'
         localStorage.removeItem('redirectAfterLogin')
         window.location.href = redirectPath
-      } else {
-        setError(data.error || 'Login failed')
       }
     } catch (error: any) {
       console.error('Login error:', error)
-      setError('Login failed. Please try again.')
+      setError(error.message || 'Login failed. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -136,7 +123,7 @@ export default function LoginPage() {
     setError('')
 
     try {
-      const success = await login(email, otp)
+      const success = await login(email, otp, true)
 
       if (success) {
         setIsRedirecting(true)

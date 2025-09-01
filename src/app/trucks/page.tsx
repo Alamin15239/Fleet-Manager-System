@@ -270,9 +270,20 @@ export default function TrucksPage() {
         resetForm()
         fetchTrucks() // Refresh the list
       } else {
-        const errorData = await response.json()
-        console.error('API Error:', errorData)
-        toast.error(errorData.error || 'Failed to save truck')
+        // Get error message from response
+        let errorMessage = 'Failed to save truck'
+        try {
+          const responseClone = response.clone()
+          const text = await responseClone.text()
+          if (text) {
+            const errorData = JSON.parse(text)
+            errorMessage = errorData.error || errorMessage
+          }
+        } catch (e) {
+          console.error('Failed to parse error response:', e)
+        }
+        console.error('API Error:', errorMessage)
+        toast.error(errorMessage)
       }
     } catch (error) {
       console.error('Error saving truck:', error)

@@ -3,6 +3,10 @@ import { db } from '@/lib/db'
 
 export async function GET() {
   try {
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Database operation timeout')), 8000)
+    })
+
     const [
       userCount,
       truckCount,
@@ -12,7 +16,8 @@ export async function GET() {
       notificationCount,
       auditLogCount,
       documentCount
-    ] = await Promise.all([
+    ] = await Promise.race([
+      Promise.all([
       db.user.count(),
       db.truck.count(),
       db.maintenanceRecord.count(),
@@ -20,7 +25,9 @@ export async function GET() {
       db.mechanic.count(),
       db.notification.count(),
       db.auditLog.count(),
-      db.document.count()
+        db.document.count()
+      ]),
+      timeoutPromise
     ])
 
     const estimatedStorage = {
@@ -103,6 +110,12 @@ export async function GET() {
     })
   } catch (error) {
     console.error('Error fetching database storage info:', error)
+    if (error.message === 'Database operation timeout') {
+      return NextResponse.json(
+        { success: false, error: 'Database connection timeout. Please try again.' },
+        { status: 503 }
+      )
+    }
     return NextResponse.json(
       { success: false, error: 'Failed to fetch database storage information' },
       { status: 500 }

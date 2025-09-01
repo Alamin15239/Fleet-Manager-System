@@ -22,7 +22,7 @@ interface User {
 interface AuthContextType {
   user: User | null
   token: string | null
-  login: (email: string, otp: string) => Promise<boolean>
+  login: (email: string, passwordOrOtp: string, isOtp?: boolean) => Promise<boolean>
   logout: () => Promise<void>
   refreshUser: () => Promise<void>
   isLoading: boolean
@@ -72,15 +72,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  const login = async (email: string, otp: string): Promise<boolean> => {
+  const login = async (email: string, passwordOrOtp: string, isOtp: boolean = true): Promise<boolean> => {
     try {
-      const response = await fetch('/api/auth/verify-otp', {
+      const endpoint = isOtp ? '/api/auth/verify-otp' : '/api/auth/login'
+      const body = isOtp 
+        ? { email, otp: passwordOrOtp, isLogin: true }
+        : { email, password: passwordOrOtp }
+
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         credentials: 'include',
-        body: JSON.stringify({ email, otp, isLogin: true })
+        body: JSON.stringify(body)
       })
 
       if (response.status === 429) {
@@ -89,7 +94,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       if (!response.ok) {
         const errorData = await response.json()
-        throw new Error(errorData.error || 'OTP verification failed')
+        throw new Error(errorData.error || 'Login failed')
       }
       
       const data = await response.json()

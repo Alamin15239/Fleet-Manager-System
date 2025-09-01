@@ -97,10 +97,20 @@ export default function ReportsPage() {
   const fetchData = async () => {
     setLoading(true)
     try {
+      // Get auth token from localStorage
+      const token = localStorage.getItem('authToken')
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json'
+      }
+      
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`
+      }
+
       const [trucksRes, maintenanceRes, usersRes] = await Promise.all([
-        fetch('/api/trucks'),
-        fetch('/api/maintenance'),
-        fetch('/api/users')
+        fetch('/api/trucks', { headers }),
+        fetch('/api/maintenance', { headers }),
+        fetch('/api/users', { headers })
       ])
 
       if (trucksRes.ok) {

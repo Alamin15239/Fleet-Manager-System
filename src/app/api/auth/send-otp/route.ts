@@ -5,11 +5,8 @@ import { db } from '@/lib/db'
 export async function POST(request: NextRequest) {
   try {
     const { email } = await request.json()
+    console.log('📧 OTP Request for:', email)
     
-    console.log('=== SEND OTP DEBUG ===')
-    console.log('Email requested:', email)
-    console.log('RESEND_API_KEY configured:', !!process.env.RESEND_API_KEY)
-
     if (!email) {
       return NextResponse.json(
         { error: 'Email is required' },
@@ -26,71 +23,26 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Check if user exists (allow unverified users to receive OTP)
-    const user = await db.user.findUnique({
-      where: { 
-        email,
-        isDeleted: false
-      }
-    })
+    console.log('✅ Email validation passed')
+
+    // Use the resend email service to send OTP
+    console.log('🚀 Calling sendLoginOTP...')
+    const result = await resendEmailService.sendLoginOTP(email)
+    console.log('📤 SendLoginOTP result:', result)
     
-    console.log('User found:', {
-      found: !!user,
-      id: user?.id,
-      email: user?.email,
-      isActive: user?.isActive,
-      isDeleted: user?.isDeleted,
-      isEmailVerified: user?.isEmailVerified,
-      lastOtpRequest: user?.lastOtpRequest
-    })
-
-    if (!user) {
-      console.log('User not found in database')
+    if (result.success) {
+      return NextResponse.json({
+        success: true,
+        message: result.message
+      })
+    } else {
+      console.log('❌ SendLoginOTP failed:', result.message)
       return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
+        { error: result.message },
+        { status: 400 }
       )
     }
 
-    // Check if user is disabled by admin
-    if (!user.isActive) {
-      console.log('User account is disabled')
-      return NextResponse.json(
-        { error: 'Account has been disabled by administrator' },
-        { status: 403 }
-      )
-    }
-
-    // Check if user can request OTP (rate limiting)
-    if (!resendEmailService.canRequestOTP(user.lastOtpRequest)) {
-      return NextResponse.json(
-        { error: 'Please wait before requesting another OTP' },
-        { status: 429 }
-      )
-    }
-
-    // Generate OTP
-    const otp = resendEmailService.generateOTP()
-    console.log('Generated OTP:', otp)
-
-    // Store OTP in database
-    await resendEmailService.storeOTP(user.id, otp)
-    console.log('OTP stored in database')
-
-    // Send OTP email
-    console.log('Attempting to send OTP email...')
-    await resendEmailService.sendOTPEmail(email, otp, user.name)
-    console.log('OTP email sending completed')
-
-    // In development mode without RESEND_API_KEY, return OTP for testing
-    const isDevelopment = process.env.NODE_ENV !== 'production'
-    const hasResendKey = !!process.env.RESEND_API_KEY
-    
-    return NextResponse.json({
-      success: true,
-      message: 'OTP sent successfully',
-      ...(isDevelopment && !hasResendKey && { otp }) // Include OTP in dev mode
-    })
 
   } catch (error) {
     console.error('Send OTP error:', error)

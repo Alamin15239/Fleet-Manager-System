@@ -30,16 +30,16 @@ model User {
   otpCode                  String?
   otpExpires               DateTime?
   lastOtpRequest           DateTime?
-  resetToken               String?
-  resetTokenExpires        DateTime?
   createdAt                DateTime            @default(now())
   updatedAt                DateTime            @updatedAt
+  resetToken               String?
+  resetTokenExpires        DateTime?
   auditLogs                AuditLog[]
+  createdDocuments         Document[]
   loginHistory             LoginHistory[]
   maintenanceRecords       MaintenanceRecord[]
   createdTires             Tire[]
   userActivities           UserActivity[]
-  createdDocuments         Document[]
 
   @@map("users")
 }
@@ -90,7 +90,6 @@ model Truck {
   notifications      Notification[]
   predictiveAlerts   PredictiveAlert[]
 
-
   @@map("trucks")
 }
 
@@ -111,8 +110,6 @@ model MaintenanceJob {
   @@unique([name, category])
   @@map("maintenance_jobs")
 }
-
-
 
 model PredictiveAlert {
   id                   String    @id @default(cuid())
@@ -165,7 +162,7 @@ model MaintenanceRecord {
   downtimeHours     Float?
   failureMode       String?
   rootCause         String?
-  createdBy         User?             @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdBy         User?             @relation(fields: [createdById], references: [id])
   maintenanceJob    MaintenanceJob?   @relation(fields: [maintenanceJobId], references: [id])
   mechanic          Mechanic?         @relation(fields: [mechanicId], references: [id])
   truck             Truck             @relation(fields: [truckId], references: [id], onDelete: Cascade)
@@ -235,12 +232,12 @@ model AuditLog {
   changes    Json?
   ipAddress  String?
   userAgent  String?
+  createdAt  DateTime @default(now())
+  browser    String?
   deviceName String?
   deviceType String?
-  browser    String?
+  location   Json?
   os         String?
-  location   Json?    // {country, city, region, latitude, longitude}
-  createdAt  DateTime @default(now())
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("audit_logs")
@@ -257,13 +254,13 @@ model UserActivity {
   newValues  Json?
   ipAddress  String?
   userAgent  String?
-  deviceName String?
-  deviceType String?
-  browser    String?
-  os         String?
-  location   Json?    // {country, city, region, latitude, longitude}
   metadata   Json?
   createdAt  DateTime @default(now())
+  browser    String?
+  deviceName String?
+  deviceType String?
+  location   Json?
+  os         String?
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("user_activities")
@@ -276,15 +273,15 @@ model LoginHistory {
   logoutTime      DateTime?
   ipAddress       String?
   userAgent       String?
-  deviceName      String?
-  deviceType      String?
-  browser         String?
-  os              String?
-  location        Json?     // {country, city, region, latitude, longitude}
   sessionDuration Int?
   isActive        Boolean   @default(true)
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
+  browser         String?
+  deviceName      String?
+  deviceType      String?
+  location        Json?
+  os              String?
   user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("login_history")
@@ -320,7 +317,7 @@ model Tire {
   createdById   String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
-  createdBy     User?    @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdBy     User?    @relation(fields: [createdById], references: [id])
   vehicle       Vehicle  @relation(fields: [plateNumber], references: [plateNumber])
 
   @@index([manufacturer])
@@ -334,16 +331,33 @@ model Tire {
 model Document {
   id          String   @id @default(cuid())
   title       String
-  type        String   // text, table, excel, image, pdf
+  type        String
   fileUrl     String?
-  editorState Json?    // Tiptap or table/Excel state
+  editorState Json?
   version     Int      @default(1)
   createdById String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  createdBy   User?    @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdBy   User?    @relation(fields: [createdById], references: [id])
 
   @@map("documents")
+}
+
+model EmailLog {
+  id        String   @id @default(cuid())
+  emailId   String   @unique
+  type      String
+  from      String
+  to        String
+  subject   String
+  eventData Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([emailId])
+  @@index([type])
+  @@index([createdAt])
+  @@map("email_logs")
 }
 
 enum RiskLevel {
@@ -361,8 +375,6 @@ enum AlertType {
   EFFICIENCY_DROP
   SAFETY_ALERT
 }
-
-
 
 enum Role {
   ADMIN

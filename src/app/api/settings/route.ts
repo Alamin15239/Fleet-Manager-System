@@ -7,8 +7,15 @@ export async function GET(request: NextRequest) {
     // For development purposes, skip authentication check
     // TODO: Add proper authentication in production
     
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Database timeout')), 5000)
+    )
+    
     // Get settings - there should only be one record
-    let settings = await db.settings.findFirst()
+    let settings = await Promise.race([
+      db.settings.findFirst(),
+      timeoutPromise
+    ]) as any
 
     // If no settings exist, create default settings
     if (!settings) {

@@ -149,8 +149,9 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Create truck
-    const truck = await db.truck.create({
+    // Create truck with timeout protection
+    const truck = await Promise.race([
+      db.truck.create({
       data: {
         vin: body.vin,
         make: body.make,
@@ -177,7 +178,11 @@ export async function POST(request: NextRequest) {
           orderBy: { datePerformed: 'desc' }
         }
       }
-    })
+    }),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Database timeout')), 10000)
+      )
+    ]) as any
 
     // Log audit event (this also logs user activity)
     await logEntityChange(
