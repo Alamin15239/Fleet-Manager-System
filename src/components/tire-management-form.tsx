@@ -59,6 +59,8 @@ export default function TireManagementForm() {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
+  const [showPlateDropdown, setShowPlateDropdown] = useState(false)
+  const [showTrailerDropdown, setShowTrailerDropdown] = useState(false)
   const [autoFilled, setAutoFilled] = useState({
     driverName: false,
     trailerNumber: false
@@ -283,9 +285,33 @@ export default function TireManagementForm() {
                       <Input
                         placeholder="Search or enter truck plate number"
                         value={formData.plateNumber}
-                        onChange={(e) => handlePlateNumberChange(e.target.value)}
+                        onChange={(e) => {
+                          setFormData({ ...formData, plateNumber: e.target.value })
+                          setShowPlateDropdown(e.target.value.length > 0)
+                        }}
+                        onFocus={() => setShowPlateDropdown(formData.plateNumber.length > 0)}
+                        onBlur={() => setTimeout(() => setShowPlateDropdown(false), 200)}
                         className="pl-10 border-blue-300 focus:border-blue-500 bg-white"
                       />
+                      {showPlateDropdown && (
+                        <div className="absolute z-10 w-full mt-1 bg-white border border-blue-300 rounded-md shadow-lg max-h-40 overflow-y-auto">
+                          {plateNumbers
+                            .filter(plate => plate.toLowerCase().includes(formData.plateNumber.toLowerCase()))
+                            .map((plate) => (
+                              <div
+                                key={plate}
+                                className="px-3 py-2 hover:bg-blue-50 cursor-pointer text-sm"
+                                onClick={() => {
+                                  handlePlateNumberChange(plate)
+                                  setShowPlateDropdown(false)
+                                }}
+                              >
+                                {plate}
+                              </div>
+                            ))
+                          }
+                        </div>
+                      )}
                     </div>
                     <p className="text-xs text-blue-600">Optional - Search or enter truck plate number</p>
                   </div>
@@ -404,9 +430,33 @@ export default function TireManagementForm() {
                       <Input
                         placeholder="Search or enter trailer number"
                         value={formData.trailerNumber}
-                        onChange={(e) => handleTrailerNumberChange(e.target.value)}
+                        onChange={(e) => {
+                          setFormData({ ...formData, trailerNumber: e.target.value })
+                          setShowTrailerDropdown(e.target.value.length > 0)
+                        }}
+                        onFocus={() => setShowTrailerDropdown(formData.trailerNumber.length > 0)}
+                        onBlur={() => setTimeout(() => setShowTrailerDropdown(false), 200)}
                         className={`pl-10 border-orange-300 focus:border-orange-500 bg-white ${autoFilled.trailerNumber ? 'ring-2 ring-green-300 border-green-400' : ''}`}
                       />
+                      {showTrailerDropdown && (
+                        <div className="absolute z-10 w-full mt-1 bg-white border border-orange-300 rounded-md shadow-lg max-h-40 overflow-y-auto">
+                          {trailerNumbers
+                            .filter(trailer => trailer.toLowerCase().includes(formData.trailerNumber.toLowerCase()))
+                            .map((trailer) => (
+                              <div
+                                key={trailer}
+                                className="px-3 py-2 hover:bg-orange-50 cursor-pointer text-sm"
+                                onClick={() => {
+                                  handleTrailerNumberChange(trailer)
+                                  setShowTrailerDropdown(false)
+                                }}
+                              >
+                                {trailer}
+                              </div>
+                            ))
+                          }
+                        </div>
+                      )}
                     </div>
                     {autoFilled.trailerNumber && (
                       <div className="flex items-center gap-1 text-xs text-green-600 mt-1">
