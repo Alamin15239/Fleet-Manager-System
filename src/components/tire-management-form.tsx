@@ -296,7 +296,21 @@ export default function TireManagementForm() {
                       onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) || 1 })}
                       className="border-blue-300 focus:border-blue-500 bg-white"
                     />
-                    <p className="text-xs text-blue-600">Number of tires (default: 1)</p>
+                    <p className="text-xs text-blue-600">Number of tires</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="truckTireSize" className="font-medium text-blue-700 text-sm">
+                      Tire Size
+                    </Label>
+                    <Input
+                      id="truckTireSize"
+                      placeholder="e.g., 295/80R22.5"
+                      value={formData.tireSize}
+                      onChange={(e) => setFormData({ ...formData, tireSize: e.target.value })}
+                      className="border-blue-300 focus:border-blue-500 bg-white"
+                    />
+                    <p className="text-xs text-blue-600">Tire size for truck</p>
                   </div>
                 </div>
 
@@ -363,9 +377,35 @@ export default function TireManagementForm() {
                     <p className="text-xs text-orange-600">Optional - Select if tires are for trailer</p>
                   </div>
 
+                  <div className="space-y-2">
+                    <Label htmlFor="trailerQuantity" className="font-medium text-orange-700 text-sm">
+                      Quantity
+                    </Label>
+                    <Input
+                      id="trailerQuantity"
+                      type="number"
+                      min="1"
+                      max="100"
+                      value={formData.quantity}
+                      onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) || 1 })}
+                      className="border-orange-300 focus:border-orange-500 bg-white"
+                    />
+                    <p className="text-xs text-orange-600">Number of trailer tires</p>
+                  </div>
 
-
-
+                  <div className="space-y-2">
+                    <Label htmlFor="trailerTireSize" className="font-medium text-orange-700 text-sm">
+                      Tire Size
+                    </Label>
+                    <Input
+                      id="trailerTireSize"
+                      placeholder="e.g., 385/65R22.5"
+                      value={formData.tireSize}
+                      onChange={(e) => setFormData({ ...formData, tireSize: e.target.value })}
+                      className="border-orange-300 focus:border-orange-500 bg-white"
+                    />
+                    <p className="text-xs text-orange-600">Tire size for trailer</p>
+                  </div>
                 </div>
 
                 <div className="space-y-4 mt-4">
