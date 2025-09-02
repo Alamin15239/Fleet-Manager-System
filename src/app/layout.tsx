@@ -11,6 +11,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { StorageInit } from "@/components/storage-init";
+import { RealTimeProvider } from "../../components/real-time-provider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -68,9 +69,11 @@ export default function RootLayout({
             <AuthProvider>
               <SidebarProvider>
                 <PermissionsProvider>
-                  <Layout>
-                    {children}
-                  </Layout>
+                  <RealTimeProvider>
+                    <Layout>
+                      {children}
+                    </Layout>
+                  </RealTimeProvider>
                 </PermissionsProvider>
               </SidebarProvider>
             </AuthProvider>

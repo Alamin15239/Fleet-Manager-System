@@ -30,6 +30,7 @@ import {
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { apiGet, apiPut, apiDelete } from '@/lib/api'
+import { useRealTime } from '../../components/real-time-provider'
 
 interface Tire {
   id: string
@@ -111,10 +112,17 @@ export default function TireInventoryList() {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
 
+  const { refreshData } = useRealTime()
+
   useEffect(() => {
     fetchTires()
     fetchFilterOptions()
   }, [pagination.page, pagination.limit])
+
+  useEffect(() => {
+    fetchTires()
+    fetchFilterOptions()
+  }, [refreshData])
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {

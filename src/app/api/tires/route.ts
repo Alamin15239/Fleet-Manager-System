@@ -169,6 +169,17 @@ export async function POST(request: NextRequest) {
     })
 
     console.log('Successfully created', createdTires.count, 'tires')
+    
+    // Emit real-time update
+    if (global.io) {
+      global.io.emit('tire-created', {
+        count: createdTires.count,
+        plateNumber,
+        manufacturer,
+        tireSize
+      })
+    }
+    
     return NextResponse.json({ 
       message: `Successfully created ${quantity} tire(s)`,
       count: createdTires.count 
