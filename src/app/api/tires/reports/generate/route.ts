@@ -22,6 +22,7 @@ export async function GET(request: NextRequest) {
     const manufacturer = searchParams.get('manufacturer')
     const origin = searchParams.get('origin')
     const plateNumber = searchParams.get('plateNumber')
+    const trailerNumber = searchParams.get('trailerNumber')
     const driverName = searchParams.get('driverName')
 
     if (!template || !startDate || !endDate) {
@@ -54,6 +55,10 @@ export async function GET(request: NextRequest) {
 
     if (plateNumber) {
       where.plateNumber = plateNumber
+    }
+
+    if (trailerNumber) {
+      where.trailerNumber = trailerNumber
     }
 
     if (driverName) {
@@ -114,13 +119,15 @@ export async function GET(request: NextRequest) {
     }
 
     // Calculate summary statistics
+    const allVehicles = new Set([...tires.map(t => t.plateNumber).filter(Boolean), ...tires.map(t => t.trailerNumber).filter(Boolean)])
     const summary = {
       totalTires: tires.reduce((sum, t) => sum + (t.quantity || 0), 0),
-      totalVehicles: Array.from(new Set(tires.map(t => t.plateNumber))).length,
+      totalVehicles: allVehicles.size,
+      totalTrailers: Array.from(new Set(tires.map(t => t.trailerNumber).filter(Boolean))).length,
       totalDrivers: Array.from(new Set(tires.map(t => t.driverName).filter(Boolean))).length,
       totalRecords: tires.length,
-      averageTiresPerVehicle: tires.length > 0 ? 
-        (tires.reduce((sum, t) => sum + (t.quantity || 0), 0) / Array.from(new Set(tires.map(t => t.plateNumber))).length).toFixed(1) : 0,
+      averageTiresPerVehicle: allVehicles.size > 0 ? 
+        (tires.reduce((sum, t) => sum + (t.quantity || 0), 0) / allVehicles.size).toFixed(1) : 0,
       manufacturers: Array.from(new Set(tires.map(t => t.manufacturer))).length,
       origins: Array.from(new Set(tires.map(t => t.origin))).length
     }
@@ -205,6 +212,7 @@ export async function GET(request: NextRequest) {
         manufacturer,
         origin,
         plateNumber,
+        trailerNumber,
         driverName
       }
     }
