@@ -278,19 +278,16 @@ export default function TireManagementForm() {
                     <Label htmlFor="plateNumber" className="font-medium text-blue-700 text-sm">
                       Truck Plate Number
                     </Label>
-                    <Select value={formData.plateNumber} onValueChange={handlePlateNumberChange}>
-                      <SelectTrigger className="border-blue-300 focus:border-blue-500 bg-white">
-                        <SelectValue placeholder="Select truck plate number (optional)" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {plateNumbers.map((plate) => (
-                          <SelectItem key={plate} value={plate}>
-                            {plate}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <p className="text-xs text-blue-600">Optional - Select if tires are for truck</p>
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      <Input
+                        placeholder="Search or enter truck plate number"
+                        value={formData.plateNumber}
+                        onChange={(e) => handlePlateNumberChange(e.target.value)}
+                        className="pl-10 border-blue-300 focus:border-blue-500 bg-white"
+                      />
+                    </div>
+                    <p className="text-xs text-blue-600">Optional - Search or enter truck plate number</p>
                   </div>
 
 
@@ -402,26 +399,22 @@ export default function TireManagementForm() {
                     <Label htmlFor="trailerNumber" className="font-medium text-orange-700 text-sm">
                       Trailer Number
                     </Label>
-                    <Select value={formData.trailerNumber} onValueChange={handleTrailerNumberChange}>
-                      <SelectTrigger className={`border-orange-300 focus:border-orange-500 bg-white ${autoFilled.trailerNumber ? 'ring-2 ring-green-300 border-green-400' : ''}`}>
-                        <SelectValue placeholder="Select trailer number (optional)" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">No Trailer</SelectItem>
-                        {trailerNumbers.map((trailer) => (
-                          <SelectItem key={trailer} value={trailer}>
-                            {trailer}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      <Input
+                        placeholder="Search or enter trailer number"
+                        value={formData.trailerNumber}
+                        onChange={(e) => handleTrailerNumberChange(e.target.value)}
+                        className={`pl-10 border-orange-300 focus:border-orange-500 bg-white ${autoFilled.trailerNumber ? 'ring-2 ring-green-300 border-green-400' : ''}`}
+                      />
+                    </div>
                     {autoFilled.trailerNumber && (
                       <div className="flex items-center gap-1 text-xs text-green-600 mt-1">
                         <CheckCircle className="h-3 w-3" />
                         Auto-filled from vehicle data
                       </div>
                     )}
-                    <p className="text-xs text-orange-600">Optional - Select if tires are for trailer</p>
+                    <p className="text-xs text-orange-600">Optional - Search or enter trailer number</p>
                   </div>
 
                   <div className="space-y-2">
