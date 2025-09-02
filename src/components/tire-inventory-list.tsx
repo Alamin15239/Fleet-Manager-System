@@ -250,7 +250,7 @@ export default function TireInventoryList() {
         tire.quantity,
         tire.notes || '',
         format(new Date(tire.createdAt), 'yyyy-MM-dd HH:mm'),
-        tire.createdBy.name || tire.createdBy.email
+        tire.createdBy?.name || tire.createdBy?.email || 'Unknown'
       ].join(','))
     ].join('\n')
 
@@ -524,7 +524,7 @@ export default function TireInventoryList() {
                       </TableCell>
                       <TableCell className="hidden lg:table-cell">
                         <div className="text-xs truncate max-w-24">
-                          {tire.createdBy.name || tire.createdBy.email}
+                          {tire.createdBy?.name || tire.createdBy?.email || 'Unknown'}
                         </div>
                       </TableCell>
                       <TableCell className="text-right">
