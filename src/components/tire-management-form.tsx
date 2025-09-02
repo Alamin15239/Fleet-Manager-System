@@ -94,43 +94,7 @@ export default function TireManagementForm() {
 
   const handlePlateNumberChange = async (plateNumber: string) => {
     setFormData(prev => ({ ...prev, plateNumber }))
-    setAutoFilled(prev => ({ ...prev, driverName: false, trailerNumber: false }))
-    
-    if (plateNumber) {
-      // Find vehicle and auto-fill driver and trailer
-      const vehicle = vehicles.find(v => v.plateNumber === plateNumber)
-      if (vehicle) {
-        setFormData(prev => ({
-          ...prev,
-          driverName: vehicle.driverName || '',
-          trailerNumber: vehicle.trailerNumber || ''
-        }))
-        
-        // Track auto-filled fields
-        setAutoFilled({
-          driverName: !!vehicle.driverName,
-          trailerNumber: !!vehicle.trailerNumber
-        })
-        
-        // Show visual feedback
-        setSuccess(`Vehicle found: ${plateNumber}. Driver and trailer information auto-filled.`)
-        setTimeout(() => setSuccess(null), 3000)
-      } else {
-        // Clear related fields if vehicle not found
-        setFormData(prev => ({
-          ...prev,
-          driverName: '',
-          trailerNumber: ''
-        }))
-      }
-    } else {
-      // Clear all related fields if plate is cleared
-      setFormData(prev => ({
-        ...prev,
-        driverName: '',
-        trailerNumber: ''
-      }))
-    }
+    // No auto-fill - all fields remain manual entry
   }
 
   const handleTrailerNumberChange = async (trailerNumber: string) => {
@@ -393,22 +357,17 @@ export default function TireManagementForm() {
                   </div>
                   <Input
                     id="driverName"
-                    placeholder="Auto-filled from truck selection or enter manually"
+                    placeholder="Enter driver name manually"
                     value={formData.driverName}
                     onChange={(e) => {
                       setFormData({ ...formData, driverName: e.target.value })
                       setAutoFilled(prev => ({ ...prev, driverName: false }))
                     }}
-                    className={`border-blue-300 focus:border-blue-500 bg-white ${autoFilled.driverName ? 'ring-2 ring-green-300 border-green-400' : ''}`}
+                    className="border-blue-300 focus:border-blue-500 bg-white"
                   />
-                  {autoFilled.driverName && (
-                    <div className="flex items-center gap-1 text-xs text-green-600 mt-1">
-                      <CheckCircle className="h-3 w-3" />
-                      Auto-filled from truck data
-                    </div>
-                  )}
+
                   <p className="text-xs text-blue-700 mt-1">
-                    {formData.driverName ? `Truck driver: ${formData.driverName}` : 'Driver name will auto-fill when truck is selected'}
+                    Enter the truck driver's name
                   </p>
                 </div>
               </div>
