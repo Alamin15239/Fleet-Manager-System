@@ -109,19 +109,15 @@ export async function POST(request: NextRequest) {
       trailerNumber, 
       driverName, 
       quantity = 1,
+      trailerTireSize,
+      trailerManufacturer,
+      trailerOrigin,
+      trailerQuantity = 1,
       notes,
       createdAt
     } = body
 
-    if (!tireSize || !manufacturer || !origin) {
-      console.log('Validation failed - missing required fields')
-      return NextResponse.json(
-        { error: 'Tire size, manufacturer, and origin are required' },
-        { status: 400 }
-      )
-    }
-
-    // Only handle vehicle if plate number is provided
+    // Handle vehicle creation/update if plate number is provided
     if (plateNumber) {
       let vehicle = await db.vehicle.findUnique({
         where: { plateNumber }
@@ -138,7 +134,6 @@ export async function POST(request: NextRequest) {
         })
       } else {
         console.log('Updating existing vehicle:', plateNumber)
-        // Update vehicle with new trailer number and driver name if provided
         await db.vehicle.update({
           where: { plateNumber },
           data: {
@@ -149,21 +144,55 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Create tire records
-    const tiresData = Array.from({ length: quantity }, (_, index) => ({
-      tireSize,
-      manufacturer,
-      origin,
-      plateNumber: plateNumber || null,
-      trailerNumber: trailerNumber || null,
-      driverName: driverName || null,
-      quantity: 1, // Each record represents 1 tire
-      notes: notes || null,
-      createdById: user.id,
-      ...(createdAt && { createdAt: new Date(createdAt) })
-    }))
+    const tiresData = []
+    let totalTires = 0
 
-    console.log('Creating', quantity, 'tire records')
+    // Create truck tires if truck info provided
+    if (tireSize && manufacturer && origin && (plateNumber || quantity > 0)) {
+      for (let i = 0; i < quantity; i++) {
+        tiresData.push({
+          tireSize,
+          manufacturer,
+          origin,
+          plateNumber: plateNumber || null,
+          trailerNumber: null, // Truck tires don't have trailer number
+          driverName: driverName || null,
+          quantity: 1,
+          notes: notes || null,
+          createdById: user.id,
+          ...(createdAt && { createdAt: new Date(createdAt) })
+        })
+        totalTires++
+      }
+    }
+
+    // Create trailer tires if trailer info provided
+    if (trailerTireSize && trailerManufacturer && trailerOrigin && trailerNumber) {
+      for (let i = 0; i < trailerQuantity; i++) {
+        tiresData.push({
+          tireSize: trailerTireSize,
+          manufacturer: trailerManufacturer,
+          origin: trailerOrigin,
+          plateNumber: plateNumber || null, // Link to truck if provided
+          trailerNumber: trailerNumber,
+          driverName: driverName || null,
+          quantity: 1,
+          notes: notes || null,
+          createdById: user.id,
+          ...(createdAt && { createdAt: new Date(createdAt) })
+        })
+        totalTires++
+      }
+    }
+
+    if (tiresData.length === 0) {
+      return NextResponse.json(
+        { error: 'No valid tire data provided' },
+        { status: 400 }
+      )
+    }
+
+    console.log('Creating', tiresData.length, 'tire records')
     const createdTires = await db.tire.createMany({
       data: tiresData
     })
@@ -181,7 +210,7 @@ export async function POST(request: NextRequest) {
     }
     
     return NextResponse.json({ 
-      message: `Successfully created ${quantity} tire(s)`,
+      message: `Successfully created ${totalTires} tire(s)`,
       count: createdTires.count 
     }, { status: 201 })
   } catch (error) {
