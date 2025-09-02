@@ -296,15 +296,17 @@ export default function ProfessionalReportGenerator() {
 
     if (reportData.tires) {
       rows.push('')
-      rows.push(['Tire Size', 'Manufacturer', 'Origin', 'Plate Number', 'Driver Name', 'Quantity', 'Created Date'].join(','))
+      rows.push(['Tire Size', 'Manufacturer', 'Origin', 'Plate Number', 'Trailer Number', 'Driver Name', 'Quantity', 'Vehicle Type', 'Created Date'].join(','))
       reportData.tires.forEach((tire: any) => {
         rows.push([
           tire.tireSize,
           tire.manufacturer,
           tire.origin,
-          tire.plateNumber,
+          tire.plateNumber || '',
+          tire.trailerNumber || '',
           tire.driverName || '',
           tire.quantity,
+          tire.trailerNumber ? 'Trailer' : (tire.plateNumber ? 'Truck' : 'General'),
           format(new Date(tire.createdAt), 'yyyy-MM-dd')
         ].join(','))
       })
@@ -326,8 +328,10 @@ export default function ProfessionalReportGenerator() {
         { header: 'Manufacturer', key: 'manufacturer', width: 20 },
         { header: 'Origin', key: 'origin', width: 15 },
         { header: 'Plate Number', key: 'plateNumber', width: 15 },
+        { header: 'Trailer Number', key: 'trailerNumber', width: 15 },
         { header: 'Driver Name', key: 'driverName', width: 20 },
         { header: 'Quantity', key: 'quantity', width: 10 },
+        { header: 'Vehicle Type', key: 'vehicleType', width: 12 },
         { header: 'Created Date', key: 'createdAt', width: 15 }
       ]
 
@@ -338,9 +342,11 @@ export default function ProfessionalReportGenerator() {
             tireSize: tire.tireSize,
             manufacturer: tire.manufacturer,
             origin: tire.origin,
-            plateNumber: tire.plateNumber,
+            plateNumber: tire.plateNumber || '',
+            trailerNumber: tire.trailerNumber || '',
             driverName: tire.driverName || '',
             quantity: tire.quantity,
+            vehicleType: tire.trailerNumber ? 'Trailer' : (tire.plateNumber ? 'Truck' : 'General'),
             createdAt: format(new Date(tire.createdAt), 'yyyy-MM-dd')
           })
         })
@@ -416,8 +422,9 @@ export default function ProfessionalReportGenerator() {
           }
           
           doc.text(`${index + 1}. ${tire.manufacturer} ${tire.tireSize}`, 20, yPos)
-          doc.text(`Vehicle: ${tire.plateNumber} | Driver: ${tire.driverName || 'N/A'}`, 25, yPos + 8)
-          doc.text(`Origin: ${tire.origin} | Qty: ${tire.quantity}`, 25, yPos + 16)
+          const vehicleInfo = tire.trailerNumber ? `Trailer: ${tire.trailerNumber}` : `Truck: ${tire.plateNumber || 'N/A'}`
+          doc.text(`${vehicleInfo} | Driver: ${tire.driverName || 'N/A'}`, 25, yPos + 8)
+          doc.text(`Origin: ${tire.origin} | Qty: ${tire.quantity} | Type: ${tire.trailerNumber ? 'Trailer' : 'Truck'}`, 25, yPos + 16)
           yPos += 25
         })
       }
