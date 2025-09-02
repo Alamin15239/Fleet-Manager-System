@@ -12,6 +12,7 @@ import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { StorageInit } from "@/components/storage-init";
 import { RealTimeProvider } from "../../components/real-time-provider";
+import { ClarityAnalytics } from "@/components/clarity-analytics";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -55,20 +56,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <head>
-        <script
-          type="text/javascript"
-          dangerouslySetInnerHTML={{
-            __html: `
-              (function(c,l,a,r,i,t,y){
-                c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
-                t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
-                y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
-              })(window, document, "clarity", "script", "t4ma7qs0aj");
-            `,
-          }}
-        />
-      </head>
+
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
         suppressHydrationWarning
@@ -95,6 +83,7 @@ export default function RootLayout({
           </LanguageProvider>
         </ThemeProvider>
         <StorageInit />
+        <ClarityAnalytics />
         <Analytics />
         <SpeedInsights />
       </body>
