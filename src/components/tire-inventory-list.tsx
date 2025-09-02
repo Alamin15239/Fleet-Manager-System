@@ -26,7 +26,8 @@ import {
   Save,
   X,
   AlertCircle,
-  CheckCircle
+  CheckCircle,
+  Eye
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { apiGet, apiPut, apiDelete } from '@/lib/api'
@@ -490,12 +491,16 @@ export default function TireInventoryList() {
                         <div className="bg-blue-50 border border-blue-200 rounded-lg p-2">
                           <div className="flex items-center gap-1 mb-1">
                             <Truck className="h-3 w-3 text-blue-600" />
-                            <span className="font-semibold text-blue-900 text-xs">Vehicle</span>
+                            <span className="font-semibold text-blue-900 text-xs">
+                              {tire.trailerNumber ? 'Trailer' : 'Truck'}
+                            </span>
                           </div>
                           <div className="space-y-1">
-                            <div className="text-xs font-semibold">{tire.plateNumber}</div>
+                            {tire.plateNumber && (
+                              <div className="text-xs font-semibold">{tire.plateNumber}</div>
+                            )}
                             {tire.trailerNumber && (
-                              <div className="text-xs text-blue-700">{tire.trailerNumber}</div>
+                              <div className="text-xs text-blue-700 font-semibold">{tire.trailerNumber}</div>
                             )}
                           </div>
                         </div>
@@ -538,6 +543,18 @@ export default function TireInventoryList() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end space-x-1">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setEditingTire(tire)
+                              setShowEditDialog(true)
+                            }}
+                            className="h-8 w-8 p-0"
+                            title="View/Edit tire details"
+                          >
+                            <Eye className="h-3 w-3" />
+                          </Button>
                           <Button
                             variant="outline"
                             size="sm"
