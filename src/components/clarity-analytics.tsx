@@ -4,9 +4,22 @@ import { useEffect } from 'react'
 import { useAuth } from '@/contexts/auth-context'
 
 export function ClarityAnalytics() {
-  const { user, isAuthenticated } = useAuth()
+  let user, isAuthenticated
+  
+  try {
+    const auth = useAuth()
+    user = auth.user
+    isAuthenticated = auth.isAuthenticated
+  } catch (error) {
+    // Handle case when AuthProvider is not available (during build)
+    user = null
+    isAuthenticated = false
+  }
 
   useEffect(() => {
+    // Only run on client side
+    if (typeof window === 'undefined') return
+    
     const initClarity = async () => {
       try {
         const { default: Clarity } = await import('@microsoft/clarity')
@@ -39,5 +52,8 @@ export function ClarityAnalytics() {
     initClarity()
   }, [isAuthenticated, user])
 
+  // Don't render anything during SSR
+  if (typeof window === 'undefined') return null
+  
   return null
 }
