@@ -26,6 +26,10 @@ interface TireFormData {
   trailerNumber: string
   driverName: string
   quantity: number
+  trailerTireSize: string
+  trailerManufacturer: string
+  trailerOrigin: string
+  trailerQuantity: number
   notes: string
   createdAt: string
 }
@@ -39,6 +43,10 @@ export default function TireManagementForm() {
     trailerNumber: '',
     driverName: '',
     quantity: 1,
+    trailerTireSize: '',
+    trailerManufacturer: '',
+    trailerOrigin: 'CHINESE',
+    trailerQuantity: 1,
     notes: '',
     createdAt: new Date().toISOString().slice(0, 16)
   })
@@ -187,6 +195,10 @@ export default function TireManagementForm() {
           trailerNumber: '',
           driverName: '',
           quantity: 1,
+          trailerTireSize: '',
+          trailerManufacturer: '',
+          trailerOrigin: 'CHINESE',
+          trailerQuantity: 1,
           notes: '',
           createdAt: new Date().toISOString().slice(0, 16)
         })
@@ -314,6 +326,41 @@ export default function TireManagementForm() {
                   </div>
                 </div>
 
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="truckManufacturer" className="font-medium text-blue-700 text-sm">
+                      Manufacturer
+                    </Label>
+                    <Input
+                      id="truckManufacturer"
+                      placeholder="e.g., GoodYear, Bridgestone"
+                      value={formData.manufacturer}
+                      onChange={(e) => setFormData({ ...formData, manufacturer: e.target.value })}
+                      className="border-blue-300 focus:border-blue-500 bg-white"
+                    />
+                    <p className="text-xs text-blue-600">Tire manufacturer for truck</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="truckOrigin" className="font-medium text-blue-700 text-sm">
+                      Origin
+                    </Label>
+                    <Select value={formData.origin} onValueChange={(value) => setFormData({ ...formData, origin: value })}>
+                      <SelectTrigger className="border-blue-300 focus:border-blue-500 bg-white">
+                        <SelectValue placeholder="Select origin" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="CHINESE">Chinese</SelectItem>
+                        <SelectItem value="JAPANESE">Japanese</SelectItem>
+                        <SelectItem value="EUROPEAN">European</SelectItem>
+                        <SelectItem value="AMERICAN">American</SelectItem>
+                        <SelectItem value="OTHER">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-blue-600">Country of manufacture</p>
+                  </div>
+                </div>
+
                 <div className="mt-4 p-3 bg-blue-100 rounded-lg border border-blue-300">
                   <div className="flex items-center gap-2 mb-2">
                     <User className="h-4 w-4 text-blue-700" />
@@ -386,8 +433,8 @@ export default function TireManagementForm() {
                       type="number"
                       min="1"
                       max="100"
-                      value={formData.quantity}
-                      onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) || 1 })}
+                      value={formData.trailerQuantity}
+                      onChange={(e) => setFormData({ ...formData, trailerQuantity: parseInt(e.target.value) || 1 })}
                       className="border-orange-300 focus:border-orange-500 bg-white"
                     />
                     <p className="text-xs text-orange-600">Number of trailer tires</p>
@@ -400,11 +447,46 @@ export default function TireManagementForm() {
                     <Input
                       id="trailerTireSize"
                       placeholder="e.g., 385/65R22.5"
-                      value={formData.tireSize}
-                      onChange={(e) => setFormData({ ...formData, tireSize: e.target.value })}
+                      value={formData.trailerTireSize}
+                      onChange={(e) => setFormData({ ...formData, trailerTireSize: e.target.value })}
                       className="border-orange-300 focus:border-orange-500 bg-white"
                     />
                     <p className="text-xs text-orange-600">Tire size for trailer</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="trailerManufacturer" className="font-medium text-orange-700 text-sm">
+                      Manufacturer
+                    </Label>
+                    <Input
+                      id="trailerManufacturer"
+                      placeholder="e.g., GoodYear, Bridgestone"
+                      value={formData.trailerManufacturer}
+                      onChange={(e) => setFormData({ ...formData, trailerManufacturer: e.target.value })}
+                      className="border-orange-300 focus:border-orange-500 bg-white"
+                    />
+                    <p className="text-xs text-orange-600">Tire manufacturer for trailer</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="trailerOrigin" className="font-medium text-orange-700 text-sm">
+                      Origin
+                    </Label>
+                    <Select value={formData.trailerOrigin} onValueChange={(value) => setFormData({ ...formData, trailerOrigin: value })}>
+                      <SelectTrigger className="border-orange-300 focus:border-orange-500 bg-white">
+                        <SelectValue placeholder="Select origin" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="CHINESE">Chinese</SelectItem>
+                        <SelectItem value="JAPANESE">Japanese</SelectItem>
+                        <SelectItem value="EUROPEAN">European</SelectItem>
+                        <SelectItem value="AMERICAN">American</SelectItem>
+                        <SelectItem value="OTHER">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-orange-600">Country of manufacture</p>
                   </div>
                 </div>
 
@@ -421,65 +503,14 @@ export default function TireManagementForm() {
                 </div>
               </div>
 
-              {/* Tire Information Section */}
+              {/* Additional Information Section */}
               <div className="border rounded-lg p-4 bg-gray-50">
                 <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                   <Package className="h-5 w-5 text-green-600" />
-                  Tire Information
+                  Additional Information
                 </h3>
                 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="tireSize" className="font-medium text-gray-700 text-sm">
-                      Tire Size *
-                    </Label>
-                    <Input
-                      id="tireSize"
-                      placeholder="e.g., 295/80R22.5"
-                      value={formData.tireSize}
-                      onChange={(e) => setFormData({ ...formData, tireSize: e.target.value })}
-                      required
-                      className="border-green-200 focus:border-green-400"
-                    />
-                    <p className="text-xs text-gray-500">Enter tire size specification</p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="manufacturer" className="font-medium text-gray-700 text-sm">
-                      Manufacturer *
-                    </Label>
-                    <Input
-                      id="manufacturer"
-                      placeholder="e.g., GoodYear, Bridgestone"
-                      value={formData.manufacturer}
-                      onChange={(e) => setFormData({ ...formData, manufacturer: e.target.value })}
-                      required
-                      className="border-green-200 focus:border-green-400"
-                    />
-                    <p className="text-xs text-gray-500">Tire manufacturer name</p>
-                  </div>
-                </div>
-
-                <div className="mt-4 space-y-2">
-                  <Label htmlFor="origin" className="font-medium text-gray-700 text-sm">
-                    Origin *
-                  </Label>
-                  <Select value={formData.origin} onValueChange={(value) => setFormData({ ...formData, origin: value })}>
-                    <SelectTrigger className="border-green-200 focus:border-green-400">
-                      <SelectValue placeholder="Select origin" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="CHINESE">Chinese</SelectItem>
-                      <SelectItem value="JAPANESE">Japanese</SelectItem>
-                      <SelectItem value="EUROPEAN">European</SelectItem>
-                      <SelectItem value="AMERICAN">American</SelectItem>
-                      <SelectItem value="OTHER">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-gray-500">Country of manufacture</p>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
                   <div className="space-y-2">
                     <Label htmlFor="createdAt" className="font-medium text-gray-700 text-sm">
                       Date & Time
@@ -513,7 +544,7 @@ export default function TireManagementForm() {
             <div className="flex justify-center pt-4">
               <Button 
                 type="submit" 
-                disabled={submitting || !formData.tireSize || !formData.manufacturer}
+                disabled={submitting}
                 className="w-full sm:w-auto"
               >
                 {submitting ? (
