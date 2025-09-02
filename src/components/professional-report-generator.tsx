@@ -316,9 +316,9 @@ export default function ProfessionalReportGenerator() {
 
     if (reportData.tires && reportData.tires.length > 0) {
       reportData.tires.forEach((tire: any) => {
-        const vehicleType = tire.trailerNumber ? 'TRAILER UNIT' : (tire.plateNumber ? 'TRUCK UNIT' : 'GENERAL INVENTORY')
+        const vehicleType = tire.trailerNumber ? 'TRAILER UNIT' : 'TRUCK UNIT'
         const plateDisplay = tire.plateNumber ? `"${tire.plateNumber}"` : 'N/A'
-        const trailerDisplay = tire.trailerNumber ? `"TRL-${tire.trailerNumber}"` : 'N/A'
+        const trailerDisplay = tire.trailerNumber ? `"${tire.trailerNumber}"` : 'N/A'
         const driverDisplay = tire.driverName ? `"${tire.driverName}"` : 'Unassigned'
         const createdBy = tire.createdBy?.name || tire.createdBy?.email || 'Unknown User'
         
@@ -340,20 +340,16 @@ export default function ProfessionalReportGenerator() {
       // Add summary footer with exact quantities
       rows.push('')
       rows.push('SUMMARY BY VEHICLE TYPE')
-      const truckTires = reportData.tires.filter((t: any) => t.plateNumber && !t.trailerNumber)
+      const truckTires = reportData.tires.filter((t: any) => !t.trailerNumber)
       const trailerTires = reportData.tires.filter((t: any) => t.trailerNumber)
-      const generalTires = reportData.tires.filter((t: any) => !t.plateNumber && !t.trailerNumber)
       
       const totalTruckTires = truckTires.reduce((sum: number, t: any) => sum + (t.quantity || 1), 0)
       const totalTrailerTires = trailerTires.reduce((sum: number, t: any) => sum + (t.quantity || 1), 0)
       const totalGeneralTires = generalTires.reduce((sum: number, t: any) => sum + (t.quantity || 1), 0)
       
-      rows.push(`Truck Tires: ${totalTruckTires} tires on ${new Set(truckTires.map((t: any) => t.plateNumber)).size} trucks`)
+      rows.push(`Truck Tires: ${totalTruckTires} tires on ${new Set(truckTires.map((t: any) => t.plateNumber).filter(Boolean)).size} trucks`)
       rows.push(`Trailer Tires: ${totalTrailerTires} tires on ${new Set(trailerTires.map((t: any) => t.trailerNumber)).size} trailers`)
-      if (generalTires.length > 0) {
-        rows.push(`General Inventory: ${totalGeneralTires} tires`)
-      }
-      rows.push(`TOTAL FLEET TIRES: ${totalTruckTires + totalTrailerTires + totalGeneralTires} tires`)
+      rows.push(`TOTAL FLEET TIRES: ${totalTruckTires + totalTrailerTires} tires`)
     } else {
       rows.push('No tire data available for the selected criteria')
     }
@@ -385,7 +381,7 @@ export default function ProfessionalReportGenerator() {
       // Add data
       if (reportData.tires) {
         reportData.tires.forEach((tire: any) => {
-          const vehicleType = tire.trailerNumber ? 'TRAILER UNIT' : (tire.plateNumber ? 'TRUCK UNIT' : 'GENERAL INVENTORY')
+          const vehicleType = tire.trailerNumber ? 'TRAILER UNIT' : 'TRUCK UNIT'
           const createdBy = tire.createdBy?.name || tire.createdBy?.email || 'Unknown User'
           worksheet.addRow({
             tireSize: tire.tireSize,
@@ -474,7 +470,7 @@ export default function ProfessionalReportGenerator() {
           doc.text(`${index + 1}. ${tire.manufacturer} ${tire.tireSize}`, 20, yPos)
           const vehicleInfo = tire.trailerNumber ? `Trailer: ${tire.trailerNumber}` : `Truck: ${tire.plateNumber || 'N/A'}`
           doc.text(`${vehicleInfo} | Driver: ${tire.driverName || 'N/A'}`, 25, yPos + 8)
-          doc.text(`Origin: ${tire.origin} | Qty: ${tire.quantity} | Type: ${tire.trailerNumber ? 'Trailer' : 'Truck'}`, 25, yPos + 16)
+          doc.text(`Origin: ${tire.origin} | Qty: ${tire.quantity} | Type: ${tire.trailerNumber ? 'TRAILER UNIT' : 'TRUCK UNIT'}`, 25, yPos + 16)
           yPos += 25
         })
       }

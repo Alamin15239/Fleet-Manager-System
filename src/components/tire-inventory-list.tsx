@@ -260,7 +260,7 @@ export default function TireInventoryList() {
         tire.notes || '',
         format(new Date(tire.createdAt), 'yyyy-MM-dd HH:mm'),
         tire.createdBy?.name || tire.createdBy?.email || 'System',
-        tire.trailerNumber ? 'Trailer' : (tire.plateNumber ? 'Truck' : 'General')
+        tire.trailerNumber ? 'Trailer' : 'Truck'
       ].join(','))
     ].join('\n')
 
@@ -488,22 +488,25 @@ export default function TireInventoryList() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-2">
-                          <div className="flex items-center gap-1 mb-1">
-                            <Truck className="h-3 w-3 text-blue-600" />
-                            <span className="font-semibold text-blue-900 text-xs">
-                              {tire.trailerNumber ? 'Trailer' : 'Truck'}
-                            </span>
+                        {tire.trailerNumber ? (
+                          <div className="bg-orange-50 border border-orange-200 rounded-lg p-2">
+                            <div className="flex items-center gap-1 mb-1">
+                              <Package className="h-3 w-3 text-orange-600" />
+                              <span className="font-semibold text-orange-900 text-xs">Trailer</span>
+                            </div>
+                            <div className="text-xs text-orange-700 font-semibold">{tire.trailerNumber}</div>
                           </div>
-                          <div className="space-y-1">
+                        ) : (
+                          <div className="bg-blue-50 border border-blue-200 rounded-lg p-2">
+                            <div className="flex items-center gap-1 mb-1">
+                              <Truck className="h-3 w-3 text-blue-600" />
+                              <span className="font-semibold text-blue-900 text-xs">Truck</span>
+                            </div>
                             {tire.plateNumber && (
                               <div className="text-xs font-semibold">{tire.plateNumber}</div>
                             )}
-                            {tire.trailerNumber && (
-                              <div className="text-xs text-blue-700 font-semibold">{tire.trailerNumber}</div>
-                            )}
                           </div>
-                        </div>
+                        )}
                       </TableCell>
                       <TableCell>
                         <div className="bg-green-50 border border-green-200 rounded-lg p-2">

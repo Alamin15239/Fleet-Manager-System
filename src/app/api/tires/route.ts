@@ -148,13 +148,13 @@ export async function POST(request: NextRequest) {
     let totalTires = 0
 
     // Create truck tires if truck info provided
-    if (tireSize && manufacturer && origin && (plateNumber || quantity > 0)) {
+    if (tireSize && manufacturer && origin && plateNumber) {
       for (let i = 0; i < quantity; i++) {
         tiresData.push({
           tireSize,
           manufacturer,
           origin,
-          plateNumber: plateNumber || null,
+          plateNumber: plateNumber,
           trailerNumber: null, // Truck tires don't have trailer number
           driverName: driverName || null,
           quantity: 1,
@@ -173,7 +173,7 @@ export async function POST(request: NextRequest) {
           tireSize: trailerTireSize,
           manufacturer: trailerManufacturer,
           origin: trailerOrigin,
-          plateNumber: plateNumber || null, // Link to truck if provided
+          plateNumber: null, // Trailer tires don't have plate number
           trailerNumber: trailerNumber,
           driverName: driverName || null,
           quantity: 1,
