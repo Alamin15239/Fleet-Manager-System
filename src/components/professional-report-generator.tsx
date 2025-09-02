@@ -281,35 +281,81 @@ export default function ProfessionalReportGenerator() {
   }
 
   const generateCSVContent = () => {
-    const headers = ['Report Date', 'Template', 'Date Range', 'Total Tires', 'Total Vehicles', 'Total Drivers']
-    const rows = [
-      headers.join(','),
-      [
-        format(new Date(), 'yyyy-MM-dd'),
-        reportConfig.template,
-        `${reportConfig.dateRange.start} to ${reportConfig.dateRange.end}`,
-        reportData.summary?.totalTires || 0,
-        reportData.summary?.totalVehicles || 0,
-        reportData.summary?.totalDrivers || 0
-      ].join(',')
+    // Report Header Section
+    const reportHeader = [
+      'FLEET TIRE INVENTORY REPORT',
+      `Generated: ${format(new Date(), 'MMM dd, yyyy HH:mm')}`,
+      `Template: ${reportTemplates.find(t => t.id === reportConfig.template)?.name || reportConfig.template}`,
+      `Date Range: ${format(new Date(reportConfig.dateRange.start), 'MMM dd, yyyy')} to ${format(new Date(reportConfig.dateRange.end), 'MMM dd, yyyy')}`,
+      '',
+      'EXECUTIVE SUMMARY',
+      `Total Tires in Fleet: ${reportData.summary?.totalTires || 0}`,
+      `Total Vehicles: ${reportData.summary?.totalVehicles || 0}`,
+      `Total Drivers: ${reportData.summary?.totalDrivers || 0}`,
+      `Average Tires per Vehicle: ${reportData.summary?.averageTiresPerVehicle || 0}`,
+      '',
+      'DETAILED TIRE INVENTORY'
     ]
 
-    if (reportData.tires) {
-      rows.push('')
-      rows.push(['Tire Size', 'Manufacturer', 'Origin', 'Plate Number', 'Trailer Number', 'Driver Name', 'Quantity', 'Vehicle Type', 'Created Date'].join(','))
+    // Enhanced CSV headers with clearer descriptions
+    const detailHeaders = [
+      'Tire Size',
+      'Brand/Manufacturer', 
+      'Country of Origin',
+      'Truck Plate Number',
+      'Trailer ID Number',
+      'Assigned Driver',
+      'Tire Quantity',
+      'Vehicle Type',
+      'Installation Notes',
+      'Date Added',
+      'Added By'
+    ]
+
+    const rows = [...reportHeader, detailHeaders.join(',')]
+
+    if (reportData.tires && reportData.tires.length > 0) {
       reportData.tires.forEach((tire: any) => {
+        const vehicleType = tire.trailerNumber ? 'TRAILER UNIT' : (tire.plateNumber ? 'TRUCK UNIT' : 'GENERAL INVENTORY')
+        const plateDisplay = tire.plateNumber ? `"${tire.plateNumber}"` : 'N/A'
+        const trailerDisplay = tire.trailerNumber ? `"TRL-${tire.trailerNumber}"` : 'N/A'
+        const driverDisplay = tire.driverName ? `"${tire.driverName}"` : 'Unassigned'
+        const createdBy = tire.createdBy?.name || tire.createdBy?.email || 'Unknown User'
+        
         rows.push([
-          tire.tireSize,
-          tire.manufacturer,
-          tire.origin,
-          tire.plateNumber || '',
-          tire.trailerNumber || '',
-          tire.driverName || '',
-          tire.quantity,
-          tire.trailerNumber ? 'Trailer' : (tire.plateNumber ? 'Truck' : 'General'),
-          format(new Date(tire.createdAt), 'yyyy-MM-dd')
+          `"${tire.tireSize}"`,
+          `"${tire.manufacturer}"`,
+          tire.origin.charAt(0) + tire.origin.slice(1).toLowerCase(),
+          plateDisplay,
+          trailerDisplay,
+          driverDisplay,
+          tire.quantity || 1,
+          vehicleType,
+          tire.notes || 'Standard Installation',
+          format(new Date(tire.createdAt), 'MMM dd, yyyy HH:mm'),
+          `"${createdBy}"`
         ].join(','))
       })
+      
+      // Add summary footer with exact quantities
+      rows.push('')
+      rows.push('SUMMARY BY VEHICLE TYPE')
+      const truckTires = reportData.tires.filter((t: any) => t.plateNumber && !t.trailerNumber)
+      const trailerTires = reportData.tires.filter((t: any) => t.trailerNumber)
+      const generalTires = reportData.tires.filter((t: any) => !t.plateNumber && !t.trailerNumber)
+      
+      const totalTruckTires = truckTires.reduce((sum: number, t: any) => sum + (t.quantity || 1), 0)
+      const totalTrailerTires = trailerTires.reduce((sum: number, t: any) => sum + (t.quantity || 1), 0)
+      const totalGeneralTires = generalTires.reduce((sum: number, t: any) => sum + (t.quantity || 1), 0)
+      
+      rows.push(`Truck Tires: ${totalTruckTires} tires on ${new Set(truckTires.map((t: any) => t.plateNumber)).size} trucks`)
+      rows.push(`Trailer Tires: ${totalTrailerTires} tires on ${new Set(trailerTires.map((t: any) => t.trailerNumber)).size} trailers`)
+      if (generalTires.length > 0) {
+        rows.push(`General Inventory: ${totalGeneralTires} tires`)
+      }
+      rows.push(`TOTAL FLEET TIRES: ${totalTruckTires + totalTrailerTires + totalGeneralTires} tires`)
+    } else {
+      rows.push('No tire data available for the selected criteria')
     }
 
     return rows.join('\n')
@@ -322,32 +368,36 @@ export default function ProfessionalReportGenerator() {
       const workbook = new ExcelJS.Workbook()
       const worksheet = workbook.addWorksheet('Tire Report')
 
-      // Add headers
+      // Add headers with clearer descriptions
       worksheet.columns = [
         { header: 'Tire Size', key: 'tireSize', width: 15 },
-        { header: 'Manufacturer', key: 'manufacturer', width: 20 },
-        { header: 'Origin', key: 'origin', width: 15 },
-        { header: 'Plate Number', key: 'plateNumber', width: 15 },
-        { header: 'Trailer Number', key: 'trailerNumber', width: 15 },
-        { header: 'Driver Name', key: 'driverName', width: 20 },
-        { header: 'Quantity', key: 'quantity', width: 10 },
-        { header: 'Vehicle Type', key: 'vehicleType', width: 12 },
-        { header: 'Created Date', key: 'createdAt', width: 15 }
+        { header: 'Brand/Manufacturer', key: 'manufacturer', width: 20 },
+        { header: 'Country of Origin', key: 'origin', width: 15 },
+        { header: 'Truck Plate Number', key: 'plateNumber', width: 18 },
+        { header: 'Trailer ID Number', key: 'trailerNumber', width: 18 },
+        { header: 'Assigned Driver', key: 'driverName', width: 20 },
+        { header: 'Tire Quantity', key: 'quantity', width: 12 },
+        { header: 'Vehicle Type', key: 'vehicleType', width: 15 },
+        { header: 'Added By', key: 'createdBy', width: 18 },
+        { header: 'Date Added', key: 'createdAt', width: 15 }
       ]
 
       // Add data
       if (reportData.tires) {
         reportData.tires.forEach((tire: any) => {
+          const vehicleType = tire.trailerNumber ? 'TRAILER UNIT' : (tire.plateNumber ? 'TRUCK UNIT' : 'GENERAL INVENTORY')
+          const createdBy = tire.createdBy?.name || tire.createdBy?.email || 'Unknown User'
           worksheet.addRow({
             tireSize: tire.tireSize,
             manufacturer: tire.manufacturer,
-            origin: tire.origin,
-            plateNumber: tire.plateNumber || '',
-            trailerNumber: tire.trailerNumber || '',
-            driverName: tire.driverName || '',
-            quantity: tire.quantity,
-            vehicleType: tire.trailerNumber ? 'Trailer' : (tire.plateNumber ? 'Truck' : 'General'),
-            createdAt: format(new Date(tire.createdAt), 'yyyy-MM-dd')
+            origin: tire.origin.charAt(0) + tire.origin.slice(1).toLowerCase(),
+            plateNumber: tire.plateNumber || 'N/A',
+            trailerNumber: tire.trailerNumber ? `TRL-${tire.trailerNumber}` : 'N/A',
+            driverName: tire.driverName || 'Unassigned',
+            quantity: tire.quantity || 1,
+            vehicleType: vehicleType,
+            createdBy: createdBy,
+            createdAt: format(new Date(tire.createdAt), 'MMM dd, yyyy')
           })
         })
       }
