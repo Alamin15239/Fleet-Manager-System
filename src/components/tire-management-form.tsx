@@ -334,7 +334,7 @@ export default function TireManagementForm() {
                   Trailer Information (Optional)
                 </h3>
                 
-                <div className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="trailerNumber" className="font-medium text-orange-700 text-sm">
                       Trailer Number
@@ -360,6 +360,25 @@ export default function TireManagementForm() {
                     )}
                     <p className="text-xs text-orange-600">Optional - Select if tires are for trailer</p>
                   </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="trailerQuantity" className="font-medium text-orange-700 text-sm">
+                      Trailer Tire Quantity
+                    </Label>
+                    <Input
+                      id="trailerQuantity"
+                      type="number"
+                      min="1"
+                      max="100"
+                      value={formData.quantity}
+                      onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) || 1 })}
+                      className="border-orange-300 focus:border-orange-500 bg-white"
+                    />
+                    <p className="text-xs text-orange-600">Number of trailer tires</p>
+                  </div>
+                </div>
+
+                <div className="space-y-4 mt-4">
 
                   <div className="p-3 bg-orange-100 rounded-lg border border-orange-200">
                     <p className="text-sm text-orange-800 font-medium mb-1">📋 Important for Reports:</p>
