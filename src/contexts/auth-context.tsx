@@ -25,6 +25,7 @@ interface AuthContextType {
   login: (email: string, passwordOrOtp: string, isOtp?: boolean) => Promise<boolean>
   logout: () => Promise<void>
   refreshUser: () => Promise<void>
+  updateUser: (userData: Partial<User>) => void
   isLoading: boolean
   isAuthenticated: boolean
   hasRole: (role: string) => boolean
@@ -136,6 +137,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  const updateUser = (userData: Partial<User>): void => {
+    if (user) {
+      const updatedUser = { ...user, ...userData }
+      setUser(updatedUser)
+      localStorage.setItem('user', JSON.stringify(updatedUser))
+    }
+  }
+
   const logout = async (): Promise<void> => {
     try {
       // Call logout API to log the activity
@@ -208,6 +217,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     login,
     logout,
     refreshUser,
+    updateUser,
     isLoading,
     isAuthenticated,
     hasRole,

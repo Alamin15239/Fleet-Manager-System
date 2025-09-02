@@ -4,8 +4,7 @@ import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { useSidebar } from '@/contexts/sidebar-context'
 import { useAuth } from '@/contexts/auth-context'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-
+import { ProfilePicture } from '@/components/profile-picture'
 import { Menu, Bell, CheckCircle, AlertTriangle, Info, Settings, LogOut, User } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { ThemeToggle } from '@/components/theme-toggle'
@@ -230,18 +229,8 @@ export function Header() {
         {/* User Profile */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="relative h-9 w-9 rounded-full">
-              <Avatar className="h-9 w-9">
-                <AvatarImage 
-                  src={user?.profileImage || ''} 
-                  alt={user?.name || 'User'}
-                  className="object-cover"
-                  key={user?.profileImage || 'fallback'}
-                />
-                <AvatarFallback>
-                  {user?.name?.charAt(0).toUpperCase() || 'U'}
-                </AvatarFallback>
-              </Avatar>
+            <Button variant="ghost" className="relative h-9 w-9 rounded-full p-0">
+              <ProfilePicture size="md" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent className="w-56" align="end" forceMount>

@@ -6,12 +6,11 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { useAuth } from '@/contexts/auth-context'
 import { useToast } from '@/hooks/use-toast'
-import { Loader2, Camera, Save, User, Mail, Phone, Building, Briefcase, Edit, Upload } from 'lucide-react'
-import { getProfileImageUrl, handleImageError } from '@/lib/image-utils'
+import { ProfilePicture } from '@/components/profile-picture'
+import { Loader2, Save, User, Mail, Phone, Building, Briefcase, Edit } from 'lucide-react'
 
 interface UserProfile {
   id: string
@@ -231,45 +230,7 @@ export default function ProfilePage() {
             <CardDescription>Your profile photo</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col items-center space-y-4">
-            <Avatar className="h-32 w-32">
-              <AvatarImage 
-                src={profile.profileImage || ''} 
-                alt={profile.name || 'User'}
-                className="object-cover"
-                key={profile.profileImage || 'fallback'}
-              />
-              <AvatarFallback className="text-2xl">
-                {profile.name?.charAt(0).toUpperCase() || 'U'}
-              </AvatarFallback>
-            </Avatar>
-            {/* Debug info - remove in production */}
-            {process.env.NODE_ENV === 'development' && (
-              <div className="text-xs text-muted-foreground mt-2 p-2 bg-gray-100 rounded">
-                <p>Profile Image: {profile.profileImage ? 'Present' : 'None'}</p>
-                <p>URL: {getProfileImageUrl(profile.profileImage)}</p>
-                <p>Type: {profile.profileImage?.startsWith('data:') ? 'Base64' : 'URL'}</p>
-              </div>
-            )}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              onChange={handleImageUpload}
-              className="hidden"
-            />
-            <Button 
-              variant="outline" 
-              className="w-full" 
-              onClick={triggerFileInput}
-              disabled={uploading}
-            >
-              {uploading ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <Camera className="h-4 w-4 mr-2" />
-              )}
-              {uploading ? 'Uploading...' : 'Change Photo'}
-            </Button>
+            <ProfilePicture size="xl" editable={true} className="mb-4" />
             <div className="text-center space-y-2">
               <Badge className={getRoleColor(profile.role)}>
                 {profile.role}
