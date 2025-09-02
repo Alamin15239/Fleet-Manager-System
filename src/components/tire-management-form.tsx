@@ -261,7 +261,7 @@ export default function TireManagementForm() {
                   Truck Information
                 </h3>
                 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="plateNumber" className="font-medium text-blue-700 text-sm">
                       Truck Plate Number
@@ -279,6 +279,20 @@ export default function TireManagementForm() {
                       </SelectContent>
                     </Select>
                     <p className="text-xs text-blue-600">Optional - Select if tires are for truck</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="truckTireSize" className="font-medium text-blue-700 text-sm">
+                      Truck Tire Size
+                    </Label>
+                    <Input
+                      id="truckTireSize"
+                      placeholder="e.g., 295/80R22.5"
+                      value={formData.tireSize}
+                      onChange={(e) => setFormData({ ...formData, tireSize: e.target.value })}
+                      className="border-blue-300 focus:border-blue-500 bg-white"
+                    />
+                    <p className="text-xs text-blue-600">Tire size for truck</p>
                   </div>
 
                   <div className="space-y-2">
@@ -334,7 +348,7 @@ export default function TireManagementForm() {
                   Trailer Information (Optional)
                 </h3>
                 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="trailerNumber" className="font-medium text-orange-700 text-sm">
                       Trailer Number
@@ -359,6 +373,20 @@ export default function TireManagementForm() {
                       </div>
                     )}
                     <p className="text-xs text-orange-600">Optional - Select if tires are for trailer</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="trailerTireSize" className="font-medium text-orange-700 text-sm">
+                      Trailer Tire Size
+                    </Label>
+                    <Input
+                      id="trailerTireSize"
+                      placeholder="e.g., 385/65R22.5"
+                      value={formData.tireSize}
+                      onChange={(e) => setFormData({ ...formData, tireSize: e.target.value })}
+                      className="border-orange-300 focus:border-orange-500 bg-white"
+                    />
+                    <p className="text-xs text-orange-600">Tire size for trailer</p>
                   </div>
 
                   <div className="space-y-2">
