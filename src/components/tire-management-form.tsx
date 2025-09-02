@@ -150,7 +150,9 @@ export default function TireManagementForm() {
       if (response.ok) {
         const data = await response.json()
         console.log('Tire creation successful:', data)
-        setSuccess(`Successfully created ${formData.quantity} tire(s)`)
+        const totalTires = (formData.tireSize && formData.manufacturer ? formData.quantity : 0) + 
+                          (formData.trailerTireSize && formData.trailerManufacturer ? formData.trailerQuantity : 0)
+        setSuccess(`Successfully created ${totalTires} tire(s)`)
         
         // Reset form
         setFormData({
@@ -557,7 +559,12 @@ export default function TireManagementForm() {
                 ) : (
                   <>
                     <Plus className="mr-2 h-4 w-4" />
-                    Create {formData.quantity} Tire{formData.quantity > 1 ? 's' : ''}
+                    Create {(() => {
+                      const truckTires = (formData.tireSize && formData.manufacturer) ? formData.quantity : 0
+                      const trailerTires = (formData.trailerTireSize && formData.trailerManufacturer) ? formData.trailerQuantity : 0
+                      const total = truckTires + trailerTires
+                      return `${total} Tire${total !== 1 ? 's' : ''}`
+                    })()}
                   </>
                 )}
               </Button>
