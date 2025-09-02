@@ -264,11 +264,11 @@ export default function TireManagementForm() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="plateNumber" className="font-medium text-blue-700 text-sm">
-                      Truck Plate Number *
+                      Truck Plate Number
                     </Label>
                     <Select value={formData.plateNumber} onValueChange={handlePlateNumberChange}>
                       <SelectTrigger className="border-blue-300 focus:border-blue-500 bg-white">
-                        <SelectValue placeholder="Select truck plate number" />
+                        <SelectValue placeholder="Select truck plate number (optional)" />
                       </SelectTrigger>
                       <SelectContent>
                         {plateNumbers.map((plate) => (
@@ -278,12 +278,12 @@ export default function TireManagementForm() {
                         ))}
                       </SelectContent>
                     </Select>
-                    <p className="text-xs text-blue-600">Select the truck's plate number</p>
+                    <p className="text-xs text-blue-600">Optional - Select if tires are for truck</p>
                   </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="quantity" className="font-medium text-blue-700 text-sm">
-                      Quantity *
+                      Quantity
                     </Label>
                     <Input
                       id="quantity"
@@ -292,10 +292,9 @@ export default function TireManagementForm() {
                       max="100"
                       value={formData.quantity}
                       onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) || 1 })}
-                      required
                       className="border-blue-300 focus:border-blue-500 bg-white"
                     />
-                    <p className="text-xs text-blue-600">Number of tires for this truck</p>
+                    <p className="text-xs text-blue-600">Number of tires (default: 1)</p>
                   </div>
                 </div>
 
@@ -359,7 +358,7 @@ export default function TireManagementForm() {
                         Auto-filled from vehicle data
                       </div>
                     )}
-                    <p className="text-xs text-orange-600">Leave empty if tires are only for the truck</p>
+                    <p className="text-xs text-orange-600">Optional - Select if tires are for trailer</p>
                   </div>
 
                   <div className="p-3 bg-orange-100 rounded-lg border border-orange-200">
@@ -465,7 +464,7 @@ export default function TireManagementForm() {
             <div className="flex justify-center pt-4">
               <Button 
                 type="submit" 
-                disabled={submitting || !formData.tireSize || !formData.manufacturer || !formData.plateNumber}
+                disabled={submitting || !formData.tireSize || !formData.manufacturer}
                 className="w-full sm:w-auto"
               >
                 {submitting ? (

@@ -309,7 +309,7 @@ model Tire {
   tireSize      String
   manufacturer  String
   origin        String
-  plateNumber   String
+  plateNumber   String?
   trailerNumber String?
   driverName    String?
   quantity      Int      @default(1)
@@ -318,7 +318,7 @@ model Tire {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   createdBy     User?    @relation(fields: [createdById], references: [id])
-  vehicle       Vehicle  @relation(fields: [plateNumber], references: [plateNumber])
+  vehicle       Vehicle? @relation(fields: [plateNumber], references: [plateNumber])
 
   @@index([manufacturer])
   @@index([origin])

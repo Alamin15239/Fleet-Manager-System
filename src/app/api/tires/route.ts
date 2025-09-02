@@ -113,38 +113,40 @@ export async function POST(request: NextRequest) {
       createdAt
     } = body
 
-    if (!tireSize || !manufacturer || !origin || !plateNumber) {
+    if (!tireSize || !manufacturer || !origin) {
       console.log('Validation failed - missing required fields')
       return NextResponse.json(
-        { error: 'Tire size, manufacturer, origin, and plate number are required' },
+        { error: 'Tire size, manufacturer, and origin are required' },
         { status: 400 }
       )
     }
 
-    // Check if vehicle exists, if not create it
-    let vehicle = await db.vehicle.findUnique({
-      where: { plateNumber }
-    })
+    // Only handle vehicle if plate number is provided
+    if (plateNumber) {
+      let vehicle = await db.vehicle.findUnique({
+        where: { plateNumber }
+      })
 
-    if (!vehicle) {
-      console.log('Creating new vehicle:', plateNumber)
-      vehicle = await db.vehicle.create({
-        data: {
-          plateNumber,
-          trailerNumber: trailerNumber || null,
-          driverName: driverName || null
-        }
-      })
-    } else {
-      console.log('Updating existing vehicle:', plateNumber)
-      // Update vehicle with new trailer number and driver name if provided
-      await db.vehicle.update({
-        where: { plateNumber },
-        data: {
-          ...(trailerNumber && { trailerNumber }),
-          ...(driverName && { driverName })
-        }
-      })
+      if (!vehicle) {
+        console.log('Creating new vehicle:', plateNumber)
+        vehicle = await db.vehicle.create({
+          data: {
+            plateNumber,
+            trailerNumber: trailerNumber || null,
+            driverName: driverName || null
+          }
+        })
+      } else {
+        console.log('Updating existing vehicle:', plateNumber)
+        // Update vehicle with new trailer number and driver name if provided
+        await db.vehicle.update({
+          where: { plateNumber },
+          data: {
+            ...(trailerNumber && { trailerNumber }),
+            ...(driverName && { driverName })
+          }
+        })
+      }
     }
 
     // Create tire records
@@ -152,7 +154,7 @@ export async function POST(request: NextRequest) {
       tireSize,
       manufacturer,
       origin,
-      plateNumber,
+      plateNumber: plateNumber || null,
       trailerNumber: trailerNumber || null,
       driverName: driverName || null,
       quantity: 1, // Each record represents 1 tire
