@@ -38,11 +38,14 @@ async function fixTireCreatedBy() {
       console.log('No admin user found. Creating system user...')
       
       // Create a system user if no admin exists
+      const bcrypt = require('bcryptjs')
+      const hashedPassword = await bcrypt.hash(Math.random().toString(36), 10)
+      
       const systemUser = await prisma.user.create({
         data: {
           email: 'system@fleet-manager.com',
           name: 'System User',
-          password: 'system-generated',
+          password: hashedPassword,
           role: 'ADMIN',
           isActive: true,
           isApproved: true
