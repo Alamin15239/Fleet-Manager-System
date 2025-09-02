@@ -27,6 +27,7 @@ interface TireFormData {
   driverName: string
   quantity: number
   notes: string
+  createdAt: string
 }
 
 export default function TireManagementForm() {
@@ -38,7 +39,8 @@ export default function TireManagementForm() {
     trailerNumber: '',
     driverName: '',
     quantity: 1,
-    notes: ''
+    notes: '',
+    createdAt: new Date().toISOString().slice(0, 16)
   })
 
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
@@ -185,7 +187,8 @@ export default function TireManagementForm() {
           trailerNumber: '',
           driverName: '',
           quantity: 1,
-          notes: ''
+          notes: '',
+          createdAt: new Date().toISOString().slice(0, 16)
         })
         
         // Refresh data
@@ -251,21 +254,21 @@ export default function TireManagementForm() {
             )}
 
             <div className="space-y-6">
-              {/* Vehicle Information Section */}
-              <div className="border rounded-lg p-4 bg-gray-50">
+              {/* Truck Information Section */}
+              <div className="border rounded-lg p-4 bg-blue-50">
                 <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                   <Truck className="h-5 w-5 text-blue-600" />
-                  Vehicle Information
+                  Truck Information
                 </h3>
                 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="plateNumber" className="font-medium text-gray-700 text-sm">
-                      Plate Number *
+                    <Label htmlFor="plateNumber" className="font-medium text-blue-700 text-sm">
+                      Truck Plate Number *
                     </Label>
                     <Select value={formData.plateNumber} onValueChange={handlePlateNumberChange}>
-                      <SelectTrigger className="border-blue-200 focus:border-blue-400">
-                        <SelectValue placeholder="Select plate number" />
+                      <SelectTrigger className="border-blue-300 focus:border-blue-500 bg-white">
+                        <SelectValue placeholder="Select truck plate number" />
                       </SelectTrigger>
                       <SelectContent>
                         {plateNumbers.map((plate) => (
@@ -275,16 +278,71 @@ export default function TireManagementForm() {
                         ))}
                       </SelectContent>
                     </Select>
-                    <p className="text-xs text-gray-500">Select truck plate number</p>
+                    <p className="text-xs text-blue-600">Select the truck's plate number</p>
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="trailerNumber" className="font-medium text-gray-700 text-sm">
+                    <Label htmlFor="quantity" className="font-medium text-blue-700 text-sm">
+                      Quantity *
+                    </Label>
+                    <Input
+                      id="quantity"
+                      type="number"
+                      min="1"
+                      max="100"
+                      value={formData.quantity}
+                      onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) || 1 })}
+                      required
+                      className="border-blue-300 focus:border-blue-500 bg-white"
+                    />
+                    <p className="text-xs text-blue-600">Number of tires for this truck</p>
+                  </div>
+                </div>
+
+                <div className="mt-4 p-3 bg-blue-100 rounded-lg border border-blue-300">
+                  <div className="flex items-center gap-2 mb-2">
+                    <User className="h-4 w-4 text-blue-700" />
+                    <Label htmlFor="driverName" className="font-medium text-blue-800">
+                      Truck Driver
+                    </Label>
+                  </div>
+                  <Input
+                    id="driverName"
+                    placeholder="Auto-filled from truck selection or enter manually"
+                    value={formData.driverName}
+                    onChange={(e) => {
+                      setFormData({ ...formData, driverName: e.target.value })
+                      setAutoFilled(prev => ({ ...prev, driverName: false }))
+                    }}
+                    className={`border-blue-300 focus:border-blue-500 bg-white ${autoFilled.driverName ? 'ring-2 ring-green-300 border-green-400' : ''}`}
+                  />
+                  {autoFilled.driverName && (
+                    <div className="flex items-center gap-1 text-xs text-green-600 mt-1">
+                      <CheckCircle className="h-3 w-3" />
+                      Auto-filled from truck data
+                    </div>
+                  )}
+                  <p className="text-xs text-blue-700 mt-1">
+                    {formData.driverName ? `Truck driver: ${formData.driverName}` : 'Driver name will auto-fill when truck is selected'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Trailer Information Section */}
+              <div className="border rounded-lg p-4 bg-orange-50">
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                  <Package className="h-5 w-5 text-orange-600" />
+                  Trailer Information (Optional)
+                </h3>
+                
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="trailerNumber" className="font-medium text-orange-700 text-sm">
                       Trailer Number
                     </Label>
                     <Select value={formData.trailerNumber} onValueChange={handleTrailerNumberChange}>
-                      <SelectTrigger className={`border-blue-200 focus:border-blue-400 ${autoFilled.trailerNumber ? 'ring-2 ring-green-300 border-green-400' : ''}`}>
-                        <SelectValue placeholder="Select trailer number" />
+                      <SelectTrigger className={`border-orange-300 focus:border-orange-500 bg-white ${autoFilled.trailerNumber ? 'ring-2 ring-green-300 border-green-400' : ''}`}>
+                        <SelectValue placeholder="Select trailer number (optional)" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="none">No Trailer</SelectItem>
@@ -301,53 +359,17 @@ export default function TireManagementForm() {
                         Auto-filled from vehicle data
                       </div>
                     )}
-                    <p className="text-xs text-gray-500">Optional trailer number</p>
+                    <p className="text-xs text-orange-600">Leave empty if tires are only for the truck</p>
                   </div>
 
-                  <div className="space-y-2 sm:col-span-2 lg:col-span-1">
-                    <Label htmlFor="quantity" className="font-medium text-gray-700 text-sm">
-                      Quantity *
-                    </Label>
-                    <Input
-                      id="quantity"
-                      type="number"
-                      min="1"
-                      max="100"
-                      value={formData.quantity}
-                      onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) || 1 })}
-                      required
-                      className="border-blue-200 focus:border-blue-400"
-                    />
-                    <p className="text-xs text-gray-500">Number of tires</p>
+                  <div className="p-3 bg-orange-100 rounded-lg border border-orange-200">
+                    <p className="text-sm text-orange-800 font-medium mb-1">📋 Important for Reports:</p>
+                    <ul className="text-xs text-orange-700 space-y-1">
+                      <li>• If tires are for TRUCK only → Leave trailer empty</li>
+                      <li>• If tires are for TRAILER only → Select trailer number</li>
+                      <li>• This ensures accurate reporting and inventory tracking</li>
+                    </ul>
                   </div>
-                </div>
-
-                <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                  <div className="flex items-center gap-2 mb-2">
-                    <User className="h-4 w-4 text-blue-600" />
-                    <Label htmlFor="driverName" className="font-medium text-blue-800">
-                      Driver Information
-                    </Label>
-                  </div>
-                  <Input
-                    id="driverName"
-                    placeholder="Auto-filled from vehicle selection or enter manually"
-                    value={formData.driverName}
-                    onChange={(e) => {
-                      setFormData({ ...formData, driverName: e.target.value })
-                      setAutoFilled(prev => ({ ...prev, driverName: false }))
-                    }}
-                    className={`border-blue-200 focus:border-blue-400 bg-white ${autoFilled.driverName ? 'ring-2 ring-green-300 border-green-400' : ''}`}
-                  />
-                  {autoFilled.driverName && (
-                    <div className="flex items-center gap-1 text-xs text-green-600 mt-1">
-                      <CheckCircle className="h-3 w-3" />
-                      Auto-filled from vehicle data
-                    </div>
-                  )}
-                  <p className="text-xs text-blue-600 mt-1">
-                    {formData.driverName ? `Assigned driver: ${formData.driverName}` : 'Driver name will auto-fill when vehicle is selected'}
-                  </p>
                 </div>
               </div>
 
@@ -409,18 +431,33 @@ export default function TireManagementForm() {
                   <p className="text-xs text-gray-500">Country of manufacture</p>
                 </div>
 
-                <div className="mt-4 space-y-2">
-                  <Label htmlFor="notes" className="font-medium text-gray-700 text-sm">
-                    Additional Notes
-                  </Label>
-                  <Input
-                    id="notes"
-                    placeholder="Additional notes about the tires..."
-                    value={formData.notes}
-                    onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                    className="border-gray-200 focus:border-gray-400"
-                  />
-                  <p className="text-xs text-gray-500">Optional notes or special instructions</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="createdAt" className="font-medium text-gray-700 text-sm">
+                      Date & Time
+                    </Label>
+                    <Input
+                      id="createdAt"
+                      type="datetime-local"
+                      value={formData.createdAt}
+                      onChange={(e) => setFormData({ ...formData, createdAt: e.target.value })}
+                      className="border-gray-200 focus:border-gray-400"
+                    />
+                    <p className="text-xs text-gray-500">When the tires were added</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="notes" className="font-medium text-gray-700 text-sm">
+                      Additional Notes
+                    </Label>
+                    <Input
+                      id="notes"
+                      placeholder="Additional notes about the tires..."
+                      value={formData.notes}
+                      onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                      className="border-gray-200 focus:border-gray-400"
+                    />
+                    <p className="text-xs text-gray-500">Optional notes or special instructions</p>
+                  </div>
                 </div>
               </div>
             </div>

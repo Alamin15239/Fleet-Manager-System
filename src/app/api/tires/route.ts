@@ -109,7 +109,8 @@ export async function POST(request: NextRequest) {
       trailerNumber, 
       driverName, 
       quantity = 1,
-      notes 
+      notes,
+      createdAt
     } = body
 
     if (!tireSize || !manufacturer || !origin || !plateNumber) {
@@ -156,7 +157,8 @@ export async function POST(request: NextRequest) {
       driverName: driverName || null,
       quantity: 1, // Each record represents 1 tire
       notes: notes || null,
-      createdById: user.id
+      createdById: user.id,
+      ...(createdAt && { createdAt: new Date(createdAt) })
     }))
 
     console.log('Creating', quantity, 'tire records')
