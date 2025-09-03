@@ -39,6 +39,20 @@ interface Truck {
   licensePlate: string
 }
 
+interface Trailer {
+  id: string
+  number: string
+  status: string
+  driverName?: string
+}
+
+interface Vehicle {
+  id: string
+  type: 'truck' | 'trailer'
+  displayName: string
+  identifier: string
+}
+
 interface MaintenanceRecord {
   id: string
   truckId: string
@@ -85,6 +99,8 @@ export default function MaintenancePage() {
   const { t } = useLanguage()
   const [maintenanceRecords, setMaintenanceRecords] = useState<MaintenanceRecord[]>([])
   const [trucks, setTrucks] = useState<Truck[]>([])
+  const [trailers, setTrailers] = useState<Trailer[]>([])
+  const [vehicles, setVehicles] = useState<Vehicle[]>([])
   const [mechanics, setMechanics] = useState<Mechanic[]>([])
   const [currencySettings, setCurrencySettings] = useState<CurrencySettings | null>(null)
   const [dashboardStats, setDashboardStats] = useState<DashboardStats>({
@@ -122,9 +138,28 @@ export default function MaintenancePage() {
     fetchDashboardStats()
     fetchMaintenanceRecords()
     fetchTrucks()
+    fetchTrailers()
     fetchMechanics()
     fetchCurrencySettings()
   }, [])
+
+  useEffect(() => {
+    const combinedVehicles: Vehicle[] = [
+      ...trucks.map(truck => ({
+        id: truck.id,
+        type: 'truck' as const,
+        displayName: `${truck.year} ${truck.make} ${truck.model}`,
+        identifier: truck.licensePlate
+      })),
+      ...trailers.map(trailer => ({
+        id: trailer.id,
+        type: 'trailer' as const,
+        displayName: `Trailer ${trailer.number}`,
+        identifier: trailer.driverName || 'No driver'
+      }))
+    ]
+    setVehicles(combinedVehicles)
+  }, [trucks, trailers])
 
   const fetchDashboardStats = async () => {
     try {
@@ -187,17 +222,25 @@ export default function MaintenancePage() {
 
   const fetchTrucks = async () => {
     try {
-      const response = await apiGet('/api/trucks')
+      const response = await apiGet('/api/trucks?limit=1000')
       if (response.ok) {
         const data = await response.json()
-        // API returns { success: true, data: trucks, pagination: ... }
         setTrucks(data.data || [])
-      } else {
-        toast.error('Failed to fetch trucks')
       }
     } catch (error) {
       console.error('Error fetching trucks:', error)
-      toast.error('Failed to fetch trucks')
+    }
+  }
+
+  const fetchTrailers = async () => {
+    try {
+      const response = await apiGet('/api/trailers?limit=1000')
+      if (response.ok) {
+        const data = await response.json()
+        setTrailers(data.data || [])
+      }
+    } catch (error) {
+      console.error('Error fetching trailers:', error)
     }
   }
 
@@ -433,17 +476,22 @@ export default function MaintenancePage() {
             </DialogHeader>
             <form onSubmit={handleSubmit} className="grid gap-4 py-4 max-h-[60vh] overflow-y-auto">
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="truckId" className="text-right">
-                  {t('maintenance.truck')}
+                <Label htmlFor="vehicleId" className="text-right">
+                  Vehicle
                 </Label>
                 <Select value={formData.truckId} onValueChange={(value) => setFormData({...formData, truckId: value})}>
                   <SelectTrigger className="col-span-3">
-                    <SelectValue placeholder={t('maintenance.selectTruck')} />
+                    <SelectValue placeholder="Select truck or trailer" />
                   </SelectTrigger>
                   <SelectContent>
-                    {trucks.map((truck) => (
-                      <SelectItem key={truck.id} value={truck.id}>
-                        {truck.year} {truck.make} {truck.model} - {truck.licensePlate}
+                    {vehicles.map((vehicle) => (
+                      <SelectItem key={vehicle.id} value={vehicle.id}>
+                        <div className="flex items-center gap-2">
+                          <span className={`px-2 py-1 text-xs rounded ${vehicle.type === 'truck' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}`}>
+                            {vehicle.type === 'truck' ? 'Truck' : 'Trailer'}
+                          </span>
+                          {vehicle.displayName} - {vehicle.identifier}
+                        </div>
                       </SelectItem>
                     ))}
                   </SelectContent>
