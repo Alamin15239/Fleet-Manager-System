@@ -63,7 +63,18 @@ export async function GET(request: NextRequest) {
     const [trucks, totalCount] = await Promise.all([
       db.truck.findMany({
         where: whereClause,
-        include: {
+        select: {
+          id: true,
+          vin: true,
+          make: true,
+          model: true,
+          year: true,
+          licensePlate: true,
+          currentMileage: true,
+          status: true,
+          documents: true,
+          createdAt: true,
+          updatedAt: true,
           maintenanceRecords: {
             take: 5,
             orderBy: { datePerformed: 'desc' }
