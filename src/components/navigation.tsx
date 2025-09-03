@@ -66,7 +66,7 @@ const getNavigation = (t: (key: string) => string) => [
     action: 'read'
   },
   { 
-    name: t('nav.trailers'), 
+    name: language === 'ar' ? 'المقطورات' : 'Trailers', 
     href: '/trailers', 
     icon: Truck,
     resource: 'trailers',
@@ -132,7 +132,7 @@ export function Navigation({ userRole = 'USER' }: NavigationProps) {
   const { user, logout } = useAuth()
   const { hasPermission, isLoading } = usePermissions()
   const { isSidebarOpen, toggleSidebar } = useSidebar()
-  const { t } = useLanguage()
+  const { t, language } = useLanguage()
   
   const navigation = getNavigation(t)
 
