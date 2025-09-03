@@ -18,6 +18,10 @@ export interface Permission {
   canAddTireManagement: boolean
   canEditTireManagement: boolean
   canDeleteTireManagement: boolean
+  canViewTrailers: boolean
+  canAddTrailers: boolean
+  canEditTrailers: boolean
+  canDeleteTrailers: boolean
   canViewReports: boolean
   canViewUsers: boolean
   canManageUsers: boolean
@@ -53,6 +57,10 @@ export const defaultPermissions: Permission = {
   canAddTireManagement: false,
   canEditTireManagement: false,
   canDeleteTireManagement: false,
+  canViewTrailers: true,
+  canAddTrailers: false,
+  canEditTrailers: false,
+  canDeleteTrailers: false,
   canViewReports: false,
   canViewUsers: false,
   canManageUsers: false,
@@ -83,6 +91,10 @@ export const adminPermissions: Permission = {
   canAddTireManagement: true,
   canEditTireManagement: true,
   canDeleteTireManagement: true,
+  canViewTrailers: true,
+  canAddTrailers: true,
+  canEditTrailers: true,
+  canDeleteTrailers: true,
   canViewReports: true,
   canViewUsers: true,
   canManageUsers: true,
@@ -113,6 +125,10 @@ export const managerPermissions: Permission = {
   canAddTireManagement: true,
   canEditTireManagement: true,
   canDeleteTireManagement: false,
+  canViewTrailers: true,
+  canAddTrailers: true,
+  canEditTrailers: true,
+  canDeleteTrailers: false,
   canViewReports: true,
   canViewUsers: true,
   canManageUsers: false,
@@ -133,6 +149,7 @@ export const defaultRolePermissions = {
     { resource: 'maintenance', actions: ['read', 'create', 'update', 'delete'] },
     { resource: 'mechanics', actions: ['read', 'create', 'update', 'delete'] },
     { resource: 'tire-management', actions: ['read', 'create', 'update', 'delete'] },
+    { resource: 'trailers', actions: ['read', 'create', 'update', 'delete'] },
     { resource: 'profile', actions: ['read', 'update'] },
     { resource: 'reports', actions: ['read', 'create', 'export'] },
     { resource: 'settings', actions: ['read', 'update'] },
@@ -146,6 +163,7 @@ export const defaultRolePermissions = {
     { resource: 'maintenance', actions: ['read', 'create', 'update'] },
     { resource: 'mechanics', actions: ['read', 'create', 'update'] },
     { resource: 'tire-management', actions: ['read', 'create', 'update'] },
+    { resource: 'trailers', actions: ['read', 'create', 'update'] },
     { resource: 'profile', actions: ['read', 'update'] },
     { resource: 'reports', actions: ['read', 'create', 'export'] },
     { resource: 'settings', actions: ['read'] },
@@ -158,6 +176,7 @@ export const defaultRolePermissions = {
     { resource: 'maintenance', actions: ['read'] },
     { resource: 'mechanics', actions: ['read'] },
     { resource: 'tire-management', actions: ['read'] },
+    { resource: 'trailers', actions: ['read'] },
     { resource: 'profile', actions: ['read', 'update'] }
   ]
 }
@@ -281,6 +300,14 @@ export class PermissionManager {
           case 'update': return permissions.canManageAdmin
           default: return false
         }
+      case 'trailers':
+        switch (action) {
+          case 'read': return permissions.canViewTrailers
+          case 'create': return permissions.canAddTrailers
+          case 'update': return permissions.canEditTrailers
+          case 'delete': return permissions.canDeleteTrailers
+          default: return false
+        }
       case 'advanced-analytics':
         return action === 'read' ? permissions.canViewAdvancedAnalytics : false
       default:
@@ -358,6 +385,8 @@ export function canAccessPage(permissions: Permission, page: string): boolean {
       return permissions.canViewAdmin
     case '/advanced-analytics':
       return permissions.canViewAdvancedAnalytics
+    case '/trailers':
+      return permissions.canViewTrailers
     default:
       return false
   }
