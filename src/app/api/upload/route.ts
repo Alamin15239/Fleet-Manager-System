@@ -75,6 +75,32 @@ export async function POST(request: NextRequest) {
     console.log('File written successfully');
 
     const fileUrl = `/uploads/${filename}`;
+    const type = data.get('type') as string || 'general';
+    const entityId = data.get('entityId') as string;
+
+    // Save file metadata to database
+    try {
+      const fileRecord = await db.truck.update({
+        where: { id: entityId },
+        data: {
+          documents: {
+            push: {
+              id: `file_${timestamp}`,
+              name: filename,
+              originalName: file.name,
+              size: file.size,
+              type: file.type,
+              url: fileUrl,
+              uploadedAt: new Date().toISOString(),
+              uploadedBy: user.id
+            }
+          }
+        }
+      });
+      console.log('File metadata saved to database');
+    } catch (dbError) {
+      console.error('Error saving file metadata to database:', dbError);
+    }
 
     // Return the format expected by FileUpload component
     const uploadedFile = {
