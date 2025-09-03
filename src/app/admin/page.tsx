@@ -30,6 +30,8 @@ interface SystemStats {
   activeUsers: number
   totalTrucks: number
   activeTrucks: number
+  totalTrailers: number
+  activeTrailers: number
   totalMaintenance: number
   pendingMaintenance: number
   totalCost: number
@@ -51,6 +53,8 @@ export default function AdminDashboard() {
     activeUsers: 0,
     totalTrucks: 0,
     activeTrucks: 0,
+    totalTrailers: 0,
+    activeTrailers: 0,
     totalMaintenance: 0,
     pendingMaintenance: 0,
     totalCost: 0,
@@ -145,16 +149,16 @@ export default function AdminDashboard() {
         headers: { 'Authorization': `Bearer ${token}` }
       })
       
-      let totalFleet = 0
-      let activeFleet = 0
-      
       if (trucksResponse.ok) {
         const trucksResponseData = await trucksResponse.json()
         const trucksData = trucksResponseData.data || []
         const activeTrucks = trucksData.filter((t: any) => t.status === 'ACTIVE').length
         console.log('Trucks:', trucksData.length, 'Active trucks:', activeTrucks)
-        totalFleet += trucksData.length
-        activeFleet += activeTrucks
+        setStats(prev => ({
+          ...prev,
+          totalTrucks: trucksData.length,
+          activeTrucks
+        }))
       }
 
       // Fetch trailers
@@ -167,17 +171,12 @@ export default function AdminDashboard() {
         const trailersData = trailersResponseData.data || []
         const activeTrailers = trailersData.filter((t: any) => t.status === 'ACTIVE').length
         console.log('Trailers:', trailersData.length, 'Active trailers:', activeTrailers)
-        totalFleet += trailersData.length
-        activeFleet += activeTrailers
+        setStats(prev => ({
+          ...prev,
+          totalTrailers: trailersData.length,
+          activeTrailers
+        }))
       }
-
-      console.log('Total fleet:', totalFleet, 'Active fleet:', activeFleet)
-
-      setStats(prev => ({
-        ...prev,
-        totalTrucks: totalFleet,
-        activeTrucks: activeFleet
-      }))
 
       // Fetch maintenance
       const maintenanceResponse = await fetch('/api/maintenance', {
@@ -293,9 +292,9 @@ export default function AdminDashboard() {
             <Truck className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{Math.floor(stats.totalTrucks * 0.49)}</div>
+            <div className="text-2xl font-bold">{stats.totalTrucks}</div>
             <p className="text-xs text-muted-foreground">
-              {Math.floor(stats.activeTrucks * 0.49)} active trucks
+              {stats.activeTrucks} active trucks
             </p>
           </CardContent>
         </Card>
@@ -306,9 +305,9 @@ export default function AdminDashboard() {
             <Truck className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{Math.ceil(stats.totalTrucks * 0.51)}</div>
+            <div className="text-2xl font-bold">{stats.totalTrailers}</div>
             <p className="text-xs text-muted-foreground">
-              {Math.ceil(stats.activeTrucks * 0.51)} active trailers
+              {stats.activeTrailers} active trailers
             </p>
           </CardContent>
         </Card>
