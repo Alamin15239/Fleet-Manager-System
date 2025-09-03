@@ -33,7 +33,7 @@ export const metadata: Metadata = {
   icons: {
     icon: '/favicon.ico',
     shortcut: '/favicon.ico',
-    apple: '/icon-192.svg',
+    apple: '/icon-192.png',
   },
   openGraph: {
     title: "Fleet Maintenance Tracker",
