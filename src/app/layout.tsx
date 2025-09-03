@@ -26,26 +26,44 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://www.primeofferonline.shop'),
-  title: "Fleet Maintenance Tracker",
-  description: "Track and manage your truck fleet maintenance",
-  keywords: ["fleet", "maintenance", "trucks", "management"],
-  authors: [{ name: "Fleet Manager Team" }],
+  title: "🚛 Fleet Manager Pro - Complete Truck Fleet Management System",
+  description: "Professional fleet management solution for truck maintenance, tire tracking, analytics & reporting. Streamline your fleet operations with real-time monitoring and predictive maintenance.",
+  keywords: ["fleet management", "truck maintenance", "tire management", "fleet tracking", "vehicle maintenance", "fleet analytics", "truck fleet", "maintenance software", "fleet operations", "vehicle tracking"],
+  authors: [{ name: "Fleet Manager Pro Team" }],
   icons: {
     icon: '/favicon.svg',
     shortcut: '/favicon.svg',
     apple: '/favicon.svg',
   },
   openGraph: {
-    title: "Fleet Maintenance Tracker",
-    description: "Track and manage your truck fleet maintenance",
-    siteName: "Fleet Manager",
+    title: "🚛 Fleet Manager Pro - Complete Truck Fleet Management System",
+    description: "Professional fleet management solution with maintenance tracking, tire management, real-time analytics and comprehensive reporting. Optimize your fleet operations today!",
+    siteName: "Fleet Manager Pro",
     type: "website",
+    url: 'https://www.primeofferonline.shop',
     images: [{
       url: '/logo.svg',
-      width: 200,
-      height: 120,
-      alt: 'Fleet Manager Logo'
+      width: 1200,
+      height: 630,
+      alt: 'Fleet Manager Pro - Truck Fleet Management System'
     }]
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: "🚛 Fleet Manager Pro - Complete Truck Fleet Management",
+    description: "Professional fleet management solution with maintenance tracking, tire management & analytics.",
+    images: ['/logo.svg'],
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
   },
 };
 
