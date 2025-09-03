@@ -130,7 +130,7 @@ export default function AdminDashboard() {
       }
 
       // Fetch users
-      const usersResponse = await fetch('/api/users', {
+      const usersResponse = await fetch('/api/users?limit=1000', {
         headers: { 'Authorization': `Bearer ${token}` }
       })
       
@@ -150,7 +150,7 @@ export default function AdminDashboard() {
       }
 
       // Fetch trucks
-      const trucksResponse = await fetch('/api/trucks', {
+      const trucksResponse = await fetch('/api/trucks?limit=1000', {
         headers: { 'Authorization': `Bearer ${token}` }
       })
       
@@ -168,7 +168,7 @@ export default function AdminDashboard() {
       }
 
       // Fetch trailers
-      const trailersResponse = await fetch('/api/trailers', {
+      const trailersResponse = await fetch('/api/trailers?limit=1000', {
         headers: { 'Authorization': `Bearer ${token}` }
       })
       
