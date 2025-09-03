@@ -26,7 +26,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://www.primeofferonline.shop'),
-  title: "🚛 Fleet Manager Pro - Complete Truck Fleet Management System",
+  title: "Fleet Manager Pro - Complete Truck Fleet Management System",
   description: "Professional fleet management solution for truck maintenance, tire tracking, analytics & reporting. Streamline your fleet operations with real-time monitoring and predictive maintenance.",
   keywords: ["fleet management", "truck maintenance", "tire management", "fleet tracking", "vehicle maintenance", "fleet analytics", "truck fleet", "maintenance software", "fleet operations", "vehicle tracking"],
   authors: [{ name: "Fleet Manager Pro Team" }],
@@ -36,7 +36,7 @@ export const metadata: Metadata = {
     apple: '/favicon.svg',
   },
   openGraph: {
-    title: "🚛 Fleet Manager Pro - Complete Truck Fleet Management System",
+    title: "Fleet Manager Pro - Complete Truck Fleet Management System",
     description: "Professional fleet management solution with maintenance tracking, tire management, real-time analytics and comprehensive reporting. Optimize your fleet operations today!",
     siteName: "Fleet Manager Pro",
     type: "website",
@@ -50,7 +50,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: "🚛 Fleet Manager Pro - Complete Truck Fleet Management",
+    title: "Fleet Manager Pro - Complete Truck Fleet Management",
     description: "Professional fleet management solution with maintenance tracking, tire management & analytics.",
     images: ['/logo.svg'],
   },
