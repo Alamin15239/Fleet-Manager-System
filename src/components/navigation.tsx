@@ -29,7 +29,7 @@ import { useLanguage } from '@/contexts/language-context'
 import { LanguageToggle } from '@/components/language-toggle'
 import { TruckLoader } from '@/components/ui/truck-loader'
 
-const getNavigation = (t: (key: string) => string) => [
+const getNavigation = (t: (key: string) => string, language: string) => [
   { 
     name: t('nav.dashboard'), 
     href: '/', 
@@ -134,7 +134,7 @@ export function Navigation({ userRole = 'USER' }: NavigationProps) {
   const { isSidebarOpen, toggleSidebar } = useSidebar()
   const { t, language } = useLanguage()
   
-  const navigation = getNavigation(t)
+  const navigation = getNavigation(t, language)
 
   const handleLogout = () => {
     logout()
