@@ -152,6 +152,7 @@ export default function AdminDashboard() {
         const trucksResponseData = await trucksResponse.json()
         const trucksData = trucksResponseData.data || []
         const activeTrucks = trucksData.filter((t: any) => t.status === 'ACTIVE').length
+        console.log('Trucks:', trucksData.length, 'Active trucks:', activeTrucks)
         totalFleet += trucksData.length
         activeFleet += activeTrucks
       }
@@ -165,9 +166,12 @@ export default function AdminDashboard() {
         const trailersResponseData = await trailersResponse.json()
         const trailersData = trailersResponseData.data || []
         const activeTrailers = trailersData.filter((t: any) => t.status === 'ACTIVE').length
+        console.log('Trailers:', trailersData.length, 'Active trailers:', activeTrailers)
         totalFleet += trailersData.length
         activeFleet += activeTrailers
       }
+
+      console.log('Total fleet:', totalFleet, 'Active fleet:', activeFleet)
 
       setStats(prev => ({
         ...prev,
