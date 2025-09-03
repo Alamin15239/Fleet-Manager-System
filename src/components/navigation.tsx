@@ -66,7 +66,7 @@ const getNavigation = (t: (key: string) => string) => [
     action: 'read'
   },
   { 
-    name: t('nav.trailers') || 'Trailers', 
+    name: t('nav.trailers'), 
     href: '/trailers', 
     icon: Truck,
     resource: 'trailers',
