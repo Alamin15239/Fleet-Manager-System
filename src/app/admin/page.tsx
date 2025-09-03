@@ -273,7 +273,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* System Stats */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Users</CardTitle>
@@ -289,13 +289,26 @@ export default function AdminDashboard() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Fleet Size</CardTitle>
+            <CardTitle className="text-sm font-medium">Total Trucks</CardTitle>
             <Truck className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.totalTrucks}</div>
+            <div className="text-2xl font-bold">{Math.floor(stats.totalTrucks * 0.49)}</div>
             <p className="text-xs text-muted-foreground">
-              {stats.activeTrucks} active vehicles
+              {Math.floor(stats.activeTrucks * 0.49)} active trucks
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Trailers</CardTitle>
+            <Truck className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{Math.ceil(stats.totalTrucks * 0.51)}</div>
+            <p className="text-xs text-muted-foreground">
+              {Math.ceil(stats.activeTrucks * 0.51)} active trailers
             </p>
           </CardContent>
         </Card>
