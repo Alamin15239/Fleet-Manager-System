@@ -121,9 +121,13 @@ export default function AdminDashboard() {
     if (!isMounted || !isAuthenticated || !isAdmin) return
     
     setLoading(true)
+    console.log('Fetching admin data...')
     try {
       const token = localStorage.getItem('authToken')
-      if (!token) return
+      if (!token) {
+        console.error('No auth token found')
+        return
+      }
 
       // Fetch users
       const usersResponse = await fetch('/api/users', {
@@ -142,6 +146,7 @@ export default function AdminDashboard() {
           totalUsers: usersData.length,
           activeUsers
         }))
+        console.log('Users updated:', usersData.length, 'active:', activeUsers)
       }
 
       // Fetch trucks
@@ -153,12 +158,13 @@ export default function AdminDashboard() {
         const trucksResponseData = await trucksResponse.json()
         const trucksData = trucksResponseData.data || []
         const activeTrucks = trucksData.filter((t: any) => t.status === 'ACTIVE').length
-        console.log('Trucks:', trucksData.length, 'Active trucks:', activeTrucks)
+
         setStats(prev => ({
           ...prev,
           totalTrucks: trucksData.length,
           activeTrucks
         }))
+        console.log('Trucks updated:', trucksData.length, 'active:', activeTrucks)
       }
 
       // Fetch trailers
@@ -170,12 +176,13 @@ export default function AdminDashboard() {
         const trailersResponseData = await trailersResponse.json()
         const trailersData = trailersResponseData.data || []
         const activeTrailers = trailersData.filter((t: any) => t.status === 'ACTIVE').length
-        console.log('Trailers:', trailersData.length, 'Active trailers:', activeTrailers)
+
         setStats(prev => ({
           ...prev,
           totalTrailers: trailersData.length,
           activeTrailers
         }))
+        console.log('Trailers updated:', trailersData.length, 'active:', activeTrailers)
       }
 
       // Fetch maintenance
