@@ -1,5 +1,12 @@
 // API utility function that includes authentication
 export async function apiFetch(url: string, options: RequestInit = {}) {
+  // Ensure absolute URL in production
+  const baseUrl = typeof window !== 'undefined' 
+    ? window.location.origin 
+    : process.env.NEXT_PUBLIC_APP_URL || 'https://www.primeofferonline.shop'
+  
+  const fullUrl = url.startsWith('http') ? url : `${baseUrl}${url}`
+  
   // Get token from localStorage
   let token = null
   
@@ -41,7 +48,8 @@ export async function apiFetch(url: string, options: RequestInit = {}) {
   }
 
   try {
-    const response = await fetch(url, config)
+    console.log('API Fetch - Making request to:', fullUrl)
+    const response = await fetch(fullUrl, config)
     console.log('API Fetch - Response status:', response.status)
     
     if (!response.ok) {
