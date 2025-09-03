@@ -145,16 +145,35 @@ export default function AdminDashboard() {
         headers: { 'Authorization': `Bearer ${token}` }
       })
       
+      let totalFleet = 0
+      let activeFleet = 0
+      
       if (trucksResponse.ok) {
         const trucksResponseData = await trucksResponse.json()
         const trucksData = trucksResponseData.data || []
         const activeTrucks = trucksData.filter((t: any) => t.status === 'ACTIVE').length
-        setStats(prev => ({
-          ...prev,
-          totalTrucks: trucksData.length,
-          activeTrucks
-        }))
+        totalFleet += trucksData.length
+        activeFleet += activeTrucks
       }
+
+      // Fetch trailers
+      const trailersResponse = await fetch('/api/trailers', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      
+      if (trailersResponse.ok) {
+        const trailersResponseData = await trailersResponse.json()
+        const trailersData = trailersResponseData.data || []
+        const activeTrailers = trailersData.filter((t: any) => t.status === 'ACTIVE').length
+        totalFleet += trailersData.length
+        activeFleet += activeTrailers
+      }
+
+      setStats(prev => ({
+        ...prev,
+        totalTrucks: totalFleet,
+        activeTrucks: activeFleet
+      }))
 
       // Fetch maintenance
       const maintenanceResponse = await fetch('/api/maintenance', {

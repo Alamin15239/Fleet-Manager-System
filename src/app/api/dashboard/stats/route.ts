@@ -10,7 +10,11 @@ export async function GET(request: NextRequest) {
       console.error('Database connection failed:', dbError)
       return NextResponse.json({
         totalTrucks: 0,
+        totalTrailers: 0,
+        totalFleet: 0,
         activeTrucks: 0,
+        activeTrailers: 0,
+        activeFleet: 0,
         upcomingMaintenance: 0,
         overdueRepairs: 0,
         totalMaintenanceCost: 0,
@@ -25,8 +29,21 @@ export async function GET(request: NextRequest) {
       where: { isDeleted: false }
     })
 
+    // Get total trailers count
+    const totalTrailers = await db.trailer.count({
+      where: { isDeleted: false }
+    })
+
     // Get active trucks count
     const activeTrucks = await db.truck.count({
+      where: { 
+        status: 'ACTIVE',
+        isDeleted: false
+      }
+    })
+
+    // Get active trailers count
+    const activeTrailers = await db.trailer.count({
       where: { 
         status: 'ACTIVE',
         isDeleted: false
@@ -117,7 +134,11 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       totalTrucks,
+      totalTrailers,
+      totalFleet: totalTrucks + totalTrailers,
       activeTrucks,
+      activeTrailers,
+      activeFleet: activeTrucks + activeTrailers,
       upcomingMaintenance,
       overdueRepairs,
       totalMaintenanceCost,
