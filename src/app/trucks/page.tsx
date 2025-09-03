@@ -9,9 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
-import { Truck, Plus, Edit, Eye, Paperclip, Trash2, Wrench, AlertTriangle, TrendingUp } from 'lucide-react'
+import { Truck, Plus, Edit, Eye, Trash2, Wrench, AlertTriangle, TrendingUp } from 'lucide-react'
 import { toast } from 'sonner'
-import { FileUpload } from '@/components/file-upload'
 import { usePermissions } from '@/contexts/permissions-context'
 import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api'
 import { useLanguage } from '@/contexts/language-context'
@@ -25,8 +24,8 @@ interface Truck {
   licensePlate: string
   currentMileage: number
   status: 'ACTIVE' | 'INACTIVE' | 'MAINTENANCE'
+  driverName?: string
   image?: string
-  documents?: any[]
   createdAt: string
   updatedAt: string
 }
@@ -52,11 +51,11 @@ export default function TrucksPage() {
   })
   const [loading, setLoading] = useState(true)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
-  const [isFilesDialogOpen, setIsFilesDialogOpen] = useState(false)
+
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false)
   const [editingTruck, setEditingTruck] = useState<Truck | null>(null)
   const [selectedTruck, setSelectedTruck] = useState<Truck | null>(null)
-  const [truckDocuments, setTruckDocuments] = useState<any[]>([])
+
   
   const [formData, setFormData] = useState({
     vin: '',
@@ -349,28 +348,14 @@ export default function TrucksPage() {
     }
   }
 
-  const handleManageFiles = (truck: Truck) => {
-    setSelectedTruck(truck)
-    setTruckDocuments(truck.documents || [])
-    setIsFilesDialogOpen(true)
-  }
+
 
   const handleViewTruck = (truck: Truck) => {
     setSelectedTruck(truck)
     setIsViewDialogOpen(true)
   }
 
-  const handleFilesChange = (files: any[]) => {
-    setTruckDocuments(files)
-    if (selectedTruck) {
-      const updatedTrucks = trucks.map(truck =>
-        truck.id === selectedTruck.id
-          ? { ...truck, documents: files }
-          : truck
-      )
-      setTrucks(updatedTrucks)
-    }
-  }
+
 
   if (permissionsLoading || loading) {
     return (
@@ -565,6 +550,18 @@ export default function TrucksPage() {
                 />
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="driverName" className="text-right">
+                  Driver Name
+                </Label>
+                <Input
+                  id="driverName"
+                  value={formData.driverName}
+                  onChange={(e) => setFormData({...formData, driverName: e.target.value})}
+                  className="col-span-3"
+                  placeholder="Enter driver name (optional)"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="status" className="text-right">
                   {t('table.status')}
                 </Label>
@@ -667,36 +664,7 @@ export default function TrucksPage() {
         </Card>
       </div>
 
-      {/* Files Management Dialog */}
-      <Dialog open={isFilesDialogOpen} onOpenChange={setIsFilesDialogOpen}>
-        <DialogContent className="sm:max-w-[800px] max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>
-              {t('trucks.manageFiles')} - {selectedTruck?.year} {selectedTruck?.make} {selectedTruck?.model}
-            </DialogTitle>
-            <DialogDescription>
-              {t('trucks.uploadDocuments')}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            {selectedTruck && (
-              <FileUpload
-                type="truck"
-                entityId={selectedTruck.id}
-                existingFiles={truckDocuments}
-                onFilesChange={handleFilesChange}
-                multiple={true}
-                maxFiles={20}
-              />
-            )}
-          </div>
-          <DialogFooter>
-            <Button onClick={() => setIsFilesDialogOpen(false)}>
-              {t('trucks.done')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+
 
       {/* View Truck Dialog */}
       <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
@@ -746,12 +714,9 @@ export default function TrucksPage() {
               </div>
 
               <div>
-                <Label className="text-sm font-medium text-gray-500">{t('trucks.documents')}</Label>
+                <Label className="text-sm font-medium text-gray-500">Driver Name</Label>
                 <p className="text-sm text-gray-600">
-                  {selectedTruck.documents && selectedTruck.documents.length > 0 
-                    ? t('trucks.documentsAttached').replace('{count}', selectedTruck.documents.length.toString())
-                    : t('trucks.noDocuments')
-                  }
+                  {selectedTruck.driverName || 'No driver assigned'}
                 </p>
               </div>
 
@@ -799,6 +764,7 @@ export default function TrucksPage() {
                   <TableHead>{t('trucks.vin')}</TableHead>
                   <TableHead>{t('trucks.vehicle')}</TableHead>
                   <TableHead>{t('trucks.licensePlate')}</TableHead>
+                  <TableHead>Driver</TableHead>
                   <TableHead>{t('trucks.mileage')}</TableHead>
                   <TableHead>{t('table.status')}</TableHead>
                   <TableHead className="text-right">{t('table.actions')}</TableHead>
@@ -817,6 +783,7 @@ export default function TrucksPage() {
                       </div>
                     </TableCell>
                     <TableCell>{truck.licensePlate}</TableCell>
+                    <TableCell>{truck.driverName || 'No driver'}</TableCell>
                     <TableCell>{truck.currentMileage.toLocaleString()} {t('trucks.miles')}</TableCell>
                     <TableCell>
                       <Badge className={getStatusColor(truck.status)}>
@@ -828,19 +795,7 @@ export default function TrucksPage() {
                         <Button variant="outline" size="sm" onClick={() => handleViewTruck(truck)}>
                           <Eye className="h-4 w-4" />
                         </Button>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          onClick={() => handleManageFiles(truck)}
-                          className="relative"
-                        >
-                          <Paperclip className="h-4 w-4" />
-                          {truck.documents && truck.documents.length > 0 && (
-                            <span className="absolute -top-2 -right-2 bg-blue-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                              {truck.documents.length}
-                            </span>
-                          )}
-                        </Button>
+
                         {canUpdate('trucks') && (
                           <Button variant="outline" size="sm" onClick={() => handleEdit(truck)}>
                             <Edit className="h-4 w-4" />
