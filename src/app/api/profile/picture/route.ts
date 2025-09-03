@@ -6,17 +6,29 @@ export async function POST(request: NextRequest) {
   try {
     console.log('Profile picture upload started')
     
-    const user = await requireAuth(request)
-    console.log('User authenticated:', user?.id)
+    let user
+    try {
+      user = await requireAuth(request)
+      console.log('User authenticated:', user?.id)
+    } catch (authError) {
+      console.error('Auth error:', authError)
+      return NextResponse.json({ error: 'Authentication failed' }, { status: 401 })
+    }
     
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const formData = await request.formData()
-    const file = formData.get('profilePicture') as File
-    
-    console.log('File received:', file?.name, file?.size, file?.type)
+    let formData
+    let file
+    try {
+      formData = await request.formData()
+      file = formData.get('profilePicture') as File
+      console.log('File received:', file?.name, file?.size, file?.type)
+    } catch (formError) {
+      console.error('Form data error:', formError)
+      return NextResponse.json({ error: 'Invalid form data' }, { status: 400 })
+    }
     
     if (!file) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 })
