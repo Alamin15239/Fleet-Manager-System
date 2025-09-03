@@ -486,12 +486,7 @@ export default function MaintenancePage() {
                   <SelectContent>
                     {vehicles.map((vehicle) => (
                       <SelectItem key={vehicle.id} value={vehicle.id}>
-                        <div className="flex items-center gap-2">
-                          <span className={`px-2 py-1 text-xs rounded ${vehicle.type === 'truck' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}`}>
-                            {vehicle.type === 'truck' ? 'Truck' : 'Trailer'}
-                          </span>
-                          {vehicle.displayName} - {vehicle.identifier}
-                        </div>
+                        {vehicle.type === 'truck' ? '🚛' : '🚚'} {vehicle.displayName} - {vehicle.identifier}
                       </SelectItem>
                     ))}
                   </SelectContent>
