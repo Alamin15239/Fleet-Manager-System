@@ -32,27 +32,33 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'File size must be less than 5MB' }, { status: 400 })
     }
 
-    // Convert file to base64
-    const bytes = await file.arrayBuffer()
-    const buffer = Buffer.from(bytes)
-    const base64 = buffer.toString('base64')
-    const dataUrl = `data:${file.type};base64,${base64}`
+    try {
+      // Convert file to base64
+      const bytes = await file.arrayBuffer()
+      const buffer = Buffer.from(bytes)
+      const base64 = buffer.toString('base64')
+      const dataUrl = `data:${file.type};base64,${base64}`
 
-    console.log('File converted to base64, length:', dataUrl.length)
+      console.log('File converted to base64, length:', dataUrl.length)
 
-    // Update user profile picture in database
-    const updatedUser = await db.user.update({
-      where: { id: user.id },
-      data: { profileImage: dataUrl },
-      select: { id: true, name: true, email: true, profileImage: true, role: true }
-    })
-
-    console.log('Database updated successfully')
-
-    return NextResponse.json({ 
-      message: 'Profile picture updated successfully',
-      user: updatedUser
-    })
+      // Update user profile picture in database
+      const updatedUser = await db.user.update({
+        where: { id: user.id },
+        data: { profileImage: dataUrl },
+        select: { id: true, name: true, email: true, profileImage: true, role: true }
+      })
+      
+      return NextResponse.json({ 
+        message: 'Profile picture updated successfully',
+        user: updatedUser
+      })
+    } catch (dbError) {
+      console.error('Database error:', dbError)
+      return NextResponse.json(
+        { error: 'Database error occurred' },
+        { status: 500 }
+      )
+    }
   } catch (error) {
     console.error('Error uploading profile picture:', error)
     return NextResponse.json(
