@@ -3,6 +3,12 @@
 import { useEffect } from 'react'
 import { useAuth } from '@/contexts/auth-context'
 
+declare global {
+  interface Window {
+    clarity: any
+  }
+}
+
 export function ClarityAnalytics() {
   let user, isAuthenticated
   
@@ -11,49 +17,52 @@ export function ClarityAnalytics() {
     user = auth.user
     isAuthenticated = auth.isAuthenticated
   } catch (error) {
-    // Handle case when AuthProvider is not available (during build)
     user = null
     isAuthenticated = false
   }
 
   useEffect(() => {
-    // Only run on client side
     if (typeof window === 'undefined') return
     
-    const initClarity = async () => {
-      try {
-        const { default: Clarity } = await import('@microsoft/clarity')
-        
-        // Initialize Clarity with project ID
-        Clarity.init('t4ma7qs0aj')
-        
-        // Identify user if authenticated
-        if (isAuthenticated && user) {
-          Clarity.identify(
-            user.id, // custom-id (required)
-            undefined, // custom-session-id (optional)
-            undefined, // custom-page-id (optional)
-            user.name || user.email // friendly-name (optional)
-          )
-          
-          // Set user tags for better filtering
-          Clarity.setTag('user_role', user.role)
-          Clarity.setTag('user_email', user.email)
-          if (user.name) Clarity.setTag('user_name', user.name)
-          if (user.department) Clarity.setTag('department', user.department)
-        }
-        
-        console.log('Microsoft Clarity initialized')
-      } catch (error) {
-        console.error('Failed to initialize Clarity:', error)
+    // Load Clarity script
+    const script = document.createElement('script')
+    script.type = 'text/javascript'
+    script.async = true
+    script.innerHTML = `
+      (function(c,l,a,r,i,t,y){
+        c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+        t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+        y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+      })(window, document, "clarity", "script", "t4ma7qs0aj");
+    `
+    
+    document.head.appendChild(script)
+    
+    // Set user data when available
+    const setUserData = () => {
+      if (window.clarity && isAuthenticated && user) {
+        window.clarity('identify', user.id, undefined, undefined, user.name || user.email)
+        window.clarity('set', 'user_role', user.role)
+        window.clarity('set', 'user_email', user.email)
+        if (user.name) window.clarity('set', 'user_name', user.name)
       }
     }
-
-    initClarity()
+    
+    // Wait for clarity to load
+    const checkClarity = setInterval(() => {
+      if (window.clarity) {
+        setUserData()
+        clearInterval(checkClarity)
+      }
+    }, 100)
+    
+    return () => {
+      clearInterval(checkClarity)
+      if (script.parentNode) {
+        script.parentNode.removeChild(script)
+      }
+    }
   }, [isAuthenticated, user])
 
-  // Don't render anything during SSR
-  if (typeof window === 'undefined') return null
-  
   return null
 }
