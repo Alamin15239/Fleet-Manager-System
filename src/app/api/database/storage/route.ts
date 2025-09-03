@@ -10,6 +10,7 @@ export async function GET() {
     const [
       userCount,
       truckCount,
+      trailerCount,
       maintenanceCount,
       tireCount,
       mechanicCount,
@@ -20,6 +21,7 @@ export async function GET() {
       Promise.all([
       db.user.count(),
       db.truck.count(),
+      db.trailer.count(),
       db.maintenanceRecord.count(),
       db.tire.count(),
       db.mechanic.count(),
@@ -33,6 +35,7 @@ export async function GET() {
     const estimatedStorage = {
       users: userCount * 2,
       trucks: truckCount * 3,
+      trailers: trailerCount * 2,
       maintenance: maintenanceCount * 1.5,
       tires: tireCount * 1,
       mechanics: mechanicCount * 1,
@@ -88,13 +91,14 @@ export async function GET() {
         tableCounts: {
           users: userCount,
           trucks: truckCount,
+          trailers: trailerCount,
           maintenance: maintenanceCount,
           tires: tireCount,
           mechanics: mechanicCount,
           notifications: notificationCount,
           auditLogs: auditLogCount,
           documents: documentCount,
-          total: userCount + truckCount + maintenanceCount + tireCount + mechanicCount + notificationCount + auditLogCount + documentCount
+          total: userCount + truckCount + trailerCount + maintenanceCount + tireCount + mechanicCount + notificationCount + auditLogCount + documentCount
         },
         storage: {
           estimated: {

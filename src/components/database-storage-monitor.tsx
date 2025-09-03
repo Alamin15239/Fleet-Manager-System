@@ -12,6 +12,7 @@ interface StorageData {
   tableCounts: {
     users: number
     trucks: number
+    trailers: number
     maintenance: number
     tires: number
     mechanics: number
@@ -171,6 +172,10 @@ export function DatabaseStorageMonitor() {
             <div className="flex justify-between">
               <span>Trucks:</span>
               <span className="font-mono">{storageData.tableCounts.trucks}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Trailers:</span>
+              <span className="font-mono">{storageData.tableCounts.trailers}</span>
             </div>
             <div className="flex justify-between">
               <span>Maintenance:</span>
