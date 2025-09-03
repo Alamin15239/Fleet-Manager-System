@@ -203,7 +203,7 @@ export default function TrucksPage() {
 
   const fetchTrucks = async () => {
     try {
-      const response = await apiGet('/api/trucks')
+      const response = await apiGet('/api/trucks?limit=100')
       if (response.ok) {
         const data = await response.json()
         // API returns { success: true, data: trucks, pagination: ... }

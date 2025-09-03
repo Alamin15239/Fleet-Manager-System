@@ -80,21 +80,28 @@ export async function POST(request: NextRequest) {
 
     // Save file metadata to database
     try {
-      const fileRecord = await db.truck.update({
+      // Get current documents
+      const currentTruck = await db.truck.findUnique({
+        where: { id: entityId },
+        select: { documents: true }
+      });
+      
+      const currentDocs = (currentTruck?.documents as any[]) || [];
+      const newDoc = {
+        id: `file_${timestamp}`,
+        name: filename,
+        originalName: file.name,
+        size: file.size,
+        type: file.type,
+        url: fileUrl,
+        uploadedAt: new Date().toISOString(),
+        uploadedBy: user.id
+      };
+      
+      await db.truck.update({
         where: { id: entityId },
         data: {
-          documents: {
-            push: {
-              id: `file_${timestamp}`,
-              name: filename,
-              originalName: file.name,
-              size: file.size,
-              type: file.type,
-              url: fileUrl,
-              uploadedAt: new Date().toISOString(),
-              uploadedBy: user.id
-            }
-          }
+          documents: [...currentDocs, newDoc]
         }
       });
       console.log('File metadata saved to database');
