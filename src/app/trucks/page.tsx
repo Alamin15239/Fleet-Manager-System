@@ -258,8 +258,8 @@ export default function TrucksPage() {
     
     console.log('Attempting to submit form...')
     try {
-      const url = '/api/trucks'
-      const response = await apiPost(url, formData)
+      const url = editingTruck ? `/api/trucks/${editingTruck.id}` : '/api/trucks'
+      const response = editingTruck ? await apiPut(url, formData) : await apiPost(url, formData)
       console.log('API response status:', response.status)
 
       if (response.ok) {
