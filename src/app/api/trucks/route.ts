@@ -72,7 +72,7 @@ export async function GET(request: NextRequest) {
           licensePlate: true,
           currentMileage: true,
           status: true,
-          documents: true,
+          driverName: true,
           createdAt: true,
           updatedAt: true,
           maintenanceRecords: {
@@ -171,8 +171,8 @@ export async function POST(request: NextRequest) {
         licensePlate: body.licensePlate,
         currentMileage: parseInt(body.currentMileage) || 0,
         status: body.status || 'ACTIVE',
+        driverName: body.driverName || null,
         image: body.image,
-        documents: body.documents,
         engineHours: body.engineHours ? parseInt(body.engineHours) : null,
         healthScore: body.healthScore ? parseFloat(body.healthScore) : null,
         riskLevel: body.riskLevel || 'LOW',

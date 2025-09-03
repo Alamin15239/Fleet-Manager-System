@@ -72,8 +72,8 @@ model Truck {
   licensePlate       String
   currentMileage     Int
   status             TruckStatus         @default(ACTIVE)
+  driverName         String?
   image              String?
-  documents          Json?
   isDeleted          Boolean             @default(false)
   deletedAt          DateTime?
   deletedBy          String?
@@ -99,7 +99,7 @@ model Trailer {
   id                    String                 @id @default(cuid())
   number                String                 @unique
   status                TruckStatus            @default(ACTIVE)
-  documents             Json?
+  driverName            String?
   isDeleted             Boolean                @default(false)
   deletedAt             DateTime?
   deletedBy             String?

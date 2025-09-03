@@ -65,7 +65,8 @@ export default function TrucksPage() {
     year: new Date().getFullYear(),
     licensePlate: '',
     currentMileage: 0,
-    status: 'ACTIVE' as const
+    status: 'ACTIVE' as const,
+    driverName: ''
   })
   
   const [validationErrors, setValidationErrors] = useState({
@@ -300,7 +301,8 @@ export default function TrucksPage() {
       year: truck.year,
       licensePlate: truck.licensePlate,
       currentMileage: truck.currentMileage,
-      status: truck.status
+      status: truck.status,
+      driverName: truck.driverName || ''
     })
     setIsDialogOpen(true)
   }
@@ -314,7 +316,8 @@ export default function TrucksPage() {
       year: new Date().getFullYear(),
       licensePlate: '',
       currentMileage: 0,
-      status: 'ACTIVE'
+      status: 'ACTIVE',
+      driverName: ''
     })
     setValidationErrors({
       vin: '',

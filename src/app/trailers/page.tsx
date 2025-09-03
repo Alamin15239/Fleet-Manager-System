@@ -9,9 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
-import { Truck, Plus, Edit, Eye, Paperclip, Trash2, Wrench, AlertTriangle } from 'lucide-react'
+import { Truck, Plus, Edit, Eye, Trash2, Wrench, AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
-import { FileUpload } from '@/components/file-upload'
 import { usePermissions } from '@/contexts/permissions-context'
 import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api'
 
@@ -19,7 +18,7 @@ interface Trailer {
   id: string
   number: string
   status: 'ACTIVE' | 'INACTIVE' | 'MAINTENANCE'
-  documents?: any[]
+  driverName?: string
   healthScore?: number
   riskLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
   lastInspection?: string
@@ -36,15 +35,16 @@ export default function TrailersPage() {
   const [trailers, setTrailers] = useState<Trailer[]>([])
   const [loading, setLoading] = useState(true)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
-  const [isFilesDialogOpen, setIsFilesDialogOpen] = useState(false)
+
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false)
   const [editingTrailer, setEditingTrailer] = useState<Trailer | null>(null)
   const [selectedTrailer, setSelectedTrailer] = useState<Trailer | null>(null)
-  const [trailerDocuments, setTrailerDocuments] = useState<any[]>([])
+
   
   const [formData, setFormData] = useState({
     number: '',
-    status: 'ACTIVE' as const
+    status: 'ACTIVE' as const,
+    driverName: ''
   })
 
   useEffect(() => {
@@ -108,7 +108,8 @@ export default function TrailersPage() {
     setEditingTrailer(trailer)
     setFormData({
       number: trailer.number,
-      status: trailer.status
+      status: trailer.status,
+      driverName: trailer.driverName || ''
     })
     setIsDialogOpen(true)
   }
@@ -117,7 +118,8 @@ export default function TrailersPage() {
     setEditingTrailer(null)
     setFormData({
       number: '',
-      status: 'ACTIVE'
+      status: 'ACTIVE',
+      driverName: ''
     })
   }
 
@@ -145,28 +147,14 @@ export default function TrailersPage() {
     }
   }
 
-  const handleManageFiles = (trailer: Trailer) => {
-    setSelectedTrailer(trailer)
-    setTrailerDocuments(trailer.documents || [])
-    setIsFilesDialogOpen(true)
-  }
+
 
   const handleViewTrailer = (trailer: Trailer) => {
     setSelectedTrailer(trailer)
     setIsViewDialogOpen(true)
   }
 
-  const handleFilesChange = (files: any[]) => {
-    setTrailerDocuments(files)
-    if (selectedTrailer) {
-      const updatedTrailers = trailers.map(trailer =>
-        trailer.id === selectedTrailer.id
-          ? { ...trailer, documents: files }
-          : trailer
-      )
-      setTrailers(updatedTrailers)
-    }
-  }
+
 
   if (permissionsLoading || loading) {
     return (
@@ -230,6 +218,18 @@ export default function TrailersPage() {
                   className="col-span-3"
                   required
                   placeholder="Enter trailer number (e.g., 1, 2, 3...)"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="driverName" className="text-right">
+                  Driver Name
+                </Label>
+                <Input
+                  id="driverName"
+                  value={formData.driverName}
+                  onChange={(e) => setFormData({...formData, driverName: e.target.value})}
+                  className="col-span-3"
+                  placeholder="Enter driver name (optional)"
                 />
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
@@ -323,36 +323,7 @@ export default function TrailersPage() {
         </Card>
       </div>
 
-      {/* Files Management Dialog */}
-      <Dialog open={isFilesDialogOpen} onOpenChange={setIsFilesDialogOpen}>
-        <DialogContent className="sm:max-w-[800px] max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>
-              Manage Files - Trailer {selectedTrailer?.number}
-            </DialogTitle>
-            <DialogDescription>
-              Upload and manage documents for this trailer
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            {selectedTrailer && (
-              <FileUpload
-                type="trailer"
-                entityId={selectedTrailer.id}
-                existingFiles={trailerDocuments}
-                onFilesChange={handleFilesChange}
-                multiple={true}
-                maxFiles={20}
-              />
-            )}
-          </div>
-          <DialogFooter>
-            <Button onClick={() => setIsFilesDialogOpen(false)}>
-              Done
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+
 
       {/* View Trailer Dialog */}
       <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
@@ -381,12 +352,9 @@ export default function TrailersPage() {
               </div>
               
               <div>
-                <Label className="text-sm font-medium text-gray-500">Documents</Label>
+                <Label className="text-sm font-medium text-gray-500">Driver Name</Label>
                 <p className="text-sm text-gray-600">
-                  {selectedTrailer.documents && selectedTrailer.documents.length > 0 
-                    ? `${selectedTrailer.documents.length} documents attached`
-                    : 'No documents attached'
-                  }
+                  {selectedTrailer.driverName || 'No driver assigned'}
                 </p>
               </div>
 
@@ -432,6 +400,7 @@ export default function TrailersPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Number</TableHead>
+                  <TableHead>Driver</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Risk Level</TableHead>
                   <TableHead>Maintenance Records</TableHead>
@@ -443,6 +412,7 @@ export default function TrailersPage() {
                 {trailers.map((trailer) => (
                   <TableRow key={trailer.id}>
                     <TableCell className="font-medium">Trailer {trailer.number}</TableCell>
+                    <TableCell>{trailer.driverName || 'No driver'}</TableCell>
                     <TableCell>
                       <Badge className={getStatusColor(trailer.status)}>
                         {trailer.status}
@@ -460,19 +430,7 @@ export default function TrailersPage() {
                         <Button variant="outline" size="sm" onClick={() => handleViewTrailer(trailer)}>
                           <Eye className="h-4 w-4" />
                         </Button>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          onClick={() => handleManageFiles(trailer)}
-                          className="relative"
-                        >
-                          <Paperclip className="h-4 w-4" />
-                          {trailer.documents && trailer.documents.length > 0 && (
-                            <span className="absolute -top-2 -right-2 bg-blue-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                              {trailer.documents.length}
-                            </span>
-                          )}
-                        </Button>
+
                         {canUpdate('trailers') && (
                           <Button variant="outline" size="sm" onClick={() => handleEdit(trailer)}>
                             <Edit className="h-4 w-4" />

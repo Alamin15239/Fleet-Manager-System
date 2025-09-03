@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
         id: true,
         number: true,
         status: true,
-        documents: true,
+        driverName: true,
         healthScore: true,
         riskLevel: true,
         lastInspection: true,
@@ -68,6 +68,7 @@ export async function POST(request: NextRequest) {
       data: {
         number: body.number,
         status: body.status || 'ACTIVE',
+        driverName: body.driverName || null,
         healthScore: body.healthScore ? parseFloat(body.healthScore) : null,
         riskLevel: body.riskLevel || 'LOW'
       }
