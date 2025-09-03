@@ -66,6 +66,13 @@ const getNavigation = (t: (key: string) => string) => [
     action: 'read'
   },
   { 
+    name: 'Trailers', 
+    href: '/trailers', 
+    icon: Truck,
+    resource: 'trailers',
+    action: 'read'
+  },
+  { 
     name: t('nav.analytics'), 
     href: '/advanced-analytics', 
     icon: TrendingUp,

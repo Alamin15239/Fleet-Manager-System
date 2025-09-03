@@ -9,6 +9,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Upload, File, X, Image, FileText, Download, Eye } from 'lucide-react'
 import { toast } from 'sonner'
 import { FilePreview } from './file-preview'
+import { useAuth } from '@/contexts/auth-context'
 
 interface UploadedFile {
   id: string
@@ -42,6 +43,7 @@ export function FileUpload({
   acceptedTypes,
   maxSize = 10
 }: FileUploadProps) {
+  const { token } = useAuth()
   const [files, setFiles] = useState<UploadedFile[]>(existingFiles)
   const [uploading, setUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(0)
@@ -103,6 +105,9 @@ export function FileUpload({
 
         const response = await fetch('/api/upload', {
           method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          },
           body: formData
         })
 

@@ -93,6 +93,27 @@ model Truck {
   @@map("trucks")
 }
 
+model Trailer {
+  id                    String                 @id @default(cuid())
+  number                String                 @unique
+  status                TruckStatus            @default(ACTIVE)
+  documents             Json?
+  isDeleted             Boolean                @default(false)
+  deletedAt             DateTime?
+  deletedBy             String?
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  healthScore           Float?
+  riskLevel             RiskLevel              @default(LOW)
+  lastInspection        DateTime?
+  nextInspection        DateTime?
+  trailerMaintenanceRecords TrailerMaintenanceRecord[]
+  trailerNotifications  TrailerNotification[]
+  trailerPredictiveAlerts TrailerPredictiveAlert[]
+
+  @@map("trailers")
+}
+
 model MaintenanceJob {
   id                 String              @id @default(cuid())
   name               String
@@ -133,6 +154,28 @@ model PredictiveAlert {
   @@map("predictive_alerts")
 }
 
+model TrailerPredictiveAlert {
+  id                   String    @id @default(cuid())
+  trailerId            String
+  alertType            AlertType
+  title                String
+  description          String
+  severity             RiskLevel @default(MEDIUM)
+  confidence           Float
+  predictedFailureDate DateTime?
+  recommendedAction    String?
+  costImpact           Float?
+  probability          Float
+  isResolved           Boolean   @default(false)
+  resolvedAt           DateTime?
+  resolvedBy           String?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  trailer              Trailer   @relation(fields: [trailerId], references: [id], onDelete: Cascade)
+
+  @@map("trailer_predictive_alerts")
+}
+
 model MaintenanceRecord {
   id                String            @id @default(cuid())
   truckId           String
@@ -168,6 +211,40 @@ model MaintenanceRecord {
   truck             Truck             @relation(fields: [truckId], references: [id], onDelete: Cascade)
 
   @@map("maintenance_records")
+}
+
+model TrailerMaintenanceRecord {
+  id                String            @id @default(cuid())
+  trailerId         String
+  serviceType       String
+  description       String?
+  datePerformed     DateTime
+  partsCost         Float             @default(0)
+  laborCost         Float             @default(0)
+  totalCost         Float             @default(0)
+  mechanicId        String?
+  createdById       String?
+  nextServiceDue    DateTime?
+  status            MaintenanceStatus @default(COMPLETED)
+  notes             String?
+  attachments       Json?
+  maintenanceJobId  String?
+  isDeleted         Boolean           @default(false)
+  deletedAt         DateTime?
+  deletedBy         String?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  wasPredicted      Boolean           @default(false)
+  predictionId      String?
+  downtimeHours     Float?
+  failureMode       String?
+  rootCause         String?
+  createdBy         User?             @relation(fields: [createdById], references: [id])
+  maintenanceJob    MaintenanceJob?   @relation(fields: [maintenanceJobId], references: [id])
+  mechanic          Mechanic?         @relation(fields: [mechanicId], references: [id])
+  trailer           Trailer           @relation(fields: [trailerId], references: [id], onDelete: Cascade)
+
+  @@map("trailer_maintenance_records")
 }
 
 model Settings {
@@ -218,6 +295,26 @@ model Notification {
   @@index([type])
   @@index([userId])
   @@map("notifications")
+}
+
+model TrailerNotification {
+  id        String   @id @default(cuid())
+  type      String
+  title     String
+  message   String
+  trailerId String?
+  userId    String?
+  metadata  Json?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  trailer   Trailer? @relation(fields: [trailerId], references: [id], onDelete: Cascade)
+
+  @@index([createdAt])
+  @@index([isRead])
+  @@index([type])
+  @@index([userId])
+  @@map("trailer_notifications")
 }
 
 model AuditLog {
