@@ -38,6 +38,7 @@ model User {
   createdDocuments         Document[]
   loginHistory             LoginHistory[]
   maintenanceRecords       MaintenanceRecord[]
+  trailerMaintenanceRecords TrailerMaintenanceRecord[]
   createdTires             Tire[]
   userActivities           UserActivity[]
 
@@ -57,6 +58,7 @@ model Mechanic {
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
   maintenanceRecords MaintenanceRecord[]
+  trailerMaintenanceRecords TrailerMaintenanceRecord[]
 
   @@map("mechanics")
 }
@@ -127,6 +129,7 @@ model MaintenanceJob {
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
   maintenanceRecords MaintenanceRecord[]
+  trailerMaintenanceRecords TrailerMaintenanceRecord[]
 
   @@unique([name, category])
   @@map("maintenance_jobs")
