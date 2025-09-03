@@ -155,8 +155,13 @@ export function Navigation({ userRole = 'USER' }: NavigationProps) {
         'flex items-center border-b border-sidebar-border',
         isSidebarOpen ? 'px-6 py-4 justify-between' : 'px-4 py-4 justify-center'
       )}>
-        {isSidebarOpen && (
-          <h1 className="text-xl font-bold text-sidebar-foreground">Fleet Manager</h1>
+        {isSidebarOpen ? (
+          <div className="flex items-center gap-2">
+            <Truck className="h-6 w-6 text-primary" />
+            <h1 className="text-xl font-bold text-sidebar-foreground">Fleet Manager</h1>
+          </div>
+        ) : (
+          <Truck className="h-6 w-6 text-primary" />
         )}
         <div className="flex items-center gap-2">
           <LanguageToggle />
