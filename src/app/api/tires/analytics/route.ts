@@ -87,28 +87,13 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    // Get top 10 vehicles by tire count
-    const topVehicles = await db.vehicle.findMany({
-      select: {
-        plateNumber: true,
-        trailerNumber: true,
-        driverName: true,
-        _count: {
-          select: { tires: true }
-        }
-      },
-      where: {
-        tires: {
-          some: {}
-        }
-      },
-      orderBy: {
-        tires: {
-          _count: 'desc'
-        }
-      },
-      take: 10
-    })
+    // Get top 10 vehicles by tire count using historical data from tire records
+    const topVehicles = tiresByVehicle.slice(0, 10).map(item => ({
+      plateNumber: item.plateNumber,
+      trailerNumber: null, // Historical data from tire record
+      driverName: null, // Historical data from tire record  
+      tireCount: item._sum.quantity || 0
+    }))
 
     // Get top 10 drivers by tire count
     const topDrivers = await db.tire.groupBy({
@@ -147,12 +132,7 @@ export async function GET(request: NextRequest) {
         quantity: item._sum.quantity || 0
       })),
       monthlyData,
-      topVehicles: topVehicles.map(vehicle => ({
-        plateNumber: vehicle.plateNumber,
-        trailerNumber: vehicle.trailerNumber,
-        driverName: vehicle.driverName,
-        tireCount: vehicle._count.tires
-      })),
+      topVehicles,
       topDrivers: topDrivers.map(driver => ({
         driverName: driver.driverName,
         tireCount: driver._sum.quantity || 0,

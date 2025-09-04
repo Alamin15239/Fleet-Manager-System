@@ -94,20 +94,19 @@ export async function GET(request: NextRequest) {
       take: 5
     })
 
-    // Get recent maintenance records (only user-created)
+    // Get recent maintenance records using historical data
     const recentMaintenance = await db.maintenanceRecord.findMany({
       where: { isDeleted: false },
-      include: {
-        truck: {
-          select: {
-            id: true,
-            vin: true,
-            make: true,
-            model: true,
-            year: true,
-            licensePlate: true
-          }
-        }
+      select: {
+        id: true,
+        serviceType: true,
+        totalCost: true,
+        status: true,
+        datePerformed: true,
+        vehicleName: true,
+        mechanicName: true,
+        driverName: true,
+        createdAt: true
       },
       orderBy: { createdAt: 'desc' },
       take: 5

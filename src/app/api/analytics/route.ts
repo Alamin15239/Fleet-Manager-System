@@ -169,7 +169,7 @@ async function getTruckPerformance(truckId: string) {
 }
 
 async function getMechanicProductivity(startDate: Date, endDate: Date) {
-  // Get mechanics from maintenance records (simplified approach)
+  // Get mechanics from maintenance records using historical data
   const maintenanceRecords = await db.maintenanceRecord.findMany({
     where: {
       datePerformed: {
@@ -178,16 +178,17 @@ async function getMechanicProductivity(startDate: Date, endDate: Date) {
       },
       status: 'COMPLETED'
     },
-    include: {
-      mechanic: true
+    select: {
+      mechanicName: true,
+      totalCost: true
     }
   })
 
-  // Group by mechanic
+  // Group by mechanic using historical names
   const mechanicStats = new Map()
   
   maintenanceRecords.forEach(record => {
-    const mechanicName = record.mechanic?.name || 'Unknown'
+    const mechanicName = record.mechanicName || 'Unknown'
     if (!mechanicStats.has(mechanicName)) {
       mechanicStats.set(mechanicName, {
         completedJobs: 0,
