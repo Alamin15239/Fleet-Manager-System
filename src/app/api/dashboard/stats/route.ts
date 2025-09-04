@@ -151,9 +151,21 @@ export async function GET(request: NextRequest) {
     })
   } catch (error) {
     console.error('Error fetching dashboard stats:', error)
-    return NextResponse.json(
-      { error: 'Failed to fetch dashboard stats' },
-      { status: 500 }
-    )
+    // Return default values instead of 500 error
+    return NextResponse.json({
+      totalTrucks: 0,
+      totalTrailers: 0,
+      totalFleet: 0,
+      activeTrucks: 0,
+      activeTrailers: 0,
+      activeFleet: 0,
+      upcomingMaintenance: 0,
+      overdueRepairs: 0,
+      totalMaintenanceCost: 0,
+      recentTrucks: [],
+      recentMaintenance: [],
+      monthlyMaintenanceData: [],
+      error: 'Database connection failed'
+    })
   }
 }
