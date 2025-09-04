@@ -3,12 +3,13 @@ import { db } from '@/lib/db'
 
 export async function GET(request: NextRequest) {
   try {
-    // TEMPORARY FIX: Hardcode values due to database connection issues
+    // FORCE UPDATE: Hardcode values due to database connection issues
     const totalTrucks = 43
     const allTrucksCount = 43
     const activeTrucks = 41
     const totalTrailers = 36
     const activeTrailers = 31
+    console.log('FORCE UPDATE: Using hardcoded values - trucks:', totalTrucks)
 
     // TEMPORARY: Hardcode other values
     const upcomingMaintenance = 0
