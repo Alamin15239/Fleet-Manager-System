@@ -227,6 +227,11 @@ export default function TireManagementForm() {
         
         // Refresh data
         fetchVehicles()
+        
+        // Redirect to list page after 1.5 seconds
+        setTimeout(() => {
+          window.location.href = '/tire-management?tab=inventory'
+        }, 1500)
       } else {
         const errorData = await response.json()
         console.error('Tire creation failed:', errorData)
