@@ -479,18 +479,35 @@ export default function MaintenancePage() {
                 <Label htmlFor="vehicleId" className="text-right">
                   Vehicle
                 </Label>
-                <Select value={formData.truckId} onValueChange={(value) => setFormData({...formData, truckId: value})}>
-                  <SelectTrigger className="col-span-3">
-                    <SelectValue placeholder="Select truck or trailer" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {vehicles.map((vehicle) => (
-                      <SelectItem key={vehicle.id} value={vehicle.id}>
-                        {vehicle.type === 'truck' ? '🚛' : '🚚'} {vehicle.displayName} - {vehicle.identifier}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="col-span-3 relative">
+                  <Input
+                    placeholder="Search vehicles..."
+                    value={vehicles.find(v => v.id === formData.truckId)?.displayName || ''}
+                    onChange={(e) => {
+                      const searchTerm = e.target.value.toLowerCase()
+                      const matchedVehicle = vehicles.find(v => 
+                        v.displayName.toLowerCase().includes(searchTerm) ||
+                        v.identifier.toLowerCase().includes(searchTerm)
+                      )
+                      if (matchedVehicle) {
+                        setFormData({...formData, truckId: matchedVehicle.id})
+                      }
+                    }}
+                    className="w-full"
+                  />
+                  <Select value={formData.truckId} onValueChange={(value) => setFormData({...formData, truckId: value})}>
+                    <SelectTrigger className="absolute right-0 top-0 w-8 h-full border-0 bg-transparent">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {vehicles.map((vehicle) => (
+                        <SelectItem key={vehicle.id} value={vehicle.id}>
+                          {vehicle.type === 'truck' ? '🚛' : '🚚'} {vehicle.displayName} - {vehicle.identifier}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
               
               <div className="grid grid-cols-4 items-center gap-4">
@@ -596,19 +613,40 @@ export default function MaintenancePage() {
                 <Label htmlFor="mechanicId" className="text-right">
                   {t('maintenance.mechanic')}
                 </Label>
-                <Select value={formData.mechanicId} onValueChange={(value) => setFormData({...formData, mechanicId: value})}>
-                  <SelectTrigger className="col-span-3">
-                    <SelectValue placeholder={t('maintenance.selectMechanic')} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">{t('maintenance.noMechanic')}</SelectItem>
-                    {mechanics.map((mechanic) => (
-                      <SelectItem key={mechanic.id} value={mechanic.id}>
-                        {mechanic.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="col-span-3 relative">
+                  <Input
+                    placeholder="Search mechanics..."
+                    value={mechanics.find(m => m.id === formData.mechanicId)?.name || (formData.mechanicId === 'none' ? 'No mechanic' : '')}
+                    onChange={(e) => {
+                      const searchTerm = e.target.value.toLowerCase()
+                      if (searchTerm === '' || searchTerm === 'no mechanic') {
+                        setFormData({...formData, mechanicId: 'none'})
+                      } else {
+                        const matchedMechanic = mechanics.find(m => 
+                          m.name.toLowerCase().includes(searchTerm) ||
+                          m.email.toLowerCase().includes(searchTerm)
+                        )
+                        if (matchedMechanic) {
+                          setFormData({...formData, mechanicId: matchedMechanic.id})
+                        }
+                      }
+                    }}
+                    className="w-full"
+                  />
+                  <Select value={formData.mechanicId} onValueChange={(value) => setFormData({...formData, mechanicId: value})}>
+                    <SelectTrigger className="absolute right-0 top-0 w-8 h-full border-0 bg-transparent">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">{t('maintenance.noMechanic')}</SelectItem>
+                      {mechanics.map((mechanic) => (
+                        <SelectItem key={mechanic.id} value={mechanic.id}>
+                          {mechanic.name} - {mechanic.email}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
               
               <div className="grid grid-cols-4 items-center gap-4">
