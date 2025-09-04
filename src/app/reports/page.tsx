@@ -175,18 +175,14 @@ export default function ReportsPage() {
 
   const getFilteredData = () => {
     let filteredMaintenance = [...maintenance]
-    let filteredTrucks = [...trucks]
-    let filteredTrailers = [...trailers]
+    let filteredTrucks = filters.selectedTrucks.length > 0 ? trucks.filter(truck => filters.selectedTrucks.includes(truck.id)) : []
+    let filteredTrailers = filters.selectedTrailers.length > 0 ? trailers.filter(trailer => filters.selectedTrailers.includes(trailer.id)) : []
     
-    // Filter by selected trucks
+    // Filter maintenance by selected trucks
     if (filters.selectedTrucks.length > 0) {
-      filteredTrucks = filteredTrucks.filter(truck => filters.selectedTrucks.includes(truck.id))
       filteredMaintenance = filteredMaintenance.filter(record => filters.selectedTrucks.includes(record.truckId))
-    }
-    
-    // Filter by selected trailers
-    if (filters.selectedTrailers.length > 0) {
-      filteredTrailers = filteredTrailers.filter(trailer => filters.selectedTrailers.includes(trailer.id))
+    } else {
+      filteredMaintenance = []
     }
     
     // Filter by selected maintenance records
