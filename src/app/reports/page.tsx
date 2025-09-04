@@ -694,9 +694,14 @@ export default function ReportsPage() {
                     </CommandList>
                   </Command>
                   <div className="flex justify-between mt-4">
-                    <Button variant="outline" onClick={() => setFilters(prev => ({ ...prev, selectedTrucks: [] }))}>
-                      Clear All
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" onClick={() => setFilters(prev => ({ ...prev, selectedTrucks: trucks.map(t => t.id) }))}>
+                        Select All
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => setFilters(prev => ({ ...prev, selectedTrucks: [] }))}>
+                        Clear All
+                      </Button>
+                    </div>
                     <Button onClick={() => setTruckSearchOpen(false)}>
                       Done ({filters.selectedTrucks.length} selected)
                     </Button>
@@ -753,9 +758,14 @@ export default function ReportsPage() {
                     </CommandList>
                   </Command>
                   <div className="flex justify-between mt-4">
-                    <Button variant="outline" onClick={() => setFilters(prev => ({ ...prev, selectedTrailers: [] }))}>
-                      Clear All
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" onClick={() => setFilters(prev => ({ ...prev, selectedTrailers: trailers.map(t => t.id) }))}>
+                        Select All
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => setFilters(prev => ({ ...prev, selectedTrailers: [] }))}>
+                        Clear All
+                      </Button>
+                    </div>
                     <Button onClick={() => setTrailerSearchOpen(false)}>
                       Done ({filters.selectedTrailers.length} selected)
                     </Button>
