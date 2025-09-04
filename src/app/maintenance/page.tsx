@@ -245,7 +245,7 @@ export default function MaintenancePage() {
 
   const fetchTrucks = async () => {
     try {
-      const response = await apiGet('/api/trucks')
+      const response = await apiGet('/api/trucks?limit=10000')
       if (response.ok) {
         const data = await response.json()
         setTrucks(data.data || [])
@@ -257,7 +257,7 @@ export default function MaintenancePage() {
 
   const fetchTrailers = async () => {
     try {
-      const response = await apiGet('/api/trailers')
+      const response = await apiGet('/api/trailers?limit=10000')
       if (response.ok) {
         const data = await response.json()
         setTrailers(data.data || [])
