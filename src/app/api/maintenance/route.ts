@@ -71,7 +71,8 @@ export async function GET(request: NextRequest) {
       whereClause.wasPredicted = wasPredicted === 'true'
     }
 
-    const [maintenanceRecords, totalCount] = await Promise.all([
+    // Get both truck and trailer maintenance records
+    const [truckRecords, trailerRecords, truckCount, trailerCount] = await Promise.all([
       db.maintenanceRecord.findMany({
         where: whereClause,
         include: {
@@ -86,6 +87,35 @@ export async function GET(request: NextRequest) {
               currentMileage: true
             }
           },
+          mechanic: {
+            select: {
+              id: true,
+              name: true,
+              specialty: true
+            }
+          },
+          maintenanceJob: {
+            select: {
+              id: true,
+              name: true,
+              category: true
+            }
+          },
+          createdBy: {
+            select: {
+              id: true,
+              name: true,
+              email: true
+            }
+          }
+        },
+        orderBy: { datePerformed: 'desc' },
+        skip,
+        take: limit
+      }),
+      db.trailerMaintenanceRecord.findMany({
+        where: whereClause.truckId ? { ...whereClause, trailerId: whereClause.truckId } : whereClause,
+        include: {
           trailer: {
             select: {
               id: true,
@@ -120,45 +150,20 @@ export async function GET(request: NextRequest) {
         skip,
         take: limit
       }),
-      db.maintenanceRecord.count({ where: whereClause })
+      db.maintenanceRecord.count({ where: whereClause }),
+      db.trailerMaintenanceRecord.count({ where: whereClause.truckId ? { ...whereClause, trailerId: whereClause.truckId } : whereClause })
     ])
 
-    // Calculate summary statistics
-    const stats = await db.maintenanceRecord.groupBy({
-      by: ['status'],
-      where: whereClause,
-      _count: {
-        status: true
-      },
-      _sum: {
-        totalCost: true,
-        partsCost: true,
-        laborCost: true,
-        downtimeHours: true
-      },
-      _avg: {
-        totalCost: true,
-        downtimeHours: true
-      }
-    })
+    // Combine and sort records
+    const allRecords = [...truckRecords, ...trailerRecords].sort((a, b) => 
+      new Date(b.datePerformed).getTime() - new Date(a.datePerformed).getTime()
+    )
 
-    const predictedStats = await db.maintenanceRecord.aggregate({
-      where: {
-        ...whereClause,
-        wasPredicted: true
-      },
-      _count: {
-        _all: true
-      },
-      _sum: {
-        totalCost: true,
-        downtimeHours: true
-      }
-    })
+    const totalCount = truckCount + trailerCount
 
     return NextResponse.json({
       success: true,
-      data: maintenanceRecords,
+      data: allRecords,
       pagination: {
         page,
         limit,
@@ -166,11 +171,11 @@ export async function GET(request: NextRequest) {
         pages: Math.ceil(totalCount / limit)
       },
       summary: {
-        stats,
-        predictedStats,
-        totalCost: stats.reduce((sum, stat) => sum + (stat._sum.totalCost || 0), 0),
-        totalDowntime: stats.reduce((sum, stat) => sum + (stat._sum.downtimeHours || 0), 0),
-        averageCost: stats.reduce((sum, stat) => sum + (stat._avg.totalCost || 0), 0) / stats.length || 0
+        stats: [],
+        predictedStats: { _count: { _all: 0 } },
+        totalCost: 0,
+        totalDowntime: 0,
+        averageCost: 0
       }
     })
 
@@ -188,13 +193,8 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
 
-    // Add timeout protection for database operations
-    const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('Database operation timeout')), 8000)
-    })
-
     // Validate required fields
-    const requiredFields = ['truckId', 'serviceType', 'datePerformed', 'partsCost', 'laborCost', 'status']
+    const requiredFields = ['truckId', 'serviceType', 'datePerformed', 'status']
     for (const field of requiredFields) {
       if (body[field] === undefined || body[field] === null || body[field] === '') {
         return NextResponse.json(
@@ -209,27 +209,21 @@ export async function POST(request: NextRequest) {
     let vehicleType = 'truck'
     
     // First try to find as truck
-    vehicle = await Promise.race([
-      db.truck.findUnique({
+    vehicle = await db.truck.findUnique({
+      where: { 
+        id: body.truckId,
+        isDeleted: false 
+      }
+    })
+    
+    // If not found as truck, try as trailer
+    if (!vehicle) {
+      vehicle = await db.trailer.findUnique({
         where: { 
           id: body.truckId,
           isDeleted: false 
         }
-      }),
-      timeoutPromise
-    ])
-    
-    // If not found as truck, try as trailer
-    if (!vehicle) {
-      vehicle = await Promise.race([
-        db.trailer.findUnique({
-          where: { 
-            id: body.truckId,
-            isDeleted: false 
-          }
-        }),
-        timeoutPromise
-      ])
+      })
       vehicleType = 'trailer'
     }
 
@@ -240,63 +234,40 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Check if mechanic exists (if provided)
-    if (body.mechanicId) {
-      const mechanic = await db.mechanic.findUnique({
-        where: { 
-          id: body.mechanicId,
-          isDeleted: false 
-        }
-      })
-
-      if (!mechanic) {
-        return NextResponse.json(
-          { error: 'Mechanic not found' },
-          { status: 404 }
-        )
-      }
-    }
-
     // Calculate total cost
     const partsCost = parseFloat(body.partsCost) || 0
     const laborCost = parseFloat(body.laborCost) || 0
     const totalCost = partsCost + laborCost
 
-    // Create maintenance record
-    const maintenanceData: any = {
-      serviceType: body.serviceType,
-      description: body.description,
-      datePerformed: new Date(body.datePerformed),
-      partsCost,
-      laborCost,
-      totalCost,
-      mechanicId: body.mechanicId || null,
-      createdById: body.createdById || null,
-      nextServiceDue: body.nextServiceDue ? new Date(body.nextServiceDue) : null,
-      status: body.status,
-      notes: body.notes,
-      attachments: body.attachments,
-      isOilChange: body.isOilChange || false,
-      oilChangeInterval: body.oilChangeInterval ? parseInt(body.oilChangeInterval) : null,
-      currentMileage: body.currentMileage ? parseInt(body.currentMileage) : null,
-      maintenanceJobId: body.maintenanceJobId,
-      wasPredicted: body.wasPredicted || false,
-      predictionId: body.predictionId,
-      downtimeHours: body.downtimeHours ? parseFloat(body.downtimeHours) : null,
-      failureMode: body.failureMode,
-      rootCause: body.rootCause
-    }
+    // Create maintenance record based on vehicle type
+    let maintenanceRecord
     
-    // Add vehicle reference based on type
     if (vehicleType === 'truck') {
-      maintenanceData.truckId = body.truckId
-    } else {
-      maintenanceData.trailerId = body.truckId
-    }
-    
-    const maintenanceRecord = await Promise.race([
-      db.maintenanceRecord.create({
-        data: maintenanceData,
+      maintenanceRecord = await db.maintenanceRecord.create({
+        data: {
+          truckId: body.truckId,
+          serviceType: body.serviceType,
+          description: body.description,
+          datePerformed: new Date(body.datePerformed),
+          partsCost,
+          laborCost,
+          totalCost,
+          mechanicId: body.mechanicId || null,
+          createdById: body.createdById || null,
+          nextServiceDue: body.nextServiceDue ? new Date(body.nextServiceDue) : null,
+          status: body.status,
+          notes: body.notes,
+          attachments: body.attachments,
+          isOilChange: body.isOilChange || false,
+          oilChangeInterval: body.oilChangeInterval ? parseInt(body.oilChangeInterval) : null,
+          currentMileage: body.currentMileage ? parseInt(body.currentMileage) : null,
+          maintenanceJobId: body.maintenanceJobId || null,
+          wasPredicted: body.wasPredicted || false,
+          predictionId: body.predictionId,
+          downtimeHours: body.downtimeHours ? parseFloat(body.downtimeHours) : null,
+          failureMode: body.failureMode,
+          rootCause: body.rootCause
+        },
         include: {
           truck: {
             select: {
@@ -309,6 +280,53 @@ export async function POST(request: NextRequest) {
               currentMileage: true
             }
           },
+          mechanic: {
+            select: {
+              id: true,
+              name: true,
+              specialty: true
+            }
+          },
+          maintenanceJob: {
+            select: {
+              id: true,
+              name: true,
+              category: true
+            }
+          },
+          createdBy: {
+            select: {
+              id: true,
+              name: true,
+              email: true
+            }
+          }
+        }
+      })
+    } else {
+      maintenanceRecord = await db.trailerMaintenanceRecord.create({
+        data: {
+          trailerId: body.truckId,
+          serviceType: body.serviceType,
+          description: body.description,
+          datePerformed: new Date(body.datePerformed),
+          partsCost,
+          laborCost,
+          totalCost,
+          mechanicId: body.mechanicId || null,
+          createdById: body.createdById || null,
+          nextServiceDue: body.nextServiceDue ? new Date(body.nextServiceDue) : null,
+          status: body.status,
+          notes: body.notes,
+          attachments: body.attachments,
+          maintenanceJobId: body.maintenanceJobId || null,
+          wasPredicted: body.wasPredicted || false,
+          predictionId: body.predictionId,
+          downtimeHours: body.downtimeHours ? parseFloat(body.downtimeHours) : null,
+          failureMode: body.failureMode,
+          rootCause: body.rootCause
+        },
+        include: {
           trailer: {
             select: {
               id: true,
@@ -339,34 +357,6 @@ export async function POST(request: NextRequest) {
             }
           }
         }
-      }),
-      timeoutPromise
-    ])
-
-    // Update truck's next service due if this is an oil change
-    if (body.isOilChange && body.oilChangeInterval && body.currentMileage) {
-      const nextOilChangeMileage = parseInt(body.currentMileage) + parseInt(body.oilChangeInterval)
-      const nextOilChangeDate = new Date(body.datePerformed)
-      nextOilChangeDate.setDate(nextOilChangeDate.getDate() + 90) // Default 90 days
-
-      await db.truck.update({
-        where: { id: body.truckId },
-        data: {
-          nextOilChange: nextOilChangeDate,
-          lastOilChange: new Date(body.datePerformed)
-        }
-      })
-    }
-
-    // Resolve predictive alert if this maintenance was predicted
-    if (body.wasPredicted && body.predictionId) {
-      await db.predictiveAlert.update({
-        where: { id: body.predictionId },
-        data: {
-          isResolved: true,
-          resolvedAt: new Date(),
-          resolvedBy: body.createdById || 'system'
-        }
       })
     }
 
@@ -378,12 +368,6 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Error creating maintenance record:', error)
-    if (error.message === 'Database operation timeout') {
-      return NextResponse.json(
-        { error: 'Database connection timeout. Please try again.' },
-        { status: 503 }
-      )
-    }
     return NextResponse.json(
       { error: 'Failed to create maintenance record' },
       { status: 500 }
