@@ -180,6 +180,7 @@ export default function MaintenancePage() {
         identifier: trailer.driverName || 'No driver'
       }))
     ]
+    console.log('Vehicles loaded:', { trucks: trucks.length, trailers: trailers.length, total: combinedVehicles.length })
     setVehicles(combinedVehicles)
   }, [trucks, trailers])
 
@@ -244,7 +245,7 @@ export default function MaintenancePage() {
 
   const fetchTrucks = async () => {
     try {
-      const response = await apiGet('/api/trucks?limit=1000')
+      const response = await apiGet('/api/trucks')
       if (response.ok) {
         const data = await response.json()
         setTrucks(data.data || [])
@@ -256,7 +257,7 @@ export default function MaintenancePage() {
 
   const fetchTrailers = async () => {
     try {
-      const response = await apiGet('/api/trailers?limit=1000')
+      const response = await apiGet('/api/trailers')
       if (response.ok) {
         const data = await response.json()
         setTrailers(data.data || [])
@@ -522,12 +523,8 @@ export default function MaintenancePage() {
                   />
                   {showVehicleDropdown && (
                     <div className="absolute z-50 w-full mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-auto">
-                      {vehicles
-                        .filter(vehicle => 
-                          vehicle.displayName.toLowerCase().includes(vehicleSearch.toLowerCase()) ||
-                          vehicle.identifier.toLowerCase().includes(vehicleSearch.toLowerCase())
-                        )
-                        .map((vehicle) => (
+                      {vehicleSearch === '' ? (
+                        vehicles.map((vehicle) => (
                           <div
                             key={vehicle.id}
                             className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
@@ -540,12 +537,34 @@ export default function MaintenancePage() {
                             {vehicle.type === 'truck' ? '🚛' : '🚚'} {vehicle.displayName} - {vehicle.identifier}
                           </div>
                         ))
-                      }
-                      {vehicles.filter(vehicle => 
+                      ) : (
+                        vehicles
+                          .filter(vehicle => 
+                            vehicle.displayName.toLowerCase().includes(vehicleSearch.toLowerCase()) ||
+                            vehicle.identifier.toLowerCase().includes(vehicleSearch.toLowerCase())
+                          )
+                          .map((vehicle) => (
+                            <div
+                              key={vehicle.id}
+                              className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                              onClick={() => {
+                                setFormData({...formData, truckId: vehicle.id})
+                                setVehicleSearch(`${vehicle.displayName} - ${vehicle.identifier}`)
+                                setShowVehicleDropdown(false)
+                              }}
+                            >
+                              {vehicle.type === 'truck' ? '🚛' : '🚚'} {vehicle.displayName} - {vehicle.identifier}
+                            </div>
+                          ))
+                      )}
+                      {vehicleSearch !== '' && vehicles.filter(vehicle => 
                         vehicle.displayName.toLowerCase().includes(vehicleSearch.toLowerCase()) ||
                         vehicle.identifier.toLowerCase().includes(vehicleSearch.toLowerCase())
                       ).length === 0 && (
                         <div className="px-3 py-2 text-gray-500">No vehicles found</div>
+                      )}
+                      {vehicles.length === 0 && (
+                        <div className="px-3 py-2 text-gray-500">No vehicles available</div>
                       )}
                     </div>
                   )}
