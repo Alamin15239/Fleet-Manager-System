@@ -8,7 +8,9 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const maintenanceRecord = await db.maintenanceRecord.findUnique({
+    
+    // Try to find in truck maintenance records first
+    let maintenanceRecord = await db.maintenanceRecord.findUnique({
       where: { 
         id: id,
         isDeleted: false 
@@ -50,23 +52,54 @@ export async function GET(
             name: true,
             email: true
           }
-        },
-        // predictiveAlert: {
-        //   select: {
-        //     id: true,
-        //     alertType: true,
-        //     title: true,
-        //     description: true,
-        //     severity: true,
-        //     confidence: true,
-        //     predictedFailureDate: true,
-        //     recommendedAction: true,
-        //     costImpact: true,
-        //     probability: true
-        //   }
-        // }
+        }
       }
     })
+
+    // If not found in truck records, try trailer records
+    if (!maintenanceRecord) {
+      maintenanceRecord = await db.trailerMaintenanceRecord.findUnique({
+        where: { 
+          id: id,
+          isDeleted: false 
+        },
+        include: {
+          trailer: {
+            select: {
+              id: true,
+              number: true,
+              status: true,
+              driverName: true
+            }
+          },
+          mechanic: {
+            select: {
+              id: true,
+              name: true,
+              specialty: true,
+              email: true,
+              phone: true
+            }
+          },
+          maintenanceJob: {
+            select: {
+              id: true,
+              name: true,
+              category: true,
+              parts: true,
+              notes: true
+            }
+          },
+          createdBy: {
+            select: {
+              id: true,
+              name: true,
+              email: true
+            }
+          }
+        }
+      })
+    }
 
     if (!maintenanceRecord) {
       return NextResponse.json(
@@ -98,13 +131,26 @@ export async function PUT(
     const { id } = await params;
     const body = await request.json()
 
-    // Check if maintenance record exists
-    const existingRecord = await db.maintenanceRecord.findUnique({
+    // Check if maintenance record exists in truck records
+    let existingRecord = await db.maintenanceRecord.findUnique({
       where: { 
         id: id,
         isDeleted: false 
       }
     })
+
+    let recordType = 'truck'
+
+    // If not found in truck records, check trailer records
+    if (!existingRecord) {
+      existingRecord = await db.trailerMaintenanceRecord.findUnique({
+        where: { 
+          id: id,
+          isDeleted: false 
+        }
+      })
+      recordType = 'trailer'
+    }
 
     if (!existingRecord) {
       return NextResponse.json(
@@ -113,131 +159,118 @@ export async function PUT(
       )
     }
 
-    // Check if truck exists (if truckId is being changed)
-    if (body.truckId && body.truckId !== existingRecord.truckId) {
-      const truck = await db.truck.findUnique({
-        where: { 
-          id: body.truckId,
-          isDeleted: false 
-        }
-      })
-
-      if (!truck) {
-        return NextResponse.json(
-          { error: 'Truck not found' },
-          { status: 404 }
-        )
-      }
-    }
-
-    // Check if mechanic exists (if mechanicId is being changed)
-    if (body.mechanicId && body.mechanicId !== existingRecord.mechanicId) {
-      const mechanic = await db.mechanic.findUnique({
-        where: { 
-          id: body.mechanicId,
-          isDeleted: false 
-        }
-      })
-
-      if (!mechanic) {
-        return NextResponse.json(
-          { error: 'Mechanic not found' },
-          { status: 404 }
-        )
-      }
-    }
-
     // Calculate total cost
     const partsCost = body.partsCost !== undefined ? parseFloat(body.partsCost) : existingRecord.partsCost
     const laborCost = body.laborCost !== undefined ? parseFloat(body.laborCost) : existingRecord.laborCost
     const totalCost = partsCost + laborCost
 
-    // Update maintenance record
-    const updatedRecord = await db.maintenanceRecord.update({
-      where: { id: id },
-      data: {
-        ...(body.truckId !== undefined && { truckId: body.truckId }),
-        ...(body.serviceType !== undefined && { serviceType: body.serviceType }),
-        ...(body.description !== undefined && { description: body.description }),
-        ...(body.datePerformed !== undefined && { datePerformed: new Date(body.datePerformed) }),
-        ...(body.partsCost !== undefined && { partsCost }),
-        ...(body.laborCost !== undefined && { laborCost }),
-        totalCost,
-        ...(body.mechanicId !== undefined && { mechanicId: body.mechanicId || null }),
-        ...(body.createdById !== undefined && { createdById: body.createdById || null }),
-        ...(body.nextServiceDue !== undefined && { nextServiceDue: body.nextServiceDue ? new Date(body.nextServiceDue) : null }),
-        ...(body.status !== undefined && { status: body.status }),
-        ...(body.notes !== undefined && { notes: body.notes }),
-        ...(body.attachments !== undefined && { attachments: body.attachments }),
-        ...(body.isOilChange !== undefined && { isOilChange: body.isOilChange }),
-        ...(body.oilChangeInterval !== undefined && { oilChangeInterval: body.oilChangeInterval ? parseInt(body.oilChangeInterval) : null }),
-        ...(body.currentMileage !== undefined && { currentMileage: body.currentMileage ? parseInt(body.currentMileage) : null }),
-        ...(body.maintenanceJobId !== undefined && { maintenanceJobId: body.maintenanceJobId }),
-        ...(body.wasPredicted !== undefined && { wasPredicted: body.wasPredicted }),
-        ...(body.predictionId !== undefined && { predictionId: body.predictionId }),
-        ...(body.downtimeHours !== undefined && { downtimeHours: body.downtimeHours ? parseFloat(body.downtimeHours) : null }),
-        ...(body.failureMode !== undefined && { failureMode: body.failureMode }),
-        ...(body.rootCause !== undefined && { rootCause: body.rootCause })
-      },
-      include: {
-        truck: {
-          select: {
-            id: true,
-            vin: true,
-            make: true,
-            model: true,
-            year: true,
-            licensePlate: true,
-            currentMileage: true
-          }
-        },
-        mechanic: {
-          select: {
-            id: true,
-            name: true,
-            specialty: true
-          }
-        },
-        maintenanceJob: {
-          select: {
-            id: true,
-            name: true,
-            category: true
-          }
-        },
-        createdBy: {
-          select: {
-            id: true,
-            name: true,
-            email: true
-          }
-        }
-      }
-    })
-
-    // Update truck's oil change information if this is an oil change
-    if (body.isOilChange && body.oilChangeInterval && body.currentMileage) {
-      const nextOilChangeMileage = parseInt(body.currentMileage) + parseInt(body.oilChangeInterval)
-      const nextOilChangeDate = new Date(body.datePerformed || existingRecord.datePerformed)
-      nextOilChangeDate.setDate(nextOilChangeDate.getDate() + 90) // Default 90 days
-
-      await db.truck.update({
-        where: { id: body.truckId || existingRecord.truckId },
+    // Update maintenance record based on type
+    let updatedRecord
+    
+    if (recordType === 'truck') {
+      updatedRecord = await db.maintenanceRecord.update({
+        where: { id: id },
         data: {
-          nextOilChange: nextOilChangeDate,
-          lastOilChange: new Date(body.datePerformed || existingRecord.datePerformed)
+          ...(body.truckId !== undefined && { truckId: body.truckId }),
+          ...(body.serviceType !== undefined && { serviceType: body.serviceType }),
+          ...(body.description !== undefined && { description: body.description }),
+          ...(body.datePerformed !== undefined && { datePerformed: new Date(body.datePerformed) }),
+          ...(body.partsCost !== undefined && { partsCost }),
+          ...(body.laborCost !== undefined && { laborCost }),
+          totalCost,
+          ...(body.mechanicId !== undefined && { mechanicId: body.mechanicId || null }),
+          ...(body.nextServiceDue !== undefined && { nextServiceDue: body.nextServiceDue ? new Date(body.nextServiceDue) : null }),
+          ...(body.status !== undefined && { status: body.status }),
+          ...(body.notes !== undefined && { notes: body.notes }),
+          ...(body.attachments !== undefined && { attachments: body.attachments }),
+          ...(body.isOilChange !== undefined && { isOilChange: body.isOilChange }),
+          ...(body.oilChangeInterval !== undefined && { oilChangeInterval: body.oilChangeInterval ? parseInt(body.oilChangeInterval) : null }),
+          ...(body.currentMileage !== undefined && { currentMileage: body.currentMileage ? parseInt(body.currentMileage) : null }),
+          ...(body.maintenanceJobId !== undefined && { maintenanceJobId: body.maintenanceJobId || null })
+        },
+        include: {
+          truck: {
+            select: {
+              id: true,
+              vin: true,
+              make: true,
+              model: true,
+              year: true,
+              licensePlate: true,
+              currentMileage: true
+            }
+          },
+          mechanic: {
+            select: {
+              id: true,
+              name: true,
+              specialty: true
+            }
+          },
+          maintenanceJob: {
+            select: {
+              id: true,
+              name: true,
+              category: true
+            }
+          },
+          createdBy: {
+            select: {
+              id: true,
+              name: true,
+              email: true
+            }
+          }
         }
       })
-    }
-
-    // Resolve predictive alert if this maintenance was predicted
-    if (body.wasPredicted && body.predictionId) {
-      await db.predictiveAlert.update({
-        where: { id: body.predictionId },
+    } else {
+      updatedRecord = await db.trailerMaintenanceRecord.update({
+        where: { id: id },
         data: {
-          isResolved: true,
-          resolvedAt: new Date(),
-          resolvedBy: body.createdById || 'system'
+          ...(body.truckId !== undefined && { trailerId: body.truckId }),
+          ...(body.serviceType !== undefined && { serviceType: body.serviceType }),
+          ...(body.description !== undefined && { description: body.description }),
+          ...(body.datePerformed !== undefined && { datePerformed: new Date(body.datePerformed) }),
+          ...(body.partsCost !== undefined && { partsCost }),
+          ...(body.laborCost !== undefined && { laborCost }),
+          totalCost,
+          ...(body.mechanicId !== undefined && { mechanicId: body.mechanicId || null }),
+          ...(body.nextServiceDue !== undefined && { nextServiceDue: body.nextServiceDue ? new Date(body.nextServiceDue) : null }),
+          ...(body.status !== undefined && { status: body.status }),
+          ...(body.notes !== undefined && { notes: body.notes }),
+          ...(body.attachments !== undefined && { attachments: body.attachments }),
+          ...(body.maintenanceJobId !== undefined && { maintenanceJobId: body.maintenanceJobId || null })
+        },
+        include: {
+          trailer: {
+            select: {
+              id: true,
+              number: true,
+              status: true,
+              driverName: true
+            }
+          },
+          mechanic: {
+            select: {
+              id: true,
+              name: true,
+              specialty: true
+            }
+          },
+          maintenanceJob: {
+            select: {
+              id: true,
+              name: true,
+              category: true
+            }
+          },
+          createdBy: {
+            select: {
+              id: true,
+              name: true,
+              email: true
+            }
+          }
         }
       })
     }
@@ -264,13 +297,27 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    // Check if maintenance record exists
-    const record = await db.maintenanceRecord.findUnique({
+    
+    // Check if maintenance record exists in truck records
+    let record = await db.maintenanceRecord.findUnique({
       where: { 
         id: id,
         isDeleted: false 
       }
     })
+
+    let recordType = 'truck'
+
+    // If not found in truck records, check trailer records
+    if (!record) {
+      record = await db.trailerMaintenanceRecord.findUnique({
+        where: { 
+          id: id,
+          isDeleted: false 
+        }
+      })
+      recordType = 'trailer'
+    }
 
     if (!record) {
       return NextResponse.json(
@@ -279,15 +326,26 @@ export async function DELETE(
       )
     }
 
-    // Soft delete maintenance record
-    await db.maintenanceRecord.update({
-      where: { id: id },
-      data: {
-        isDeleted: true,
-        deletedAt: new Date(),
-        deletedBy: 'system' // In real app, get from auth context
-      }
-    })
+    // Soft delete maintenance record based on type
+    if (recordType === 'truck') {
+      await db.maintenanceRecord.update({
+        where: { id: id },
+        data: {
+          isDeleted: true,
+          deletedAt: new Date(),
+          deletedBy: 'system'
+        }
+      })
+    } else {
+      await db.trailerMaintenanceRecord.update({
+        where: { id: id },
+        data: {
+          isDeleted: true,
+          deletedAt: new Date(),
+          deletedBy: 'system'
+        }
+      })
+    }
 
     return NextResponse.json({
       success: true,
