@@ -52,6 +52,7 @@ export async function PUT(
       trailerNumber, 
       driverName, 
       quantity, 
+      serialNumber,
       notes 
     } = body
 
@@ -78,6 +79,7 @@ export async function PUT(
         ...(trailerNumber !== undefined && { trailerNumber: trailerNumber || null }),
         ...(driverName !== undefined && { driverName: driverName || null }),
         ...(quantity !== undefined && { quantity }),
+        ...(serialNumber !== undefined && { serialNumber: serialNumber || null }),
         ...(notes !== undefined && { notes: notes || null })
       },
       include: {

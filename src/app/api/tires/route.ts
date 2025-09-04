@@ -109,10 +109,12 @@ export async function POST(request: NextRequest) {
       trailerNumber, 
       driverName, 
       quantity = 1,
+      serialNumber,
       trailerTireSize,
       trailerManufacturer,
       trailerOrigin,
       trailerQuantity = 1,
+      trailerSerialNumber,
       notes,
       createdAt
     } = body
@@ -158,6 +160,7 @@ export async function POST(request: NextRequest) {
           trailerNumber: null, // Truck tires don't have trailer number
           driverName: driverName || null,
           quantity: 1,
+          serialNumber: serialNumber || null,
           notes: notes || null,
           createdById: user.id,
           ...(createdAt && { createdAt: new Date(createdAt) })
@@ -177,6 +180,7 @@ export async function POST(request: NextRequest) {
           trailerNumber: trailerNumber,
           driverName: driverName || null,
           quantity: 1,
+          serialNumber: trailerSerialNumber || null,
           notes: notes || null,
           createdById: user.id,
           ...(createdAt && { createdAt: new Date(createdAt) })

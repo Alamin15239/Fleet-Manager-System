@@ -419,6 +419,7 @@ model Tire {
   trailerNumber String?
   driverName    String?
   quantity      Int      @default(1)
+  serialNumber  String?
   notes         String?
   createdById   String?
   createdAt     DateTime @default(now())
@@ -430,6 +431,7 @@ model Tire {
   @@index([origin])
   @@index([plateNumber])
   @@index([driverName])
+  @@index([serialNumber])
   @@index([createdAt])
   @@map("tires")
 }

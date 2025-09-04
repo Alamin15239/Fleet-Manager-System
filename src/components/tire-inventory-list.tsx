@@ -42,6 +42,7 @@ interface Tire {
   trailerNumber: string | null
   driverName: string | null
   quantity: number
+  serialNumber: string | null
   notes: string | null
   createdAt: string
   createdBy: {
@@ -59,6 +60,7 @@ interface TireFormData {
   trailerNumber: string
   driverName: string
   quantity: number
+  serialNumber: string
   notes: string
 }
 
@@ -185,6 +187,7 @@ export default function TireInventoryList() {
       trailerNumber: tire.trailerNumber || '',
       driverName: tire.driverName || '',
       quantity: tire.quantity,
+      serialNumber: tire.serialNumber || '',
       notes: tire.notes || ''
     })
     setShowEditDialog(true)
@@ -201,11 +204,27 @@ export default function TireInventoryList() {
     setSuccess(null)
 
     try {
-      const response = await apiPut(`/api/tires/${editingTire.id}`, tireForm)
+      // Prepare data with proper validation
+      const updateData = {
+        tireSize: tireForm.tireSize.trim(),
+        manufacturer: tireForm.manufacturer.trim(),
+        origin: tireForm.origin,
+        plateNumber: tireForm.plateNumber.trim(),
+        trailerNumber: tireForm.trailerNumber.trim() || null,
+        driverName: tireForm.driverName.trim() || null,
+        quantity: tireForm.quantity,
+        serialNumber: tireForm.serialNumber.trim() || null,
+        notes: tireForm.notes.trim() || null
+      }
+
+      const response = await apiPut(`/api/tires/${editingTire.id}`, updateData)
 
       if (response.ok) {
         setSuccess('Tire updated successfully')
-        setShowEditDialog(false)
+        setTimeout(() => {
+          setShowEditDialog(false)
+          setSuccess(null)
+        }, 1500)
         fetchTires()
         fetchFilterOptions()
       } else {
@@ -213,6 +232,7 @@ export default function TireInventoryList() {
         setError(errorData.error || 'Failed to update tire')
       }
     } catch (error) {
+      console.error('Update error:', error)
       setError('Failed to update tire')
     } finally {
       setSubmitting(false)
@@ -665,6 +685,13 @@ export default function TireInventoryList() {
                 </div>
               </div>
 
+              {editingTire.serialNumber && (
+                <div>
+                  <Label className="text-sm font-medium">Serial Number</Label>
+                  <div className="text-sm p-2 bg-gray-50 rounded border font-mono">{editingTire.serialNumber}</div>
+                </div>
+              )}
+
               {editingTire.notes && (
                 <div>
                   <Label className="text-sm font-medium">Notes</Label>
@@ -701,7 +728,7 @@ export default function TireInventoryList() {
 
       {/* Context-Specific Edit Dialog */}
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-        <DialogContent className="max-w-md mx-4 sm:mx-auto">
+        <DialogContent className="max-w-sm mx-4 sm:mx-auto max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-lg flex items-center gap-2">
               <Edit className="h-5 w-5" />
@@ -717,120 +744,80 @@ export default function TireInventoryList() {
           
           <form onSubmit={handleUpdateTire} className="space-y-4">
             {/* Tire Specifications */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-3">
               <div className="space-y-2">
-                <Label htmlFor="tireSize">Tire Size</Label>
+                <Label htmlFor="tireSize" className="text-sm">Tire Size</Label>
                 <Input
                   id="tireSize"
                   value={tireForm.tireSize}
                   onChange={(e) => setTireForm({ ...tireForm, tireSize: e.target.value })}
                   required
+                  className="text-sm"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="manufacturer">Manufacturer</Label>
+                <Label htmlFor="manufacturer" className="text-sm">Manufacturer</Label>
                 <Input
                   id="manufacturer"
                   value={tireForm.manufacturer}
                   onChange={(e) => setTireForm({ ...tireForm, manufacturer: e.target.value })}
                   required
+                  className="text-sm"
                 />
               </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="origin">Origin</Label>
-              <Select value={tireForm.origin} onValueChange={(value) => setTireForm({ ...tireForm, origin: value })}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="CHINESE">Chinese</SelectItem>
-                  <SelectItem value="JAPANESE">Japanese</SelectItem>
-                  <SelectItem value="EUROPEAN">European</SelectItem>
-                  <SelectItem value="AMERICAN">American</SelectItem>
-                  <SelectItem value="OTHER">Other</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="space-y-2">
+                <Label htmlFor="origin" className="text-sm">Origin</Label>
+                <Select value={tireForm.origin} onValueChange={(value) => setTireForm({ ...tireForm, origin: value })}>
+                  <SelectTrigger className="text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="CHINESE">Chinese</SelectItem>
+                    <SelectItem value="JAPANESE">Japanese</SelectItem>
+                    <SelectItem value="EUROPEAN">European</SelectItem>
+                    <SelectItem value="AMERICAN">American</SelectItem>
+                    <SelectItem value="OTHER">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             {/* Context-Specific Fields */}
-            {editingTire?.trailerNumber ? (
-              // Trailer-focused edit form
-              <div className="space-y-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
-                <h4 className="font-medium text-orange-900 flex items-center gap-2">
-                  <Package className="h-4 w-4" />
-                  Trailer Information
-                </h4>
+            <div className="space-y-3">
+              {editingTire?.trailerNumber ? (
                 <div className="space-y-2">
-                  <Label htmlFor="trailerNumber">Trailer Number</Label>
+                  <Label htmlFor="trailerNumber" className="text-sm">Trailer Number</Label>
                   <Input
                     id="trailerNumber"
                     value={tireForm.trailerNumber}
                     onChange={(e) => setTireForm({ ...tireForm, trailerNumber: e.target.value })}
-                    className="border-orange-300 focus:border-orange-500"
+                    className="text-sm"
                   />
                 </div>
+              ) : (
                 <div className="space-y-2">
-                  <Label htmlFor="driverName">Driver Name</Label>
-                  <Input
-                    id="driverName"
-                    value={tireForm.driverName}
-                    onChange={(e) => setTireForm({ ...tireForm, driverName: e.target.value })}
-                    className="border-orange-300 focus:border-orange-500"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="plateNumber">Associated Plate (Optional)</Label>
+                  <Label htmlFor="plateNumber" className="text-sm">Plate Number</Label>
                   <Input
                     id="plateNumber"
                     value={tireForm.plateNumber}
                     onChange={(e) => setTireForm({ ...tireForm, plateNumber: e.target.value })}
-                    className="border-orange-300 focus:border-orange-500"
+                    className="text-sm"
                   />
                 </div>
-              </div>
-            ) : (
-              // Truck-focused edit form
-              <div className="space-y-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                <h4 className="font-medium text-blue-900 flex items-center gap-2">
-                  <Truck className="h-4 w-4" />
-                  Truck Information
-                </h4>
-                <div className="space-y-2">
-                  <Label htmlFor="plateNumber">Plate Number</Label>
-                  <Input
-                    id="plateNumber"
-                    value={tireForm.plateNumber}
-                    onChange={(e) => setTireForm({ ...tireForm, plateNumber: e.target.value })}
-                    className="border-blue-300 focus:border-blue-500"
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="driverName">Driver Name</Label>
-                  <Input
-                    id="driverName"
-                    value={tireForm.driverName}
-                    onChange={(e) => setTireForm({ ...tireForm, driverName: e.target.value })}
-                    className="border-blue-300 focus:border-blue-500"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="trailerNumber">Associated Trailer (Optional)</Label>
-                  <Input
-                    id="trailerNumber"
-                    value={tireForm.trailerNumber}
-                    onChange={(e) => setTireForm({ ...tireForm, trailerNumber: e.target.value })}
-                    className="border-blue-300 focus:border-blue-500"
-                  />
-                </div>
-              </div>
-            )}
-
-            <div className="grid grid-cols-2 gap-4">
+              )}
+              
               <div className="space-y-2">
-                <Label htmlFor="quantity">Quantity</Label>
+                <Label htmlFor="driverName" className="text-sm">Driver Name</Label>
+                <Input
+                  id="driverName"
+                  value={tireForm.driverName}
+                  onChange={(e) => setTireForm({ ...tireForm, driverName: e.target.value })}
+                  className="text-sm"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="quantity" className="text-sm">Quantity</Label>
                 <Input
                   id="quantity"
                   type="number"
@@ -838,19 +825,20 @@ export default function TireInventoryList() {
                   value={tireForm.quantity}
                   onChange={(e) => setTireForm({ ...tireForm, quantity: parseInt(e.target.value) || 1 })}
                   required
+                  className="text-sm"
                 />
               </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="notes">Notes</Label>
-              <Textarea
-                id="notes"
-                value={tireForm.notes}
-                onChange={(e) => setTireForm({ ...tireForm, notes: e.target.value })}
-                placeholder="Additional notes..."
-                rows={3}
-              />
+              
+              <div className="space-y-2">
+                <Label htmlFor="serialNumber" className="text-sm">Serial Number</Label>
+                <Input
+                  id="serialNumber"
+                  placeholder="e.g., TRK123456"
+                  value={tireForm.serialNumber}
+                  onChange={(e) => setTireForm({ ...tireForm, serialNumber: e.target.value })}
+                  className="text-sm"
+                />
+              </div>
             </div>
 
             {error && (
@@ -867,28 +855,17 @@ export default function TireInventoryList() {
               </Alert>
             )}
 
-            <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-2">
+            <div className="flex justify-end space-x-2 pt-2">
               <Button 
                 type="button" 
                 variant="outline" 
                 onClick={() => setShowEditDialog(false)}
-                className="w-full sm:w-auto"
+                size="sm"
               >
-                <X className="mr-2 h-4 w-4" />
                 Cancel
               </Button>
-              <Button type="submit" disabled={submitting} className="w-full sm:w-auto">
-                {submitting ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    Updating...
-                  </>
-                ) : (
-                  <>
-                    <Save className="mr-2 h-4 w-4" />
-                    Update
-                  </>
-                )}
+              <Button type="submit" disabled={submitting} size="sm">
+                {submitting ? 'Updating...' : 'Update'}
               </Button>
             </div>
           </form>

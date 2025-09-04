@@ -39,10 +39,12 @@ interface TireFormData {
   trailerNumber: string
   driverName: string
   quantity: number
+  serialNumber: string
   trailerTireSize: string
   trailerManufacturer: string
   trailerOrigin: string
   trailerQuantity: number
+  trailerSerialNumber: string
   notes: string
   createdAt: string
 }
@@ -56,10 +58,12 @@ export default function TireManagementForm() {
     trailerNumber: '',
     driverName: '',
     quantity: 0,
+    serialNumber: '',
     trailerTireSize: '',
     trailerManufacturer: '',
     trailerOrigin: 'CHINESE',
     trailerQuantity: 0,
+    trailerSerialNumber: '',
     notes: '',
     createdAt: new Date().toISOString().slice(0, 16)
   })
@@ -211,10 +215,12 @@ export default function TireManagementForm() {
           trailerNumber: '',
           driverName: '',
           quantity: 0,
+          serialNumber: '',
           trailerTireSize: '',
           trailerManufacturer: '',
           trailerOrigin: 'CHINESE',
           trailerQuantity: 0,
+          trailerSerialNumber: '',
           notes: '',
           createdAt: new Date().toISOString().slice(0, 16)
         })
@@ -363,7 +369,7 @@ export default function TireManagementForm() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
                   <div className="space-y-2">
                     <Label htmlFor="truckManufacturer" className="font-medium text-blue-700 text-sm">
                       Manufacturer
@@ -395,6 +401,20 @@ export default function TireManagementForm() {
                       </SelectContent>
                     </Select>
                     <p className="text-xs text-blue-600">Country of manufacture</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="truckSerialNumber" className="font-medium text-blue-700 text-sm">
+                      Serial Number
+                    </Label>
+                    <Input
+                      id="truckSerialNumber"
+                      placeholder="e.g., TRK123456"
+                      value={formData.serialNumber}
+                      onChange={(e) => setFormData({ ...formData, serialNumber: e.target.value })}
+                      className="border-blue-300 focus:border-blue-500 bg-white"
+                    />
+                    <p className="text-xs text-blue-600">Tire serial number (optional)</p>
                   </div>
                 </div>
 
@@ -507,7 +527,7 @@ export default function TireManagementForm() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
                   <div className="space-y-2">
                     <Label htmlFor="trailerManufacturer" className="font-medium text-orange-700 text-sm">
                       Manufacturer
@@ -539,6 +559,20 @@ export default function TireManagementForm() {
                       </SelectContent>
                     </Select>
                     <p className="text-xs text-orange-600">Country of manufacture</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="trailerSerialNumber" className="font-medium text-orange-700 text-sm">
+                      Serial Number
+                    </Label>
+                    <Input
+                      id="trailerSerialNumber"
+                      placeholder="e.g., TRL789012"
+                      value={formData.trailerSerialNumber}
+                      onChange={(e) => setFormData({ ...formData, trailerSerialNumber: e.target.value })}
+                      className="border-orange-300 focus:border-orange-500 bg-white"
+                    />
+                    <p className="text-xs text-orange-600">Tire serial number (optional)</p>
                   </div>
                 </div>
 

@@ -26,7 +26,10 @@ import {
   Users, 
   Calendar,
   RefreshCw,
-  Download
+  Download,
+  Hash,
+  Shield,
+  Clock
 } from 'lucide-react'
 import { apiGet } from '@/lib/api'
 
@@ -36,7 +39,18 @@ interface AnalyticsData {
     recentTires: number
     totalVehicles: number
     totalDrivers: number
+    tiresWithSerial: number
+    serialPercentage: number
+    truckTires: number
+    trailerTires: number
+    newTires: number
+    oldTires: number
   }
+  tireSizes: Array<{
+    tireSize: string
+    count: number
+    quantity: number
+  }>
   byManufacturer: Array<{
     manufacturer: string
     count: number
@@ -73,6 +87,16 @@ interface AnalyticsData {
     driverName: string
     tireCount: number
     recordCount: number
+  }>
+  vehicleTypes: Array<{
+    type: string
+    count: number
+    percentage: number
+  }>
+  tireCondition: Array<{
+    condition: string
+    count: number
+    percentage: number
   }>
 }
 
@@ -181,7 +205,7 @@ export default function TireReports() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-xs sm:text-sm font-medium">Total Tires</CardTitle>
@@ -198,43 +222,136 @@ export default function TireReports() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-xs sm:text-sm font-medium">Serial Tracked</CardTitle>
+            <Hash className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-lg sm:text-2xl font-bold">{analytics.summary.tiresWithSerial}</div>
+            <p className="text-xs text-muted-foreground">
+              {analytics.summary.serialPercentage}% tracked
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-xs sm:text-sm font-medium">Truck Tires</CardTitle>
+            <Truck className="h-3 w-3 sm:h-4 sm:w-4 text-blue-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-lg sm:text-2xl font-bold">{analytics.summary.truckTires}</div>
+            <p className="text-xs text-muted-foreground">
+              {Math.round((analytics.summary.truckTires / analytics.summary.totalTires) * 100)}% of total
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-xs sm:text-sm font-medium">Trailer Tires</CardTitle>
+            <Package className="h-3 w-3 sm:h-4 sm:w-4 text-orange-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-lg sm:text-2xl font-bold">{analytics.summary.trailerTires}</div>
+            <p className="text-xs text-muted-foreground">
+              {Math.round((analytics.summary.trailerTires / analytics.summary.totalTires) * 100)}% of total
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-xs sm:text-sm font-medium">New Tires</CardTitle>
+            <Shield className="h-3 w-3 sm:h-4 sm:w-4 text-green-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-lg sm:text-2xl font-bold">{analytics.summary.newTires}</div>
+            <p className="text-xs text-muted-foreground">
+              < 6 months old
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-xs sm:text-sm font-medium">Recent</CardTitle>
             <Calendar className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-lg sm:text-2xl font-bold">{analytics.summary.recentTires.toLocaleString()}</div>
+            <div className="text-lg sm:text-2xl font-bold">{analytics.summary.recentTires}</div>
             <p className="text-xs text-muted-foreground">
-              <span className="hidden sm:inline">Last 30 days</span>
-              <span className="sm:hidden">30 days</span>
+              Last 30 days
             </p>
           </CardContent>
         </Card>
+      </div>
 
+      {/* New Analytics Charts */}
+      <div className="grid gap-4 lg:grid-cols-3">
+        {/* Vehicle Type Distribution */}
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-xs sm:text-sm font-medium">Vehicles</CardTitle>
-            <Truck className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
+          <CardHeader>
+            <CardTitle className="text-lg">Vehicle Type Distribution</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-lg sm:text-2xl font-bold">{analytics.summary.totalVehicles}</div>
-            <p className="text-xs text-muted-foreground">
-              <span className="hidden sm:inline">With tire records</span>
-              <span className="sm:hidden">Active</span>
-            </p>
+            <ResponsiveContainer width="100%" height={200}>
+              <PieChart>
+                <Pie
+                  data={analytics.vehicleTypes}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ type, percentage }) => `${type}: ${percentage}%`}
+                  outerRadius={60}
+                  fill="#8884d8"
+                  dataKey="count"
+                >
+                  <Cell fill="#3b82f6" />
+                  <Cell fill="#f97316" />
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
           </CardContent>
         </Card>
 
+        {/* Tire Condition */}
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-xs sm:text-sm font-medium">Drivers</CardTitle>
-            <Users className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
+          <CardHeader>
+            <CardTitle className="text-lg">Tire Age Distribution</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-lg sm:text-2xl font-bold">{analytics.summary.totalDrivers}</div>
-            <p className="text-xs text-muted-foreground">
-              <span className="hidden sm:inline">Assigned tires</span>
-              <span className="sm:hidden">Active</span>
-            </p>
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={analytics.tireCondition}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="condition" angle={-45} textAnchor="end" height={80} fontSize={10} />
+                <YAxis />
+                <Tooltip />
+                <Bar dataKey="count" fill="#10b981" />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        {/* Top Tire Sizes */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Popular Tire Sizes</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {analytics.tireSizes.slice(0, 6).map((size, index) => (
+                <div key={size.tireSize} className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }}></div>
+                    <span className="text-sm font-medium">{size.tireSize}</span>
+                  </div>
+                  <Badge variant="secondary" className="text-xs">
+                    {size.quantity}
+                  </Badge>
+                </div>
+              ))}
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -291,31 +408,43 @@ export default function TireReports() {
           </CardContent>
         </Card>
 
-        {/* Origin Distribution */}
+        {/* Origin Distribution with Enhanced Design */}
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">Tires by Origin</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={250}>
-              <PieChart>
-                <Pie
-                  data={analytics.byOrigin}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ origin, quantity }) => `${origin}: ${quantity}`}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="quantity"
-                >
-                  {analytics.byOrigin.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
+            <div className="space-y-4">
+              <ResponsiveContainer width="100%" height={200}>
+                <PieChart>
+                  <Pie
+                    data={analytics.byOrigin}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    outerRadius={60}
+                    fill="#8884d8"
+                    dataKey="quantity"
+                  >
+                    {analytics.byOrigin.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="grid grid-cols-2 gap-2">
+                {analytics.byOrigin.map((item, index) => (
+                  <div key={item.origin} className="flex items-center space-x-2">
+                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }}></div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium truncate">{item.origin}</div>
+                      <div className="text-xs text-muted-foreground">{item.quantity} tires</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>

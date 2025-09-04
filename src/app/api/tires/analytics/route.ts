@@ -6,6 +6,19 @@ export async function GET(request: NextRequest) {
   try {
     // Get total tires count
     const totalTires = await db.tire.count()
+    
+    // Get tires with serial numbers
+    const tiresWithSerial = await db.tire.count({
+      where: { serialNumber: { not: null } }
+    })
+    
+    // Get unique tire sizes
+    const uniqueTireSizes = await db.tire.groupBy({
+      by: ['tireSize'],
+      _count: { id: true },
+      _sum: { quantity: true },
+      orderBy: { _sum: { quantity: 'desc' } }
+    })
 
     // Get tires by manufacturer
     const tiresByManufacturer = await db.tire.groupBy({
@@ -104,13 +117,46 @@ export async function GET(request: NextRequest) {
       orderBy: { _sum: { quantity: 'desc' },
     }})
 
+    // Get truck vs trailer tire distribution
+    const truckTires = await db.tire.count({
+      where: { trailerNumber: null, plateNumber: { not: null } }
+    })
+    
+    const trailerTires = await db.tire.count({
+      where: { trailerNumber: { not: null } }
+    })
+    
+    // Get tire condition analysis (based on creation date)
+    const now = new Date()
+    const oneYearAgo = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate())
+    const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 6, now.getDate())
+    
+    const newTires = await db.tire.count({
+      where: { createdAt: { gte: sixMonthsAgo } }
+    })
+    
+    const oldTires = await db.tire.count({
+      where: { createdAt: { lt: oneYearAgo } }
+    })
+
     return NextResponse.json({
       summary: {
         totalTires,
         recentTires,
         totalVehicles: tiresByVehicle.length,
-        totalDrivers: tiresByDriver.length
+        totalDrivers: tiresByDriver.length,
+        tiresWithSerial,
+        serialPercentage: totalTires > 0 ? Math.round((tiresWithSerial / totalTires) * 100) : 0,
+        truckTires,
+        trailerTires,
+        newTires,
+        oldTires
       },
+      tireSizes: uniqueTireSizes.map(item => ({
+        tireSize: item.tireSize,
+        count: item._count.id,
+        quantity: item._sum.quantity || 0
+      })),
       byManufacturer: tiresByManufacturer.map(item => ({
         manufacturer: item.manufacturer,
         count: item._count.id,
@@ -137,7 +183,16 @@ export async function GET(request: NextRequest) {
         driverName: driver.driverName,
         tireCount: driver._sum.quantity || 0,
         recordCount: driver._count.id
-      }))
+      })),
+      vehicleTypes: [
+        { type: 'Truck', count: truckTires, percentage: totalTires > 0 ? Math.round((truckTires / totalTires) * 100) : 0 },
+        { type: 'Trailer', count: trailerTires, percentage: totalTires > 0 ? Math.round((trailerTires / totalTires) * 100) : 0 }
+      ],
+      tireCondition: [
+        { condition: 'New (< 6 months)', count: newTires, percentage: totalTires > 0 ? Math.round((newTires / totalTires) * 100) : 0 },
+        { condition: 'Regular', count: totalTires - newTires - oldTires, percentage: totalTires > 0 ? Math.round(((totalTires - newTires - oldTires) / totalTires) * 100) : 0 },
+        { condition: 'Old (> 1 year)', count: oldTires, percentage: totalTires > 0 ? Math.round((oldTires / totalTires) * 100) : 0 }
+      ]
     })
   } catch (error) {
     console.error('Error fetching tire analytics:', error)
