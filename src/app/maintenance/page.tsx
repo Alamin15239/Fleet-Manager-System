@@ -894,9 +894,9 @@ export default function MaintenancePage() {
                 <div>
                   <Label className="text-sm font-medium text-gray-500">{t('maintenance.truck')}</Label>
                   <p className="text-lg font-semibold">
-                    {viewingRecord.truck.year} {viewingRecord.truck.make} {viewingRecord.truck.model}
+                    {viewingRecord.truck?.year} {viewingRecord.truck?.make} {viewingRecord.truck?.model}
                   </p>
-                  <p className="text-sm text-gray-600">{viewingRecord.truck.licensePlate}</p>
+                  <p className="text-sm text-gray-600">{viewingRecord.truck?.licensePlate}</p>
                 </div>
                 <div>
                   <Label className="text-sm font-medium text-gray-500">{t('maintenance.serviceType')}</Label>
@@ -1059,9 +1059,9 @@ export default function MaintenancePage() {
                     </TableCell>
                     <TableCell>
                       <div>
-                        <div className="font-medium">{record.truck.year} {record.truck.make} {record.truck.model}</div>
+                        <div className="font-medium">{record.truck?.year} {record.truck?.make} {record.truck?.model}</div>
                         <div className="text-sm text-muted-foreground">
-                          {record.truck.licensePlate}
+                          {record.truck?.licensePlate}
                         </div>
                       </div>
                     </TableCell>

@@ -283,12 +283,12 @@ export default function ReportsPage() {
               <tbody>
                 ${trucks.map(truck => `
                   <tr>
-                    <td>${truck.licensePlate}</td>
-                    <td>${truck.make}</td>
-                    <td>${truck.model}</td>
-                    <td>${truck.year}</td>
-                    <td>${truck.status}</td>
-                    <td>${truck.currentMileage.toLocaleString()}</td>
+                    <td>${truck.licensePlate || 'N/A'}</td>
+                    <td>${truck.make || 'N/A'}</td>
+                    <td>${truck.model || 'N/A'}</td>
+                    <td>${truck.year || 'N/A'}</td>
+                    <td>${truck.status || 'N/A'}</td>
+                    <td>${truck.currentMileage ? truck.currentMileage.toLocaleString() : 'N/A'}</td>
                   </tr>
                 `).join('')}
               </tbody>
@@ -312,7 +312,7 @@ export default function ReportsPage() {
                 ${maintenance.slice(0, 50).map(record => `
                   <tr>
                     <td>${format(new Date(record.datePerformed), 'MMM dd, yyyy')}</td>
-                    <td>${record.truck.licensePlate}</td>
+                    <td>${record.truck?.licensePlate || 'N/A'}</td>
                     <td>${record.serviceType}</td>
                     <td>${record.description || 'N/A'}</td>
                     <td>${(typeof record.totalCost === 'number' ? record.totalCost : 0).toFixed(2)}</td>
@@ -357,7 +357,7 @@ export default function ReportsPage() {
         csvContent += "Truck Details\n"
         csvContent += "License Plate,Make,Model,Year,Status,Current Mileage\n"
         trucks.forEach(truck => {
-          csvContent += `${truck.licensePlate},${truck.make},${truck.model},${truck.year},${truck.status},${truck.currentMileage}\n`
+          csvContent += `${truck.licensePlate || 'N/A'},${truck.make || 'N/A'},${truck.model || 'N/A'},${truck.year || 'N/A'},${truck.status || 'N/A'},${truck.currentMileage || 0}\n`
         })
         csvContent += "\n"
         
@@ -365,7 +365,7 @@ export default function ReportsPage() {
         csvContent += "Maintenance Records\n"
         csvContent += "Date,Truck,Service Type,Description,Total Cost,Status\n"
         maintenance.slice(0, 1000).forEach(record => {
-          csvContent += `${format(new Date(record.datePerformed), 'MMM dd, yyyy')},${record.truck.licensePlate},${record.serviceType},"${record.description || 'N/A'}",${typeof record.totalCost === 'number' ? record.totalCost : 0},${record.status}\n`
+          csvContent += `${format(new Date(record.datePerformed), 'MMM dd, yyyy')},${record.truck?.licensePlate || 'N/A'},${record.serviceType},"${record.description || 'N/A'}",${typeof record.totalCost === 'number' ? record.totalCost : 0},${record.status}\n`
         })
       }
       
@@ -673,7 +673,7 @@ export default function ReportsPage() {
                               <div className="flex-1">
                                 <p className="font-medium">{record.serviceType}</p>
                                 <p className="text-sm text-muted-foreground">
-                                  {record.truck.licensePlate} • {format(new Date(record.datePerformed), 'MMM dd, yyyy')} • {(typeof record.totalCost === 'number' ? record.totalCost : 0).toFixed(2)}
+                                  {record.truck?.licensePlate || 'N/A'} • {format(new Date(record.datePerformed), 'MMM dd, yyyy')} • {(typeof record.totalCost === 'number' ? record.totalCost : 0).toFixed(2)}
                                 </p>
                               </div>
                             </div>
