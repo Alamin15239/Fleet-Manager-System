@@ -42,11 +42,11 @@ export default function TireManagementForm() {
     plateNumber: '',
     trailerNumber: '',
     driverName: '',
-    quantity: 1,
+    quantity: 0,
     trailerTireSize: '',
     trailerManufacturer: '',
     trailerOrigin: 'CHINESE',
-    trailerQuantity: 1,
+    trailerQuantity: 0,
     notes: '',
     createdAt: new Date().toISOString().slice(0, 16)
   })
@@ -161,11 +161,11 @@ export default function TireManagementForm() {
           plateNumber: '',
           trailerNumber: '',
           driverName: '',
-          quantity: 1,
+          quantity: 0,
           trailerTireSize: '',
           trailerManufacturer: '',
           trailerOrigin: 'CHINESE',
-          trailerQuantity: 1,
+          trailerQuantity: 0,
           notes: '',
           createdAt: new Date().toISOString().slice(0, 16)
         })
@@ -293,7 +293,7 @@ export default function TireManagementForm() {
                       min="1"
                       max="100"
                       value={formData.quantity}
-                      onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) || 1 })}
+                      onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) || 0 })}
                       className="border-blue-300 focus:border-blue-500 bg-white"
                     />
                     <p className="text-xs text-blue-600">Number of tires</p>
@@ -437,7 +437,7 @@ export default function TireManagementForm() {
                       min="1"
                       max="100"
                       value={formData.trailerQuantity}
-                      onChange={(e) => setFormData({ ...formData, trailerQuantity: parseInt(e.target.value) || 1 })}
+                      onChange={(e) => setFormData({ ...formData, trailerQuantity: parseInt(e.target.value) || 0 })}
                       className="border-orange-300 focus:border-orange-500 bg-white"
                     />
                     <p className="text-xs text-orange-600">Number of trailer tires</p>
