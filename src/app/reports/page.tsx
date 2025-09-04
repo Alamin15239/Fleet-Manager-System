@@ -108,9 +108,9 @@ export default function ReportsPage() {
       }
 
       const [trucksRes, maintenanceRes, usersRes] = await Promise.all([
-        fetch('/api/trucks', { headers }),
-        fetch('/api/maintenance', { headers }),
-        fetch('/api/users', { headers })
+        fetch('/api/trucks?limit=10000', { headers }),
+        fetch('/api/maintenance?limit=10000', { headers }),
+        fetch('/api/users?limit=10000', { headers })
       ])
 
       if (trucksRes.ok) {
