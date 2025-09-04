@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
-import { Loader2, Plus, CheckCircle, AlertCircle, Search, Truck, User, Package } from 'lucide-react'
+import { Loader2, Plus, CheckCircle, AlertCircle, Search, Truck, User, Package, Database } from 'lucide-react'
 import { apiPost, apiGet } from '@/lib/api'
 
 interface Vehicle {
@@ -16,6 +16,19 @@ interface Vehicle {
   plateNumber: string
   trailerNumber: string | null
   driverName: string | null
+}
+
+interface Tire {
+  id: string
+  tireSize: string
+  manufacturer: string
+  origin: string
+  plateNumber: string
+  trailerNumber: string | null
+  driverName: string | null
+  quantity: number
+  createdAt: string
+  notes: string | null
 }
 
 interface TireFormData {
@@ -65,10 +78,16 @@ export default function TireManagementForm() {
     driverName: false,
     trailerNumber: false
   })
+  const [matchingTires, setMatchingTires] = useState<Tire[]>([])
+  const [loadingTires, setLoadingTires] = useState(false)
 
   useEffect(() => {
     fetchVehicles()
   }, [])
+
+  useEffect(() => {
+    searchMatchingTires()
+  }, [formData.plateNumber, formData.trailerNumber, formData.driverName, formData.tireSize, formData.manufacturer])
 
   const fetchVehicles = async () => {
     try {
@@ -87,6 +106,36 @@ export default function TireManagementForm() {
       }
     } catch (error) {
       console.error('Error fetching vehicles:', error)
+    }
+  }
+
+  const searchMatchingTires = async () => {
+    // Only search if at least one field has value
+    const hasSearchCriteria = formData.plateNumber || formData.trailerNumber || formData.driverName || formData.tireSize || formData.manufacturer
+    
+    if (!hasSearchCriteria) {
+      setMatchingTires([])
+      return
+    }
+
+    setLoadingTires(true)
+    try {
+      const params = new URLSearchParams()
+      if (formData.plateNumber) params.append('plateNumber', formData.plateNumber)
+      if (formData.trailerNumber) params.append('trailerNumber', formData.trailerNumber)
+      if (formData.driverName) params.append('driverName', formData.driverName)
+      if (formData.tireSize) params.append('tireSize', formData.tireSize)
+      if (formData.manufacturer) params.append('manufacturer', formData.manufacturer)
+      
+      const response = await apiGet(`/api/tires/search?${params.toString()}`)
+      if (response.ok) {
+        const data = await response.json()
+        setMatchingTires(data.tires || [])
+      }
+    } catch (error) {
+      console.error('Error searching tires:', error)
+    } finally {
+      setLoadingTires(false)
     }
   }
 
@@ -290,9 +339,9 @@ export default function TireManagementForm() {
                     <Input
                       id="quantity"
                       type="number"
-                      min="1"
+                      min="0"
                       max="100"
-                      value={formData.quantity}
+                      value={formData.quantity || ''}
                       onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) || 0 })}
                       className="border-blue-300 focus:border-blue-500 bg-white"
                     />
@@ -434,9 +483,9 @@ export default function TireManagementForm() {
                     <Input
                       id="trailerQuantity"
                       type="number"
-                      min="1"
+                      min="0"
                       max="100"
-                      value={formData.trailerQuantity}
+                      value={formData.trailerQuantity || ''}
                       onChange={(e) => setFormData({ ...formData, trailerQuantity: parseInt(e.target.value) || 0 })}
                       className="border-orange-300 focus:border-orange-500 bg-white"
                     />
@@ -571,6 +620,90 @@ export default function TireManagementForm() {
           </form>
         </CardContent>
       </Card>
+
+      {/* Matching Tires Preview */}
+      {(formData.plateNumber || formData.trailerNumber || formData.driverName || formData.tireSize || formData.manufacturer) && (
+        <Card className="border-green-200 shadow-sm">
+          <CardHeader className="bg-green-50 border-b border-green-200">
+            <CardTitle className="flex items-center gap-2 text-green-800">
+              <Database className="h-5 w-5" />
+              Matching Tires from Database
+            </CardTitle>
+            <p className="text-green-600 text-sm">
+              Existing tires that match your search criteria
+            </p>
+          </CardHeader>
+          <CardContent className="pt-6">
+            {loadingTires ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-green-600" />
+                <span className="ml-2 text-green-700">Searching tires...</span>
+              </div>
+            ) : matchingTires.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <Database className="h-12 w-12 mx-auto text-gray-300 mb-3" />
+                <p className="font-medium">No matching tires found</p>
+                <p className="text-sm">No existing tires match your current search criteria</p>
+              </div>
+            ) : (
+              <div className="space-y-3 max-h-96 overflow-y-auto">
+                {matchingTires.map((tire) => (
+                  <div key={tire.id} className="flex items-center justify-between p-4 border border-green-100 rounded-lg hover:bg-green-50 transition-colors">
+                    <div className="flex items-center space-x-4">
+                      <div className="flex-shrink-0">
+                        <Package className="h-5 w-5 text-green-500" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="font-semibold text-green-900">{tire.tireSize}</span>
+                          <Badge variant="outline" className="text-xs">{tire.manufacturer}</Badge>
+                          <Badge variant="secondary" className="text-xs">{tire.origin}</Badge>
+                        </div>
+                        <div className="text-sm text-green-700 space-y-1">
+                          <div className="flex items-center gap-4">
+                            {tire.plateNumber && (
+                              <span className="flex items-center gap-1">
+                                <Truck className="h-3 w-3" />
+                                {tire.plateNumber}
+                              </span>
+                            )}
+                            {tire.trailerNumber && (
+                              <span className="flex items-center gap-1">
+                                <Package className="h-3 w-3" />
+                                Trailer: {tire.trailerNumber}
+                              </span>
+                            )}
+                            {tire.driverName && (
+                              <span className="flex items-center gap-1">
+                                <User className="h-3 w-3" />
+                                {tire.driverName}
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            Added: {new Date(tire.createdAt).toLocaleDateString()}
+                            {tire.notes && ` • ${tire.notes}`}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center">
+                      <Badge className="bg-green-100 text-green-800 border-green-200">
+                        Qty: {tire.quantity}
+                      </Badge>
+                    </div>
+                  </div>
+                ))}
+                <div className="text-center pt-3 border-t border-gray-200">
+                  <p className="text-sm text-gray-600">
+                    Found {matchingTires.length} matching tire{matchingTires.length !== 1 ? 's' : ''}
+                  </p>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Enhanced Vehicle Reference Card */}
       <Card className="border-blue-200 shadow-sm">
