@@ -24,6 +24,7 @@ interface ReportFilters {
   includeCharts: boolean
   includeDetails: boolean
   selectedTrucks: string[]
+  selectedTrailers: string[]
   selectedMaintenance: string[]
   selectedUsers: string[]
 }
@@ -45,6 +46,14 @@ interface Truck {
   licensePlate: string
   currentMileage: number
   status: string
+  createdAt: string
+}
+
+interface Trailer {
+  id: string
+  number: string
+  status: string
+  driverName?: string
   createdAt: string
 }
 
@@ -77,16 +86,19 @@ export default function ReportsPage() {
     includeCharts: true,
     includeDetails: true,
     selectedTrucks: [],
+    selectedTrailers: [],
     selectedMaintenance: [],
     selectedUsers: []
   })
   const [trucks, setTrucks] = useState<Truck[]>([])
+  const [trailers, setTrailers] = useState<Trailer[]>([])
   const [maintenance, setMaintenance] = useState<MaintenanceRecord[]>([])
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(false)
   const [generating, setGenerating] = useState(false)
   const [showCalendar, setShowCalendar] = useState<'start' | 'end' | null>(null)
   const [truckSearchOpen, setTruckSearchOpen] = useState(false)
+  const [trailerSearchOpen, setTrailerSearchOpen] = useState(false)
   const [maintenanceSearchOpen, setMaintenanceSearchOpen] = useState(false)
   const [userSearchOpen, setUserSearchOpen] = useState(false)
 
@@ -107,8 +119,9 @@ export default function ReportsPage() {
         headers['Authorization'] = `Bearer ${token}`
       }
 
-      const [trucksRes, maintenanceRes, usersRes] = await Promise.all([
+      const [trucksRes, trailersRes, maintenanceRes, usersRes] = await Promise.all([
         fetch('/api/trucks?limit=10000', { headers }),
+        fetch('/api/trailers?limit=10000', { headers }),
         fetch('/api/maintenance?limit=10000', { headers }),
         fetch('/api/users?limit=10000', { headers })
       ])
@@ -116,6 +129,11 @@ export default function ReportsPage() {
       if (trucksRes.ok) {
         const trucksData = await trucksRes.json()
         setTrucks(trucksData.data || [])
+      }
+
+      if (trailersRes.ok) {
+        const trailersData = await trailersRes.json()
+        setTrailers(trailersData.data || [])
       }
 
       if (maintenanceRes.ok) {
@@ -158,11 +176,17 @@ export default function ReportsPage() {
   const getFilteredData = () => {
     let filteredMaintenance = [...maintenance]
     let filteredTrucks = [...trucks]
+    let filteredTrailers = [...trailers]
     
     // Filter by selected trucks
     if (filters.selectedTrucks.length > 0) {
       filteredTrucks = filteredTrucks.filter(truck => filters.selectedTrucks.includes(truck.id))
       filteredMaintenance = filteredMaintenance.filter(record => filters.selectedTrucks.includes(record.truckId))
+    }
+    
+    // Filter by selected trailers
+    if (filters.selectedTrailers.length > 0) {
+      filteredTrailers = filteredTrailers.filter(trailer => filters.selectedTrailers.includes(trailer.id))
     }
     
     // Filter by selected maintenance records
@@ -192,6 +216,7 @@ export default function ReportsPage() {
 
     return {
       trucks: filteredTrucks,
+      trailers: filteredTrailers,
       maintenance: filteredMaintenance,
       users: users.filter(user => filters.selectedUsers.length === 0 || filters.selectedUsers.includes(user.id)),
       filters
@@ -221,7 +246,7 @@ export default function ReportsPage() {
   }
 
   const generateReportHTML = (data: any) => {
-    const { trucks, maintenance, filters } = data
+    const { trucks, trailers, maintenance, filters } = data
     
     return `
       <!DOCTYPE html>
@@ -254,6 +279,9 @@ export default function ReportsPage() {
               <p><strong>Total Trucks:</strong> ${trucks.length}</p>
               <p><strong>Active Trucks:</strong> ${trucks.filter(t => t.status === 'ACTIVE').length}</p>
               <p><strong>Trucks in Maintenance:</strong> ${trucks.filter(t => t.status === 'MAINTENANCE').length}</p>
+              <p><strong>Total Trailers:</strong> ${trailers.length}</p>
+              <p><strong>Active Trailers:</strong> ${trailers.filter(t => t.status === 'ACTIVE').length}</p>
+              <p><strong>Trailers in Maintenance:</strong> ${trailers.filter(t => t.status === 'MAINTENANCE').length}</p>
             </div>
           </div>
 
@@ -289,6 +317,30 @@ export default function ReportsPage() {
                     <td>${truck.year || 'N/A'}</td>
                     <td>${truck.status || 'N/A'}</td>
                     <td>${truck.currentMileage ? truck.currentMileage.toLocaleString() : 'N/A'}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+
+          <div class="section">
+            <h2 class="section-title">Trailer Details</h2>
+            <table>
+              <thead>
+                <tr>
+                  <th>Number</th>
+                  <th>Driver</th>
+                  <th>Status</th>
+                  <th>Created</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${trailers.map(trailer => `
+                  <tr>
+                    <td>Trailer ${trailer.number}</td>
+                    <td>${trailer.driverName || 'No driver'}</td>
+                    <td>${trailer.status || 'N/A'}</td>
+                    <td>${new Date(trailer.createdAt).toLocaleDateString()}</td>
                   </tr>
                 `).join('')}
               </tbody>
@@ -332,7 +384,7 @@ export default function ReportsPage() {
   const generateExcelReport = async (data: any) => {
     try {
       // Simple CSV generation for Excel compatibility
-      const { trucks, maintenance, filters } = data
+      const { trucks, trailers, maintenance, filters } = data
       
       let csvContent = "Fleet Maintenance Report\n"
       csvContent += `Generated: ${format(new Date(), 'MMM dd, yyyy HH:mm')}\n`
@@ -342,8 +394,8 @@ export default function ReportsPage() {
       
       // Fleet Overview
       csvContent += "Fleet Overview\n"
-      csvContent += "Total Trucks,Active Trucks,Trucks in Maintenance\n"
-      csvContent += `${trucks.length},${trucks.filter(t => t.status === 'ACTIVE').length},${trucks.filter(t => t.status === 'MAINTENANCE').length}\n\n`
+      csvContent += "Total Trucks,Active Trucks,Trucks in Maintenance,Total Trailers,Active Trailers,Trailers in Maintenance\n"
+      csvContent += `${trucks.length},${trucks.filter(t => t.status === 'ACTIVE').length},${trucks.filter(t => t.status === 'MAINTENANCE').length},${trailers.length},${trailers.filter(t => t.status === 'ACTIVE').length},${trailers.filter(t => t.status === 'MAINTENANCE').length}\n\n`
       
       // Maintenance Summary
       csvContent += "Maintenance Summary\n"
@@ -358,6 +410,14 @@ export default function ReportsPage() {
         csvContent += "License Plate,Make,Model,Year,Status,Current Mileage\n"
         trucks.forEach(truck => {
           csvContent += `${truck.licensePlate || 'N/A'},${truck.make || 'N/A'},${truck.model || 'N/A'},${truck.year || 'N/A'},${truck.status || 'N/A'},${truck.currentMileage || 0}\n`
+        })
+        csvContent += "\n"
+        
+        // Trailer Details
+        csvContent += "Trailer Details\n"
+        csvContent += "Number,Driver,Status,Created\n"
+        trailers.forEach(trailer => {
+          csvContent += `Trailer ${trailer.number},${trailer.driverName || 'No driver'},${trailer.status || 'N/A'},${new Date(trailer.createdAt).toLocaleDateString()}\n`
         })
         csvContent += "\n"
         
@@ -396,6 +456,7 @@ export default function ReportsPage() {
       includeCharts: true,
       includeDetails: true,
       selectedTrucks: [],
+      selectedTrailers: [],
       selectedMaintenance: [],
       selectedUsers: []
     })
@@ -407,6 +468,15 @@ export default function ReportsPage() {
       selectedTrucks: prev.selectedTrucks.includes(truckId)
         ? prev.selectedTrucks.filter(id => id !== truckId)
         : [...prev.selectedTrucks, truckId]
+    }))
+  }
+
+  const toggleTrailerSelection = (trailerId: string) => {
+    setFilters(prev => ({
+      ...prev,
+      selectedTrailers: prev.selectedTrailers.includes(trailerId)
+        ? prev.selectedTrailers.filter(id => id !== trailerId)
+        : [...prev.selectedTrailers, trailerId]
     }))
   }
 
@@ -635,6 +705,65 @@ export default function ReportsPage() {
               </Dialog>
             </div>
 
+            {/* Trailer Selection */}
+            <div className="space-y-2">
+              <Label>Selected Trailers ({filters.selectedTrailers.length})</Label>
+              <Dialog open={trailerSearchOpen} onOpenChange={setTrailerSearchOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" className="w-full justify-start">
+                    <Truck className="mr-2 h-4 w-4" />
+                    {filters.selectedTrailers.length > 0 
+                      ? `${filters.selectedTrailers.length} trailer${filters.selectedTrailers.length > 1 ? 's' : ''} selected`
+                      : 'Select trailers...'
+                    }
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[425px]">
+                  <DialogHeader>
+                    <DialogTitle>Select Trailers</DialogTitle>
+                    <DialogDescription>
+                      Choose specific trailers to include in the report
+                    </DialogDescription>
+                  </DialogHeader>
+                  <Command>
+                    <CommandInput placeholder="Search trailers..." />
+                    <CommandList>
+                      <CommandEmpty>No trailers found.</CommandEmpty>
+                      <CommandGroup>
+                        {trailers.map((trailer) => (
+                          <CommandItem
+                            key={trailer.id}
+                            onSelect={() => toggleTrailerSelection(trailer.id)}
+                          >
+                            <div className="flex items-center space-x-2">
+                              <Checkbox
+                                checked={filters.selectedTrailers.includes(trailer.id)}
+                                disabled
+                              />
+                              <div>
+                                <p className="font-medium">Trailer {trailer.number}</p>
+                                <p className="text-sm text-muted-foreground">
+                                  {trailer.driverName || 'No driver'} • {trailer.status}
+                                </p>
+                              </div>
+                            </div>
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                  <div className="flex justify-between mt-4">
+                    <Button variant="outline" onClick={() => setFilters(prev => ({ ...prev, selectedTrailers: [] }))}>
+                      Clear All
+                    </Button>
+                    <Button onClick={() => setTrailerSearchOpen(false)}>
+                      Done ({filters.selectedTrailers.length} selected)
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </div>
+
             {/* Maintenance Selection */}
             <div className="space-y-2">
               <Label>Selected Maintenance ({filters.selectedMaintenance.length})</Label>
@@ -775,6 +904,16 @@ export default function ReportsPage() {
             </div>
             
             <div className="flex justify-between items-center">
+              <span className="text-sm font-medium">Total Trailers</span>
+              <Badge variant="secondary">{trailers.length}</Badge>
+            </div>
+            
+            <div className="flex justify-between items-center">
+              <span className="text-sm font-medium">Active Trailers</span>
+              <Badge variant="default">{trailers.filter(t => t.status === 'ACTIVE').length}</Badge>
+            </div>
+            
+            <div className="flex justify-between items-center">
               <span className="text-sm font-medium">Maintenance Records</span>
               <Badge variant="secondary">{maintenance.length}</Badge>
             </div>
@@ -789,6 +928,14 @@ export default function ReportsPage() {
             <Alert>
               <AlertDescription>
                 <strong>Selected Trucks:</strong> {filters.selectedTrucks.length} truck{filters.selectedTrucks.length > 1 ? 's' : ''} selected
+              </AlertDescription>
+            </Alert>
+          )}
+          
+          {filters.selectedTrailers.length > 0 && (
+            <Alert>
+              <AlertDescription>
+                <strong>Selected Trailers:</strong> {filters.selectedTrailers.length} trailer{filters.selectedTrailers.length > 1 ? 's' : ''} selected
               </AlertDescription>
             </Alert>
           )}
