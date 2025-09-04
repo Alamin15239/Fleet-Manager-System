@@ -129,10 +129,10 @@ export async function GET(request: NextRequest) {
     // Get tire condition analysis (based on creation date)
     const now = new Date()
     const oneYearAgo = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate())
-    const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 6, now.getDate())
+    const recentCutoff = new Date(now.getFullYear(), now.getMonth() - 6, now.getDate())
     
     const newTires = await db.tire.count({
-      where: { createdAt: { gte: sixMonthsAgo } }
+      where: { createdAt: { gte: recentCutoff } }
     })
     
     const oldTires = await db.tire.count({

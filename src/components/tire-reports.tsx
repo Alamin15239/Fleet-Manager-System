@@ -267,7 +267,7 @@ export default function TireReports() {
           <CardContent>
             <div className="text-lg sm:text-2xl font-bold">{analytics.summary.newTires}</div>
             <p className="text-xs text-muted-foreground">
-              < 6 months old
+              &lt; 6 months old
             </p>
           </CardContent>
         </Card>
