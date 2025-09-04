@@ -86,6 +86,14 @@ export async function GET(request: NextRequest) {
               currentMileage: true
             }
           },
+          trailer: {
+            select: {
+              id: true,
+              number: true,
+              status: true,
+              driverName: true
+            }
+          },
           mechanic: {
             select: {
               id: true,
@@ -196,8 +204,12 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Check if truck exists
-    const truck = await Promise.race([
+    // Check if vehicle exists (truck or trailer)
+    let vehicle = null
+    let vehicleType = 'truck'
+    
+    // First try to find as truck
+    vehicle = await Promise.race([
       db.truck.findUnique({
         where: { 
           id: body.truckId,
@@ -206,10 +218,24 @@ export async function POST(request: NextRequest) {
       }),
       timeoutPromise
     ])
+    
+    // If not found as truck, try as trailer
+    if (!vehicle) {
+      vehicle = await Promise.race([
+        db.trailer.findUnique({
+          where: { 
+            id: body.truckId,
+            isDeleted: false 
+          }
+        }),
+        timeoutPromise
+      ])
+      vehicleType = 'trailer'
+    }
 
-    if (!truck) {
+    if (!vehicle) {
       return NextResponse.json(
-        { error: 'Truck not found' },
+        { error: 'Vehicle not found' },
         { status: 404 }
       )
     }
@@ -237,32 +263,40 @@ export async function POST(request: NextRequest) {
     const totalCost = partsCost + laborCost
 
     // Create maintenance record
+    const maintenanceData: any = {
+      serviceType: body.serviceType,
+      description: body.description,
+      datePerformed: new Date(body.datePerformed),
+      partsCost,
+      laborCost,
+      totalCost,
+      mechanicId: body.mechanicId || null,
+      createdById: body.createdById || null,
+      nextServiceDue: body.nextServiceDue ? new Date(body.nextServiceDue) : null,
+      status: body.status,
+      notes: body.notes,
+      attachments: body.attachments,
+      isOilChange: body.isOilChange || false,
+      oilChangeInterval: body.oilChangeInterval ? parseInt(body.oilChangeInterval) : null,
+      currentMileage: body.currentMileage ? parseInt(body.currentMileage) : null,
+      maintenanceJobId: body.maintenanceJobId,
+      wasPredicted: body.wasPredicted || false,
+      predictionId: body.predictionId,
+      downtimeHours: body.downtimeHours ? parseFloat(body.downtimeHours) : null,
+      failureMode: body.failureMode,
+      rootCause: body.rootCause
+    }
+    
+    // Add vehicle reference based on type
+    if (vehicleType === 'truck') {
+      maintenanceData.truckId = body.truckId
+    } else {
+      maintenanceData.trailerId = body.truckId
+    }
+    
     const maintenanceRecord = await Promise.race([
       db.maintenanceRecord.create({
-        data: {
-          truckId: body.truckId,
-          serviceType: body.serviceType,
-          description: body.description,
-          datePerformed: new Date(body.datePerformed),
-          partsCost,
-          laborCost,
-          totalCost,
-          mechanicId: body.mechanicId || null,
-          createdById: body.createdById || null,
-          nextServiceDue: body.nextServiceDue ? new Date(body.nextServiceDue) : null,
-          status: body.status,
-          notes: body.notes,
-          attachments: body.attachments,
-          isOilChange: body.isOilChange || false,
-          oilChangeInterval: body.oilChangeInterval ? parseInt(body.oilChangeInterval) : null,
-          currentMileage: body.currentMileage ? parseInt(body.currentMileage) : null,
-          maintenanceJobId: body.maintenanceJobId,
-          wasPredicted: body.wasPredicted || false,
-          predictionId: body.predictionId,
-          downtimeHours: body.downtimeHours ? parseFloat(body.downtimeHours) : null,
-          failureMode: body.failureMode,
-          rootCause: body.rootCause
-        },
+        data: maintenanceData,
         include: {
           truck: {
             select: {
@@ -273,6 +307,14 @@ export async function POST(request: NextRequest) {
               year: true,
               licensePlate: true,
               currentMileage: true
+            }
+          },
+          trailer: {
+            select: {
+              id: true,
+              number: true,
+              status: true,
+              driverName: true
             }
           },
           mechanic: {
