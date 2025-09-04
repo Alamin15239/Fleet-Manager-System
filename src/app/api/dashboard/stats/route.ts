@@ -151,7 +151,14 @@ export async function GET(request: NextRequest) {
       totalMaintenanceCost,
       recentTrucks,
       recentMaintenance,
-      monthlyMaintenanceData // Include raw data for client-side processing
+      monthlyMaintenanceData, // Include raw data for client-side processing
+      debug: {
+        totalTrucks,
+        allTrucksCount,
+        activeTrucks,
+        totalTrailers,
+        activeTrailers
+      }
     })
   } catch (error) {
     console.error('Error fetching dashboard stats:', error)
