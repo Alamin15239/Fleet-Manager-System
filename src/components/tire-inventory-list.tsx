@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Textarea } from '@/components/ui/textarea'
+
 import { 
   Search, 
   Filter, 
@@ -21,16 +21,12 @@ import {
   User,
   Calendar,
   Package,
-  Edit,
-  Trash2,
-  Save,
-  X,
   AlertCircle,
   CheckCircle,
   Eye
 } from 'lucide-react'
 import { format } from 'date-fns'
-import { apiGet, apiPut, apiDelete } from '@/lib/api'
+import { apiGet } from '@/lib/api'
 import { useRealTime } from '../../components/real-time-provider'
 
 interface Tire {
@@ -96,20 +92,9 @@ export default function TireInventoryList() {
   const [plates, setPlates] = useState<string[]>([])
   const [drivers, setDrivers] = useState<string[]>([])
 
-  // Edit/Delete states
+  // View states
   const [editingTire, setEditingTire] = useState<Tire | null>(null)
   const [showEditDialog, setShowEditDialog] = useState(false)
-  const [tireForm, setTireForm] = useState<TireFormData>({
-    tireSize: '',
-    manufacturer: '',
-    origin: 'CHINESE',
-    plateNumber: '',
-    trailerNumber: '',
-    driverName: '',
-    quantity: 1,
-    notes: ''
-  })
-  const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
 
@@ -174,69 +159,7 @@ export default function TireInventoryList() {
     }
   }
 
-  const handleEditTire = (tire: Tire) => {
-    setEditingTire(tire)
-    setTireForm({
-      tireSize: tire.tireSize,
-      manufacturer: tire.manufacturer,
-      origin: tire.origin,
-      plateNumber: tire.plateNumber,
-      trailerNumber: tire.trailerNumber || '',
-      driverName: tire.driverName || '',
-      quantity: tire.quantity,
-      notes: tire.notes || ''
-    })
-    setShowEditDialog(true)
-    setError(null)
-    setSuccess(null)
-  }
 
-  const handleUpdateTire = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!editingTire) return
-
-    setSubmitting(true)
-    setError(null)
-    setSuccess(null)
-
-    try {
-      const response = await apiPut(`/api/tires/${editingTire.id}`, tireForm)
-
-      if (response.ok) {
-        const data = await response.json()
-        setSuccess('Tire updated successfully')
-        setShowEditDialog(false)
-        fetchTires()
-        fetchFilterOptions()
-      } else {
-        const errorData = await response.json()
-        setError(errorData.error || 'Failed to update tire')
-      }
-    } catch (error) {
-      setError('Failed to update tire')
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  const handleDeleteTire = async (tireId: string) => {
-    if (!confirm('Are you sure you want to delete this tire record?')) return
-
-    try {
-      const response = await apiDelete(`/api/tires/${tireId}`)
-
-      if (response.ok) {
-        setSuccess('Tire deleted successfully')
-        fetchTires()
-        fetchFilterOptions()
-      } else {
-        const errorData = await response.json()
-        setError(errorData.error || 'Failed to delete tire')
-      }
-    } catch (error) {
-      setError('Failed to delete tire')
-    }
-  }
 
   const handleRefresh = () => {
     setRefreshing(true)
@@ -545,7 +468,7 @@ export default function TireInventoryList() {
                         </div>
                       </TableCell>
                       <TableCell className="text-right">
-                        <div className="flex justify-end space-x-1">
+                        <div className="flex justify-end">
                           <Button
                             variant="outline"
                             size="sm"
@@ -554,25 +477,9 @@ export default function TireInventoryList() {
                               setShowEditDialog(true)
                             }}
                             className="h-8 w-8 p-0"
-                            title="View/Edit tire details"
+                            title="View tire details"
                           >
                             <Eye className="h-3 w-3" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleEditTire(tire)}
-                            className="h-8 w-8 p-0"
-                          >
-                            <Edit className="h-3 w-3" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleDeleteTire(tire.id)}
-                            className="h-8 w-8 p-0"
-                          >
-                            <Trash2 className="h-3 w-3" />
                           </Button>
                         </div>
                       </TableCell>
@@ -612,148 +519,114 @@ export default function TireInventoryList() {
         </div>
       )}
 
-      {/* Edit Tire Dialog */}
+      {/* View Tire Dialog */}
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
         <DialogContent className="max-w-md mx-4 sm:mx-auto">
           <DialogHeader>
-            <DialogTitle className="text-lg">Edit Tire</DialogTitle>
+            <DialogTitle className="text-lg flex items-center gap-2">
+              <Eye className="h-5 w-5" />
+              Tire Details
+            </DialogTitle>
             <DialogDescription className="text-sm">
-              Update tire information
+              {editingTire?.trailerNumber ? 'Trailer Tire Information' : 'Truck Tire Information'}
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleUpdateTire} className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="tireSize">Tire Size</Label>
-                <Input
-                  id="tireSize"
-                  value={tireForm.tireSize}
-                  onChange={(e) => setTireForm({ ...tireForm, tireSize: e.target.value })}
-                  required
-                />
+          
+          {editingTire && (
+            <div className="space-y-4">
+              {/* Tire Type Indicator */}
+              <div className={`p-3 rounded-lg border ${
+                editingTire.trailerNumber 
+                  ? 'bg-orange-50 border-orange-200' 
+                  : 'bg-blue-50 border-blue-200'
+              }`}>
+                <div className="flex items-center gap-2 mb-2">
+                  {editingTire.trailerNumber ? (
+                    <>
+                      <Package className="h-4 w-4 text-orange-600" />
+                      <span className="font-semibold text-orange-900">Trailer Tire</span>
+                    </>
+                  ) : (
+                    <>
+                      <Truck className="h-4 w-4 text-blue-600" />
+                      <span className="font-semibold text-blue-900">Truck Tire</span>
+                    </>
+                  )}
+                </div>
+                <div className="text-sm space-y-1">
+                  {editingTire.trailerNumber && (
+                    <div><strong>Trailer:</strong> {editingTire.trailerNumber}</div>
+                  )}
+                  {editingTire.plateNumber && (
+                    <div><strong>Plate:</strong> {editingTire.plateNumber}</div>
+                  )}
+                  {editingTire.driverName && (
+                    <div><strong>Driver:</strong> {editingTire.driverName}</div>
+                  )}
+                </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="manufacturer">Manufacturer</Label>
-                <Input
-                  id="manufacturer"
-                  value={tireForm.manufacturer}
-                  onChange={(e) => setTireForm({ ...tireForm, manufacturer: e.target.value })}
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="origin">Origin</Label>
-              <Select value={tireForm.origin} onValueChange={(value) => setTireForm({ ...tireForm, origin: value })}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="CHINESE">Chinese</SelectItem>
-                  <SelectItem value="JAPANESE">Japanese</SelectItem>
-                  <SelectItem value="EUROPEAN">European</SelectItem>
-                  <SelectItem value="AMERICAN">American</SelectItem>
-                  <SelectItem value="OTHER">Other</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="plateNumber" className="text-sm">Plate Number</Label>
-                <Input
-                  id="plateNumber"
-                  value={tireForm.plateNumber}
-                  onChange={(e) => setTireForm({ ...tireForm, plateNumber: e.target.value })}
-                  required
-                />
+              {/* Tire Specifications */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-sm font-medium">Tire Size</Label>
+                  <div className="text-sm p-2 bg-gray-50 rounded border">{editingTire.tireSize}</div>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium">Manufacturer</Label>
+                  <div className="text-sm p-2 bg-gray-50 rounded border">{editingTire.manufacturer}</div>
+                </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="trailerNumber" className="text-sm">Trailer Number</Label>
-                <Input
-                  id="trailerNumber"
-                  value={tireForm.trailerNumber}
-                  onChange={(e) => setTireForm({ ...tireForm, trailerNumber: e.target.value })}
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="driverName" className="text-sm">Driver Name</Label>
-                <Input
-                  id="driverName"
-                  value={tireForm.driverName}
-                  onChange={(e) => setTireForm({ ...tireForm, driverName: e.target.value })}
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-sm font-medium">Origin</Label>
+                  <div className="text-sm p-2 bg-gray-50 rounded border">
+                    <Badge className={`${getOriginColor(editingTire.origin)}`}>
+                      {editingTire.origin}
+                    </Badge>
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium">Quantity</Label>
+                  <div className="text-sm p-2 bg-gray-50 rounded border flex items-center gap-1">
+                    <Package className="h-3 w-3" />
+                    {editingTire.quantity}
+                  </div>
+                </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="quantity" className="text-sm">Quantity</Label>
-                <Input
-                  id="quantity"
-                  type="number"
-                  min="1"
-                  value={tireForm.quantity}
-                  onChange={(e) => setTireForm({ ...tireForm, quantity: parseInt(e.target.value) || 1 })}
-                  required
-                />
+              {editingTire.notes && (
+                <div>
+                  <Label className="text-sm font-medium">Notes</Label>
+                  <div className="text-sm p-2 bg-gray-50 rounded border">{editingTire.notes}</div>
+                </div>
+              )}
+
+              {/* Creation Info */}
+              <div className="border-t pt-4">
+                <div className="text-xs text-gray-500 space-y-1">
+                  <div className="flex items-center gap-1">
+                    <Calendar className="h-3 w-3" />
+                    Created: {format(new Date(editingTire.createdAt), 'MMM dd, yyyy HH:mm')}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <User className="h-3 w-3" />
+                    By: {editingTire.createdBy?.name || editingTire.createdBy?.email || 'System'}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end">
+                <Button 
+                  onClick={() => setShowEditDialog(false)}
+                  className="w-full sm:w-auto"
+                >
+                  Close
+                </Button>
               </div>
             </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="notes" className="text-sm">Notes</Label>
-              <Textarea
-                id="notes"
-                value={tireForm.notes}
-                onChange={(e) => setTireForm({ ...tireForm, notes: e.target.value })}
-                placeholder="Additional notes..."
-                rows={3}
-              />
-            </div>
-
-            {error && (
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-
-            {success && (
-              <Alert className="border-green-200 bg-green-50">
-                <CheckCircle className="h-4 w-4 text-green-600" />
-                <AlertDescription className="text-green-700">{success}</AlertDescription>
-              </Alert>
-            )}
-
-            <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-2">
-              <Button 
-                type="button" 
-                variant="outline" 
-                onClick={() => setShowEditDialog(false)}
-                className="w-full sm:w-auto"
-              >
-                <X className="mr-2 h-4 w-4" />
-                Cancel
-              </Button>
-              <Button type="submit" disabled={submitting} className="w-full sm:w-auto">
-                {submitting ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    Updating...
-                  </>
-                ) : (
-                  <>
-                    <Save className="mr-2 h-4 w-4" />
-                    Update
-                  </>
-                )}
-              </Button>
-            </div>
-          </form>
+          )}
         </DialogContent>
       </Dialog>
     </div>
