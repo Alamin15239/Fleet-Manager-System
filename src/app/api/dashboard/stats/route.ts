@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     const totalMaintenanceCost = 0
     const recentTrucks = []
     const recentMaintenance = []
-    const monthlyMaintenanceData = []
+    const monthlyMaintenanceData = null
 
     return NextResponse.json({
       totalTrucks,
@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
       totalMaintenanceCost: 0,
       recentTrucks: [],
       recentMaintenance: [],
-      monthlyMaintenanceData: [],
+      monthlyMaintenanceData: null,
       error: 'Database connection failed'
     })
   }

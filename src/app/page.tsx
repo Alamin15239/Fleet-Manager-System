@@ -95,7 +95,7 @@ export default function Dashboard() {
         })
         
         // Only generate chart data if there are real maintenance records
-        if (hasRealData && data.monthlyMaintenanceData && data.monthlyMaintenanceData.length > 0) {
+        if (hasRealData && data.monthlyMaintenanceData && Array.isArray(data.monthlyMaintenanceData) && data.monthlyMaintenanceData.length > 0) {
           const monthlyData = generateMonthlyCostData(data.monthlyMaintenanceData)
           setMonthlyCostData(monthlyData)
           
