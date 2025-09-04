@@ -32,6 +32,10 @@ export async function GET(request: NextRequest) {
       where: { isDeleted: false }
     })
     console.log('Total trucks found:', totalTrucks)
+    
+    // Debug: Also check without isDeleted filter
+    const allTrucksCount = await db.truck.count()
+    console.log('All trucks in database:', allTrucksCount)
 
     // Get total trailers count
     const totalTrailers = await db.trailer.count({
