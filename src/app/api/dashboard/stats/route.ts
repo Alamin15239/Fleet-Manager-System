@@ -6,6 +6,7 @@ export async function GET(request: NextRequest) {
     // Test database connection first
     try {
       await db.$queryRaw`SELECT 1`
+      console.log('Database connection successful')
     } catch (dbError) {
       console.error('Database connection failed:', dbError)
       return NextResponse.json({
@@ -20,14 +21,17 @@ export async function GET(request: NextRequest) {
         totalMaintenanceCost: 0,
         recentTrucks: [],
         recentMaintenance: [],
-        monthlyMaintenanceData: []
+        monthlyMaintenanceData: [],
+        error: 'Database connection failed'
       })
     }
 
     // Get total trucks count (only user-created trucks)
+    console.log('Fetching truck count...')
     const totalTrucks = await db.truck.count({
       where: { isDeleted: false }
     })
+    console.log('Total trucks found:', totalTrucks)
 
     // Get total trailers count
     const totalTrailers = await db.trailer.count({
