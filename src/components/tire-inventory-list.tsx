@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Textarea } from '@/components/ui/textarea'
 
 import { 
   Search, 
@@ -21,12 +22,15 @@ import {
   User,
   Calendar,
   Package,
+  Edit,
+  Save,
+  X,
   AlertCircle,
   CheckCircle,
   Eye
 } from 'lucide-react'
 import { format } from 'date-fns'
-import { apiGet } from '@/lib/api'
+import { apiGet, apiPut } from '@/lib/api'
 import { useRealTime } from '../../components/real-time-provider'
 
 interface Tire {
@@ -92,9 +96,21 @@ export default function TireInventoryList() {
   const [plates, setPlates] = useState<string[]>([])
   const [drivers, setDrivers] = useState<string[]>([])
 
-  // View states
+  // View/Edit states
   const [editingTire, setEditingTire] = useState<Tire | null>(null)
+  const [showViewDialog, setShowViewDialog] = useState(false)
   const [showEditDialog, setShowEditDialog] = useState(false)
+  const [tireForm, setTireForm] = useState<TireFormData>({
+    tireSize: '',
+    manufacturer: '',
+    origin: 'CHINESE',
+    plateNumber: '',
+    trailerNumber: '',
+    driverName: '',
+    quantity: 1,
+    notes: ''
+  })
+  const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
 
@@ -156,6 +172,50 @@ export default function TireInventoryList() {
       }
     } catch (error) {
       console.error('Error fetching filter options:', error)
+    }
+  }
+
+  const handleEditTire = (tire: Tire) => {
+    setEditingTire(tire)
+    setTireForm({
+      tireSize: tire.tireSize,
+      manufacturer: tire.manufacturer,
+      origin: tire.origin,
+      plateNumber: tire.plateNumber,
+      trailerNumber: tire.trailerNumber || '',
+      driverName: tire.driverName || '',
+      quantity: tire.quantity,
+      notes: tire.notes || ''
+    })
+    setShowEditDialog(true)
+    setError(null)
+    setSuccess(null)
+  }
+
+  const handleUpdateTire = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editingTire) return
+
+    setSubmitting(true)
+    setError(null)
+    setSuccess(null)
+
+    try {
+      const response = await apiPut(`/api/tires/${editingTire.id}`, tireForm)
+
+      if (response.ok) {
+        setSuccess('Tire updated successfully')
+        setShowEditDialog(false)
+        fetchTires()
+        fetchFilterOptions()
+      } else {
+        const errorData = await response.json()
+        setError(errorData.error || 'Failed to update tire')
+      }
+    } catch (error) {
+      setError('Failed to update tire')
+    } finally {
+      setSubmitting(false)
     }
   }
 
@@ -468,18 +528,27 @@ export default function TireInventoryList() {
                         </div>
                       </TableCell>
                       <TableCell className="text-right">
-                        <div className="flex justify-end">
+                        <div className="flex justify-end space-x-1">
                           <Button
                             variant="outline"
                             size="sm"
                             onClick={() => {
                               setEditingTire(tire)
-                              setShowEditDialog(true)
+                              setShowViewDialog(true)
                             }}
                             className="h-8 w-8 p-0"
                             title="View tire details"
                           >
                             <Eye className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleEditTire(tire)}
+                            className="h-8 w-8 p-0"
+                            title="Edit tire"
+                          >
+                            <Edit className="h-3 w-3" />
                           </Button>
                         </div>
                       </TableCell>
@@ -520,7 +589,7 @@ export default function TireInventoryList() {
       )}
 
       {/* View Tire Dialog */}
-      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+      <Dialog open={showViewDialog} onOpenChange={setShowViewDialog}>
         <DialogContent className="max-w-md mx-4 sm:mx-auto">
           <DialogHeader>
             <DialogTitle className="text-lg flex items-center gap-2">
@@ -619,7 +688,7 @@ export default function TireInventoryList() {
 
               <div className="flex justify-end">
                 <Button 
-                  onClick={() => setShowEditDialog(false)}
+                  onClick={() => setShowViewDialog(false)}
                   className="w-full sm:w-auto"
                 >
                   Close
@@ -627,6 +696,202 @@ export default function TireInventoryList() {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Context-Specific Edit Dialog */}
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <DialogContent className="max-w-md mx-4 sm:mx-auto">
+          <DialogHeader>
+            <DialogTitle className="text-lg flex items-center gap-2">
+              <Edit className="h-5 w-5" />
+              Edit {editingTire?.trailerNumber ? 'Trailer' : 'Truck'} Tire
+            </DialogTitle>
+            <DialogDescription className="text-sm">
+              {editingTire?.trailerNumber 
+                ? 'Update trailer tire information' 
+                : 'Update truck tire information'
+              }
+            </DialogDescription>
+          </DialogHeader>
+          
+          <form onSubmit={handleUpdateTire} className="space-y-4">
+            {/* Tire Specifications */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="tireSize">Tire Size</Label>
+                <Input
+                  id="tireSize"
+                  value={tireForm.tireSize}
+                  onChange={(e) => setTireForm({ ...tireForm, tireSize: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="manufacturer">Manufacturer</Label>
+                <Input
+                  id="manufacturer"
+                  value={tireForm.manufacturer}
+                  onChange={(e) => setTireForm({ ...tireForm, manufacturer: e.target.value })}
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="origin">Origin</Label>
+              <Select value={tireForm.origin} onValueChange={(value) => setTireForm({ ...tireForm, origin: value })}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="CHINESE">Chinese</SelectItem>
+                  <SelectItem value="JAPANESE">Japanese</SelectItem>
+                  <SelectItem value="EUROPEAN">European</SelectItem>
+                  <SelectItem value="AMERICAN">American</SelectItem>
+                  <SelectItem value="OTHER">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Context-Specific Fields */}
+            {editingTire?.trailerNumber ? (
+              // Trailer-focused edit form
+              <div className="space-y-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                <h4 className="font-medium text-orange-900 flex items-center gap-2">
+                  <Package className="h-4 w-4" />
+                  Trailer Information
+                </h4>
+                <div className="space-y-2">
+                  <Label htmlFor="trailerNumber">Trailer Number</Label>
+                  <Input
+                    id="trailerNumber"
+                    value={tireForm.trailerNumber}
+                    onChange={(e) => setTireForm({ ...tireForm, trailerNumber: e.target.value })}
+                    className="border-orange-300 focus:border-orange-500"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="driverName">Driver Name</Label>
+                  <Input
+                    id="driverName"
+                    value={tireForm.driverName}
+                    onChange={(e) => setTireForm({ ...tireForm, driverName: e.target.value })}
+                    className="border-orange-300 focus:border-orange-500"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="plateNumber">Associated Plate (Optional)</Label>
+                  <Input
+                    id="plateNumber"
+                    value={tireForm.plateNumber}
+                    onChange={(e) => setTireForm({ ...tireForm, plateNumber: e.target.value })}
+                    className="border-orange-300 focus:border-orange-500"
+                  />
+                </div>
+              </div>
+            ) : (
+              // Truck-focused edit form
+              <div className="space-y-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <h4 className="font-medium text-blue-900 flex items-center gap-2">
+                  <Truck className="h-4 w-4" />
+                  Truck Information
+                </h4>
+                <div className="space-y-2">
+                  <Label htmlFor="plateNumber">Plate Number</Label>
+                  <Input
+                    id="plateNumber"
+                    value={tireForm.plateNumber}
+                    onChange={(e) => setTireForm({ ...tireForm, plateNumber: e.target.value })}
+                    className="border-blue-300 focus:border-blue-500"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="driverName">Driver Name</Label>
+                  <Input
+                    id="driverName"
+                    value={tireForm.driverName}
+                    onChange={(e) => setTireForm({ ...tireForm, driverName: e.target.value })}
+                    className="border-blue-300 focus:border-blue-500"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="trailerNumber">Associated Trailer (Optional)</Label>
+                  <Input
+                    id="trailerNumber"
+                    value={tireForm.trailerNumber}
+                    onChange={(e) => setTireForm({ ...tireForm, trailerNumber: e.target.value })}
+                    className="border-blue-300 focus:border-blue-500"
+                  />
+                </div>
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="quantity">Quantity</Label>
+                <Input
+                  id="quantity"
+                  type="number"
+                  min="1"
+                  value={tireForm.quantity}
+                  onChange={(e) => setTireForm({ ...tireForm, quantity: parseInt(e.target.value) || 1 })}
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="notes">Notes</Label>
+              <Textarea
+                id="notes"
+                value={tireForm.notes}
+                onChange={(e) => setTireForm({ ...tireForm, notes: e.target.value })}
+                placeholder="Additional notes..."
+                rows={3}
+              />
+            </div>
+
+            {error && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+
+            {success && (
+              <Alert className="border-green-200 bg-green-50">
+                <CheckCircle className="h-4 w-4 text-green-600" />
+                <AlertDescription className="text-green-700">{success}</AlertDescription>
+              </Alert>
+            )}
+
+            <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-2">
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => setShowEditDialog(false)}
+                className="w-full sm:w-auto"
+              >
+                <X className="mr-2 h-4 w-4" />
+                Cancel
+              </Button>
+              <Button type="submit" disabled={submitting} className="w-full sm:w-auto">
+                {submitting ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Updating...
+                  </>
+                ) : (
+                  <>
+                    <Save className="mr-2 h-4 w-4" />
+                    Update
+                  </>
+                )}
+              </Button>
+            </div>
+          </form>
         </DialogContent>
       </Dialog>
     </div>
