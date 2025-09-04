@@ -302,6 +302,7 @@ export default function ProfessionalReportGenerator() {
       'Tire Size',
       'Brand/Manufacturer', 
       'Country of Origin',
+      'Serial Number',
       'Truck Plate Number',
       'Trailer ID Number',
       'Assigned Driver',
@@ -326,6 +327,7 @@ export default function ProfessionalReportGenerator() {
           `"${tire.tireSize}"`,
           `"${tire.manufacturer}"`,
           tire.origin.charAt(0) + tire.origin.slice(1).toLowerCase(),
+          tire.serialNumber ? `"${tire.serialNumber}"` : 'N/A',
           plateDisplay,
           trailerDisplay,
           driverDisplay,
@@ -369,6 +371,7 @@ export default function ProfessionalReportGenerator() {
         { header: 'Tire Size', key: 'tireSize', width: 15 },
         { header: 'Brand/Manufacturer', key: 'manufacturer', width: 20 },
         { header: 'Country of Origin', key: 'origin', width: 15 },
+        { header: 'Serial Number', key: 'serialNumber', width: 18 },
         { header: 'Truck Plate Number', key: 'plateNumber', width: 18 },
         { header: 'Trailer ID Number', key: 'trailerNumber', width: 18 },
         { header: 'Assigned Driver', key: 'driverName', width: 20 },
@@ -387,6 +390,7 @@ export default function ProfessionalReportGenerator() {
             tireSize: tire.tireSize,
             manufacturer: tire.manufacturer,
             origin: tire.origin.charAt(0) + tire.origin.slice(1).toLowerCase(),
+            serialNumber: tire.serialNumber || 'N/A',
             plateNumber: tire.plateNumber || 'N/A',
             trailerNumber: tire.trailerNumber ? `TRL-${tire.trailerNumber}` : 'N/A',
             driverName: tire.driverName || 'Unassigned',
@@ -470,7 +474,7 @@ export default function ProfessionalReportGenerator() {
           doc.text(`${index + 1}. ${tire.manufacturer} ${tire.tireSize}`, 20, yPos)
           const vehicleInfo = tire.trailerNumber ? `Trailer: ${tire.trailerNumber}` : `Truck: ${tire.plateNumber || 'N/A'}`
           doc.text(`${vehicleInfo} | Driver: ${tire.driverName || 'N/A'}`, 25, yPos + 8)
-          doc.text(`Origin: ${tire.origin} | Qty: ${tire.quantity} | Type: ${tire.trailerNumber ? 'TRAILER UNIT' : 'TRUCK UNIT'}`, 25, yPos + 16)
+          doc.text(`Serial: ${tire.serialNumber || 'N/A'} | Origin: ${tire.origin} | Qty: ${tire.quantity}`, 25, yPos + 16)
           yPos += 25
         })
       }
@@ -504,6 +508,7 @@ ${reportData.tires ? reportData.tires.map((tire: any, index: number) => `
 ${index + 1}. ${tire.manufacturer} ${tire.tireSize}
    Vehicle: ${tire.plateNumber}
    Driver: ${tire.driverName || 'N/A'}
+   Serial: ${tire.serialNumber || 'N/A'}
    Origin: ${tire.origin}
    Quantity: ${tire.quantity}
    Created: ${format(new Date(tire.createdAt), 'yyyy-MM-dd')}

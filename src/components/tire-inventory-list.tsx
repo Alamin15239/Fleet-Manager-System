@@ -249,13 +249,14 @@ export default function TireInventoryList() {
 
   const handleExport = () => {
     // Create CSV content
-    const headers = ['Tire Size', 'Manufacturer', 'Origin', 'Plate Number', 'Trailer Number', 'Driver Name', 'Quantity', 'Notes', 'Created Date', 'Created By', 'Vehicle Type']
+    const headers = ['Tire Size', 'Manufacturer', 'Origin', 'Serial Number', 'Plate Number', 'Trailer Number', 'Driver Name', 'Quantity', 'Notes', 'Created Date', 'Created By', 'Vehicle Type']
     const csvContent = [
       headers.join(','),
       ...tires.map(tire => [
         tire.tireSize,
         tire.manufacturer,
         tire.origin,
+        tire.serialNumber || '',
         tire.plateNumber || '',
         tire.trailerNumber || '',
         tire.driverName || '',
