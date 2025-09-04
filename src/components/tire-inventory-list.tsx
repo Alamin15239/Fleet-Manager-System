@@ -206,15 +206,15 @@ export default function TireInventoryList() {
     try {
       // Prepare data with proper validation
       const updateData = {
-        tireSize: tireForm.tireSize.trim(),
-        manufacturer: tireForm.manufacturer.trim(),
+        tireSize: (tireForm.tireSize || '').trim(),
+        manufacturer: (tireForm.manufacturer || '').trim(),
         origin: tireForm.origin,
-        plateNumber: tireForm.plateNumber.trim(),
-        trailerNumber: tireForm.trailerNumber.trim() || null,
-        driverName: tireForm.driverName.trim() || null,
+        plateNumber: (tireForm.plateNumber || '').trim(),
+        trailerNumber: (tireForm.trailerNumber || '').trim() || null,
+        driverName: (tireForm.driverName || '').trim() || null,
         quantity: tireForm.quantity,
-        serialNumber: tireForm.serialNumber.trim() || null,
-        notes: tireForm.notes.trim() || null
+        serialNumber: (tireForm.serialNumber || '').trim() || null,
+        notes: (tireForm.notes || '').trim() || null
       }
 
       const response = await apiPut(`/api/tires/${editingTire.id}`, updateData)
