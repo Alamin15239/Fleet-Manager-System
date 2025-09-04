@@ -103,13 +103,12 @@ export default function TireManagementForm() {
     setAutoFilled(prev => ({ ...prev, driverName: false }))
     
     if (actualTrailerNumber) {
-      // Find vehicle and auto-fill driver and plate
+      // Find vehicle and auto-fill ONLY driver name
       const vehicle = vehicles.find(v => v.trailerNumber === actualTrailerNumber)
       if (vehicle) {
         setFormData(prev => ({
           ...prev,
-          driverName: vehicle.driverName || '',
-          plateNumber: vehicle.plateNumber
+          driverName: vehicle.driverName || ''
         }))
         
         // Track auto-filled fields
@@ -119,17 +118,17 @@ export default function TireManagementForm() {
         }))
         
         // Show visual feedback
-        setSuccess(`Trailer found: ${actualTrailerNumber}. Associated vehicle and driver information auto-filled.`)
+        setSuccess(`Trailer found: ${actualTrailerNumber}. Driver information auto-filled.`)
         setTimeout(() => setSuccess(null), 3000)
       } else {
-        // Only clear driver if trailer not found, keep plate number
+        // Clear driver if trailer not found
         setFormData(prev => ({
           ...prev,
           driverName: ''
         }))
       }
     } else {
-      // Only clear driver field if trailer is cleared
+      // Clear driver field if trailer is cleared
       setFormData(prev => ({
         ...prev,
         driverName: ''
