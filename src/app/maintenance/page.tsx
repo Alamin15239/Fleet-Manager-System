@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -134,6 +134,14 @@ export default function MaintenancePage() {
     maintenanceJobId: ''
   })
 
+  const [vehicleSearch, setVehicleSearch] = useState('')
+  const [mechanicSearch, setMechanicSearch] = useState('')
+  const [showVehicleDropdown, setShowVehicleDropdown] = useState(false)
+  const [showMechanicDropdown, setShowMechanicDropdown] = useState(false)
+  
+  const vehicleDropdownRef = useRef<HTMLDivElement>(null)
+  const mechanicDropdownRef = useRef<HTMLDivElement>(null)
+
   useEffect(() => {
     fetchDashboardStats()
     fetchMaintenanceRecords()
@@ -141,6 +149,20 @@ export default function MaintenancePage() {
     fetchTrailers()
     fetchMechanics()
     fetchCurrencySettings()
+  }, [])
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (vehicleDropdownRef.current && !vehicleDropdownRef.current.contains(event.target as Node)) {
+        setShowVehicleDropdown(false)
+      }
+      if (mechanicDropdownRef.current && !mechanicDropdownRef.current.contains(event.target as Node)) {
+        setShowMechanicDropdown(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
   useEffect(() => {
@@ -369,6 +391,13 @@ export default function MaintenancePage() {
   const handleEdit = (record: MaintenanceRecord) => {
     setEditingRecord(record)
     setSelectedJob(record.maintenanceJob || null)
+    
+    const selectedVehicle = vehicles.find(v => v.id === record.truckId)
+    const selectedMechanic = mechanics.find(m => m.id === record.mechanicId)
+    
+    setVehicleSearch(selectedVehicle ? `${selectedVehicle.displayName} - ${selectedVehicle.identifier}` : '')
+    setMechanicSearch(selectedMechanic ? `${selectedMechanic.name} - ${selectedMechanic.email}` : record.mechanicId === 'none' ? 'No mechanic' : '')
+    
     setFormData({
       truckId: record.truckId,
       serviceType: record.serviceType,
@@ -407,6 +436,10 @@ export default function MaintenancePage() {
     setEditingRecord(null)
     setViewingRecord(null)
     setSelectedJob(null)
+    setVehicleSearch('')
+    setMechanicSearch('')
+    setShowVehicleDropdown(false)
+    setShowMechanicDropdown(false)
     setFormData({
       truckId: '',
       serviceType: '',
@@ -479,19 +512,43 @@ export default function MaintenancePage() {
                 <Label htmlFor="vehicleId" className="text-right">
                   Vehicle
                 </Label>
-                <div className="col-span-3">
-                  <Select value={formData.truckId} onValueChange={(value) => setFormData({...formData, truckId: value})}>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select a vehicle..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {vehicles.map((vehicle) => (
-                        <SelectItem key={vehicle.id} value={vehicle.id}>
-                          {vehicle.type === 'truck' ? '🚛' : '🚚'} {vehicle.displayName} - {vehicle.identifier}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                <div className="col-span-3 relative" ref={vehicleDropdownRef}>
+                  <Input
+                    placeholder="Search vehicles..."
+                    value={vehicleSearch}
+                    onChange={(e) => setVehicleSearch(e.target.value)}
+                    onFocus={() => setShowVehicleDropdown(true)}
+                    className="w-full"
+                  />
+                  {showVehicleDropdown && (
+                    <div className="absolute z-50 w-full mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-auto">
+                      {vehicles
+                        .filter(vehicle => 
+                          vehicle.displayName.toLowerCase().includes(vehicleSearch.toLowerCase()) ||
+                          vehicle.identifier.toLowerCase().includes(vehicleSearch.toLowerCase())
+                        )
+                        .map((vehicle) => (
+                          <div
+                            key={vehicle.id}
+                            className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                            onClick={() => {
+                              setFormData({...formData, truckId: vehicle.id})
+                              setVehicleSearch(`${vehicle.displayName} - ${vehicle.identifier}`)
+                              setShowVehicleDropdown(false)
+                            }}
+                          >
+                            {vehicle.type === 'truck' ? '🚛' : '🚚'} {vehicle.displayName} - {vehicle.identifier}
+                          </div>
+                        ))
+                      }
+                      {vehicles.filter(vehicle => 
+                        vehicle.displayName.toLowerCase().includes(vehicleSearch.toLowerCase()) ||
+                        vehicle.identifier.toLowerCase().includes(vehicleSearch.toLowerCase())
+                      ).length === 0 && (
+                        <div className="px-3 py-2 text-gray-500">No vehicles found</div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
               
@@ -598,20 +655,53 @@ export default function MaintenancePage() {
                 <Label htmlFor="mechanicId" className="text-right">
                   {t('maintenance.mechanic')}
                 </Label>
-                <div className="col-span-3">
-                  <Select value={formData.mechanicId} onValueChange={(value) => setFormData({...formData, mechanicId: value})}>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select a mechanic..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">{t('maintenance.noMechanic')}</SelectItem>
-                      {mechanics.map((mechanic) => (
-                        <SelectItem key={mechanic.id} value={mechanic.id}>
-                          {mechanic.name} - {mechanic.email}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                <div className="col-span-3 relative" ref={mechanicDropdownRef}>
+                  <Input
+                    placeholder="Search mechanics..."
+                    value={mechanicSearch}
+                    onChange={(e) => setMechanicSearch(e.target.value)}
+                    onFocus={() => setShowMechanicDropdown(true)}
+                    className="w-full"
+                  />
+                  {showMechanicDropdown && (
+                    <div className="absolute z-50 w-full mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-auto">
+                      <div
+                        className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                        onClick={() => {
+                          setFormData({...formData, mechanicId: 'none'})
+                          setMechanicSearch('No mechanic')
+                          setShowMechanicDropdown(false)
+                        }}
+                      >
+                        {t('maintenance.noMechanic')}
+                      </div>
+                      {mechanics
+                        .filter(mechanic => 
+                          mechanic.name.toLowerCase().includes(mechanicSearch.toLowerCase()) ||
+                          mechanic.email.toLowerCase().includes(mechanicSearch.toLowerCase())
+                        )
+                        .map((mechanic) => (
+                          <div
+                            key={mechanic.id}
+                            className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                            onClick={() => {
+                              setFormData({...formData, mechanicId: mechanic.id})
+                              setMechanicSearch(`${mechanic.name} - ${mechanic.email}`)
+                              setShowMechanicDropdown(false)
+                            }}
+                          >
+                            {mechanic.name} - {mechanic.email}
+                          </div>
+                        ))
+                      }
+                      {mechanics.filter(mechanic => 
+                        mechanic.name.toLowerCase().includes(mechanicSearch.toLowerCase()) ||
+                        mechanic.email.toLowerCase().includes(mechanicSearch.toLowerCase())
+                      ).length === 0 && mechanicSearch !== '' && (
+                        <div className="px-3 py-2 text-gray-500">No mechanics found</div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
               
