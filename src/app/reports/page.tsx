@@ -276,10 +276,10 @@ export default function ReportsPage() {
           <div class="section">
             <div class="summary">
               <h2>Fleet Overview</h2>
-              <p><strong>Total Trucks:</strong> ${trucks.length}</p>
+              <p><strong>Selected Trucks:</strong> ${trucks.length}</p>
               <p><strong>Active Trucks:</strong> ${trucks.filter(t => t.status === 'ACTIVE').length}</p>
               <p><strong>Trucks in Maintenance:</strong> ${trucks.filter(t => t.status === 'MAINTENANCE').length}</p>
-              <p><strong>Total Trailers:</strong> ${trailers.length}</p>
+              <p><strong>Selected Trailers:</strong> ${trailers.length}</p>
               <p><strong>Active Trailers:</strong> ${trailers.filter(t => t.status === 'ACTIVE').length}</p>
               <p><strong>Trailers in Maintenance:</strong> ${trailers.filter(t => t.status === 'MAINTENANCE').length}</p>
             </div>
@@ -323,6 +323,7 @@ export default function ReportsPage() {
             </table>
           </div>
 
+          ${trailers.length > 0 ? `
           <div class="section">
             <h2 class="section-title">Trailer Details</h2>
             <table>
@@ -346,6 +347,7 @@ export default function ReportsPage() {
               </tbody>
             </table>
           </div>
+          ` : ''}
 
           <div class="section">
             <h2 class="section-title">Maintenance Records</h2>
@@ -394,7 +396,7 @@ export default function ReportsPage() {
       
       // Fleet Overview
       csvContent += "Fleet Overview\n"
-      csvContent += "Total Trucks,Active Trucks,Trucks in Maintenance,Total Trailers,Active Trailers,Trailers in Maintenance\n"
+      csvContent += "Selected Trucks,Active Trucks,Trucks in Maintenance,Selected Trailers,Active Trailers,Trailers in Maintenance\n"
       csvContent += `${trucks.length},${trucks.filter(t => t.status === 'ACTIVE').length},${trucks.filter(t => t.status === 'MAINTENANCE').length},${trailers.length},${trailers.filter(t => t.status === 'ACTIVE').length},${trailers.filter(t => t.status === 'MAINTENANCE').length}\n\n`
       
       // Maintenance Summary
@@ -414,12 +416,14 @@ export default function ReportsPage() {
         csvContent += "\n"
         
         // Trailer Details
-        csvContent += "Trailer Details\n"
-        csvContent += "Number,Driver,Status,Created\n"
-        trailers.forEach(trailer => {
-          csvContent += `Trailer ${trailer.number},${trailer.driverName || 'No driver'},${trailer.status || 'N/A'},${new Date(trailer.createdAt).toLocaleDateString()}\n`
-        })
-        csvContent += "\n"
+        if (trailers.length > 0) {
+          csvContent += "Trailer Details\n"
+          csvContent += "Number,Driver,Status,Created\n"
+          trailers.forEach(trailer => {
+            csvContent += `Trailer ${trailer.number},${trailer.driverName || 'No driver'},${trailer.status || 'N/A'},${new Date(trailer.createdAt).toLocaleDateString()}\n`
+          })
+          csvContent += "\n"
+        }
         
         // Maintenance Records
         csvContent += "Maintenance Records\n"
