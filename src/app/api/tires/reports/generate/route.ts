@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
       where.driverName = driverName
     }
 
-    // Fetch tire data
+    // Fetch tire data - use historical data from tire records, not current vehicle data
     let tires = await db.tire.findMany({
       where,
       orderBy: {
@@ -78,14 +78,8 @@ export async function GET(request: NextRequest) {
             name: true,
             email: true
           }
-        },
-        vehicle: {
-          select: {
-            plateNumber: true,
-            trailerNumber: true,
-            driverName: true
-          }
         }
+        // Removed vehicle include to use historical data from tire record itself
       }
     })
 
@@ -106,14 +100,8 @@ export async function GET(request: NextRequest) {
               name: true,
               email: true
             }
-          },
-          vehicle: {
-            select: {
-              plateNumber: true,
-              trailerNumber: true,
-              driverName: true
-            }
           }
+          // Removed vehicle include to use historical data from tire record itself
         }
       })
     }

@@ -208,6 +208,9 @@ model MaintenanceRecord {
   downtimeHours     Float?
   failureMode       String?
   rootCause         String?
+  vehicleName       String?
+  mechanicName      String?
+  driverName        String?
   createdBy         User?             @relation(fields: [createdById], references: [id])
   maintenanceJob    MaintenanceJob?   @relation(fields: [maintenanceJobId], references: [id])
   mechanic          Mechanic?         @relation(fields: [mechanicId], references: [id])
@@ -242,6 +245,9 @@ model TrailerMaintenanceRecord {
   downtimeHours     Float?
   failureMode       String?
   rootCause         String?
+  vehicleName       String?
+  mechanicName      String?
+  driverName        String?
   createdBy         User?             @relation(fields: [createdById], references: [id])
   maintenanceJob    MaintenanceJob?   @relation(fields: [maintenanceJobId], references: [id])
   mechanic          Mechanic?         @relation(fields: [mechanicId], references: [id])

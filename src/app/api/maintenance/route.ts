@@ -242,6 +242,16 @@ export async function POST(request: NextRequest) {
     // Create maintenance record based on vehicle type
     let maintenanceRecord
     
+    // Get mechanic name for historical data
+    let mechanicName = null
+    if (body.mechanicId) {
+      const mechanic = await db.mechanic.findUnique({
+        where: { id: body.mechanicId },
+        select: { name: true }
+      })
+      mechanicName = mechanic?.name
+    }
+    
     if (vehicleType === 'truck') {
       maintenanceRecord = await db.maintenanceRecord.create({
         data: {
@@ -266,7 +276,10 @@ export async function POST(request: NextRequest) {
           predictionId: body.predictionId,
           downtimeHours: body.downtimeHours ? parseFloat(body.downtimeHours) : null,
           failureMode: body.failureMode,
-          rootCause: body.rootCause
+          rootCause: body.rootCause,
+          vehicleName: `${vehicle.year} ${vehicle.make} ${vehicle.model}`,
+          mechanicName,
+          driverName: vehicle.driverName
         },
         include: {
           truck: {
@@ -324,7 +337,10 @@ export async function POST(request: NextRequest) {
           predictionId: body.predictionId,
           downtimeHours: body.downtimeHours ? parseFloat(body.downtimeHours) : null,
           failureMode: body.failureMode,
-          rootCause: body.rootCause
+          rootCause: body.rootCause,
+          vehicleName: `Trailer ${vehicle.number}`,
+          mechanicName,
+          driverName: vehicle.driverName
         },
         include: {
           trailer: {
