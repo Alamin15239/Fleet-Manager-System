@@ -31,8 +31,8 @@ export const metadata: Metadata = {
   keywords: ["fleet management", "truck maintenance", "tire management", "fleet tracking", "vehicle maintenance", "fleet analytics", "truck fleet", "maintenance software", "fleet operations", "vehicle tracking"],
   authors: [{ name: "Fleet Manager Pro Team" }],
   icons: {
-    icon: '/favicon.svg',
-    shortcut: '/favicon.svg',
+    icon: ['/favicon.ico', '/favicon.svg'],
+    shortcut: '/favicon.ico',
     apple: '/favicon.svg',
   },
   openGraph: {
@@ -75,8 +75,9 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        <link rel="icon" href="/favicon.ico" sizes="any" />
         <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-        <link rel="shortcut icon" href="/favicon.svg" />
+        <link rel="shortcut icon" href="/favicon.ico" />
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
