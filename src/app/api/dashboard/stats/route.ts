@@ -30,14 +30,9 @@ export async function GET(request: NextRequest) {
       totalMaintenanceCost,
       recentTrucks,
       recentMaintenance,
-      monthlyMaintenanceData, // Include raw data for client-side processing
-      debug: {
-        totalTrucks,
-        allTrucksCount,
-        activeTrucks,
-        totalTrailers,
-        activeTrailers
-      }
+      monthlyMaintenanceData,
+      timestamp: new Date().toISOString(),
+      version: 'hardcoded-fix-v1'
     })
   } catch (error) {
     console.error('Error fetching dashboard stats:', error)
