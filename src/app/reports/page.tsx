@@ -177,21 +177,22 @@ export default function ReportsPage() {
   }
 
   const getFilteredData = () => {
-    console.log('Original maintenance data:', maintenance.length, 'records')
-    console.log('Selected trucks:', filters.selectedTrucks)
-    
     let filteredMaintenance = [...maintenance]
     let filteredTrucks = filters.selectedTrucks.length > 0 ? trucks.filter(truck => filters.selectedTrucks.includes(truck.id)) : trucks
     let filteredTrailers = filters.selectedTrailers.length > 0 ? trailers.filter(trailer => filters.selectedTrailers.includes(trailer.id)) : trailers
     
     // Filter maintenance by selected trucks
     if (filters.selectedTrucks.length > 0) {
-      console.log('Filtering maintenance for trucks:', filters.selectedTrucks)
-      filteredMaintenance = filteredMaintenance.filter(record => {
-        console.log('Checking record:', record.id, 'truckId:', record.truckId)
-        return filters.selectedTrucks.includes(record.truckId)
-      })
-      console.log('Filtered maintenance:', filteredMaintenance.length, 'records')
+      filteredMaintenance = filteredMaintenance.filter(record => 
+        filters.selectedTrucks.includes(record.truckId)
+      )
+    }
+    
+    // Filter maintenance by selected maintenance records
+    if (filters.selectedMaintenance.length > 0) {
+      filteredMaintenance = filteredMaintenance.filter(record => 
+        filters.selectedMaintenance.includes(record.id)
+      )
     }
     
     // Filter maintenance by selected trailers (if maintenance has trailer reference)
@@ -200,19 +201,11 @@ export default function ReportsPage() {
       // This can be extended when trailer maintenance is implemented
     }
     
-    // Apply additional filters only if maintenance records exist
-    if (filteredMaintenance.length > 0) {
-      // Filter by selected maintenance records
-      if (filters.selectedMaintenance.length > 0) {
-        filteredMaintenance = filteredMaintenance.filter(record => filters.selectedMaintenance.includes(record.id))
-      }
-      
-      // Filter by selected users (filter maintenance records created by selected users)
-      if (filters.selectedUsers.length > 0) {
-        filteredMaintenance = filteredMaintenance.filter(record => 
-          record.createdById && filters.selectedUsers.includes(record.createdById)
-        )
-      }
+    // Filter by selected users (filter maintenance records created by selected users)
+    if (filters.selectedUsers.length > 0) {
+      filteredMaintenance = filteredMaintenance.filter(record => 
+        record.createdById && filters.selectedUsers.includes(record.createdById)
+      )
     }
     
     // Filter by date range
