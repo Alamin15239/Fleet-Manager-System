@@ -168,11 +168,9 @@ export default function ReportsPage() {
     setGenerating(true)
     try {
       const filteredData = getFilteredData()
-      // Ensure we're using the filtered data
-      if (filteredData.maintenance.length === 0 && (filters.selectedTrucks.length > 0 || filters.selectedTrailers.length > 0)) {
-        toast.error('No maintenance records found for selected vehicles')
-        setGenerating(false)
-        return
+      // Allow report generation even with 0 records
+      if (filteredData.maintenance.length === 0) {
+        console.log('Generating report with 0 maintenance records')
       }
       
       if (filters.format === 'pdf') {
