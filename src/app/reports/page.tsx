@@ -183,16 +183,19 @@ export default function ReportsPage() {
       filteredMaintenance = filteredMaintenance.filter(record => filters.selectedTrucks.includes(record.truckId))
     }
     
-    // Filter by selected maintenance records
-    if (filters.selectedMaintenance.length > 0) {
-      filteredMaintenance = filteredMaintenance.filter(record => filters.selectedMaintenance.includes(record.id))
-    }
-    
-    // Filter by selected users (filter maintenance records created by selected users)
-    if (filters.selectedUsers.length > 0) {
-      filteredMaintenance = filteredMaintenance.filter(record => 
-        record.createdById && filters.selectedUsers.includes(record.createdById)
-      )
+    // Apply additional filters only if maintenance records exist
+    if (filteredMaintenance.length > 0) {
+      // Filter by selected maintenance records
+      if (filters.selectedMaintenance.length > 0) {
+        filteredMaintenance = filteredMaintenance.filter(record => filters.selectedMaintenance.includes(record.id))
+      }
+      
+      // Filter by selected users (filter maintenance records created by selected users)
+      if (filters.selectedUsers.length > 0) {
+        filteredMaintenance = filteredMaintenance.filter(record => 
+          record.createdById && filters.selectedUsers.includes(record.createdById)
+        )
+      }
     }
     
     // Filter by date range
@@ -271,18 +274,18 @@ export default function ReportsPage() {
             <div class="summary">
               <h2>${filters.reportType === 'trailers' ? 'Trailer Fleet Overview' : 'Fleet Overview'}</h2>
               ${filters.reportType !== 'trailers' ? `
-              <p><strong>Selected Trucks:</strong> ${trucks.length}</p>
-              <p><strong>Active Trucks:</strong> ${trucks.filter(t => t.status === 'ACTIVE').length}</p>
-              <p><strong>Trucks in Maintenance:</strong> ${trucks.filter(t => t.status === 'MAINTENANCE').length}</p>
+              <p><strong>Selected Trucks:</strong> ${filteredTrucks.length}</p>
+              <p><strong>Active Trucks:</strong> ${filteredTrucks.filter(t => t.status === 'ACTIVE').length}</p>
+              <p><strong>Trucks in Maintenance:</strong> ${filteredTrucks.filter(t => t.status === 'MAINTENANCE').length}</p>
               ` : ''}
               ${filters.reportType !== 'trucks' ? `
-              <p><strong>Selected Trailers:</strong> ${trailers.length}</p>
-              <p><strong>Active Trailers:</strong> ${trailers.filter(t => t.status === 'ACTIVE').length}</p>
-              <p><strong>Trailers in Maintenance:</strong> ${trailers.filter(t => t.status === 'MAINTENANCE').length}</p>
+              <p><strong>Selected Trailers:</strong> ${filteredTrailers.length}</p>
+              <p><strong>Active Trailers:</strong> ${filteredTrailers.filter(t => t.status === 'ACTIVE').length}</p>
+              <p><strong>Trailers in Maintenance:</strong> ${filteredTrailers.filter(t => t.status === 'MAINTENANCE').length}</p>
               ` : ''}
               ${filters.reportType === 'trailers' ? `
-              <p><strong>Total Trailer Capacity:</strong> ${trailers.length} units</p>
-              <p><strong>Driver Assignment Rate:</strong> ${Math.round((trailers.filter(t => t.driverName).length / trailers.length) * 100)}%</p>
+              <p><strong>Total Trailer Capacity:</strong> ${filteredTrailers.length} units</p>
+              <p><strong>Driver Assignment Rate:</strong> ${filteredTrailers.length > 0 ? Math.round((filteredTrailers.filter(t => t.driverName).length / filteredTrailers.length) * 100) : 0}%</p>
               ` : ''}
             </div>
           </div>
@@ -297,9 +300,9 @@ export default function ReportsPage() {
           </div>
 
           ${filters.includeDetails ? `
-          ${filters.reportType !== 'trailers' ? `
+          ${(filters.reportType !== 'trailers' && filteredTrucks.length > 0) ? `
           <div class="section">
-            <h2 class="section-title">Truck Details</h2>
+            <h2 class="section-title">Selected Truck Details</h2>
             <table>
               <thead>
                 <tr>
@@ -312,7 +315,7 @@ export default function ReportsPage() {
                 </tr>
               </thead>
               <tbody>
-                ${trucks.map(truck => `
+                ${filteredTrucks.map(truck => `
                   <tr>
                     <td>${truck.licensePlate || 'N/A'}</td>
                     <td>${truck.make || 'N/A'}</td>
@@ -327,9 +330,9 @@ export default function ReportsPage() {
           </div>
           ` : ''}
 
-          ${(trailers.length > 0 && filters.reportType !== 'trucks') ? `
+          ${(filteredTrailers.length > 0 && filters.reportType !== 'trucks') ? `
           <div class="section">
-            <h2 class="section-title">${filters.reportType === 'trailers' ? 'Trailer Fleet Details' : 'Trailer Details'}</h2>
+            <h2 class="section-title">${filters.reportType === 'trailers' ? 'Selected Trailer Details' : 'Selected Trailer Details'}</h2>
             <table>
               <thead>
                 <tr>
@@ -340,7 +343,7 @@ export default function ReportsPage() {
                 </tr>
               </thead>
               <tbody>
-                ${trailers.map(trailer => `
+                ${filteredTrailers.map(trailer => `
                   <tr>
                     <td>TRL-${trailer.number}</td>
                     <td>${trailer.driverName || 'Unassigned'}</td>
@@ -353,8 +356,9 @@ export default function ReportsPage() {
           </div>
           ` : ''}
 
+          ${filteredMaintenance.length > 0 ? `
           <div class="section">
-            <h2 class="section-title">Maintenance Records</h2>
+            <h2 class="section-title">Selected Maintenance Records</h2>
             <table>
               <thead>
                 <tr>
@@ -367,7 +371,7 @@ export default function ReportsPage() {
                 </tr>
               </thead>
               <tbody>
-                ${maintenance.slice(0, 50).map(record => `
+                ${filteredMaintenance.slice(0, 50).map(record => `
                   <tr>
                     <td>${format(new Date(record.datePerformed), 'MMM dd, yyyy')}</td>
                     <td>${record.truck?.licensePlate || 'N/A'}</td>
@@ -379,8 +383,9 @@ export default function ReportsPage() {
                 `).join('')}
               </tbody>
             </table>
-            ${maintenance.length > 50 ? `<p><em>Showing first 50 of ${maintenance.length} records</em></p>` : ''}
+            ${filteredMaintenance.length > 50 ? `<p><em>Showing first 50 of ${filteredMaintenance.length} records</em></p>` : ''}
           </div>
+          ` : '<div class="section"><p><em>No maintenance records found for selected criteria</em></p></div>'}
           ` : ''}
         </body>
       </html>
@@ -402,53 +407,57 @@ export default function ReportsPage() {
       if (filters.reportType === 'trailers') {
         csvContent += "Trailer Fleet Overview\n"
         csvContent += "Selected Trailers,Active Trailers,Trailers in Maintenance,Driver Assignment Rate\n"
-        const driverAssignmentRate = Math.round((trailers.filter(t => t.driverName).length / trailers.length) * 100)
-        csvContent += `${trailers.length},${trailers.filter(t => t.status === 'ACTIVE').length},${trailers.filter(t => t.status === 'MAINTENANCE').length},${driverAssignmentRate}%\n\n`
+        const driverAssignmentRate = filteredTrailers.length > 0 ? Math.round((filteredTrailers.filter(t => t.driverName).length / filteredTrailers.length) * 100) : 0
+        csvContent += `${filteredTrailers.length},${filteredTrailers.filter(t => t.status === 'ACTIVE').length},${filteredTrailers.filter(t => t.status === 'MAINTENANCE').length},${driverAssignmentRate}%\n\n`
       } else {
         csvContent += "Fleet Overview\n"
         if (filters.reportType !== 'trucks') {
           csvContent += "Selected Trucks,Active Trucks,Trucks in Maintenance,Selected Trailers,Active Trailers,Trailers in Maintenance\n"
-          csvContent += `${trucks.length},${trucks.filter(t => t.status === 'ACTIVE').length},${trucks.filter(t => t.status === 'MAINTENANCE').length},${trailers.length},${trailers.filter(t => t.status === 'ACTIVE').length},${trailers.filter(t => t.status === 'MAINTENANCE').length}\n\n`
+          csvContent += `${filteredTrucks.length},${filteredTrucks.filter(t => t.status === 'ACTIVE').length},${filteredTrucks.filter(t => t.status === 'MAINTENANCE').length},${filteredTrailers.length},${filteredTrailers.filter(t => t.status === 'ACTIVE').length},${filteredTrailers.filter(t => t.status === 'MAINTENANCE').length}\n\n`
         } else {
           csvContent += "Selected Trucks,Active Trucks,Trucks in Maintenance\n"
-          csvContent += `${trucks.length},${trucks.filter(t => t.status === 'ACTIVE').length},${trucks.filter(t => t.status === 'MAINTENANCE').length}\n\n`
+          csvContent += `${filteredTrucks.length},${filteredTrucks.filter(t => t.status === 'ACTIVE').length},${filteredTrucks.filter(t => t.status === 'MAINTENANCE').length}\n\n`
         }
       }
       
       // Maintenance Summary
       csvContent += "Maintenance Summary\n"
       csvContent += "Total Maintenance Records,Total Maintenance Cost,Average Cost per Maintenance\n"
-      const totalCost = maintenance.reduce((sum: number, record: any) => sum + (typeof record.totalCost === 'number' ? record.totalCost : 0), 0)
-      const avgCost = maintenance.length > 0 ? totalCost / maintenance.length : 0
-      csvContent += `${maintenance.length},${totalCost.toFixed(2)},${avgCost.toFixed(2)}\n\n`
+      const totalCost = filteredMaintenance.reduce((sum: number, record: any) => sum + (typeof record.totalCost === 'number' ? record.totalCost : 0), 0)
+      const avgCost = filteredMaintenance.length > 0 ? totalCost / filteredMaintenance.length : 0
+      csvContent += `${filteredMaintenance.length},${totalCost.toFixed(2)},${avgCost.toFixed(2)}\n\n`
       
       // Vehicle Details
       if (filters.includeDetails) {
-        if (filters.reportType !== 'trailers') {
-          csvContent += "Truck Details\n"
+        if (filters.reportType !== 'trailers' && filteredTrucks.length > 0) {
+          csvContent += "Selected Truck Details\n"
           csvContent += "License Plate,Make,Model,Year,Status,Current Mileage\n"
-          trucks.forEach(truck => {
+          filteredTrucks.forEach(truck => {
             csvContent += `${truck.licensePlate || 'N/A'},${truck.make || 'N/A'},${truck.model || 'N/A'},${truck.year || 'N/A'},${truck.status || 'N/A'},${truck.currentMileage || 0}\n`
           })
           csvContent += "\n"
         }
         
         // Trailer Details
-        if (trailers.length > 0 && filters.reportType !== 'trucks') {
-          csvContent += `${filters.reportType === 'trailers' ? 'Trailer Fleet Details' : 'Trailer Details'}\n`
+        if (filteredTrailers.length > 0 && filters.reportType !== 'trucks') {
+          csvContent += `${filters.reportType === 'trailers' ? 'Selected Trailer Details' : 'Selected Trailer Details'}\n`
           csvContent += "Trailer Number,Assigned Driver,Status,Date Added\n"
-          trailers.forEach(trailer => {
+          filteredTrailers.forEach(trailer => {
             csvContent += `TRL-${trailer.number},${trailer.driverName || 'Unassigned'},${trailer.status || 'N/A'},${new Date(trailer.createdAt).toLocaleDateString()}\n`
           })
           csvContent += "\n"
         }
         
         // Maintenance Records
-        csvContent += "Maintenance Records\n"
-        csvContent += "Date,Truck,Service Type,Description,Total Cost,Status\n"
-        maintenance.slice(0, 1000).forEach(record => {
-          csvContent += `${format(new Date(record.datePerformed), 'MMM dd, yyyy')},${record.truck?.licensePlate || 'N/A'},${record.serviceType},"${record.description || 'N/A'}",${typeof record.totalCost === 'number' ? record.totalCost : 0},${record.status}\n`
-        })
+        if (filteredMaintenance.length > 0) {
+          csvContent += "Selected Maintenance Records\n"
+          csvContent += "Date,Truck,Service Type,Description,Total Cost,Status\n"
+          filteredMaintenance.slice(0, 1000).forEach(record => {
+            csvContent += `${format(new Date(record.datePerformed), 'MMM dd, yyyy')},${record.truck?.licensePlate || 'N/A'},${record.serviceType},"${record.description || 'N/A'}",${typeof record.totalCost === 'number' ? record.totalCost : 0},${record.status}\n`
+          })
+        } else {
+          csvContent += "No maintenance records found for selected criteria\n"
+        }
       }
       
       // Create and download the file
