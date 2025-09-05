@@ -168,11 +168,12 @@ export default function ReportsPage() {
     setGenerating(true)
     try {
       const filteredData = getFilteredData()
-      console.log('Filtered data for report:', {
-        trucks: filteredData.trucks.length,
-        maintenance: filteredData.maintenance.length,
-        selectedTrucks: filters.selectedTrucks
-      })
+      // Ensure we're using the filtered data
+      if (filteredData.maintenance.length === 0 && (filters.selectedTrucks.length > 0 || filters.selectedTrailers.length > 0)) {
+        toast.error('No maintenance records found for selected vehicles')
+        setGenerating(false)
+        return
+      }
       
       if (filters.format === 'pdf') {
         await generatePDFReport(filteredData)
@@ -356,9 +357,9 @@ export default function ReportsPage() {
           <div class="section">
             <h2 class="section-title">Maintenance Summary</h2>
             <div class="summary">
-              <p><strong>Total Maintenance Records:</strong> ${maintenance.length}</p>
-              <p><strong>Total Maintenance Cost:</strong> ${maintenance.reduce((sum: number, record: any) => sum + (typeof record.totalCost === 'number' ? record.totalCost : 0), 0).toFixed(2)}</p>
-              <p><strong>Average Cost per Maintenance:</strong> ${maintenance.length > 0 ? (maintenance.reduce((sum: number, record: any) => sum + (typeof record.totalCost === 'number' ? record.totalCost : 0), 0) / maintenance.length).toFixed(2) : 0}</p>
+              <p><strong>Total Maintenance Records:</strong> ${filteredMaintenance.length}</p>
+              <p><strong>Total Maintenance Cost:</strong> ${filteredMaintenance.reduce((sum: number, record: any) => sum + (typeof record.totalCost === 'number' ? record.totalCost : 0), 0).toFixed(2)}</p>
+              <p><strong>Average Cost per Maintenance:</strong> ${filteredMaintenance.length > 0 ? (filteredMaintenance.reduce((sum: number, record: any) => sum + (typeof record.totalCost === 'number' ? record.totalCost : 0), 0) / filteredMaintenance.length).toFixed(2) : 0}</p>
             </div>
           </div>
 
@@ -425,7 +426,7 @@ export default function ReportsPage() {
             <p><strong>Vehicle Records:</strong> ${filters.selectedTrucks.length > 0 ? `Selected Trucks (${filteredTrucks.length})` : 'All Fleet Vehicles'}</p>
             <p><strong>Currency:</strong> All (in USD)</p>
             <br>
-            ${maintenance.length > 0 ? `
+            ${filteredMaintenance.length > 0 ? `
             <table class="ledger-table">
               <thead>
                 <tr>
@@ -440,7 +441,7 @@ export default function ReportsPage() {
                 </tr>
               </thead>
               <tbody>
-                ${maintenance.slice(0, 50).map((record, index) => `
+                ${filteredMaintenance.slice(0, 50).map((record, index) => `
                   <tr>
                     <td>${index + 1}</td>
                     <td>${record.id.substring(0, 8)}</td>
@@ -454,13 +455,13 @@ export default function ReportsPage() {
                 `).join('')}
                 <tr class="total-row">
                   <td colspan="5"><strong>TOTAL</strong></td>
-                  <td><strong>$${maintenance.reduce((sum, r) => sum + (typeof r.partsCost === 'number' ? r.partsCost : 0), 0).toFixed(2)}</strong></td>
-                  <td><strong>$${maintenance.reduce((sum, r) => sum + (typeof r.laborCost === 'number' ? r.laborCost : 0), 0).toFixed(2)}</strong></td>
-                  <td><strong>$${maintenance.reduce((sum, r) => sum + (typeof r.totalCost === 'number' ? r.totalCost : 0), 0).toFixed(2)}</strong></td>
+                  <td><strong>$${filteredMaintenance.reduce((sum, r) => sum + (typeof r.partsCost === 'number' ? r.partsCost : 0), 0).toFixed(2)}</strong></td>
+                  <td><strong>$${filteredMaintenance.reduce((sum, r) => sum + (typeof r.laborCost === 'number' ? r.laborCost : 0), 0).toFixed(2)}</strong></td>
+                  <td><strong>$${filteredMaintenance.reduce((sum, r) => sum + (typeof r.totalCost === 'number' ? r.totalCost : 0), 0).toFixed(2)}</strong></td>
                 </tr>
               </tbody>
             </table>
-            ${maintenance.length > 50 ? `<p><em>Showing first 50 of ${maintenance.length} maintenance records</em></p>` : ''}
+            ${filteredMaintenance.length > 50 ? `<p><em>Showing first 50 of ${filteredMaintenance.length} maintenance records</em></p>` : ''}
             ` : `<p><em>No maintenance records found for selected period and criteria</em></p>`}
           </div>
           ` : ''}
