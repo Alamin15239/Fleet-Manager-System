@@ -196,17 +196,27 @@ export default function ReportsPage() {
     
     // Filter maintenance by selected trucks OR trailers
     if (filters.selectedTrucks.length > 0 || filters.selectedTrailers.length > 0) {
+      const originalCount = filteredMaintenance.length
       filteredMaintenance = filteredMaintenance.filter(record => {
         // Check if record belongs to selected truck
         const belongsToSelectedTruck = filters.selectedTrucks.length > 0 && 
-          filters.selectedTrucks.includes(record.truckId)
+          record.truckId && filters.selectedTrucks.includes(record.truckId)
         
         // Check if record belongs to selected trailer (if trailer maintenance exists)
         const belongsToSelectedTrailer = filters.selectedTrailers.length > 0 && 
           record.trailerId && filters.selectedTrailers.includes(record.trailerId)
         
+        console.log('Filtering record:', {
+          recordId: record.id,
+          truckId: record.truckId,
+          selectedTrucks: filters.selectedTrucks,
+          belongsToSelectedTruck,
+          belongsToSelectedTrailer
+        })
+        
         return belongsToSelectedTruck || belongsToSelectedTrailer
       })
+      console.log(`Filtered maintenance: ${originalCount} -> ${filteredMaintenance.length} records`)
     }
     
     // Filter maintenance by selected maintenance records
@@ -246,7 +256,12 @@ export default function ReportsPage() {
       originalMaintenance: maintenance.length,
       filteredMaintenance: filteredMaintenance.length,
       selectedTrucks: filters.selectedTrucks,
-      selectedMaintenance: filters.selectedMaintenance
+      selectedMaintenance: filters.selectedMaintenance,
+      sampleMaintenanceRecord: maintenance[0] ? {
+        id: maintenance[0].id,
+        truckId: maintenance[0].truckId,
+        truck: maintenance[0].truck
+      } : null
     })
     
     return {
