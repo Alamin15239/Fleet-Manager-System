@@ -272,15 +272,19 @@ export default function ReportsPage() {
             .header { text-align: center; margin-bottom: 30px; }
             .section { margin-bottom: 25px; }
             .section-title { font-size: 18px; font-weight: bold; margin-bottom: 10px; color: #333; }
-            table { width: 100%; border-collapse: collapse; margin-bottom: 20px; table-layout: fixed; }
-            th, td { border: 1px solid #ddd; padding: 6px; text-align: left; font-size: 12px; word-wrap: break-word; }
-            th { background-color: #f2f2f2; font-weight: bold; }
-            .truck-table th:nth-child(1) { width: 15%; }
-            .truck-table th:nth-child(2) { width: 12%; }
-            .truck-table th:nth-child(3) { width: 15%; }
-            .truck-table th:nth-child(4) { width: 8%; }
-            .truck-table th:nth-child(5) { width: 12%; }
-            .truck-table th:nth-child(6) { width: 18%; }
+            table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+            th, td { border: 1px solid #333; padding: 4px; text-align: left; font-size: 10px; }
+            th { background-color: #e8e8e8; font-weight: bold; text-align: center; }
+            .ledger-table th:nth-child(1) { width: 5%; }
+            .ledger-table th:nth-child(2) { width: 10%; }
+            .ledger-table th:nth-child(3) { width: 12%; }
+            .ledger-table th:nth-child(4) { width: 15%; }
+            .ledger-table th:nth-child(5) { width: 25%; }
+            .ledger-table th:nth-child(6) { width: 10%; }
+            .ledger-table th:nth-child(7) { width: 10%; }
+            .ledger-table th:nth-child(8) { width: 13%; }
+            .ledger-table td:nth-child(6), .ledger-table td:nth-child(7), .ledger-table td:nth-child(8) { text-align: right; }
+            .total-row { background-color: #f0f0f0; font-weight: bold; }
             .summary { background-color: #f9f9f9; padding: 15px; border-radius: 5px; }
           </style>
         </head>
@@ -380,34 +384,48 @@ export default function ReportsPage() {
           ` : ''}
 
           <div class="section">
-            <h2 class="section-title">${filters.selectedTrucks.length > 0 ? 'Maintenance Records for Selected Trucks' : 'Maintenance Records'}</h2>
+            <h2 class="section-title">Fleet Maintenance Ledger</h2>
+            <p><strong>Period:</strong> ${filters.startDate ? format(filters.startDate, 'dd/MM/yyyy') : 'All Time'} To ${filters.endDate ? format(filters.endDate, 'dd/MM/yyyy') : 'Current'}</p>
+            <p><strong>Vehicle Records:</strong> ${filters.selectedTrucks.length > 0 ? `Selected Trucks (${filteredTrucks.length})` : 'All Fleet Vehicles'}</p>
+            <p><strong>Currency:</strong> All (in USD)</p>
+            <br>
             ${maintenance.length > 0 ? `
-            <table>
+            <table class="ledger-table">
               <thead>
                 <tr>
+                  <th>No.</th>
+                  <th>Record ID</th>
                   <th>Date</th>
-                  <th>Truck</th>
-                  <th>Service Type</th>
-                  <th>Description</th>
-                  <th>Total Cost</th>
-                  <th>Status</th>
+                  <th>Vehicle</th>
+                  <th>Service Description</th>
+                  <th>Parts Cost</th>
+                  <th>Labor Cost</th>
+                  <th>Total Amount</th>
                 </tr>
               </thead>
               <tbody>
-                ${maintenance.slice(0, 50).map(record => `
+                ${maintenance.slice(0, 50).map((record, index) => `
                   <tr>
-                    <td>${format(new Date(record.datePerformed), 'MMM dd, yyyy')}</td>
-                    <td>${record.truck?.licensePlate || 'N/A'}</td>
-                    <td>${record.serviceType}</td>
-                    <td>${record.description || 'N/A'}</td>
+                    <td>${index + 1}</td>
+                    <td>${record.id.substring(0, 8)}</td>
+                    <td>${format(new Date(record.datePerformed), 'dd/MM/yyyy')}</td>
+                    <td>${record.truck?.licensePlate || 'N/A'} - ${record.truck?.make || ''} ${record.truck?.model || ''}</td>
+                    <td>${record.serviceType}${record.description ? ' - ' + record.description : ''}</td>
+                    <td>$${(typeof record.partsCost === 'number' ? record.partsCost : 0).toFixed(2)}</td>
+                    <td>$${(typeof record.laborCost === 'number' ? record.laborCost : 0).toFixed(2)}</td>
                     <td>$${(typeof record.totalCost === 'number' ? record.totalCost : 0).toFixed(2)}</td>
-                    <td>${record.status}</td>
                   </tr>
                 `).join('')}
+                <tr class="total-row">
+                  <td colspan="5"><strong>TOTAL</strong></td>
+                  <td><strong>$${maintenance.reduce((sum, r) => sum + (typeof r.partsCost === 'number' ? r.partsCost : 0), 0).toFixed(2)}</strong></td>
+                  <td><strong>$${maintenance.reduce((sum, r) => sum + (typeof r.laborCost === 'number' ? r.laborCost : 0), 0).toFixed(2)}</strong></td>
+                  <td><strong>$${maintenance.reduce((sum, r) => sum + (typeof r.totalCost === 'number' ? r.totalCost : 0), 0).toFixed(2)}</strong></td>
+                </tr>
               </tbody>
             </table>
-            ${maintenance.length > 50 ? `<p><em>Showing first 50 of ${maintenance.length} records</em></p>` : ''}
-            ` : `<p><em>No maintenance records found for selected ${filters.selectedTrucks.length > 0 ? 'trucks' : filters.selectedTrailers.length > 0 ? 'trailers' : 'criteria'}</em></p>`}
+            ${maintenance.length > 50 ? `<p><em>Showing first 50 of ${maintenance.length} maintenance records</em></p>` : ''}
+            ` : `<p><em>No maintenance records found for selected period and criteria</em></p>`}
           </div>
           ` : ''}
         </body>
