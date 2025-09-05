@@ -36,6 +36,7 @@ export default function ReportsPage() {
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [format, setFormat] = useState<'pdf' | 'excel'>('pdf')
+  const [selectedRecords, setSelectedRecords] = useState<string[]>([])
 
   useEffect(() => {
     fetchMaintenance()
@@ -65,6 +66,10 @@ export default function ReportsPage() {
   const getFilteredMaintenance = () => {
     let filtered = [...maintenance]
     
+    if (selectedRecords.length > 0) {
+      filtered = filtered.filter(record => selectedRecords.includes(record.id))
+    }
+    
     if (startDate) {
       filtered = filtered.filter(record => 
         new Date(record.datePerformed) >= new Date(startDate)
@@ -78,6 +83,27 @@ export default function ReportsPage() {
     }
     
     return filtered
+  }
+
+  const toggleRecord = (recordId: string) => {
+    setSelectedRecords(prev => 
+      prev.includes(recordId) 
+        ? prev.filter(id => id !== recordId)
+        : [...prev, recordId]
+    )
+  }
+
+  const selectAll = () => {
+    const filtered = maintenance.filter(record => {
+      if (startDate && new Date(record.datePerformed) < new Date(startDate)) return false
+      if (endDate && new Date(record.datePerformed) > new Date(endDate)) return false
+      return true
+    })
+    setSelectedRecords(filtered.map(r => r.id))
+  }
+
+  const clearSelection = () => {
+    setSelectedRecords([])
   }
 
   const generateReport = async () => {
@@ -268,6 +294,17 @@ export default function ReportsPage() {
                 </SelectContent>
               </Select>
             </div>
+            <div className="space-y-2">
+              <Label>Select Records ({selectedRecords.length} selected)</Label>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={selectAll}>
+                  Select All
+                </Button>
+                <Button variant="outline" size="sm" onClick={clearSelection}>
+                  Clear
+                </Button>
+              </div>
+            </div>
           </CardContent>
         </Card>
 
@@ -313,6 +350,7 @@ export default function ReportsPage() {
             <table className="w-full border-collapse border border-gray-300">
               <thead>
                 <tr className="bg-gray-100">
+                  <th className="border border-gray-300 p-2 text-left">Select</th>
                   <th className="border border-gray-300 p-2 text-left">Date</th>
                   <th className="border border-gray-300 p-2 text-left">Vehicle</th>
                   <th className="border border-gray-300 p-2 text-left">Service</th>
@@ -321,24 +359,36 @@ export default function ReportsPage() {
                 </tr>
               </thead>
               <tbody>
-                {filteredMaintenance.slice(0, 10).map((record) => (
-                  <tr key={record.id}>
-                    <td className="border border-gray-300 p-2">
-                      {new Date(record.datePerformed).toLocaleDateString()}
-                    </td>
-                    <td className="border border-gray-300 p-2">
-                      {record.truck?.licensePlate || 'N/A'} - {record.truck?.year || ''} {record.truck?.make || ''}
-                    </td>
-                    <td className="border border-gray-300 p-2">{record.serviceType}</td>
-                    <td className="border border-gray-300 p-2">${record.totalCost.toFixed(2)}</td>
-                    <td className="border border-gray-300 p-2">{record.status}</td>
-                  </tr>
-                ))}
+                {maintenance.slice(0, 20).map((record) => {
+                  const isSelected = selectedRecords.includes(record.id)
+                  const isFiltered = filteredMaintenance.includes(record)
+                  return (
+                    <tr key={record.id} className={isSelected ? 'bg-blue-50' : ''}>
+                      <td className="border border-gray-300 p-2">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => toggleRecord(record.id)}
+                          className="rounded"
+                        />
+                      </td>
+                      <td className="border border-gray-300 p-2">
+                        {new Date(record.datePerformed).toLocaleDateString()}
+                      </td>
+                      <td className="border border-gray-300 p-2">
+                        {record.truck?.licensePlate || 'N/A'} - {record.truck?.year || ''} {record.truck?.make || ''}
+                      </td>
+                      <td className="border border-gray-300 p-2">{record.serviceType}</td>
+                      <td className="border border-gray-300 p-2">${record.totalCost.toFixed(2)}</td>
+                      <td className="border border-gray-300 p-2">{record.status}</td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
-            {filteredMaintenance.length > 10 && (
+            {maintenance.length > 20 && (
               <p className="text-sm text-gray-500 mt-2">
-                Showing first 10 of {filteredMaintenance.length} records
+                Showing first 20 of {maintenance.length} records
               </p>
             )}
           </div>
