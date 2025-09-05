@@ -128,7 +128,16 @@ export default function ReportsPage() {
 
       if (trucksRes.ok) {
         const trucksData = await trucksRes.json()
-        setTrucks(trucksData.data || [])
+        const trucksArray = trucksData.data || []
+        setTrucks(trucksArray)
+        
+        // Auto-select the first truck if no trucks are selected and trucks exist
+        if (trucksArray.length > 0 && filters.selectedTrucks.length === 0) {
+          setFilters(prev => ({
+            ...prev,
+            selectedTrucks: [trucksArray[0].id]
+          }))
+        }
       }
 
       if (trailersRes.ok) {
@@ -193,29 +202,23 @@ export default function ReportsPage() {
     let filteredTrucks = filters.selectedTrucks.length > 0 ? trucks.filter(truck => filters.selectedTrucks.includes(truck.id)) : trucks
     let filteredTrailers = filters.selectedTrailers.length > 0 ? trailers.filter(trailer => filters.selectedTrailers.includes(trailer.id)) : trailers
     
-    // Filter maintenance by selected trucks OR trailers
-    if (filters.selectedTrucks.length > 0 || filters.selectedTrailers.length > 0) {
+    // Only filter maintenance by selected trucks/trailers if specific ones are selected
+    if (filters.selectedTrucks.length > 0) {
       const originalCount = filteredMaintenance.length
       filteredMaintenance = filteredMaintenance.filter(record => {
         // Check if record belongs to selected truck
-        const belongsToSelectedTruck = filters.selectedTrucks.length > 0 && 
-          record.truckId && filters.selectedTrucks.includes(record.truckId)
-        
-        // Check if record belongs to selected trailer (if trailer maintenance exists)
-        const belongsToSelectedTrailer = filters.selectedTrailers.length > 0 && 
-          record.trailerId && filters.selectedTrailers.includes(record.trailerId)
-        
-        console.log('Filtering record:', {
-          recordId: record.id,
-          truckId: record.truckId,
-          selectedTrucks: filters.selectedTrucks,
-          belongsToSelectedTruck,
-          belongsToSelectedTrailer
-        })
-        
-        return belongsToSelectedTruck || belongsToSelectedTrailer
+        return record.truckId && filters.selectedTrucks.includes(record.truckId)
       })
-      console.log(`Filtered maintenance: ${originalCount} -> ${filteredMaintenance.length} records`)
+      console.log(`Filtered maintenance by trucks: ${originalCount} -> ${filteredMaintenance.length} records`)
+    }
+    
+    // Filter by selected trailers (if trailer maintenance exists)
+    if (filters.selectedTrailers.length > 0) {
+      const originalCount = filteredMaintenance.length
+      filteredMaintenance = filteredMaintenance.filter(record => {
+        return record.trailerId && filters.selectedTrailers.includes(record.trailerId)
+      })
+      console.log(`Filtered maintenance by trailers: ${originalCount} -> ${filteredMaintenance.length} records`)
     }
     
     // Filter maintenance by selected maintenance records (only if no truck/trailer filtering was applied)
