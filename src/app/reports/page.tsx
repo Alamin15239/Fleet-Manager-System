@@ -27,6 +27,15 @@ interface MaintenanceRecord {
     year: number
     licensePlate: string
   }
+  mechanic?: {
+    id: string
+    name: string
+  }
+  createdBy?: {
+    id: string
+    name: string
+    email: string
+  }
 }
 
 export default function ReportsPage() {
@@ -187,6 +196,8 @@ export default function ReportsPage() {
                 <th>Vehicle</th>
                 <th>Service Type</th>
                 <th>Description</th>
+                <th>Mechanic</th>
+                <th>Creator</th>
                 <th>Parts Cost</th>
                 <th>Labor Cost</th>
                 <th>Total Cost</th>
@@ -200,6 +211,8 @@ export default function ReportsPage() {
                   <td>${record.truck?.licensePlate || 'N/A'} - ${record.truck?.year || ''} ${record.truck?.make || ''} ${record.truck?.model || ''}</td>
                   <td>${record.serviceType}</td>
                   <td>${record.description || 'N/A'}</td>
+                  <td>${record.mechanic?.name || 'N/A'}</td>
+                  <td>${record.createdBy?.name || 'N/A'}</td>
                   <td>$${record.partsCost.toFixed(2)}</td>
                   <td>$${record.laborCost.toFixed(2)}</td>
                   <td>$${record.totalCost.toFixed(2)}</td>
@@ -207,7 +220,7 @@ export default function ReportsPage() {
                 </tr>
               `).join('')}
               <tr class="total-row">
-                <td colspan="4"><strong>TOTAL</strong></td>
+                <td colspan="6"><strong>TOTAL</strong></td>
                 <td><strong>$${totalParts.toFixed(2)}</strong></td>
                 <td><strong>$${totalLabor.toFixed(2)}</strong></td>
                 <td><strong>$${totalCost.toFixed(2)}</strong></td>
@@ -235,13 +248,15 @@ export default function ReportsPage() {
     csv += `Period: ${startDate || 'All Time'} to ${endDate || 'Current'}\n\n`
     csv += `Total Records: ${data.length}\n`
     csv += `Total Cost: $${totalCost.toFixed(2)}\n\n`
-    csv += "Date,Vehicle,Service Type,Description,Parts Cost,Labor Cost,Total Cost,Status\n"
+    csv += "Date,Vehicle,Service Type,Description,Mechanic,Creator,Parts Cost,Labor Cost,Total Cost,Status\n"
     
     data.forEach(record => {
       csv += `${new Date(record.datePerformed).toLocaleDateString()},`
       csv += `"${record.truck?.licensePlate || 'N/A'} - ${record.truck?.year || ''} ${record.truck?.make || ''} ${record.truck?.model || ''}",`
       csv += `"${record.serviceType}",`
       csv += `"${record.description || 'N/A'}",`
+      csv += `"${record.mechanic?.name || 'N/A'}",`
+      csv += `"${record.createdBy?.name || 'N/A'}",`
       csv += `${record.partsCost.toFixed(2)},`
       csv += `${record.laborCost.toFixed(2)},`
       csv += `${record.totalCost.toFixed(2)},`
