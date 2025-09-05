@@ -219,8 +219,8 @@ export default function ReportsPage() {
       console.log(`Filtered maintenance: ${originalCount} -> ${filteredMaintenance.length} records`)
     }
     
-    // Filter maintenance by selected maintenance records
-    if (filters.selectedMaintenance.length > 0) {
+    // Filter maintenance by selected maintenance records (only if no truck/trailer filtering was applied)
+    if (filters.selectedMaintenance.length > 0 && filters.selectedTrucks.length === 0 && filters.selectedTrailers.length === 0) {
       filteredMaintenance = filteredMaintenance.filter(record => 
         filters.selectedMaintenance.includes(record.id)
       )
