@@ -168,6 +168,11 @@ export default function ReportsPage() {
     setGenerating(true)
     try {
       const filteredData = getFilteredData()
+      console.log('Filtered data for report:', {
+        trucks: filteredData.trucks.length,
+        maintenance: filteredData.maintenance.length,
+        selectedTrucks: filters.selectedTrucks
+      })
       
       if (filters.format === 'pdf') {
         await generatePDFReport(filteredData)
@@ -237,6 +242,13 @@ export default function ReportsPage() {
       )
     }
 
+    console.log('Final filtered data:', {
+      originalMaintenance: maintenance.length,
+      filteredMaintenance: filteredMaintenance.length,
+      selectedTrucks: filters.selectedTrucks,
+      selectedMaintenance: filters.selectedMaintenance
+    })
+    
     return {
       trucks: filteredTrucks,
       trailers: filteredTrailers,
