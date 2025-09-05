@@ -131,13 +131,7 @@ export default function ReportsPage() {
         const trucksArray = trucksData.data || []
         setTrucks(trucksArray)
         
-        // Auto-select the first truck if no trucks are selected and trucks exist
-        if (trucksArray.length > 0 && filters.selectedTrucks.length === 0) {
-          setFilters(prev => ({
-            ...prev,
-            selectedTrucks: [trucksArray[0].id]
-          }))
-        }
+        // Don't auto-select trucks - show all maintenance by default
       }
 
       if (trailersRes.ok) {
@@ -202,46 +196,28 @@ export default function ReportsPage() {
     let filteredTrucks = filters.selectedTrucks.length > 0 ? trucks.filter(truck => filters.selectedTrucks.includes(truck.id)) : trucks
     let filteredTrailers = filters.selectedTrailers.length > 0 ? trailers.filter(trailer => filters.selectedTrailers.includes(trailer.id)) : trailers
     
-    // Only filter maintenance by selected trucks/trailers if specific ones are selected
+    // Only apply truck filtering if trucks are specifically selected
     if (filters.selectedTrucks.length > 0) {
-      const originalCount = filteredMaintenance.length
-      filteredMaintenance = filteredMaintenance.filter(record => {
-        // Check if record belongs to selected truck
-        return record.truckId && filters.selectedTrucks.includes(record.truckId)
-      })
-      console.log(`Filtered maintenance by trucks: ${originalCount} -> ${filteredMaintenance.length} records`)
+      filteredMaintenance = filteredMaintenance.filter(record => 
+        record.truckId && filters.selectedTrucks.includes(record.truckId)
+      )
     }
     
-    // Filter by selected trailers (if trailer maintenance exists)
-    if (filters.selectedTrailers.length > 0) {
-      const originalCount = filteredMaintenance.length
-      filteredMaintenance = filteredMaintenance.filter(record => {
-        return record.trailerId && filters.selectedTrailers.includes(record.trailerId)
-      })
-      console.log(`Filtered maintenance by trailers: ${originalCount} -> ${filteredMaintenance.length} records`)
-    }
-    
-    // Filter maintenance by selected maintenance records (only if no truck/trailer filtering was applied)
-    if (filters.selectedMaintenance.length > 0 && filters.selectedTrucks.length === 0 && filters.selectedTrailers.length === 0) {
+    // Only apply maintenance record filtering if specific records are selected
+    if (filters.selectedMaintenance.length > 0) {
       filteredMaintenance = filteredMaintenance.filter(record => 
         filters.selectedMaintenance.includes(record.id)
       )
     }
     
-    // Filter maintenance by selected trailers (if maintenance has trailer reference)
-    if (filters.selectedTrailers.length > 0) {
-      // For now, keep truck-based maintenance filtering as trailers don't have direct maintenance
-      // This can be extended when trailer maintenance is implemented
-    }
-    
-    // Filter by selected users (filter maintenance records created by selected users)
+    // Only apply user filtering if users are selected
     if (filters.selectedUsers.length > 0) {
       filteredMaintenance = filteredMaintenance.filter(record => 
         record.createdById && filters.selectedUsers.includes(record.createdById)
       )
     }
     
-    // Filter by date range
+    // Apply date filtering
     if (filters.startDate) {
       filteredMaintenance = filteredMaintenance.filter(record => 
         new Date(record.datePerformed) >= filters.startDate!
