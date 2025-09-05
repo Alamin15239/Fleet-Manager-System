@@ -243,7 +243,7 @@ export default function ReportsPage() {
   }
 
   const generateReportHTML = (data: any) => {
-    const { trucks, trailers, maintenance, filters } = data
+    const { trucks: filteredTrucks, trailers: filteredTrailers, maintenance: filteredMaintenance, filters } = data
     
     return `
       <!DOCTYPE html>
@@ -407,52 +407,52 @@ export default function ReportsPage() {
       if (filters.reportType === 'trailers') {
         csvContent += "Trailer Fleet Overview\n"
         csvContent += "Selected Trailers,Active Trailers,Trailers in Maintenance,Driver Assignment Rate\n"
-        const driverAssignmentRate = filteredTrailers.length > 0 ? Math.round((filteredTrailers.filter(t => t.driverName).length / filteredTrailers.length) * 100) : 0
-        csvContent += `${filteredTrailers.length},${filteredTrailers.filter(t => t.status === 'ACTIVE').length},${filteredTrailers.filter(t => t.status === 'MAINTENANCE').length},${driverAssignmentRate}%\n\n`
+        const driverAssignmentRate = trailers.length > 0 ? Math.round((trailers.filter(t => t.driverName).length / trailers.length) * 100) : 0
+        csvContent += `${trailers.length},${trailers.filter(t => t.status === 'ACTIVE').length},${trailers.filter(t => t.status === 'MAINTENANCE').length},${driverAssignmentRate}%\n\n`
       } else {
         csvContent += "Fleet Overview\n"
         if (filters.reportType !== 'trucks') {
           csvContent += "Selected Trucks,Active Trucks,Trucks in Maintenance,Selected Trailers,Active Trailers,Trailers in Maintenance\n"
-          csvContent += `${filteredTrucks.length},${filteredTrucks.filter(t => t.status === 'ACTIVE').length},${filteredTrucks.filter(t => t.status === 'MAINTENANCE').length},${filteredTrailers.length},${filteredTrailers.filter(t => t.status === 'ACTIVE').length},${filteredTrailers.filter(t => t.status === 'MAINTENANCE').length}\n\n`
+          csvContent += `${trucks.length},${trucks.filter(t => t.status === 'ACTIVE').length},${trucks.filter(t => t.status === 'MAINTENANCE').length},${trailers.length},${trailers.filter(t => t.status === 'ACTIVE').length},${trailers.filter(t => t.status === 'MAINTENANCE').length}\n\n`
         } else {
           csvContent += "Selected Trucks,Active Trucks,Trucks in Maintenance\n"
-          csvContent += `${filteredTrucks.length},${filteredTrucks.filter(t => t.status === 'ACTIVE').length},${filteredTrucks.filter(t => t.status === 'MAINTENANCE').length}\n\n`
+          csvContent += `${trucks.length},${trucks.filter(t => t.status === 'ACTIVE').length},${trucks.filter(t => t.status === 'MAINTENANCE').length}\n\n`
         }
       }
       
       // Maintenance Summary
       csvContent += "Maintenance Summary\n"
       csvContent += "Total Maintenance Records,Total Maintenance Cost,Average Cost per Maintenance\n"
-      const totalCost = filteredMaintenance.reduce((sum: number, record: any) => sum + (typeof record.totalCost === 'number' ? record.totalCost : 0), 0)
-      const avgCost = filteredMaintenance.length > 0 ? totalCost / filteredMaintenance.length : 0
-      csvContent += `${filteredMaintenance.length},${totalCost.toFixed(2)},${avgCost.toFixed(2)}\n\n`
+      const totalCost = maintenance.reduce((sum: number, record: any) => sum + (typeof record.totalCost === 'number' ? record.totalCost : 0), 0)
+      const avgCost = maintenance.length > 0 ? totalCost / maintenance.length : 0
+      csvContent += `${maintenance.length},${totalCost.toFixed(2)},${avgCost.toFixed(2)}\n\n`
       
       // Vehicle Details
       if (filters.includeDetails) {
-        if (filters.reportType !== 'trailers' && filteredTrucks.length > 0) {
+        if (filters.reportType !== 'trailers' && trucks.length > 0) {
           csvContent += "Selected Truck Details\n"
           csvContent += "License Plate,Make,Model,Year,Status,Current Mileage\n"
-          filteredTrucks.forEach(truck => {
+          trucks.forEach(truck => {
             csvContent += `${truck.licensePlate || 'N/A'},${truck.make || 'N/A'},${truck.model || 'N/A'},${truck.year || 'N/A'},${truck.status || 'N/A'},${truck.currentMileage || 0}\n`
           })
           csvContent += "\n"
         }
         
         // Trailer Details
-        if (filteredTrailers.length > 0 && filters.reportType !== 'trucks') {
+        if (trailers.length > 0 && filters.reportType !== 'trucks') {
           csvContent += `${filters.reportType === 'trailers' ? 'Selected Trailer Details' : 'Selected Trailer Details'}\n`
           csvContent += "Trailer Number,Assigned Driver,Status,Date Added\n"
-          filteredTrailers.forEach(trailer => {
+          trailers.forEach(trailer => {
             csvContent += `TRL-${trailer.number},${trailer.driverName || 'Unassigned'},${trailer.status || 'N/A'},${new Date(trailer.createdAt).toLocaleDateString()}\n`
           })
           csvContent += "\n"
         }
         
         // Maintenance Records
-        if (filteredMaintenance.length > 0) {
+        if (maintenance.length > 0) {
           csvContent += "Selected Maintenance Records\n"
           csvContent += "Date,Truck,Service Type,Description,Total Cost,Status\n"
-          filteredMaintenance.slice(0, 1000).forEach(record => {
+          maintenance.slice(0, 1000).forEach(record => {
             csvContent += `${format(new Date(record.datePerformed), 'MMM dd, yyyy')},${record.truck?.licensePlate || 'N/A'},${record.serviceType},"${record.description || 'N/A'}",${typeof record.totalCost === 'number' ? record.totalCost : 0},${record.status}\n`
           })
         } else {
