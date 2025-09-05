@@ -12,7 +12,8 @@ import { toast } from 'sonner'
 
 interface MaintenanceRecord {
   id: string
-  truckId: string
+  truckId?: string
+  trailerId?: string
   serviceType: string
   description: string | null
   datePerformed: string
@@ -20,12 +21,18 @@ interface MaintenanceRecord {
   laborCost: number
   totalCost: number
   status: string
-  truck: {
+  truck?: {
     id: string
     make: string
     model: string
     year: number
     licensePlate: string
+  }
+  trailer?: {
+    id: string
+    number: string
+    status: string
+    driverName?: string
   }
   mechanic?: {
     id: string
@@ -73,6 +80,16 @@ export default function ReportsPage() {
     }
   }
 
+  const getVehicleDisplay = (record: MaintenanceRecord) => {
+    if (record.truck) {
+      return `${record.truck.licensePlate} - ${record.truck.year} ${record.truck.make} ${record.truck.model}`
+    }
+    if (record.trailer) {
+      return `Trailer ${record.trailer.number} - ${record.trailer.driverName || 'No Driver'}`
+    }
+    return 'N/A'
+  }
+
   const getSearchedMaintenance = () => {
     let filtered = [...maintenance]
     
@@ -83,6 +100,8 @@ export default function ReportsPage() {
         record.truck?.licensePlate?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         record.truck?.make?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         record.truck?.model?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        record.trailer?.number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        record.trailer?.driverName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         record.status.toLowerCase().includes(searchTerm.toLowerCase())
       )
     }
@@ -227,7 +246,7 @@ export default function ReportsPage() {
               ${data.map(record => `
                 <tr>
                   <td>${new Date(record.datePerformed).toLocaleDateString()}</td>
-                  <td>${record.truck?.licensePlate || 'N/A'} - ${record.truck?.year || ''} ${record.truck?.make || ''} ${record.truck?.model || ''}</td>
+                  <td>${getVehicleDisplay(record)}</td>
                   <td>${record.serviceType}</td>
                   <td>${record.description || 'N/A'}</td>
                   <td>${record.mechanic?.name || 'N/A'}</td>
@@ -314,7 +333,7 @@ export default function ReportsPage() {
               ${data.map(record => `
                 <tr>
                   <td>${new Date(record.datePerformed).toLocaleDateString()}</td>
-                  <td>${record.truck?.licensePlate || 'N/A'} - ${record.truck?.year || ''} ${record.truck?.make || ''} ${record.truck?.model || ''}</td>
+                  <td>${getVehicleDisplay(record)}</td>
                   <td>${record.serviceType}</td>
                   <td>${record.description || 'N/A'}</td>
                   <td>${record.mechanic?.name || 'N/A'}</td>
@@ -358,7 +377,7 @@ export default function ReportsPage() {
     
     data.forEach(record => {
       csv += `${new Date(record.datePerformed).toLocaleDateString()},`
-      csv += `"${record.truck?.licensePlate || 'N/A'} - ${record.truck?.year || ''} ${record.truck?.make || ''} ${record.truck?.model || ''}",`
+      csv += `"${getVehicleDisplay(record)}",`
       csv += `"${record.serviceType}",`
       csv += `"${record.description || 'N/A'}",`
       csv += `"${record.mechanic?.name || 'N/A'}",`
@@ -533,7 +552,7 @@ export default function ReportsPage() {
                         {new Date(record.datePerformed).toLocaleDateString()}
                       </td>
                       <td className="border border-gray-300 p-2">
-                        {record.truck?.licensePlate || 'N/A'} - {record.truck?.year || ''} {record.truck?.make || ''}
+                        {getVehicleDisplay(record)}
                       </td>
                       <td className="border border-gray-300 p-2">{record.serviceType}</td>
                       <td className="border border-gray-300 p-2">${record.totalCost.toFixed(2)}</td>
