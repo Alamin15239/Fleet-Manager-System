@@ -345,16 +345,16 @@ export default function MaintenancePage() {
         nextServiceDue = nextOilChangeDate.toISOString().split('T')[0]
       }
       
-      // Get current user ID from localStorage or token
-      const token = localStorage.getItem('authToken')
+      // Get current user ID from localStorage or API
       let currentUserId = null
-      if (token) {
-        try {
-          const tokenPayload = JSON.parse(atob(token.split('.')[1]))
-          currentUserId = tokenPayload.userId || tokenPayload.id
-        } catch (e) {
-          console.error('Error parsing token:', e)
+      try {
+        const userResponse = await apiGet('/api/auth/me')
+        if (userResponse.ok) {
+          const userData = await userResponse.json()
+          currentUserId = userData.id
         }
+      } catch (e) {
+        console.error('Error getting current user:', e)
       }
       
       const payload = {
