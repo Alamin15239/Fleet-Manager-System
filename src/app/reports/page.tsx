@@ -881,25 +881,40 @@ export default function ReportsPage() {
                     <CommandList>
                       <CommandEmpty>No maintenance records found.</CommandEmpty>
                       <CommandGroup>
-                        {maintenance.slice(0, 50).map((record) => (
-                          <CommandItem
-                            key={record.id}
-                            onSelect={() => toggleMaintenanceSelection(record.id)}
-                          >
-                            <div className="flex items-center space-x-2">
-                              <Checkbox
-                                checked={filters.selectedMaintenance.includes(record.id)}
-                                disabled
-                              />
-                              <div className="flex-1">
-                                <p className="font-medium">{record.serviceType}</p>
-                                <p className="text-sm text-muted-foreground">
-                                  {record.truck?.licensePlate || 'N/A'} • {format(new Date(record.datePerformed), 'MMM dd, yyyy')} • {(typeof record.totalCost === 'number' ? record.totalCost : 0).toFixed(2)}
-                                </p>
+                        {(() => {
+                          // Filter maintenance records based on selected trucks/trailers
+                          let availableRecords = maintenance
+                          
+                          if (filters.selectedTrucks.length > 0 || filters.selectedTrailers.length > 0) {
+                            availableRecords = maintenance.filter(record => {
+                              const belongsToSelectedTruck = filters.selectedTrucks.length > 0 && 
+                                filters.selectedTrucks.includes(record.truckId)
+                              const belongsToSelectedTrailer = filters.selectedTrailers.length > 0 && 
+                                record.trailerId && filters.selectedTrailers.includes(record.trailerId)
+                              return belongsToSelectedTruck || belongsToSelectedTrailer
+                            })
+                          }
+                          
+                          return availableRecords.slice(0, 50).map((record) => (
+                            <CommandItem
+                              key={record.id}
+                              onSelect={() => toggleMaintenanceSelection(record.id)}
+                            >
+                              <div className="flex items-center space-x-2">
+                                <Checkbox
+                                  checked={filters.selectedMaintenance.includes(record.id)}
+                                  disabled
+                                />
+                                <div className="flex-1">
+                                  <p className="font-medium">{record.serviceType}</p>
+                                  <p className="text-sm text-muted-foreground">
+                                    {record.truck?.licensePlate || record.trailer?.number || 'N/A'} • {format(new Date(record.datePerformed), 'MMM dd, yyyy')} • ${(typeof record.totalCost === 'number' ? record.totalCost : 0).toFixed(2)}
+                                  </p>
+                                </div>
                               </div>
-                            </div>
-                          </CommandItem>
-                        ))}
+                            </CommandItem>
+                          ))
+                        })()}
                       </CommandGroup>
                     </CommandList>
                   </Command>
