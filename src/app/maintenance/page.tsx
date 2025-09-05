@@ -345,9 +345,22 @@ export default function MaintenancePage() {
         nextServiceDue = nextOilChangeDate.toISOString().split('T')[0]
       }
       
+      // Get current user ID from localStorage or token
+      const token = localStorage.getItem('authToken')
+      let currentUserId = null
+      if (token) {
+        try {
+          const tokenPayload = JSON.parse(atob(token.split('.')[1]))
+          currentUserId = tokenPayload.userId || tokenPayload.id
+        } catch (e) {
+          console.error('Error parsing token:', e)
+        }
+      }
+      
       const payload = {
         ...formData,
         mechanicId: formData.mechanicId === "none" ? null : formData.mechanicId,
+        createdById: currentUserId,
         totalCost,
         nextServiceDue
       }
