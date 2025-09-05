@@ -138,16 +138,24 @@ export default function ReportsPage() {
 
       if (maintenanceRes.ok) {
         const maintenanceData = await maintenanceRes.json()
-        console.log('Maintenance data fetched:', maintenanceData)
-        setMaintenance(maintenanceData.data || [])
+        const maintenanceRecords = maintenanceData.data || []
+        setMaintenance(maintenanceRecords)
+        
+        // Extract unique users who created maintenance records
+        const maintenanceCreators = maintenanceRecords
+          .filter(record => record.createdBy)
+          .map(record => record.createdBy)
+          .filter((user, index, self) => 
+            index === self.findIndex(u => u.id === user.id)
+          )
+        
+        // Update users list to only show maintenance creators
+        setUsers(maintenanceCreators)
       } else {
         console.error('Failed to fetch maintenance data:', maintenanceRes.status)
       }
 
-      if (usersRes.ok) {
-        const usersData = await usersRes.json()
-        setUsers(usersData.data || [])
-      }
+      // Users will be set from maintenance data to show only creators
     } catch (error) {
       console.error('Error fetching data:', error)
       toast.error('Failed to fetch data for reports')
@@ -181,11 +189,19 @@ export default function ReportsPage() {
     let filteredTrucks = filters.selectedTrucks.length > 0 ? trucks.filter(truck => filters.selectedTrucks.includes(truck.id)) : trucks
     let filteredTrailers = filters.selectedTrailers.length > 0 ? trailers.filter(trailer => filters.selectedTrailers.includes(trailer.id)) : trailers
     
-    // Filter maintenance by selected trucks
-    if (filters.selectedTrucks.length > 0) {
-      filteredMaintenance = filteredMaintenance.filter(record => 
-        filters.selectedTrucks.includes(record.truckId)
-      )
+    // Filter maintenance by selected trucks OR trailers
+    if (filters.selectedTrucks.length > 0 || filters.selectedTrailers.length > 0) {
+      filteredMaintenance = filteredMaintenance.filter(record => {
+        // Check if record belongs to selected truck
+        const belongsToSelectedTruck = filters.selectedTrucks.length > 0 && 
+          filters.selectedTrucks.includes(record.truckId)
+        
+        // Check if record belongs to selected trailer (if trailer maintenance exists)
+        const belongsToSelectedTrailer = filters.selectedTrailers.length > 0 && 
+          record.trailerId && filters.selectedTrailers.includes(record.trailerId)
+        
+        return belongsToSelectedTruck || belongsToSelectedTrailer
+      })
     }
     
     // Filter maintenance by selected maintenance records
