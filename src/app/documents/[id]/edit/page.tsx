@@ -4,12 +4,10 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import Editor from '@/components/Editor';
-import TableEditor from '@/components/TableEditor';
-import ExcelEditor from '@/components/ExcelEditor';
 import AdvancedPDFEditor from '@/components/AdvancedPDFEditor';
 import { 
   Save, ArrowLeft, Eye, Clock, User, 
@@ -25,7 +23,8 @@ export default function EditDocumentPage() {
   
   const [document, setDocument] = useState<any>(null);
   const [title, setTitle] = useState('');
-  const [editorContent, setEditorContent] = useState(null);
+  const [description, setDescription] = useState('');
+  const [editorContent, setEditorContent] = useState({ header: '', content: '', footer: '' });
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
@@ -61,7 +60,8 @@ export default function EditDocumentPage() {
         const data = await response.json();
         setDocument(data);
         setTitle(data.title);
-        setEditorContent(data.editorState);
+        setDescription(data.description || '');
+        setEditorContent(data.editorState || { header: '', content: '', footer: '' });
       } else {
         toast.error('Document not found');
         router.push('/documents');
@@ -91,6 +91,7 @@ export default function EditDocumentPage() {
         },
         body: JSON.stringify({
           title,
+          description,
           editorState: editorContent
         })
       });
@@ -106,7 +107,7 @@ export default function EditDocumentPage() {
         }
       } else {
         const error = await response.json();
-        toast.error(error.message || 'Failed to save document');
+        toast.error(error.error || 'Failed to save document');
       }
     } catch (error) {
       console.error('Error saving document:', error);
@@ -126,49 +127,9 @@ export default function EditDocumentPage() {
     setHasUnsavedChanges(true);
   };
 
-  const renderEditor = () => {
-    if (!document) return null;
-
-    switch (document.type) {
-      case 'text':
-        return (
-          <Editor 
-            content={editorContent} 
-            onChange={handleContentChange}
-            editable={true}
-          />
-        );
-      case 'table':
-        return (
-          <TableEditor 
-            data={editorContent || { rows: [], columns: [] }}
-            onChange={handleContentChange}
-            editable={true}
-          />
-        );
-      case 'excel':
-        return (
-          <ExcelEditor 
-            data={editorContent || []}
-            onChange={handleContentChange}
-            editable={true}
-          />
-        );
-      case 'pdf':
-        return (
-          <AdvancedPDFEditor 
-            initialData={editorContent || { header: '', content: '', footer: '', pageSettings: { orientation: 'portrait', margin: '20', pageSize: 'A4' } }}
-            onChange={handleContentChange}
-          />
-        );
-      default:
-        return (
-          <div className="p-8 text-center text-gray-500">
-            <AlertCircle className="h-12 w-12 mx-auto mb-4" />
-            <p>This document type cannot be edited</p>
-          </div>
-        );
-    }
+  const handleDescriptionChange = (newDescription: string) => {
+    setDescription(newDescription);
+    setHasUnsavedChanges(true);
   };
 
   if (isLoading) {
@@ -198,6 +159,29 @@ export default function EditDocumentPage() {
     );
   }
 
+  // Check if document has uploaded file (can't edit)
+  if (document.fileUrl) {
+    return (
+      <div className="min-h-screen bg-gray-50/30 flex items-center justify-center">
+        <div className="text-center">
+          <AlertCircle className="h-16 w-16 text-amber-500 mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Cannot Edit Uploaded PDF</h2>
+          <p className="text-gray-600 mb-4">This document was uploaded as a PDF file and cannot be edited.</p>
+          <div className="flex gap-3 justify-center">
+            <Button onClick={() => router.push(`/documents/${params.id}`)} variant="outline">
+              <Eye className="h-4 w-4 mr-2" />
+              View Document
+            </Button>
+            <Button onClick={() => router.push('/documents')} variant="outline">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Documents
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50/30">
       <div className="container mx-auto p-6 max-w-7xl">
@@ -208,14 +192,10 @@ export default function EditDocumentPage() {
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Edit Document</h1>
+              <h1 className="text-2xl font-bold text-gray-900">Edit PDF Document</h1>
               <div className="flex items-center gap-4 mt-1">
-                <Badge variant="secondary" className="capitalize">
-                  {document.type}
-                </Badge>
-                <span className="text-sm text-gray-500">
-                  Version {document.version}
-                </span>
+                <Badge variant="secondary">PDF</Badge>
+                <span className="text-sm text-gray-500">Version {document.version}</span>
                 {lastSaved && (
                   <div className="flex items-center gap-1 text-sm text-gray-500">
                     <CheckCircle2 className="h-3 w-3 text-green-500" />
@@ -276,11 +256,25 @@ export default function EditDocumentPage() {
                       className="text-lg font-medium"
                     />
                   </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 mb-2 block">
+                      Description (Optional)
+                    </label>
+                    <Textarea
+                      value={description}
+                      onChange={(e) => handleDescriptionChange(e.target.value)}
+                      placeholder="Brief description of the document..."
+                      rows={2}
+                    />
+                  </div>
                 </div>
               </CardHeader>
               <CardContent className="p-0">
                 <div className="min-h-[600px]">
-                  {renderEditor()}
+                  <AdvancedPDFEditor 
+                    initialData={editorContent}
+                    onChange={handleContentChange}
+                  />
                 </div>
               </CardContent>
             </Card>
@@ -298,7 +292,7 @@ export default function EditDocumentPage() {
                   <div className="space-y-3">
                     <div className="p-3 bg-gray-50 rounded-lg">
                       <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">Type</div>
-                      <div className="text-sm font-medium text-gray-900 mt-1 capitalize">{document.type}</div>
+                      <div className="text-sm font-medium text-gray-900 mt-1">PDF Document</div>
                     </div>
                     
                     <div className="p-3 bg-gray-50 rounded-lg">

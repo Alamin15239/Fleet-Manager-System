@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
   try {
     const user = await requireAuth(request);
     const body = await request.json();
-    const { title, type, fileUrl, editorState } = body;
+    const { title, type, description, fileUrl, editorState } = body;
 
     if (!title || !type) {
       return NextResponse.json({ error: 'Title and type are required' }, { status: 400 });
@@ -39,6 +39,7 @@ export async function POST(request: NextRequest) {
       data: {
         title,
         type,
+        description,
         fileUrl,
         editorState,
         createdById: user.id

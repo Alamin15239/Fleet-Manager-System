@@ -7,9 +7,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import Editor from '@/components/Editor';
-import TableEditor from '@/components/TableEditor';
-import ExcelEditor from '@/components/ExcelEditor';
 import dynamic from 'next/dynamic';
 import { 
   ArrowLeft, Edit, Download, Share2, Printer, 
@@ -163,71 +160,33 @@ export default function ViewDocumentPage() {
   const renderDocumentContent = () => {
     if (!document) return null;
 
-    switch (document.type) {
-      case 'text':
-        return (
-          <div className="prose max-w-none">
-            <Editor content={document.editorState} editable={false} />
-          </div>
-        );
-      case 'table':
-        return (
-          <TableEditor 
-            data={document.editorState || { rows: [], columns: [] }}
-            editable={false}
-          />
-        );
-      case 'excel':
-        return (
-          <ExcelEditor 
-            data={document.editorState || []}
-            editable={false}
-          />
-        );
-      case 'pdf':
-        if (document.fileUrl) {
-          return <PDFViewer fileUrl={document.fileUrl} title={document.title} />;
-        } else {
-          const pdfData = document.editorState;
-          return (
-            <div className="bg-white p-8 shadow-lg rounded-lg max-w-4xl mx-auto" style={{ minHeight: '800px' }}>
-              {pdfData?.header && (
-                <div className="text-center border-b pb-4 mb-6">
-                  <h1 className="text-2xl font-bold text-gray-900">{pdfData.header}</h1>
-                </div>
-              )}
-              
-              <div className="prose max-w-none flex-grow" dangerouslySetInnerHTML={{ __html: pdfData?.content || '' }} />
-              
-              {pdfData?.footer && (
-                <div className="text-center border-t pt-4 mt-8">
-                  <p className="text-sm text-gray-600">{pdfData.footer.replace('{page}', '1')}</p>
-                </div>
-              )}
-            </div>
-          );
-        }
-      case 'image':
-        return (
-          <div className="text-center">
-            <img 
-              src={document.fileUrl} 
-              alt={document.title}
-              className="max-w-full h-auto mx-auto rounded-lg shadow-lg"
-            />
-          </div>
-        );
-      default:
-        return (
-          <div className="p-8 text-center text-gray-500">
-            <AlertCircle className="h-12 w-12 mx-auto mb-4" />
-            <p>Unsupported document type</p>
-          </div>
-        );
+    // If it's an uploaded PDF file
+    if (document.fileUrl) {
+      return <PDFViewer fileUrl={document.fileUrl} title={document.title} />;
     }
+
+    // If it's a created PDF document
+    const pdfData = document.editorState;
+    return (
+      <div className="bg-white p-8 shadow-lg rounded-lg max-w-4xl mx-auto" style={{ minHeight: '800px' }}>
+        {pdfData?.header && (
+          <div className="text-center border-b pb-4 mb-6">
+            <h1 className="text-2xl font-bold text-gray-900">{pdfData.header}</h1>
+          </div>
+        )}
+        
+        <div className="prose max-w-none flex-grow" dangerouslySetInnerHTML={{ __html: pdfData?.content || '' }} />
+        
+        {pdfData?.footer && (
+          <div className="text-center border-t pt-4 mt-8">
+            <p className="text-sm text-gray-600">{pdfData.footer.replace('{page}', '1')}</p>
+          </div>
+        )}
+      </div>
+    );
   };
 
-  const canEdit = user?.role === 'ADMIN' || user?.role === 'MANAGER' || document?.createdBy?.id === user?.id;
+  const canEdit = (user?.role === 'ADMIN' || user?.role === 'MANAGER' || document?.createdBy?.id === user?.id) && !document?.fileUrl;
   const canDelete = user?.role === 'ADMIN' || user?.role === 'MANAGER' || document?.createdBy?.id === user?.id;
 
   if (isLoading) {
@@ -269,12 +228,8 @@ export default function ViewDocumentPage() {
             <div>
               <h1 className="text-2xl font-bold text-gray-900">{document.title}</h1>
               <div className="flex items-center gap-4 mt-1">
-                <Badge variant="secondary" className="capitalize">
-                  {document.type}
-                </Badge>
-                <span className="text-sm text-gray-500">
-                  Version {document.version}
-                </span>
+                <Badge variant="secondary">PDF</Badge>
+                <span className="text-sm text-gray-500">Version {document.version}</span>
                 <div className="flex items-center gap-1 text-sm text-gray-500">
                   <Calendar className="h-3 w-3" />
                   {new Date(document.updatedAt).toLocaleDateString()}
@@ -286,6 +241,9 @@ export default function ViewDocumentPage() {
                   </div>
                 )}
               </div>
+              {document.description && (
+                <p className="text-gray-600 mt-2 text-sm">{document.description}</p>
+              )}
             </div>
           </div>
           
@@ -363,7 +321,9 @@ export default function ViewDocumentPage() {
                   <div className="space-y-3">
                     <div className="p-3 bg-gray-50 rounded-lg">
                       <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">Type</div>
-                      <div className="text-sm font-medium text-gray-900 mt-1 capitalize">{document.type}</div>
+                      <div className="text-sm font-medium text-gray-900 mt-1">
+                        {document.fileUrl ? 'Uploaded PDF' : 'Created PDF'}
+                      </div>
                     </div>
                     
                     <div className="p-3 bg-gray-50 rounded-lg">

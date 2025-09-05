@@ -9,9 +9,9 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { 
-  FileText, Plus, Search, Eye, Trash2, Edit, Share2,
+  FileText, Plus, Search, Eye, Trash2, Edit, Share2, Download,
   Calendar, User, Grid, List, ArrowLeft, MoreVertical,
-  Loader2, Filter, TrendingUp
+  Loader2, Upload
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -25,12 +25,11 @@ export default function DocumentsPage() {
   const [documents, setDocuments] = useState([]);
   const [filteredDocuments, setFilteredDocuments] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterType, setFilterType] = useState('all');
-  const [sortBy, setSortBy] = useState<'title' | 'createdAt' | 'updatedAt' | 'type'>('updatedAt');
+  const [sortBy, setSortBy] = useState<'title' | 'createdAt' | 'updatedAt'>('updatedAt');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [isLoading, setIsLoading] = useState(true);
-  const [stats, setStats] = useState({ total: 0, byType: {} });
+  const [stats, setStats] = useState({ total: 0, created: 0, uploaded: 0 });
 
   useEffect(() => {
     if (!authLoading && isAuthenticated) {
@@ -40,7 +39,7 @@ export default function DocumentsPage() {
 
   useEffect(() => {
     filterDocuments();
-  }, [documents, searchTerm, filterType, sortBy, sortOrder]);
+  }, [documents, searchTerm, sortBy, sortOrder]);
 
   const fetchDocuments = async () => {
     try {
@@ -71,13 +70,10 @@ export default function DocumentsPage() {
     if (searchTerm) {
       filtered = filtered.filter((doc: any) =>
         doc.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        doc.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         doc.createdBy?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         doc.createdBy?.email?.toLowerCase().includes(searchTerm.toLowerCase())
       );
-    }
-
-    if (filterType !== 'all') {
-      filtered = filtered.filter((doc: any) => doc.type === filterType);
     }
 
     // Sort documents
@@ -100,11 +96,9 @@ export default function DocumentsPage() {
     setFilteredDocuments(filtered);
     
     // Update stats
-    const typeStats = filtered.reduce((acc: any, doc: any) => {
-      acc[doc.type] = (acc[doc.type] || 0) + 1;
-      return acc;
-    }, {});
-    setStats({ total: filtered.length, byType: typeStats });
+    const created = filtered.filter((doc: any) => !doc.fileUrl).length;
+    const uploaded = filtered.filter((doc: any) => doc.fileUrl).length;
+    setStats({ total: filtered.length, created, uploaded });
   };
 
   const handleDelete = async (id: string) => {
@@ -131,14 +125,30 @@ export default function DocumentsPage() {
     }
   };
 
-  const getTypeIcon = (type: string) => {
-    switch (type) {
-      case 'pdf': return '📄';
-      case 'text': return '📝';
-      case 'table': return '📊';
-      case 'excel': return '📈';
-      case 'image': return '🖼️';
-      default: return '📄';
+  const handleDownload = async (doc: any) => {
+    try {
+      const token = localStorage.getItem('authToken');
+      const response = await fetch(`/api/documents/pdf/${doc.id}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${doc.title}.pdf`;
+        a.click();
+        window.URL.revokeObjectURL(url);
+        toast.success('PDF downloaded successfully');
+      } else {
+        toast.error('Failed to download PDF');
+      }
+    } catch (error) {
+      console.error('Error downloading PDF:', error);
+      toast.error('Error downloading PDF');
     }
   };
 
@@ -164,29 +174,29 @@ export default function DocumentsPage() {
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Document Library</h1>
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900">PDF Document Library</h1>
               <p className="text-gray-600 mt-1 text-sm sm:text-base">
-                Manage and organize your documents ({stats.total} total)
+                Manage your PDF documents ({stats.total} total)
               </p>
             </div>
           </div>
           {(user?.role === 'ADMIN' || user?.role === 'MANAGER' || user?.role === 'USER') && (
             <Button onClick={() => router.push('/documents/create')} className="w-full sm:w-auto">
               <Plus className="h-4 w-4 mr-2" />
-              {isMobile ? 'New' : 'New Document'}
+              {isMobile ? 'New PDF' : 'New PDF Document'}
             </Button>
           )}
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center gap-2">
-                <FileText className="h-5 w-5 text-blue-600" />
+                <FileText className="h-5 w-5 text-red-600" />
                 <div>
                   <div className="text-2xl font-bold">{stats.total}</div>
-                  <div className="text-xs text-gray-500">Total Documents</div>
+                  <div className="text-xs text-gray-500">Total PDFs</div>
                 </div>
               </div>
             </CardContent>
@@ -194,10 +204,10 @@ export default function DocumentsPage() {
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center gap-2">
-                <span className="text-lg">📝</span>
+                <Plus className="h-5 w-5 text-blue-600" />
                 <div>
-                  <div className="text-2xl font-bold">{stats.byType.text || 0}</div>
-                  <div className="text-xs text-gray-500">Text Documents</div>
+                  <div className="text-2xl font-bold">{stats.created}</div>
+                  <div className="text-xs text-gray-500">Created Documents</div>
                 </div>
               </div>
             </CardContent>
@@ -205,21 +215,10 @@ export default function DocumentsPage() {
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center gap-2">
-                <span className="text-lg">📄</span>
+                <Upload className="h-5 w-5 text-green-600" />
                 <div>
-                  <div className="text-2xl font-bold">{stats.byType.pdf || 0}</div>
-                  <div className="text-xs text-gray-500">PDF Files</div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2">
-                <span className="text-lg">📊</span>
-                <div>
-                  <div className="text-2xl font-bold">{(stats.byType.table || 0) + (stats.byType.excel || 0)}</div>
-                  <div className="text-xs text-gray-500">Tables & Sheets</div>
+                  <div className="text-2xl font-bold">{stats.uploaded}</div>
+                  <div className="text-xs text-gray-500">Uploaded Files</div>
                 </div>
               </div>
             </CardContent>
@@ -234,7 +233,7 @@ export default function DocumentsPage() {
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                   <Input
-                    placeholder="Search documents, creators..."
+                    placeholder="Search documents, descriptions, creators..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="pl-10"
@@ -243,20 +242,6 @@ export default function DocumentsPage() {
               </div>
               
               <div className="flex gap-2">
-                <Select value={filterType} onValueChange={setFilterType}>
-                  <SelectTrigger className="w-full sm:w-40">
-                    <SelectValue placeholder="Filter by type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Types ({stats.total})</SelectItem>
-                    <SelectItem value="text">Text ({stats.byType.text || 0})</SelectItem>
-                    <SelectItem value="pdf">PDF ({stats.byType.pdf || 0})</SelectItem>
-                    <SelectItem value="table">Table ({stats.byType.table || 0})</SelectItem>
-                    <SelectItem value="excel">Excel ({stats.byType.excel || 0})</SelectItem>
-                    <SelectItem value="image">Image ({stats.byType.image || 0})</SelectItem>
-                  </SelectContent>
-                </Select>
-
                 <Select value={`${sortBy}-${sortOrder}`} onValueChange={(value) => {
                   const [field, order] = value.split('-');
                   setSortBy(field as any);
@@ -270,7 +255,7 @@ export default function DocumentsPage() {
                     <SelectItem value="updatedAt-asc">Oldest First</SelectItem>
                     <SelectItem value="title-asc">Title A-Z</SelectItem>
                     <SelectItem value="title-desc">Title Z-A</SelectItem>
-                    <SelectItem value="type-asc">Type A-Z</SelectItem>
+                    <SelectItem value="createdAt-desc">Recently Created</SelectItem>
                   </SelectContent>
                 </Select>
 
@@ -300,16 +285,16 @@ export default function DocumentsPage() {
           <Card>
             <CardContent className="p-12 text-center">
               <FileText className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No documents found</h3>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No PDF documents found</h3>
               <p className="text-gray-600 mb-4">
-                {searchTerm || filterType !== 'all' 
-                  ? 'Try adjusting your search or filters'
-                  : 'Create your first document to get started'
+                {searchTerm 
+                  ? 'Try adjusting your search terms'
+                  : 'Create your first PDF document to get started'
                 }
               </p>
               <Button onClick={() => router.push('/documents/create')}>
                 <Plus className="h-4 w-4 mr-2" />
-                Create Document
+                Create PDF Document
               </Button>
             </CardContent>
           </Card>
@@ -323,14 +308,14 @@ export default function DocumentsPage() {
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-2 min-w-0 flex-1">
-                      <span className="text-xl sm:text-2xl flex-shrink-0">{getTypeIcon(doc.type)}</span>
+                      <FileText className="h-6 w-6 text-red-600 flex-shrink-0" />
                       <div className="min-w-0 flex-1">
                         <CardTitle className="text-sm font-medium truncate group-hover:text-blue-600 transition-colors">
                           {doc.title}
                         </CardTitle>
                         <div className="flex items-center gap-2 mt-1">
-                          <Badge variant="secondary" className="text-xs capitalize">
-                            {doc.type}
+                          <Badge variant="secondary" className="text-xs">
+                            {doc.fileUrl ? 'Uploaded' : 'Created'}
                           </Badge>
                           <span className="text-xs text-gray-500">v{doc.version}</span>
                         </div>
@@ -340,6 +325,10 @@ export default function DocumentsPage() {
                 </CardHeader>
                 
                 <CardContent className="pt-0">
+                  {doc.description && (
+                    <p className="text-xs text-gray-600 mb-3 line-clamp-2">{doc.description}</p>
+                  )}
+                  
                   <div className="space-y-2 text-xs text-gray-500 mb-4">
                     <div className="flex items-center gap-1">
                       <Calendar className="h-3 w-3" />
@@ -371,12 +360,16 @@ export default function DocumentsPage() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        {(user?.role === 'ADMIN' || user?.role === 'MANAGER' || doc.createdBy?.id === user?.id) && (
+                        {(user?.role === 'ADMIN' || user?.role === 'MANAGER' || doc.createdBy?.id === user?.id) && !doc.fileUrl && (
                           <DropdownMenuItem onClick={() => router.push(`/documents/${doc.id}/edit`)}>
                             <Edit className="h-3 w-3 mr-2" />
                             Edit
                           </DropdownMenuItem>
                         )}
+                        <DropdownMenuItem onClick={() => handleDownload(doc)}>
+                          <Download className="h-3 w-3 mr-2" />
+                          Download
+                        </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => {
                           const url = `${window.location.origin}/documents/${doc.id}`;
                           navigator.clipboard.writeText(url);

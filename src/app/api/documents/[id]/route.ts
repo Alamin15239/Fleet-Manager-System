@@ -36,12 +36,13 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     const { id } = await params;
 
     const body = await request.json();
-    const { title, editorState, fileUrl } = body;
+    const { title, description, editorState, fileUrl } = body;
 
     const document = await db.document.update({
       where: { id },
       data: {
         ...(title && { title }),
+        ...(description !== undefined && { description }),
         ...(editorState && { editorState }),
         ...(fileUrl && { fileUrl }),
         version: { increment: 1 }

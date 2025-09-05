@@ -440,6 +440,7 @@ model Document {
   id          String   @id @default(cuid())
   title       String
   type        String
+  description String?
   fileUrl     String?
   editorState Json?
   version     Int      @default(1)
