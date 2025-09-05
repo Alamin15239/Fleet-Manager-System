@@ -345,13 +345,13 @@ export default function MaintenancePage() {
         nextServiceDue = nextOilChangeDate.toISOString().split('T')[0]
       }
       
-      // Get current user ID from localStorage or API
+      // Get current user ID from API
       let currentUserId = null
       try {
         const userResponse = await apiGet('/api/auth/me')
         if (userResponse.ok) {
           const userData = await userResponse.json()
-          currentUserId = userData.id
+          currentUserId = userData.user?.id || userData.id
         }
       } catch (e) {
         console.error('Error getting current user:', e)
