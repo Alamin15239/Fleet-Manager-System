@@ -19,7 +19,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 interface ReportFilters {
   startDate: Date | undefined
   endDate: Date | undefined
-  reportType: 'trucks' | 'maintenance' | 'costs' | 'overview'
+  reportType: 'trucks' | 'trailers' | 'maintenance' | 'costs' | 'overview'
   format: 'pdf' | 'excel'
   includeCharts: boolean
   includeDetails: boolean
@@ -175,14 +175,12 @@ export default function ReportsPage() {
 
   const getFilteredData = () => {
     let filteredMaintenance = [...maintenance]
-    let filteredTrucks = filters.selectedTrucks.length > 0 ? trucks.filter(truck => filters.selectedTrucks.includes(truck.id)) : []
-    let filteredTrailers = filters.selectedTrailers.length > 0 ? trailers.filter(trailer => filters.selectedTrailers.includes(trailer.id)) : []
+    let filteredTrucks = filters.selectedTrucks.length > 0 ? trucks.filter(truck => filters.selectedTrucks.includes(truck.id)) : trucks
+    let filteredTrailers = filters.selectedTrailers.length > 0 ? trailers.filter(trailer => filters.selectedTrailers.includes(trailer.id)) : trailers
     
     // Filter maintenance by selected trucks
     if (filters.selectedTrucks.length > 0) {
       filteredMaintenance = filteredMaintenance.filter(record => filters.selectedTrucks.includes(record.truckId))
-    } else {
-      filteredMaintenance = []
     }
     
     // Filter by selected maintenance records
@@ -271,13 +269,21 @@ export default function ReportsPage() {
 
           <div class="section">
             <div class="summary">
-              <h2>Fleet Overview</h2>
+              <h2>${filters.reportType === 'trailers' ? 'Trailer Fleet Overview' : 'Fleet Overview'}</h2>
+              ${filters.reportType !== 'trailers' ? `
               <p><strong>Selected Trucks:</strong> ${trucks.length}</p>
               <p><strong>Active Trucks:</strong> ${trucks.filter(t => t.status === 'ACTIVE').length}</p>
               <p><strong>Trucks in Maintenance:</strong> ${trucks.filter(t => t.status === 'MAINTENANCE').length}</p>
+              ` : ''}
+              ${filters.reportType !== 'trucks' ? `
               <p><strong>Selected Trailers:</strong> ${trailers.length}</p>
               <p><strong>Active Trailers:</strong> ${trailers.filter(t => t.status === 'ACTIVE').length}</p>
               <p><strong>Trailers in Maintenance:</strong> ${trailers.filter(t => t.status === 'MAINTENANCE').length}</p>
+              ` : ''}
+              ${filters.reportType === 'trailers' ? `
+              <p><strong>Total Trailer Capacity:</strong> ${trailers.length} units</p>
+              <p><strong>Driver Assignment Rate:</strong> ${Math.round((trailers.filter(t => t.driverName).length / trailers.length) * 100)}%</p>
+              ` : ''}
             </div>
           </div>
 
@@ -291,6 +297,7 @@ export default function ReportsPage() {
           </div>
 
           ${filters.includeDetails ? `
+          ${filters.reportType !== 'trailers' ? `
           <div class="section">
             <h2 class="section-title">Truck Details</h2>
             <table>
@@ -318,24 +325,25 @@ export default function ReportsPage() {
               </tbody>
             </table>
           </div>
+          ` : ''}
 
-          ${trailers.length > 0 ? `
+          ${(trailers.length > 0 && filters.reportType !== 'trucks') ? `
           <div class="section">
-            <h2 class="section-title">Trailer Details</h2>
+            <h2 class="section-title">${filters.reportType === 'trailers' ? 'Trailer Fleet Details' : 'Trailer Details'}</h2>
             <table>
               <thead>
                 <tr>
-                  <th>Number</th>
-                  <th>Driver</th>
+                  <th>Trailer Number</th>
+                  <th>Assigned Driver</th>
                   <th>Status</th>
-                  <th>Created</th>
+                  <th>Date Added</th>
                 </tr>
               </thead>
               <tbody>
                 ${trailers.map(trailer => `
                   <tr>
-                    <td>Trailer ${trailer.number}</td>
-                    <td>${trailer.driverName || 'No driver'}</td>
+                    <td>TRL-${trailer.number}</td>
+                    <td>${trailer.driverName || 'Unassigned'}</td>
                     <td>${trailer.status || 'N/A'}</td>
                     <td>${new Date(trailer.createdAt).toLocaleDateString()}</td>
                   </tr>
@@ -391,9 +399,21 @@ export default function ReportsPage() {
         'All Time'}\n\n`
       
       // Fleet Overview
-      csvContent += "Fleet Overview\n"
-      csvContent += "Selected Trucks,Active Trucks,Trucks in Maintenance,Selected Trailers,Active Trailers,Trailers in Maintenance\n"
-      csvContent += `${trucks.length},${trucks.filter(t => t.status === 'ACTIVE').length},${trucks.filter(t => t.status === 'MAINTENANCE').length},${trailers.length},${trailers.filter(t => t.status === 'ACTIVE').length},${trailers.filter(t => t.status === 'MAINTENANCE').length}\n\n`
+      if (filters.reportType === 'trailers') {
+        csvContent += "Trailer Fleet Overview\n"
+        csvContent += "Selected Trailers,Active Trailers,Trailers in Maintenance,Driver Assignment Rate\n"
+        const driverAssignmentRate = Math.round((trailers.filter(t => t.driverName).length / trailers.length) * 100)
+        csvContent += `${trailers.length},${trailers.filter(t => t.status === 'ACTIVE').length},${trailers.filter(t => t.status === 'MAINTENANCE').length},${driverAssignmentRate}%\n\n`
+      } else {
+        csvContent += "Fleet Overview\n"
+        if (filters.reportType !== 'trucks') {
+          csvContent += "Selected Trucks,Active Trucks,Trucks in Maintenance,Selected Trailers,Active Trailers,Trailers in Maintenance\n"
+          csvContent += `${trucks.length},${trucks.filter(t => t.status === 'ACTIVE').length},${trucks.filter(t => t.status === 'MAINTENANCE').length},${trailers.length},${trailers.filter(t => t.status === 'ACTIVE').length},${trailers.filter(t => t.status === 'MAINTENANCE').length}\n\n`
+        } else {
+          csvContent += "Selected Trucks,Active Trucks,Trucks in Maintenance\n"
+          csvContent += `${trucks.length},${trucks.filter(t => t.status === 'ACTIVE').length},${trucks.filter(t => t.status === 'MAINTENANCE').length}\n\n`
+        }
+      }
       
       // Maintenance Summary
       csvContent += "Maintenance Summary\n"
@@ -402,21 +422,23 @@ export default function ReportsPage() {
       const avgCost = maintenance.length > 0 ? totalCost / maintenance.length : 0
       csvContent += `${maintenance.length},${totalCost.toFixed(2)},${avgCost.toFixed(2)}\n\n`
       
-      // Truck Details
+      // Vehicle Details
       if (filters.includeDetails) {
-        csvContent += "Truck Details\n"
-        csvContent += "License Plate,Make,Model,Year,Status,Current Mileage\n"
-        trucks.forEach(truck => {
-          csvContent += `${truck.licensePlate || 'N/A'},${truck.make || 'N/A'},${truck.model || 'N/A'},${truck.year || 'N/A'},${truck.status || 'N/A'},${truck.currentMileage || 0}\n`
-        })
-        csvContent += "\n"
+        if (filters.reportType !== 'trailers') {
+          csvContent += "Truck Details\n"
+          csvContent += "License Plate,Make,Model,Year,Status,Current Mileage\n"
+          trucks.forEach(truck => {
+            csvContent += `${truck.licensePlate || 'N/A'},${truck.make || 'N/A'},${truck.model || 'N/A'},${truck.year || 'N/A'},${truck.status || 'N/A'},${truck.currentMileage || 0}\n`
+          })
+          csvContent += "\n"
+        }
         
         // Trailer Details
-        if (trailers.length > 0) {
-          csvContent += "Trailer Details\n"
-          csvContent += "Number,Driver,Status,Created\n"
+        if (trailers.length > 0 && filters.reportType !== 'trucks') {
+          csvContent += `${filters.reportType === 'trailers' ? 'Trailer Fleet Details' : 'Trailer Details'}\n`
+          csvContent += "Trailer Number,Assigned Driver,Status,Date Added\n"
           trailers.forEach(trailer => {
-            csvContent += `Trailer ${trailer.number},${trailer.driverName || 'No driver'},${trailer.status || 'N/A'},${new Date(trailer.createdAt).toLocaleDateString()}\n`
+            csvContent += `TRL-${trailer.number},${trailer.driverName || 'Unassigned'},${trailer.status || 'N/A'},${new Date(trailer.createdAt).toLocaleDateString()}\n`
           })
           csvContent += "\n"
         }
@@ -545,6 +567,7 @@ export default function ReportsPage() {
                 <SelectContent>
                   <SelectItem value="overview">Fleet Overview</SelectItem>
                   <SelectItem value="trucks">Trucks Only</SelectItem>
+                  <SelectItem value="trailers">Trailers Only</SelectItem>
                   <SelectItem value="maintenance">Maintenance Only</SelectItem>
                   <SelectItem value="costs">Cost Analysis</SelectItem>
                 </SelectContent>

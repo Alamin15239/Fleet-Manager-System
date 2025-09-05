@@ -52,6 +52,7 @@ interface ReportConfig {
     manufacturer?: string
     origin?: string
     plateNumber?: string
+    trailerNumber?: string
     driverName?: string
   }
   includeCharts: boolean
@@ -72,6 +73,13 @@ const reportTemplates: ReportTemplate[] = [
     description: 'Complete tire inventory with all details',
     type: 'detailed',
     sections: ['inventory-list', 'vehicle-breakdown', 'cost-analysis', 'maintenance-schedule']
+  },
+  {
+    id: 'trailer-report',
+    name: 'Trailer Tire Report',
+    description: 'Trailer-specific tire inventory and analysis',
+    type: 'detailed',
+    sections: ['trailer-inventory', 'trailer-performance', 'maintenance-tracking', 'recommendations']
   },
   {
     id: 'manufacturer-analysis',
@@ -316,7 +324,16 @@ export default function ProfessionalReportGenerator() {
     const rows = [...reportHeader, detailHeaders.join(',')]
 
     if (reportData.tires && reportData.tires.length > 0) {
-      reportData.tires.forEach((tire: any) => {
+      // Sort tires: trailers first if this is a trailer report
+      const sortedTires = reportConfig.template === 'trailer-report' 
+        ? [...reportData.tires].sort((a, b) => {
+            if (a.trailerNumber && !b.trailerNumber) return -1
+            if (!a.trailerNumber && b.trailerNumber) return 1
+            return 0
+          })
+        : reportData.tires
+        
+      sortedTires.forEach((tire: any) => {
         const vehicleType = tire.trailerNumber ? 'TRAILER UNIT' : 'TRUCK UNIT'
         const plateDisplay = tire.plateNumber ? `"${tire.plateNumber}"` : 'N/A'
         const trailerDisplay = tire.trailerNumber ? `"${tire.trailerNumber}"` : 'N/A'
@@ -347,11 +364,29 @@ export default function ProfessionalReportGenerator() {
       
       const totalTruckTires = truckTires.reduce((sum: number, t: any) => sum + (t.quantity || 1), 0)
       const totalTrailerTires = trailerTires.reduce((sum: number, t: any) => sum + (t.quantity || 1), 0)
-      const totalGeneralTires = generalTires.reduce((sum: number, t: any) => sum + (t.quantity || 1), 0)
       
       rows.push(`Truck Tires: ${totalTruckTires} tires on ${new Set(truckTires.map((t: any) => t.plateNumber).filter(Boolean)).size} trucks`)
       rows.push(`Trailer Tires: ${totalTrailerTires} tires on ${new Set(trailerTires.map((t: any) => t.trailerNumber)).size} trailers`)
       rows.push(`TOTAL FLEET TIRES: ${totalTruckTires + totalTrailerTires} tires`)
+      
+      // Add trailer-specific summary if this is a trailer report
+      if (reportConfig.template === 'trailer-report' || reportConfig.filters.trailerNumber) {
+        rows.push('')
+        rows.push('TRAILER-SPECIFIC ANALYSIS')
+        const uniqueTrailers = new Set(trailerTires.map((t: any) => t.trailerNumber))
+        rows.push(`Total Trailers with Tires: ${uniqueTrailers.size}`)
+        rows.push(`Average Tires per Trailer: ${uniqueTrailers.size > 0 ? (totalTrailerTires / uniqueTrailers.size).toFixed(1) : 0}`)
+        
+        // Top trailer manufacturers for trailers
+        const trailerManufacturers = trailerTires.reduce((acc: any, t: any) => {
+          acc[t.manufacturer] = (acc[t.manufacturer] || 0) + (t.quantity || 1)
+          return acc
+        }, {})
+        const topTrailerManufacturer = Object.entries(trailerManufacturers).sort(([,a]: any, [,b]: any) => b - a)[0]
+        if (topTrailerManufacturer) {
+          rows.push(`Most Used Trailer Tire Brand: ${topTrailerManufacturer[0]} (${topTrailerManufacturer[1]} tires)`)
+        }
+      }
     } else {
       rows.push('No tire data available for the selected criteria')
     }
@@ -690,7 +725,7 @@ RECOMMENDATIONS
               <Filter className="h-4 w-4" />
               Filters (Optional)
             </Label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
               <div className="space-y-2">
                 <Label className="text-sm">Manufacturer</Label>
                 <Select value={reportConfig.filters.manufacturer || ''} onValueChange={(value) => 
@@ -749,6 +784,18 @@ RECOMMENDATIONS
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-sm">Trailer Number</Label>
+                <Input
+                  placeholder="Enter trailer number"
+                  value={reportConfig.filters.trailerNumber || ''}
+                  onChange={(e) => setReportConfig({
+                    ...reportConfig,
+                    filters: { ...reportConfig.filters, trailerNumber: e.target.value || undefined }
+                  })}
+                />
               </div>
 
               <div className="space-y-2">
@@ -878,10 +925,17 @@ RECOMMENDATIONS
                 <div className="space-y-6">
                   {/* Report Header */}
                   <div className="text-center space-y-2 border-b pb-4">
-                    <h1 className="text-xl sm:text-2xl font-bold">TIRE MANAGEMENT REPORT</h1>
+                    <h1 className="text-xl sm:text-2xl font-bold">
+                      {reportConfig.template === 'trailer-report' ? 'TRAILER TIRE MANAGEMENT REPORT' : 'TIRE MANAGEMENT REPORT'}
+                    </h1>
                     <p className="text-gray-600 text-sm sm:text-base">
                       {reportTemplates.find(t => t.id === reportConfig.template)?.name}
                     </p>
+                    {reportConfig.filters.trailerNumber && (
+                      <p className="text-orange-600 text-sm font-medium">
+                        Filtered for Trailer: {reportConfig.filters.trailerNumber}
+                      </p>
+                    )}
                     <p className="text-xs sm:text-sm text-gray-500">
                       {reportConfig.dateRange.start} to {reportConfig.dateRange.end}
                     </p>
@@ -923,13 +977,50 @@ RECOMMENDATIONS
                   {/* Detailed Data */}
                   {reportData.tires && reportData.tires.length > 0 && (
                     <div className="space-y-4">
-                      <h2 className="text-lg sm:text-xl font-semibold">Detailed Tire Inventory</h2>
+                      <h2 className="text-lg sm:text-xl font-semibold">
+                        {reportConfig.template === 'trailer-report' ? 'Trailer Tire Inventory' : 'Detailed Tire Inventory'}
+                      </h2>
+                      
+                      {/* Show trailer-specific summary if applicable */}
+                      {(reportConfig.template === 'trailer-report' || reportConfig.filters.trailerNumber) && (
+                        <div className="bg-orange-50 p-4 rounded-lg">
+                          <h3 className="font-semibold text-orange-800 mb-2">Trailer Analysis</h3>
+                          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 text-sm">
+                            <div>
+                              <span className="text-orange-600 font-medium">Trailer Tires:</span>
+                              <span className="ml-2">{reportData.tires.filter((t: any) => t.trailerNumber).reduce((sum: number, t: any) => sum + (t.quantity || 1), 0)}</span>
+                            </div>
+                            <div>
+                              <span className="text-orange-600 font-medium">Unique Trailers:</span>
+                              <span className="ml-2">{new Set(reportData.tires.filter((t: any) => t.trailerNumber).map((t: any) => t.trailerNumber)).size}</span>
+                            </div>
+                            <div>
+                              <span className="text-orange-600 font-medium">Avg per Trailer:</span>
+                              <span className="ml-2">
+                                {(() => {
+                                  const trailerTires = reportData.tires.filter((t: any) => t.trailerNumber)
+                                  const uniqueTrailers = new Set(trailerTires.map((t: any) => t.trailerNumber)).size
+                                  const totalTires = trailerTires.reduce((sum: number, t: any) => sum + (t.quantity || 1), 0)
+                                  return uniqueTrailers > 0 ? (totalTires / uniqueTrailers).toFixed(1) : '0'
+                                })()}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-orange-600 font-medium">Coverage:</span>
+                              <span className="ml-2">
+                                {Math.round((reportData.tires.filter((t: any) => t.trailerNumber).length / reportData.tires.length) * 100)}%
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      
                       <div className="border rounded-lg overflow-x-auto">
                         <Table>
                           <TableHeader>
                             <TableRow>
                               <TableHead>Tire Details</TableHead>
-                              <TableHead>Vehicle</TableHead>
+                              <TableHead>Vehicle/Trailer</TableHead>
                               <TableHead>Driver</TableHead>
                               <TableHead>Origin</TableHead>
                               <TableHead>Quantity</TableHead>
@@ -937,40 +1028,68 @@ RECOMMENDATIONS
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {reportData.tires.slice(0, 10).map((tire: any, index: number) => (
-                              <TableRow key={index}>
-                                <TableCell>
-                                  <div>
-                                    <div className="font-medium">{tire.manufacturer}</div>
-                                    <div className="text-sm text-gray-500">{tire.tireSize}</div>
-                                  </div>
-                                </TableCell>
-                                <TableCell>
-                                  <div className="flex items-center gap-2">
-                                    <Truck className="h-4 w-4 text-gray-400" />
-                                    {tire.plateNumber}
-                                  </div>
-                                </TableCell>
-                                <TableCell>
-                                  <div className="flex items-center gap-2">
-                                    <User className="h-4 w-4 text-gray-400" />
-                                    {tire.driverName || 'N/A'}
-                                  </div>
-                                </TableCell>
-                                <TableCell>
-                                  <Badge variant="outline">{tire.origin}</Badge>
-                                </TableCell>
-                                <TableCell>
-                                  <div className="flex items-center gap-2">
-                                    <Package className="h-4 w-4 text-gray-400" />
-                                    {tire.quantity}
-                                  </div>
-                                </TableCell>
-                                <TableCell>
-                                  {format(new Date(tire.createdAt), 'MMM dd, yyyy')}
-                                </TableCell>
-                              </TableRow>
-                            ))}
+                            {(() => {
+                              // Sort to show trailers first if this is a trailer report
+                              const sortedTires = reportConfig.template === 'trailer-report' 
+                                ? [...reportData.tires].sort((a, b) => {
+                                    if (a.trailerNumber && !b.trailerNumber) return -1
+                                    if (!a.trailerNumber && b.trailerNumber) return 1
+                                    return 0
+                                  })
+                                : reportData.tires
+                              
+                              return sortedTires.slice(0, 10).map((tire: any, index: number) => (
+                                <TableRow key={index} className={tire.trailerNumber ? 'bg-orange-50' : ''}>
+                                  <TableCell>
+                                    <div>
+                                      <div className="font-medium">{tire.manufacturer}</div>
+                                      <div className="text-sm text-gray-500">{tire.tireSize}</div>
+                                      {tire.serialNumber && (
+                                        <div className="text-xs text-blue-600">S/N: {tire.serialNumber}</div>
+                                      )}
+                                    </div>
+                                  </TableCell>
+                                  <TableCell>
+                                    <div className="flex items-center gap-2">
+                                      {tire.trailerNumber ? (
+                                        <>
+                                          <Package className="h-4 w-4 text-orange-500" />
+                                          <div>
+                                            <div className="font-medium text-orange-700">TRL-{tire.trailerNumber}</div>
+                                            {tire.plateNumber && (
+                                              <div className="text-xs text-gray-500">Truck: {tire.plateNumber}</div>
+                                            )}
+                                          </div>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <Truck className="h-4 w-4 text-blue-500" />
+                                          <span className="text-blue-700">{tire.plateNumber || 'N/A'}</span>
+                                        </>
+                                      )}
+                                    </div>
+                                  </TableCell>
+                                  <TableCell>
+                                    <div className="flex items-center gap-2">
+                                      <User className="h-4 w-4 text-gray-400" />
+                                      {tire.driverName || 'N/A'}
+                                    </div>
+                                  </TableCell>
+                                  <TableCell>
+                                    <Badge variant="outline">{tire.origin}</Badge>
+                                  </TableCell>
+                                  <TableCell>
+                                    <div className="flex items-center gap-2">
+                                      <Package className="h-4 w-4 text-gray-400" />
+                                      {tire.quantity}
+                                    </div>
+                                  </TableCell>
+                                  <TableCell>
+                                    {format(new Date(tire.createdAt), 'MMM dd, yyyy')}
+                                  </TableCell>
+                                </TableRow>
+                              ))
+                            })()}
                           </TableBody>
                         </Table>
                       </div>
@@ -987,11 +1106,24 @@ RECOMMENDATIONS
                     <h2 className="text-lg sm:text-xl font-semibold">Recommendations</h2>
                     <div className="bg-blue-50 p-3 sm:p-4 rounded-lg">
                       <ul className="space-y-2 text-xs sm:text-sm">
-                        <li>• Implement regular tire maintenance schedule</li>
-                        <li>• Monitor tire wear patterns and replace proactively</li>
-                        <li>• Maintain detailed records for warranty claims</li>
-                        <li>• Consider bulk purchasing for cost optimization</li>
-                        <li>• Train drivers on proper tire inspection procedures</li>
+                        {reportConfig.template === 'trailer-report' ? (
+                          <>
+                            <li>• Implement dedicated trailer tire rotation schedule</li>
+                            <li>• Monitor trailer tire pressure more frequently due to load variations</li>
+                            <li>• Consider trailer-specific tire brands for better durability</li>
+                            <li>• Track trailer tire mileage separately from truck tires</li>
+                            <li>• Establish trailer tire replacement intervals based on usage patterns</li>
+                            <li>• Maintain spare trailer tires for emergency replacements</li>
+                          </>
+                        ) : (
+                          <>
+                            <li>• Implement regular tire maintenance schedule</li>
+                            <li>• Monitor tire wear patterns and replace proactively</li>
+                            <li>• Maintain detailed records for warranty claims</li>
+                            <li>• Consider bulk purchasing for cost optimization</li>
+                            <li>• Train drivers on proper tire inspection procedures</li>
+                          </>
+                        )}
                       </ul>
                     </div>
                   </div>
