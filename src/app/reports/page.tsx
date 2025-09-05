@@ -183,6 +183,12 @@ export default function ReportsPage() {
       filteredMaintenance = filteredMaintenance.filter(record => filters.selectedTrucks.includes(record.truckId))
     }
     
+    // Filter maintenance by selected trailers (if maintenance has trailer reference)
+    if (filters.selectedTrailers.length > 0) {
+      // For now, keep truck-based maintenance filtering as trailers don't have direct maintenance
+      // This can be extended when trailer maintenance is implemented
+    }
+    
     // Apply additional filters only if maintenance records exist
     if (filteredMaintenance.length > 0) {
       // Filter by selected maintenance records
@@ -255,9 +261,15 @@ export default function ReportsPage() {
             .header { text-align: center; margin-bottom: 30px; }
             .section { margin-bottom: 25px; }
             .section-title { font-size: 18px; font-weight: bold; margin-bottom: 10px; color: #333; }
-            table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+            table { width: 100%; border-collapse: collapse; margin-bottom: 20px; table-layout: fixed; }
+            th, td { border: 1px solid #ddd; padding: 6px; text-align: left; font-size: 12px; word-wrap: break-word; }
             th { background-color: #f2f2f2; font-weight: bold; }
+            .truck-table th:nth-child(1) { width: 15%; }
+            .truck-table th:nth-child(2) { width: 12%; }
+            .truck-table th:nth-child(3) { width: 15%; }
+            .truck-table th:nth-child(4) { width: 8%; }
+            .truck-table th:nth-child(5) { width: 12%; }
+            .truck-table th:nth-child(6) { width: 18%; }
             .summary { background-color: #f9f9f9; padding: 15px; border-radius: 5px; }
           </style>
         </head>
@@ -303,7 +315,7 @@ export default function ReportsPage() {
           ${(filters.reportType !== 'trailers' && filteredTrucks.length > 0) ? `
           <div class="section">
             <h2 class="section-title">Selected Truck Details</h2>
-            <table>
+            <table class="truck-table">
               <thead>
                 <tr>
                   <th>License Plate</th>
@@ -311,7 +323,7 @@ export default function ReportsPage() {
                   <th>Model</th>
                   <th>Year</th>
                   <th>Status</th>
-                  <th>Current Mileage</th>
+                  <th>Mileage</th>
                 </tr>
               </thead>
               <tbody>
@@ -356,9 +368,9 @@ export default function ReportsPage() {
           </div>
           ` : ''}
 
-          ${filteredMaintenance.length > 0 ? `
           <div class="section">
-            <h2 class="section-title">Selected Maintenance Records</h2>
+            <h2 class="section-title">${filters.selectedTrucks.length > 0 ? 'Maintenance Records for Selected Trucks' : 'Maintenance Records'}</h2>
+            ${maintenance.length > 0 ? `
             <table>
               <thead>
                 <tr>
@@ -371,21 +383,21 @@ export default function ReportsPage() {
                 </tr>
               </thead>
               <tbody>
-                ${filteredMaintenance.slice(0, 50).map(record => `
+                ${maintenance.slice(0, 50).map(record => `
                   <tr>
                     <td>${format(new Date(record.datePerformed), 'MMM dd, yyyy')}</td>
                     <td>${record.truck?.licensePlate || 'N/A'}</td>
                     <td>${record.serviceType}</td>
                     <td>${record.description || 'N/A'}</td>
-                    <td>${(typeof record.totalCost === 'number' ? record.totalCost : 0).toFixed(2)}</td>
+                    <td>$${(typeof record.totalCost === 'number' ? record.totalCost : 0).toFixed(2)}</td>
                     <td>${record.status}</td>
                   </tr>
                 `).join('')}
               </tbody>
             </table>
-            ${filteredMaintenance.length > 50 ? `<p><em>Showing first 50 of ${filteredMaintenance.length} records</em></p>` : ''}
+            ${maintenance.length > 50 ? `<p><em>Showing first 50 of ${maintenance.length} records</em></p>` : ''}
+            ` : `<p><em>No maintenance records found for selected ${filters.selectedTrucks.length > 0 ? 'trucks' : filters.selectedTrailers.length > 0 ? 'trailers' : 'criteria'}</em></p>`}
           </div>
-          ` : '<div class="section"><p><em>No maintenance records found for selected criteria</em></p></div>'}
           ` : ''}
         </body>
       </html>
