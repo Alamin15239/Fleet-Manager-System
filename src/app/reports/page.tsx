@@ -138,7 +138,10 @@ export default function ReportsPage() {
 
       if (maintenanceRes.ok) {
         const maintenanceData = await maintenanceRes.json()
+        console.log('Maintenance data fetched:', maintenanceData)
         setMaintenance(maintenanceData.data || [])
+      } else {
+        console.error('Failed to fetch maintenance data:', maintenanceRes.status)
       }
 
       if (usersRes.ok) {
@@ -174,13 +177,21 @@ export default function ReportsPage() {
   }
 
   const getFilteredData = () => {
+    console.log('Original maintenance data:', maintenance.length, 'records')
+    console.log('Selected trucks:', filters.selectedTrucks)
+    
     let filteredMaintenance = [...maintenance]
     let filteredTrucks = filters.selectedTrucks.length > 0 ? trucks.filter(truck => filters.selectedTrucks.includes(truck.id)) : trucks
     let filteredTrailers = filters.selectedTrailers.length > 0 ? trailers.filter(trailer => filters.selectedTrailers.includes(trailer.id)) : trailers
     
     // Filter maintenance by selected trucks
     if (filters.selectedTrucks.length > 0) {
-      filteredMaintenance = filteredMaintenance.filter(record => filters.selectedTrucks.includes(record.truckId))
+      console.log('Filtering maintenance for trucks:', filters.selectedTrucks)
+      filteredMaintenance = filteredMaintenance.filter(record => {
+        console.log('Checking record:', record.id, 'truckId:', record.truckId)
+        return filters.selectedTrucks.includes(record.truckId)
+      })
+      console.log('Filtered maintenance:', filteredMaintenance.length, 'records')
     }
     
     // Filter maintenance by selected trailers (if maintenance has trailer reference)
