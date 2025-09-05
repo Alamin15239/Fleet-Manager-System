@@ -37,6 +37,7 @@ export default function ReportsPage() {
   const [endDate, setEndDate] = useState('')
   const [format, setFormat] = useState<'pdf' | 'excel'>('pdf')
   const [selectedRecords, setSelectedRecords] = useState<string[]>([])
+  const [searchTerm, setSearchTerm] = useState('')
 
   useEffect(() => {
     fetchMaintenance()
@@ -63,11 +64,18 @@ export default function ReportsPage() {
     }
   }
 
-  const getFilteredMaintenance = () => {
+  const getSearchedMaintenance = () => {
     let filtered = [...maintenance]
     
-    if (selectedRecords.length > 0) {
-      filtered = filtered.filter(record => selectedRecords.includes(record.id))
+    if (searchTerm) {
+      filtered = filtered.filter(record => 
+        record.serviceType.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        record.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        record.truck?.licensePlate?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        record.truck?.make?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        record.truck?.model?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        record.status.toLowerCase().includes(searchTerm.toLowerCase())
+      )
     }
     
     if (startDate) {
@@ -85,6 +93,16 @@ export default function ReportsPage() {
     return filtered
   }
 
+  const getFilteredMaintenance = () => {
+    const searched = getSearchedMaintenance()
+    
+    if (selectedRecords.length > 0) {
+      return searched.filter(record => selectedRecords.includes(record.id))
+    }
+    
+    return searched
+  }
+
   const toggleRecord = (recordId: string) => {
     setSelectedRecords(prev => 
       prev.includes(recordId) 
@@ -94,12 +112,14 @@ export default function ReportsPage() {
   }
 
   const selectAll = () => {
-    const filtered = maintenance.filter(record => {
-      if (startDate && new Date(record.datePerformed) < new Date(startDate)) return false
-      if (endDate && new Date(record.datePerformed) > new Date(endDate)) return false
-      return true
-    })
-    setSelectedRecords(filtered.map(r => r.id))
+    const searched = getSearchedMaintenance()
+    setSelectedRecords(searched.map(r => r.id))
+  }
+
+  const selectSearched = () => {
+    const searched = getSearchedMaintenance()
+    const newSelected = [...selectedRecords, ...searched.map(r => r.id).filter(id => !selectedRecords.includes(id))]
+    setSelectedRecords(newSelected)
   }
 
   const clearSelection = () => {
@@ -295,10 +315,21 @@ export default function ReportsPage() {
               </Select>
             </div>
             <div className="space-y-2">
+              <Label>Search Records</Label>
+              <Input
+                placeholder="Search by service, vehicle, status..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
               <Label>Select Records ({selectedRecords.length} selected)</Label>
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap">
                 <Button variant="outline" size="sm" onClick={selectAll}>
                   Select All
+                </Button>
+                <Button variant="outline" size="sm" onClick={selectSearched}>
+                  Select Searched
                 </Button>
                 <Button variant="outline" size="sm" onClick={clearSelection}>
                   Clear
@@ -359,9 +390,8 @@ export default function ReportsPage() {
                 </tr>
               </thead>
               <tbody>
-                {maintenance.slice(0, 20).map((record) => {
+                {getSearchedMaintenance().slice(0, 20).map((record) => {
                   const isSelected = selectedRecords.includes(record.id)
-                  const isFiltered = filteredMaintenance.includes(record)
                   return (
                     <tr key={record.id} className={isSelected ? 'bg-blue-50' : ''}>
                       <td className="border border-gray-300 p-2">
@@ -386,11 +416,10 @@ export default function ReportsPage() {
                 })}
               </tbody>
             </table>
-            {maintenance.length > 20 && (
-              <p className="text-sm text-gray-500 mt-2">
-                Showing first 20 of {maintenance.length} records
-              </p>
-            )}
+            <p className="text-sm text-gray-500 mt-2">
+              Showing {Math.min(getSearchedMaintenance().length, 20)} of {getSearchedMaintenance().length} records
+              {searchTerm && ` (filtered from ${maintenance.length} total)`}
+            </p>
           </div>
         </CardContent>
       </Card>
