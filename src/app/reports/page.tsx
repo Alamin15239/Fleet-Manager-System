@@ -151,7 +151,7 @@ export default function ReportsPage() {
               ${data.map(record => `
                 <tr>
                   <td>${new Date(record.datePerformed).toLocaleDateString()}</td>
-                  <td>${record.truck.licensePlate} - ${record.truck.year} ${record.truck.make} ${record.truck.model}</td>
+                  <td>${record.truck?.licensePlate || 'N/A'} - ${record.truck?.year || ''} ${record.truck?.make || ''} ${record.truck?.model || ''}</td>
                   <td>${record.serviceType}</td>
                   <td>${record.description || 'N/A'}</td>
                   <td>$${record.partsCost.toFixed(2)}</td>
@@ -193,7 +193,7 @@ export default function ReportsPage() {
     
     data.forEach(record => {
       csv += `${new Date(record.datePerformed).toLocaleDateString()},`
-      csv += `"${record.truck.licensePlate} - ${record.truck.year} ${record.truck.make} ${record.truck.model}",`
+      csv += `"${record.truck?.licensePlate || 'N/A'} - ${record.truck?.year || ''} ${record.truck?.make || ''} ${record.truck?.model || ''}",`
       csv += `"${record.serviceType}",`
       csv += `"${record.description || 'N/A'}",`
       csv += `${record.partsCost.toFixed(2)},`
@@ -327,7 +327,7 @@ export default function ReportsPage() {
                       {new Date(record.datePerformed).toLocaleDateString()}
                     </td>
                     <td className="border border-gray-300 p-2">
-                      {record.truck.licensePlate} - {record.truck.year} {record.truck.make}
+                      {record.truck?.licensePlate || 'N/A'} - {record.truck?.year || ''} {record.truck?.make || ''}
                     </td>
                     <td className="border border-gray-300 p-2">{record.serviceType}</td>
                     <td className="border border-gray-300 p-2">${record.totalCost.toFixed(2)}</td>
