@@ -154,6 +154,112 @@ export default function ReportsPage() {
     }
   }
 
+  const downloadReport = async () => {
+    setGenerating(true)
+    try {
+      const filteredMaintenance = getFilteredMaintenance()
+      
+      if (format === 'pdf') {
+        downloadPDF(filteredMaintenance)
+      } else {
+        generateExcel(filteredMaintenance)
+      }
+      
+      toast.success('Report downloaded successfully')
+    } catch (error) {
+      toast.error('Failed to download report')
+    } finally {
+      setGenerating(false)
+    }
+  }
+
+  const downloadPDF = (data: MaintenanceRecord[]) => {
+    const totalCost = data.reduce((sum, record) => sum + record.totalCost, 0)
+    const totalParts = data.reduce((sum, record) => sum + record.partsCost, 0)
+    const totalLabor = data.reduce((sum, record) => sum + record.laborCost, 0)
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Fleet Maintenance Report</title>
+          <style>
+            body { font-family: Arial, sans-serif; margin: 20px; }
+            .header { text-align: center; margin-bottom: 30px; }
+            .summary { background-color: #f9f9f9; padding: 15px; margin-bottom: 20px; }
+            table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+            th, td { border: 1px solid #333; padding: 8px; text-align: left; font-size: 12px; }
+            th { background-color: #e8e8e8; font-weight: bold; }
+            .total-row { background-color: #f0f0f0; font-weight: bold; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>Fleet Maintenance Report</h1>
+            <p>Generated: ${new Date().toLocaleDateString()}</p>
+            <p>Period: ${startDate || 'All Time'} to ${endDate || 'Current'}</p>
+          </div>
+
+          <div class="summary">
+            <h2>Maintenance Summary</h2>
+            <p><strong>Total Records:</strong> ${data.length}</p>
+            <p><strong>Total Cost:</strong> $${totalCost.toFixed(2)}</p>
+            <p><strong>Average Cost:</strong> $${data.length > 0 ? (totalCost / data.length).toFixed(2) : '0.00'}</p>
+          </div>
+
+          <h2>Maintenance Records</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Vehicle</th>
+                <th>Service Type</th>
+                <th>Description</th>
+                <th>Mechanic</th>
+                <th>Creator</th>
+                <th>Parts Cost</th>
+                <th>Labor Cost</th>
+                <th>Total Cost</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${data.map(record => `
+                <tr>
+                  <td>${new Date(record.datePerformed).toLocaleDateString()}</td>
+                  <td>${record.truck?.licensePlate || 'N/A'} - ${record.truck?.year || ''} ${record.truck?.make || ''} ${record.truck?.model || ''}</td>
+                  <td>${record.serviceType}</td>
+                  <td>${record.description || 'N/A'}</td>
+                  <td>${record.mechanic?.name || 'N/A'}</td>
+                  <td>${record.createdBy?.name || 'N/A'}</td>
+                  <td>$${record.partsCost.toFixed(2)}</td>
+                  <td>$${record.laborCost.toFixed(2)}</td>
+                  <td>$${record.totalCost.toFixed(2)}</td>
+                  <td>${record.status}</td>
+                </tr>
+              `).join('')}
+              <tr class="total-row">
+                <td colspan="6"><strong>TOTAL</strong></td>
+                <td><strong>$${totalParts.toFixed(2)}</strong></td>
+                <td><strong>$${totalLabor.toFixed(2)}</strong></td>
+                <td><strong>$${totalCost.toFixed(2)}</strong></td>
+                <td></td>
+              </tr>
+            </tbody>
+          </table>
+        </body>
+      </html>
+    `
+
+    const blob = new Blob([html], { type: 'text/html' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `maintenance-report-${new Date().toISOString().split('T')[0]}.html`
+    link.click()
+    URL.revokeObjectURL(url)
+  }
+
   const generatePDF = (data: MaintenanceRecord[]) => {
     const totalCost = data.reduce((sum, record) => sum + record.totalCost, 0)
     const totalParts = data.reduce((sum, record) => sum + record.partsCost, 0)
@@ -289,10 +395,16 @@ export default function ReportsPage() {
           <h1 className="text-3xl font-bold">Maintenance Reports</h1>
           <p className="text-muted-foreground">Generate maintenance reports</p>
         </div>
-        <Button onClick={generateReport} disabled={generating}>
-          <Download className="h-4 w-4 mr-2" />
-          {generating ? 'Generating...' : 'Generate Report'}
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={generateReport} disabled={generating}>
+            <Download className="h-4 w-4 mr-2" />
+            {generating ? 'Generating...' : 'Generate Report'}
+          </Button>
+          <Button onClick={downloadReport} disabled={generating} variant="outline">
+            <Download className="h-4 w-4 mr-2" />
+            Download
+          </Button>
+        </div>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
