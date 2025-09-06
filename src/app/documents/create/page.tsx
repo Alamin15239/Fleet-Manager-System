@@ -9,8 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { 
-  FileText, Save, Upload, ArrowLeft, Plus, 
-  FileImage, Loader2, X, CheckCircle, Search
+  FileText, ArrowLeft, Loader2, CheckCircle, Search
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/auth-context';
@@ -87,7 +86,6 @@ const PDF_TEMPLATES = [
 export default function CreateDocumentPage() {
   const router = useRouter();
   const { user } = useAuth();
-  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [formData, setFormData] = useState({
     title: '',
@@ -154,68 +152,7 @@ export default function CreateDocumentPage() {
     }
   };
 
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
 
-    if (file.type !== 'application/pdf') {
-      toast.error('Only PDF files are allowed');
-      return;
-    }
-
-    if (file.size > 10 * 1024 * 1024) {
-      toast.error('File size must be less than 10MB');
-      return;
-    }
-
-    setIsLoading(true);
-
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
-
-      const token = localStorage.getItem('authToken');
-      const response = await fetch('/api/upload', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
-        body: formData
-      });
-
-      if (response.ok) {
-        const uploadResult = await response.json();
-        
-        const docResponse = await fetch('/api/documents', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({
-            title: file.name.replace(/\.[^/.]+$/, ''),
-            type: 'pdf',
-            fileUrl: uploadResult.url,
-            description: 'Uploaded PDF file'
-          })
-        });
-
-        if (docResponse.ok) {
-          const document = await docResponse.json();
-          toast.success('PDF uploaded successfully');
-          router.push(`/documents/${document.id}`);
-        }
-      } else {
-        const error = await response.json();
-        toast.error(error.error || 'Failed to upload file');
-      }
-    } catch (error) {
-      console.error('Error uploading file:', error);
-      toast.error('Failed to upload file');
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const selectedTemplate = PDF_TEMPLATES.find(t => t.name === formData.template);
 
@@ -301,34 +238,7 @@ export default function CreateDocumentPage() {
               ))}
             </div>
 
-            {/* Upload Section */}
-            <Card className="border-dashed border-2 border-gray-300">
-              <CardContent className="p-8 text-center">
-                <Upload className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">Upload a file</h3>
-                <p className="text-gray-600 mb-4">
-                  Upload an existing PDF document
-                </p>
-                <Button
-                  variant="outline"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={isLoading}
-                >
-                  <Upload className="h-4 w-4 mr-2" />
-                  Browse files
-                </Button>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".pdf"
-                  onChange={handleFileUpload}
-                  className="hidden"
-                />
-                <p className="text-xs text-gray-500 mt-2">
-                  PDF files only (Max 10MB)
-                </p>
-              </CardContent>
-            </Card>
+
           </div>
 
           {/* Document Details */}
