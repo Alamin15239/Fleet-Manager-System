@@ -23,7 +23,7 @@ import {
   Zap,
   User,
   Shield,
-  Edit3
+
 } from 'lucide-react'
 import { useLanguage } from '@/contexts/language-context'
 import { LanguageToggle } from '@/components/language-toggle'
@@ -86,13 +86,7 @@ const getNavigation = (t: (key: string) => string, language: string) => [
     resource: 'reports',
     action: 'read'
   },
-  { 
-    name: t('nav.documents'), 
-    href: '/documents', 
-    icon: Edit3,
-    resource: 'documents',
-    action: 'read'
-  },
+
   { 
     name: t('nav.users'), 
     href: '/users', 
