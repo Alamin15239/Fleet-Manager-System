@@ -537,38 +537,50 @@ export default function MaintenancePage() {
                   {showVehicleDropdown && (
                     <div className="absolute z-50 w-full mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-auto">
                       {vehicleSearch === '' ? (
-                        vehicles.map((vehicle) => (
-                          <div
-                            key={vehicle.id}
-                            className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
-                            onClick={() => {
-                              setFormData({...formData, truckId: vehicle.id})
-                              setVehicleSearch(`${vehicle.displayName} - ${vehicle.identifier}`)
-                              setShowVehicleDropdown(false)
-                            }}
-                          >
-                            {vehicle.type === 'truck' ? '🚛' : '🚚'} {vehicle.displayName} - {vehicle.identifier}
-                          </div>
-                        ))
+                        vehicles.map((vehicle) => {
+                          const driverInfo = vehicle.type === 'truck' 
+                            ? trucks.find(t => t.id === vehicle.id)?.driverName
+                            : trailers.find(t => t.id === vehicle.id)?.driverName
+                          return (
+                            <div
+                              key={vehicle.id}
+                              className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                              onClick={() => {
+                                setFormData({...formData, truckId: vehicle.id})
+                                setVehicleSearch(`${vehicle.displayName} - ${vehicle.identifier}${driverInfo ? ` (${driverInfo})` : ''}`)
+                                setShowVehicleDropdown(false)
+                              }}
+                            >
+                              {vehicle.type === 'truck' ? '🚛' : '🚚'} {vehicle.displayName} - {vehicle.identifier}
+                              {driverInfo && <span className="text-gray-500 ml-2">({driverInfo})</span>}
+                            </div>
+                          )
+                        })
                       ) : (
                         vehicles
                           .filter(vehicle => 
                             vehicle.displayName.toLowerCase().includes(vehicleSearch.toLowerCase()) ||
                             vehicle.identifier.toLowerCase().includes(vehicleSearch.toLowerCase())
                           )
-                          .map((vehicle) => (
-                            <div
-                              key={vehicle.id}
-                              className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
-                              onClick={() => {
-                                setFormData({...formData, truckId: vehicle.id})
-                                setVehicleSearch(`${vehicle.displayName} - ${vehicle.identifier}`)
-                                setShowVehicleDropdown(false)
-                              }}
-                            >
-                              {vehicle.type === 'truck' ? '🚛' : '🚚'} {vehicle.displayName} - {vehicle.identifier}
-                            </div>
-                          ))
+                          .map((vehicle) => {
+                            const driverInfo = vehicle.type === 'truck' 
+                              ? trucks.find(t => t.id === vehicle.id)?.driverName
+                              : trailers.find(t => t.id === vehicle.id)?.driverName
+                            return (
+                              <div
+                                key={vehicle.id}
+                                className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                                onClick={() => {
+                                  setFormData({...formData, truckId: vehicle.id})
+                                  setVehicleSearch(`${vehicle.displayName} - ${vehicle.identifier}${driverInfo ? ` (${driverInfo})` : ''}`)
+                                  setShowVehicleDropdown(false)
+                                }}
+                              >
+                                {vehicle.type === 'truck' ? '🚛' : '🚚'} {vehicle.displayName} - {vehicle.identifier}
+                                {driverInfo && <span className="text-gray-500 ml-2">({driverInfo})</span>}
+                              </div>
+                            )
+                          })
                       )}
                       {vehicleSearch !== '' && vehicles.filter(vehicle => 
                         vehicle.displayName.toLowerCase().includes(vehicleSearch.toLowerCase()) ||

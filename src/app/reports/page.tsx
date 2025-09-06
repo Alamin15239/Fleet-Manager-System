@@ -21,12 +21,14 @@ interface MaintenanceRecord {
   laborCost: number
   totalCost: number
   status: string
+  driverName?: string
   truck?: {
     id: string
     make: string
     model: string
     year: number
     licensePlate: string
+    driverName?: string
   }
   trailer?: {
     id: string
@@ -85,7 +87,22 @@ export default function ReportsPage() {
       return `${record.truck.licensePlate} - ${record.truck.year} ${record.truck.make} ${record.truck.model}`
     }
     if (record.trailer) {
-      return `Trailer ${record.trailer.number} - ${record.trailer.driverName || 'No Driver'}`
+      return `Trailer ${record.trailer.number}`
+    }
+    return 'N/A'
+  }
+
+  const getDriverName = (record: MaintenanceRecord) => {
+    // First check if maintenance record has driverName stored
+    if (record.driverName) {
+      return record.driverName
+    }
+    // Fallback to vehicle data
+    if (record.truck?.driverName) {
+      return record.truck.driverName
+    }
+    if (record.trailer?.driverName) {
+      return record.trailer.driverName
     }
     return 'N/A'
   }
@@ -232,6 +249,7 @@ export default function ReportsPage() {
               <tr>
                 <th>Date</th>
                 <th>Vehicle</th>
+                <th>Driver</th>
                 <th>Service Type</th>
                 <th>Description</th>
                 <th>Mechanic</th>
@@ -247,6 +265,7 @@ export default function ReportsPage() {
                 <tr>
                   <td>${new Date(record.datePerformed).toLocaleDateString()}</td>
                   <td>${getVehicleDisplay(record)}</td>
+                  <td>${getDriverName(record)}</td>
                   <td>${record.serviceType}</td>
                   <td>${record.description || 'N/A'}</td>
                   <td>${record.mechanic?.name || 'N/A'}</td>
@@ -258,7 +277,7 @@ export default function ReportsPage() {
                 </tr>
               `).join('')}
               <tr class="total-row">
-                <td colspan="6"><strong>TOTAL</strong></td>
+                <td colspan="7"><strong>TOTAL</strong></td>
                 <td><strong>$${totalParts.toFixed(2)}</strong></td>
                 <td><strong>$${totalLabor.toFixed(2)}</strong></td>
                 <td><strong>$${totalCost.toFixed(2)}</strong></td>
@@ -319,6 +338,7 @@ export default function ReportsPage() {
               <tr>
                 <th>Date</th>
                 <th>Vehicle</th>
+                <th>Driver</th>
                 <th>Service Type</th>
                 <th>Description</th>
                 <th>Mechanic</th>
@@ -334,6 +354,7 @@ export default function ReportsPage() {
                 <tr>
                   <td>${new Date(record.datePerformed).toLocaleDateString()}</td>
                   <td>${getVehicleDisplay(record)}</td>
+                  <td>${getDriverName(record)}</td>
                   <td>${record.serviceType}</td>
                   <td>${record.description || 'N/A'}</td>
                   <td>${record.mechanic?.name || 'N/A'}</td>
@@ -345,7 +366,7 @@ export default function ReportsPage() {
                 </tr>
               `).join('')}
               <tr class="total-row">
-                <td colspan="6"><strong>TOTAL</strong></td>
+                <td colspan="7"><strong>TOTAL</strong></td>
                 <td><strong>$${totalParts.toFixed(2)}</strong></td>
                 <td><strong>$${totalLabor.toFixed(2)}</strong></td>
                 <td><strong>$${totalCost.toFixed(2)}</strong></td>
@@ -373,11 +394,12 @@ export default function ReportsPage() {
     csv += `Period: ${startDate || 'All Time'} to ${endDate || 'Current'}\n\n`
     csv += `Total Records: ${data.length}\n`
     csv += `Total Cost: $${totalCost.toFixed(2)}\n\n`
-    csv += "Date,Vehicle,Service Type,Description,Mechanic,Creator,Parts Cost,Labor Cost,Total Cost,Status\n"
+    csv += "Date,Vehicle,Driver,Service Type,Description,Mechanic,Creator,Parts Cost,Labor Cost,Total Cost,Status\n"
     
     data.forEach(record => {
       csv += `${new Date(record.datePerformed).toLocaleDateString()},`
       csv += `"${getVehicleDisplay(record)}",`
+      csv += `"${getDriverName(record)}",`
       csv += `"${record.serviceType}",`
       csv += `"${record.description || 'N/A'}",`
       csv += `"${record.mechanic?.name || 'N/A'}",`
@@ -530,6 +552,7 @@ export default function ReportsPage() {
                   <th className="border border-gray-300 p-2 text-left">Select</th>
                   <th className="border border-gray-300 p-2 text-left">Date</th>
                   <th className="border border-gray-300 p-2 text-left">Vehicle</th>
+                  <th className="border border-gray-300 p-2 text-left">Driver</th>
                   <th className="border border-gray-300 p-2 text-left">Service</th>
                   <th className="border border-gray-300 p-2 text-left">Cost</th>
                   <th className="border border-gray-300 p-2 text-left">Status</th>
@@ -554,6 +577,7 @@ export default function ReportsPage() {
                       <td className="border border-gray-300 p-2">
                         {getVehicleDisplay(record)}
                       </td>
+                      <td className="border border-gray-300 p-2">{getDriverName(record)}</td>
                       <td className="border border-gray-300 p-2">{record.serviceType}</td>
                       <td className="border border-gray-300 p-2">${record.totalCost.toFixed(2)}</td>
                       <td className="border border-gray-300 p-2">{record.status}</td>
