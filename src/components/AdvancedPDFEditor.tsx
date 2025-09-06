@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { 
   Eye, FileText, Layout, Settings, Save, Download, Edit
 } from 'lucide-react';
-import RichTextEditor from './RichTextEditor';
+
 
 interface PDFEditorProps {
   initialData?: {
@@ -107,12 +107,39 @@ export default function AdvancedPDFEditor({ initialData, onChange }: PDFEditorPr
               <div>
                 <Label>Content</Label>
                 <div className="mt-1">
-                  <RichTextEditor
-                    value={content}
-                    onChange={setContent}
-                    placeholder="Start typing your document content..."
-                    className="min-h-[500px]"
-                  />
+                  <div className="border rounded-lg">
+                    {/* MS Word-like Toolbar */}
+                    <div className="flex flex-wrap items-center gap-1 p-2 border-b bg-gray-50/50">
+                      <select className="px-2 py-1 border rounded text-sm" onChange={(e) => document.execCommand('fontName', false, e.target.value)}>
+                        <option value="Calibri">Calibri</option>
+                        <option value="Arial">Arial</option>
+                        <option value="Times New Roman">Times New Roman</option>
+                      </select>
+                      <select className="px-2 py-1 border rounded text-sm" onChange={(e) => document.execCommand('fontSize', false, e.target.value)}>
+                        <option value="3">12pt</option>
+                        <option value="4">14pt</option>
+                        <option value="5">16pt</option>
+                        <option value="6">18pt</option>
+                      </select>
+                      <button className="px-2 py-1 border rounded hover:bg-gray-100" onClick={() => document.execCommand('bold')}><strong>B</strong></button>
+                      <button className="px-2 py-1 border rounded hover:bg-gray-100" onClick={() => document.execCommand('italic')}><em>I</em></button>
+                      <button className="px-2 py-1 border rounded hover:bg-gray-100" onClick={() => document.execCommand('underline')}><u>U</u></button>
+                      <button className="px-2 py-1 border rounded hover:bg-gray-100" onClick={() => document.execCommand('justifyLeft')}>⬅</button>
+                      <button className="px-2 py-1 border rounded hover:bg-gray-100" onClick={() => document.execCommand('justifyCenter')}>⬌</button>
+                      <button className="px-2 py-1 border rounded hover:bg-gray-100" onClick={() => document.execCommand('justifyRight')}>➡</button>
+                      <button className="px-2 py-1 border rounded hover:bg-gray-100" onClick={() => document.execCommand('insertUnorderedList')}>• List</button>
+                      <button className="px-2 py-1 border rounded hover:bg-gray-100" onClick={() => document.execCommand('insertOrderedList')}>1. List</button>
+                      <input type="color" className="w-8 h-8 border rounded" onChange={(e) => document.execCommand('foreColor', false, e.target.value)} title="Text Color" />
+                    </div>
+                    <div
+                      contentEditable
+                      className="min-h-[400px] p-4 focus:outline-none"
+                      style={{ fontFamily: 'Calibri, sans-serif', fontSize: '11pt', lineHeight: '1.15' }}
+                      onInput={(e) => setContent((e.target as HTMLDivElement).innerHTML)}
+                      dangerouslySetInnerHTML={{ __html: content }}
+                      suppressContentEditableWarning={true}
+                    />
+                  </div>
                 </div>
               </div>
 
