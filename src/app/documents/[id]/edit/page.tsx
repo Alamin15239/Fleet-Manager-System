@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import AdvancedPDFEditor from '@/components/AdvancedPDFEditor';
+import WordEditor from '@/components/WordEditor';
 import { 
   Save, ArrowLeft, Eye, Clock, User, 
   FileText, Loader2, AlertCircle, CheckCircle2
@@ -270,10 +270,12 @@ export default function EditDocumentPage() {
                 </div>
               </CardHeader>
               <CardContent className="p-0">
-                <div className="min-h-[600px]">
-                  <AdvancedPDFEditor 
-                    initialData={editorContent}
-                    onChange={handleContentChange}
+                <div className="h-[800px]">
+                  <WordEditor 
+                    value={editorContent.content}
+                    onChange={(content) => handleContentChange({ ...editorContent, content })}
+                    title={title}
+                    onTitleChange={handleTitleChange}
                   />
                 </div>
               </CardContent>
