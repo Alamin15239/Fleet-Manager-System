@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-// Mock documents storage - shared across routes
-if (!global.documents) {
-  global.documents = [];
-}
-const documents = global.documents;
+// Mock documents storage - starts empty each time
+const documents = global.documents || [];
+global.documents = documents;
 
 export async function GET() {
   return NextResponse.json({
@@ -39,4 +37,10 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     return NextResponse.json({ error: 'Failed to create document' }, { status: 500 });
   }
+}
+
+export async function DELETE() {
+  // Clear all documents (for development)
+  global.documents = [];
+  return NextResponse.json({ message: 'All documents cleared' });
 }
