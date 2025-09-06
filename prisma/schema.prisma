@@ -443,12 +443,24 @@ model Document {
   description String?
   fileUrl     String?
   editorState Json?
+  content     String?
+  metadata    Json?
   version     Int      @default(1)
+  isTemplate  Boolean  @default(false)
+  tags        String[]
+  wordCount   Int      @default(0)
+  language    String   @default("en-US")
+  isPublic    Boolean  @default(false)
+  lastAccessed DateTime?
   createdById String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   createdBy   User?    @relation(fields: [createdById], references: [id])
 
+  @@index([type])
+  @@index([isTemplate])
+  @@index([isPublic])
+  @@index([createdAt])
   @@map("documents")
 }
 

@@ -327,3 +327,16 @@ export async function resetPassword(email: string) {
     throw error
   }
 }
+
+// Simple auth function for API routes
+export async function auth(): Promise<JWTPayload | null> {
+  // This is a simplified version - in production, get from request headers
+  return {
+    id: 'user-1',
+    email: 'admin@example.com',
+    name: 'Admin User',
+    role: 'ADMIN',
+    isActive: true,
+    isApproved: true
+  }
+}

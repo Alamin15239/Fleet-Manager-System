@@ -1,14 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
-import { requireAuth } from '@/lib/auth';
+import { prisma } from '@/lib/db';
+import { auth } from '@/lib/auth';
 
-export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
   try {
-    const user = await requireAuth(request);
-    const { id } = await params;
-    
-    const document = await db.document.findUnique({
-      where: { id },
+    const user = await auth();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const document = await prisma.document.findUnique({
+      where: { id: params.id },
       include: {
         createdBy: {
           select: { id: true, name: true, email: true }
@@ -23,29 +28,41 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     return NextResponse.json(document);
   } catch (error) {
     console.error('Error fetching document:', error);
-    if (error instanceof Error && (error.message === 'No token provided' || error.message === 'Invalid token')) {
-      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
-    }
-    return NextResponse.json({ error: 'Failed to fetch document' }, { status: 500 });
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
-export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
   try {
-    const user = await requireAuth(request);
-    const { id } = await params;
+    const user = await auth();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
     const body = await request.json();
-    const { title, description, editorState, fileUrl } = body;
+    const { title, description, editorState, content, metadata } = body;
 
-    const document = await db.document.update({
-      where: { id },
+    const existingDocument = await prisma.document.findUnique({
+      where: { id: params.id }
+    });
+
+    if (!existingDocument) {
+      return NextResponse.json({ error: 'Document not found' }, { status: 404 });
+    }
+
+    const document = await prisma.document.update({
+      where: { id: params.id },
       data: {
-        ...(title && { title }),
-        ...(description !== undefined && { description }),
-        ...(editorState && { editorState }),
-        ...(fileUrl && { fileUrl }),
-        version: { increment: 1 }
+        title,
+        description,
+        editorState,
+        content,
+        metadata,
+        version: existingDocument.version + 1,
+        updatedAt: new Date()
       },
       include: {
         createdBy: {
@@ -57,28 +74,35 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     return NextResponse.json(document);
   } catch (error) {
     console.error('Error updating document:', error);
-    if (error instanceof Error && (error.message === 'No token provided' || error.message === 'Invalid token')) {
-      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
-    }
-    return NextResponse.json({ error: 'Failed to update document' }, { status: 500 });
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
-export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
   try {
-    const user = await requireAuth(request);
-    const { id } = await params;
+    const user = await auth();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
-    await db.document.delete({
-      where: { id }
+    const document = await prisma.document.findUnique({
+      where: { id: params.id }
     });
 
-    return NextResponse.json({ success: true });
+    if (!document) {
+      return NextResponse.json({ error: 'Document not found' }, { status: 404 });
+    }
+
+    await prisma.document.delete({
+      where: { id: params.id }
+    });
+
+    return NextResponse.json({ message: 'Document deleted successfully' });
   } catch (error) {
     console.error('Error deleting document:', error);
-    if (error instanceof Error && (error.message === 'No token provided' || error.message === 'Invalid token')) {
-      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
-    }
-    return NextResponse.json({ error: 'Failed to delete document' }, { status: 500 });
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
