@@ -246,34 +246,34 @@ export default function DocumentsPage() {
               New Document
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="sm:max-w-2xl">
             <DialogHeader>
               <DialogTitle>Create New Document</DialogTitle>
             </DialogHeader>
-            <div className="grid grid-cols-2 gap-4 py-4">
-              <Button variant="outline" onClick={() => createDocument('text')} className="h-20 flex-col">
-                <FileText className="h-8 w-8 mb-2" />
-                Text Document
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 py-4">
+              <Button variant="outline" onClick={() => createDocument('text')} className="h-24 flex-col gap-2 hover:bg-blue-50">
+                <FileText className="h-8 w-8" />
+                <span className="text-sm font-medium">Text Document</span>
               </Button>
-              <Button variant="outline" onClick={() => createDocument('report')} className="h-20 flex-col">
-                <FileText className="h-8 w-8 mb-2" />
-                Report
+              <Button variant="outline" onClick={() => createDocument('report')} className="h-24 flex-col gap-2 hover:bg-green-50">
+                <FileText className="h-8 w-8" />
+                <span className="text-sm font-medium">Report</span>
               </Button>
-              <Button variant="outline" onClick={() => createDocument('letter')} className="h-20 flex-col">
-                <FileText className="h-8 w-8 mb-2" />
-                Letter
+              <Button variant="outline" onClick={() => createDocument('letter')} className="h-24 flex-col gap-2 hover:bg-purple-50">
+                <FileText className="h-8 w-8" />
+                <span className="text-sm font-medium">Letter</span>
               </Button>
-              <Button variant="outline" onClick={() => createDocument('memo')} className="h-20 flex-col">
-                <FileText className="h-8 w-8 mb-2" />
-                Memo
+              <Button variant="outline" onClick={() => createDocument('memo')} className="h-24 flex-col gap-2 hover:bg-orange-50">
+                <FileText className="h-8 w-8" />
+                <span className="text-sm font-medium">Memo</span>
               </Button>
-              <Button variant="outline" onClick={() => createDocument('invoice')} className="h-20 flex-col">
-                <FileText className="h-8 w-8 mb-2" />
-                Invoice
+              <Button variant="outline" onClick={() => createDocument('invoice')} className="h-24 flex-col gap-2 hover:bg-yellow-50">
+                <FileText className="h-8 w-8" />
+                <span className="text-sm font-medium">Invoice</span>
               </Button>
-              <Button variant="outline" onClick={() => createDocument('table')} className="h-20 flex-col">
-                <Table className="h-8 w-8 mb-2" />
-                Table
+              <Button variant="outline" onClick={() => createDocument('table')} className="h-24 flex-col gap-2 hover:bg-indigo-50">
+                <Table className="h-8 w-8" />
+                <span className="text-sm font-medium">Table</span>
               </Button>
             </div>
           </DialogContent>
