@@ -108,7 +108,7 @@ export default function MicrosoftWordEditor({ value = '', onChange, title = 'Doc
         const reader = new FileReader();
         reader.onload = (e) => {
           const imageUrl = e.target?.result as string;
-          const img = `<img src="${imageUrl}" alt="Image" style="max-width: 100%; height: auto; margin: 10px 0; border-radius: 4px;" />`;
+          const img = `<img src="${imageUrl}" alt="Inserted image" style="max-width: 100%; height: auto; margin: 10px 0; border-radius: 4px;" />`;
           execCommand('insertHTML', img);
         };
         reader.readAsDataURL(file);

@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   FileText, Plus, Search, Filter, Grid, List, Download, Share, 
   Edit, Trash2, Copy, Star, Clock, User, Calendar, Eye,
-  FileImage, Table, BarChart3, FileSpreadsheet, Image
+  FileImage, Table, BarChart3, FileSpreadsheet
 } from 'lucide-react';
 import MicrosoftWordEditor from '@/components/MicrosoftWordEditor';
 import { useToast } from '@/hooks/use-toast';
@@ -210,7 +210,7 @@ export default function DocumentsPage() {
       case 'text': return <FileText className="h-8 w-8" />;
       case 'table': return <Table className="h-8 w-8" />;
       case 'excel': return <FileSpreadsheet className="h-8 w-8" />;
-      case 'image': return <Image className="h-8 w-8" />;
+      case 'image': return <FileImage className="h-8 w-8" />;
       case 'chart': return <BarChart3 className="h-8 w-8" />;
       default: return <FileText className="h-8 w-8" />;
     }
