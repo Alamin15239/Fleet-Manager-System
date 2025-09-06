@@ -9,8 +9,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { 
-  FileText, ArrowLeft, Loader2, CheckCircle, Search
+  FileText, ArrowLeft, Loader2
 } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/auth-context';
 
@@ -92,18 +93,7 @@ export default function CreateDocumentPage() {
     description: '',
     template: 'Blank document'
   });
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('All');
   const [isLoading, setIsLoading] = useState(false);
-
-  const categories = ['All', ...Array.from(new Set(PDF_TEMPLATES.map(t => t.category)))];
-  
-  const filteredTemplates = PDF_TEMPLATES.filter(template => {
-    const matchesSearch = template.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         template.description.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = selectedCategory === 'All' || template.category === selectedCategory;
-    return matchesSearch && matchesCategory;
-  });
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -173,144 +163,88 @@ export default function CreateDocumentPage() {
         </div>
       </div>
 
-      <div className="container mx-auto px-6 py-8 max-w-7xl">
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-          {/* Template Selection */}
-          <div className="lg:col-span-3">
-            {/* Search and Filter */}
-            <div className="mb-6">
-              <div className="flex flex-col sm:flex-row gap-4 mb-4">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                  <Input
-                    placeholder="Search templates..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10 h-10"
-                  />
+      <div className="container mx-auto px-6 py-8 max-w-4xl">
+        <div className="space-y-8">
+          {/* Quick Create Section */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-xl">Create New Document</CardTitle>
+              <p className="text-gray-600">Start with a template or create a blank document</p>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="title" className="text-sm font-medium">Document Name</Label>
+                    <Input
+                      id="title"
+                      value={formData.title}
+                      onChange={(e) => handleInputChange('title', e.target.value)}
+                      placeholder="Enter document name"
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="description" className="text-sm font-medium">Description (optional)</Label>
+                    <Textarea
+                      id="description"
+                      value={formData.description}
+                      onChange={(e) => handleInputChange('description', e.target.value)}
+                      placeholder="Brief description"
+                      className="mt-1"
+                      rows={3}
+                    />
+                  </div>
                 </div>
-                <div className="flex gap-2">
-                  {categories.map((category) => (
-                    <Button
-                      key={category}
-                      variant={selectedCategory === category ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setSelectedCategory(category)}
-                      className="whitespace-nowrap"
-                    >
-                      {category}
-                    </Button>
-                  ))}
+                <div className="space-y-4">
+                  <div>
+                    <Label className="text-sm font-medium">Template</Label>
+                    <Select value={formData.template} onValueChange={(value) => handleInputChange('template', value)}>
+                      <SelectTrigger className="mt-1">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {PDF_TEMPLATES.map((template) => (
+                          <SelectItem key={template.name} value={template.name}>
+                            {template.name} - {template.category}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {selectedTemplate && (
+                    <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                      <div className="font-medium text-sm text-blue-900">{selectedTemplate.name}</div>
+                      <div className="text-xs text-blue-700 mt-1">{selectedTemplate.description}</div>
+                    </div>
+                  )}
                 </div>
               </div>
-            </div>
-
-            {/* Templates Grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 mb-8">
-              {filteredTemplates.map((template) => (
-                <div
-                  key={template.name}
-                  className={`group cursor-pointer rounded-lg border-2 transition-all hover:shadow-md ${
-                    formData.template === template.name
-                      ? 'border-blue-500 bg-blue-50'
-                      : 'border-gray-200 hover:border-gray-300'
-                  }`}
-                  onClick={() => handleInputChange('template', template.name)}
+              
+              <div className="flex gap-3 pt-4">
+                <Button 
+                  onClick={handleCreateDocument}
+                  disabled={!formData.title.trim() || isLoading}
+                  className="flex-1"
                 >
-                  <div className="aspect-[3/4] bg-white rounded-t-lg border-b border-gray-200 flex items-center justify-center relative overflow-hidden">
-                    <div className="w-full h-full bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
-                      <FileText className="h-12 w-12 text-gray-400" />
-                    </div>
-                    {formData.template === template.name && (
-                      <div className="absolute top-2 right-2 bg-blue-500 rounded-full p-1">
-                        <CheckCircle className="h-4 w-4 text-white" />
-                      </div>
-                    )}
-                  </div>
-                  <div className="p-3">
-                    <h3 className="font-medium text-sm text-gray-900 mb-1">{template.name}</h3>
-                    <p className="text-xs text-gray-600 line-clamp-2">{template.description}</p>
-                    <Badge variant="outline" className="text-xs mt-2">
-                      {template.category}
-                    </Badge>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-
-          </div>
-
-          {/* Document Details */}
-          <div className="lg:col-span-1">
-            <Card className="sticky top-6">
-              <CardHeader>
-                <CardTitle className="text-lg">Create document</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <Label htmlFor="title" className="text-sm font-medium">File name</Label>
-                  <Input
-                    id="title"
-                    value={formData.title}
-                    onChange={(e) => handleInputChange('title', e.target.value)}
-                    placeholder="Enter file name"
-                    className="mt-1"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="description" className="text-sm font-medium">Description (optional)</Label>
-                  <Textarea
-                    id="description"
-                    value={formData.description}
-                    onChange={(e) => handleInputChange('description', e.target.value)}
-                    placeholder="Add a description"
-                    className="mt-1"
-                    rows={3}
-                  />
-                </div>
-
-                {selectedTemplate && (
-                  <div className="p-4 bg-gray-50 rounded-lg">
-                    <div className="flex items-center gap-3 mb-2">
-                      <FileText className="h-5 w-5 text-blue-600" />
-                      <div>
-                        <div className="font-medium text-sm">{selectedTemplate.name}</div>
-                        <div className="text-xs text-gray-500">{selectedTemplate.category}</div>
-                      </div>
-                    </div>
-                    <p className="text-xs text-gray-600">{selectedTemplate.description}</p>
-                  </div>
-                )}
-
-                <div className="pt-4 space-y-2">
-                  <Button 
-                    onClick={handleCreateDocument}
-                    disabled={!formData.title.trim() || isLoading}
-                    className="w-full"
-                  >
-                    {isLoading ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Creating...
-                      </>
-                    ) : (
-                      'Create'
-                    )}
-                  </Button>
-                  
-                  <Button 
-                    variant="outline" 
-                    onClick={() => router.push('/documents')}
-                    className="w-full"
-                  >
-                    Cancel
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Creating...
+                    </>
+                  ) : (
+                    'Create Document'
+                  )}
+                </Button>
+                <Button 
+                  variant="outline" 
+                  onClick={() => router.push('/documents')}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>
