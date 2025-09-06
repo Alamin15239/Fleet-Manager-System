@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -13,7 +14,7 @@ import {
   Edit, Trash2, Copy, Star, Clock, User, Calendar, Eye,
   FileImage, Table, BarChart3, FileSpreadsheet
 } from 'lucide-react';
-import MicrosoftWordEditor from '@/components/MicrosoftWordEditor';
+
 import { useToast } from '@/hooks/use-toast';
 
 interface Document {
@@ -38,13 +39,12 @@ interface Document {
 }
 
 export default function DocumentsPage() {
+  const router = useRouter();
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('all');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
-  const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const { toast } = useToast();
 
@@ -71,37 +71,9 @@ export default function DocumentsPage() {
     }
   };
 
-  const createDocument = async (type: string) => {
+  const createDocument = (type: string) => {
     setIsCreating(false);
-    try {
-      const response = await fetch('/api/documents', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: `New ${type} Document`,
-          type,
-          content: getDefaultContent(type),
-        }),
-      });
-
-      if (response.ok) {
-        const newDocument = await response.json();
-        setDocuments([newDocument, ...documents]);
-        setSelectedDocument(newDocument);
-        setIsEditorOpen(true);
-        toast({
-          title: 'Success',
-          description: 'Document created successfully',
-        });
-      }
-    } catch (error) {
-      console.error('Error creating document:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to create document',
-        variant: 'destructive',
-      });
-    }
+    router.push(`/documents/editor?type=${type}`);
   };
 
   const saveDocument = async (documentId: string, title: string, content: string) => {
@@ -338,10 +310,7 @@ export default function DocumentsPage() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => {
-                        setSelectedDocument(document);
-                        setIsEditorOpen(true);
-                      }}
+                      onClick={() => router.push(`/documents/editor?id=${document.id}`)}
                     >
                       <Edit className="h-4 w-4" />
                     </Button>
@@ -418,10 +387,7 @@ export default function DocumentsPage() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => {
-                        setSelectedDocument(document);
-                        setIsEditorOpen(true);
-                      }}
+                      onClick={() => router.push(`/documents/editor?id=${document.id}`)}
                     >
                       <Edit className="h-4 w-4" />
                     </Button>
@@ -464,34 +430,7 @@ export default function DocumentsPage() {
         </div>
       )}
 
-      {/* Document Editor Modal */}
-      <Dialog open={isEditorOpen} onOpenChange={setIsEditorOpen}>
-        <DialogContent className="max-w-7xl h-[90vh] p-0">
-          {selectedDocument && (
-            <MicrosoftWordEditor
-              value={selectedDocument.content || ''}
-              title={selectedDocument.title}
-              onChange={(content) => {
-                setSelectedDocument({
-                  ...selectedDocument,
-                  content
-                });
-              }}
-              onTitleChange={(title) => {
-                setSelectedDocument({
-                  ...selectedDocument,
-                  title
-                });
-              }}
-              onSave={() => {
-                if (selectedDocument) {
-                  saveDocument(selectedDocument.id, selectedDocument.title, selectedDocument.content || '');
-                }
-              }}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
+
     </div>
   );
 }
