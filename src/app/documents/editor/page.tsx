@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import MicrosoftWordEditor from '@/components/MicrosoftWordEditor';
 import { useToast } from '@/hooks/use-toast';
 
-export default function DocumentEditorPage() {
+function DocumentEditor() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
@@ -126,5 +126,13 @@ export default function DocumentEditorPage() {
         onSave={saveDocument}
       />
     </div>
+  );
+}
+
+export default function DocumentEditorPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div></div>}>
+      <DocumentEditor />
+    </Suspense>
   );
 }
