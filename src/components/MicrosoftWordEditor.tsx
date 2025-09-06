@@ -563,7 +563,7 @@ export default function MicrosoftWordEditor({ value = '', onChange, title = 'Doc
               Table
             </Button>
             <Button variant="ghost" size="sm" onClick={insertImage}>
-              <Image className="h-4 w-4 mr-1" />
+              <FileImage className="h-4 w-4 mr-1" />
               Pictures
             </Button>
             <Button variant="ghost" size="sm" onClick={insertSmartArt}>
