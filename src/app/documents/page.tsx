@@ -72,6 +72,7 @@ export default function DocumentsPage() {
   };
 
   const createDocument = async (type: string) => {
+    setIsCreating(false);
     try {
       const response = await fetch('/api/documents', {
         method: 'POST',
@@ -250,27 +251,27 @@ export default function DocumentsPage() {
               <DialogTitle>Create New Document</DialogTitle>
             </DialogHeader>
             <div className="grid grid-cols-2 gap-4 py-4">
-              <Button variant="outline" onClick={() => { createDocument('text'); setIsCreating(false); }} className="h-20 flex-col">
+              <Button variant="outline" onClick={() => createDocument('text')} className="h-20 flex-col">
                 <FileText className="h-8 w-8 mb-2" />
                 Text Document
               </Button>
-              <Button variant="outline" onClick={() => { createDocument('report'); setIsCreating(false); }} className="h-20 flex-col">
+              <Button variant="outline" onClick={() => createDocument('report')} className="h-20 flex-col">
                 <FileText className="h-8 w-8 mb-2" />
                 Report
               </Button>
-              <Button variant="outline" onClick={() => { createDocument('letter'); setIsCreating(false); }} className="h-20 flex-col">
+              <Button variant="outline" onClick={() => createDocument('letter')} className="h-20 flex-col">
                 <FileText className="h-8 w-8 mb-2" />
                 Letter
               </Button>
-              <Button variant="outline" onClick={() => { createDocument('memo'); setIsCreating(false); }} className="h-20 flex-col">
+              <Button variant="outline" onClick={() => createDocument('memo')} className="h-20 flex-col">
                 <FileText className="h-8 w-8 mb-2" />
                 Memo
               </Button>
-              <Button variant="outline" onClick={() => { createDocument('invoice'); setIsCreating(false); }} className="h-20 flex-col">
+              <Button variant="outline" onClick={() => createDocument('invoice')} className="h-20 flex-col">
                 <FileText className="h-8 w-8 mb-2" />
                 Invoice
               </Button>
-              <Button variant="outline" onClick={() => { createDocument('table'); setIsCreating(false); }} className="h-20 flex-col">
+              <Button variant="outline" onClick={() => createDocument('table')} className="h-20 flex-col">
                 <Table className="h-8 w-8 mb-2" />
                 Table
               </Button>
