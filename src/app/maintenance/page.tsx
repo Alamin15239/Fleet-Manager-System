@@ -131,7 +131,8 @@ export default function MaintenancePage() {
     isOilChange: false,
     oilChangeInterval: 5000, // Default 5000 km
     currentMileage: 0,
-    maintenanceJobId: ''
+    maintenanceJobId: '',
+    driverName: ''
   })
 
   const [vehicleSearch, setVehicleSearch] = useState('')
@@ -426,7 +427,10 @@ export default function MaintenancePage() {
       isOilChange: record.isOilChange || false,
       oilChangeInterval: record.oilChangeInterval || 5000,
       currentMileage: record.currentMileage || 0,
-      maintenanceJobId: record.maintenanceJobId || ''
+      maintenanceJobId: record.maintenanceJobId || '',
+      driverName: selectedVehicle?.type === 'truck' 
+        ? trucks.find(t => t.id === selectedVehicle.id)?.driverName || ''
+        : trailers.find(t => t.id === selectedVehicle.id)?.driverName || ''
     })
     setIsDialogOpen(true)
   }
@@ -468,7 +472,8 @@ export default function MaintenancePage() {
       isOilChange: false,
       oilChangeInterval: 5000,
       currentMileage: 0,
-      maintenanceJobId: ''
+      maintenanceJobId: '',
+      driverName: ''
     })
   }
 
@@ -546,7 +551,7 @@ export default function MaintenancePage() {
                               key={vehicle.id}
                               className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
                               onClick={() => {
-                                setFormData({...formData, truckId: vehicle.id})
+                                setFormData({...formData, truckId: vehicle.id, driverName: driverInfo || ''})
                                 setVehicleSearch(`${vehicle.displayName} - ${vehicle.identifier}${driverInfo ? ` (${driverInfo})` : ''}`)
                                 setShowVehicleDropdown(false)
                               }}
@@ -571,7 +576,7 @@ export default function MaintenancePage() {
                                 key={vehicle.id}
                                 className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
                                 onClick={() => {
-                                  setFormData({...formData, truckId: vehicle.id})
+                                  setFormData({...formData, truckId: vehicle.id, driverName: driverInfo || ''})
                                   setVehicleSearch(`${vehicle.displayName} - ${vehicle.identifier}${driverInfo ? ` (${driverInfo})` : ''}`)
                                   setShowVehicleDropdown(false)
                                 }}
@@ -811,6 +816,20 @@ export default function MaintenancePage() {
                     <SelectItem value="CANCELLED">{t('status.cancelled')}</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+              
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="driverName" className="text-right">
+                  Driver Name
+                </Label>
+                <Input
+                  id="driverName"
+                  value={formData.driverName}
+                  onChange={(e) => setFormData({...formData, driverName: e.target.value})}
+                  placeholder="Driver name (auto-filled from vehicle)"
+                  className="col-span-3"
+                  readOnly
+                />
               </div>
               
               <div className="grid grid-cols-4 items-center gap-4">
