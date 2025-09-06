@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-// Mock documents storage
-let documents: any[] = [];
+// Mock documents storage - shared across routes
+if (!global.documents) {
+  global.documents = [];
+}
+const documents = global.documents;
 
 export async function GET() {
   return NextResponse.json({
