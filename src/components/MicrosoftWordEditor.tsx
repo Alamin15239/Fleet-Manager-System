@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -945,9 +945,10 @@ export default function MicrosoftWordEditor({ value = '', onChange, title = 'Doc
                 color: '#000'
               }}
               onInput={handleContentChange}
-              dangerouslySetInnerHTML={{ __html: value }}
               suppressContentEditableWarning={true}
-            />
+            >
+              {value || '<p>Start typing your document here...</p>'}
+            </div>
             
             {/* Page Footer */}
             <div className="text-center py-4 border-t border-gray-200 text-gray-500 text-sm">
