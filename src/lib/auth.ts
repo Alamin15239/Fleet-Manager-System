@@ -329,8 +329,14 @@ export async function resetPassword(email: string) {
 }
 
 // Simple auth function for API routes
-export async function auth(): Promise<JWTPayload | null> {
-  // This is a simplified version - in production, get from request headers
+export async function auth(request?: Request): Promise<JWTPayload | null> {
+  if (request) {
+    try {
+      return await requireAuth(request);
+    } catch {
+      return null;
+    }
+  }
   return {
     id: 'user-1',
     email: 'admin@example.com',
