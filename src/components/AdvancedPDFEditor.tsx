@@ -9,11 +9,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { 
-  Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight, 
-  List, ListOrdered, Image, Link, Table, Eye, FileText,
-  Palette, Type, Layout, Settings, Save, Download, Edit
+  Eye, FileText, Layout, Settings, Save, Download, Edit
 } from 'lucide-react';
-import ImageEditor from './ImageEditor';
+import RichTextEditor from './RichTextEditor';
 
 interface PDFEditorProps {
   initialData?: {
@@ -26,148 +24,35 @@ interface PDFEditorProps {
 
 export default function AdvancedPDFEditor({ initialData, onChange }: PDFEditorProps) {
   const [header, setHeader] = useState(initialData?.header || '');
-  const [content, setContent] = useState(initialData?.content || '');
+  const [content, setContent] = useState(initialData?.content || '<div style="font-family: Calibri, sans-serif; font-size: 11pt; line-height: 1.15; color: #000; margin: 1in;"><p></p></div>');
   const [footer, setFooter] = useState(initialData?.footer || '');
-  const [template, setTemplate] = useState('blank');
-  const [fontSize, setFontSize] = useState('12');
-  const [fontFamily, setFontFamily] = useState('Arial');
   const [showPreview, setShowPreview] = useState(false);
-  const [showImageEditor, setShowImageEditor] = useState(false);
-  const [currentImageUrl, setCurrentImageUrl] = useState('');
   const [pageSettings, setPageSettings] = useState({
     orientation: 'portrait',
     margin: '20',
     pageSize: 'A4'
   });
 
-  const editorRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (initialData?.content && initialData.content !== content) {
+      setContent(initialData.content);
+    }
+  }, [initialData]);
 
   useEffect(() => {
     onChange?.({ header, content, footer, pageSettings });
   }, [header, content, footer, pageSettings, onChange]);
 
-  const execCommand = (command: string, value?: string) => {
-    if (editorRef.current) {
-      editorRef.current.focus();
-      document.execCommand(command, false, value);
-      setContent(editorRef.current.innerHTML);
-    }
-  };
-
   const insertTemplate = (templateType: string) => {
     const templates = {
-      business: `
-        <h1>Business Report</h1>
-        <h2>Executive Summary</h2>
-        <p>This section provides an overview of the key findings and recommendations.</p>
-        <h2>Analysis</h2>
-        <p>Detailed analysis and data interpretation goes here.</p>
-        <h2>Recommendations</h2>
-        <ul>
-          <li>Recommendation 1</li>
-          <li>Recommendation 2</li>
-          <li>Recommendation 3</li>
-        </ul>
-      `,
-      invoice: `
-        <div style="text-align: center; margin-bottom: 30px;">
-          <h1>INVOICE</h1>
-          <p>Invoice #: INV-001</p>
-          <p>Date: ${new Date().toLocaleDateString()}</p>
-        </div>
-        <div style="margin-bottom: 20px;">
-          <strong>Bill To:</strong><br>
-          Customer Name<br>
-          Address Line 1<br>
-          City, State ZIP
-        </div>
-        <table border="1" style="width: 100%; border-collapse: collapse;">
-          <tr>
-            <th>Description</th>
-            <th>Quantity</th>
-            <th>Rate</th>
-            <th>Amount</th>
-          </tr>
-          <tr>
-            <td>Service/Product</td>
-            <td>1</td>
-            <td>$100.00</td>
-            <td>$100.00</td>
-          </tr>
-        </table>
-      `,
-      letter: `
-        <div style="margin-bottom: 40px;">
-          <p>${new Date().toLocaleDateString()}</p>
-        </div>
-        <div style="margin-bottom: 30px;">
-          <p>Dear [Recipient Name],</p>
-        </div>
-        <div style="margin-bottom: 30px;">
-          <p>I am writing to...</p>
-          <p>Please find attached...</p>
-        </div>
-        <div>
-          <p>Sincerely,</p>
-          <br>
-          <p>[Your Name]</p>
-        </div>
-      `
+      business: `<div style="font-family: Calibri, sans-serif; font-size: 11pt; line-height: 1.15; color: #000; margin: 1in;"><h1 style="font-size: 18pt; font-weight: bold; color: #2F5496; margin-bottom: 12pt;">Business Report</h1><h2 style="font-size: 14pt; font-weight: bold; color: #2F5496; margin-bottom: 8pt;">Executive Summary</h2><p style="margin-bottom: 12pt;">This section provides an overview of the key findings and recommendations.</p><h2 style="font-size: 14pt; font-weight: bold; color: #2F5496; margin-bottom: 8pt;">Analysis</h2><p style="margin-bottom: 12pt;">Detailed analysis and data interpretation goes here.</p><h2 style="font-size: 14pt; font-weight: bold; color: #2F5496; margin-bottom: 8pt;">Recommendations</h2><ul style="margin-bottom: 12pt;"><li>Recommendation 1</li><li>Recommendation 2</li><li>Recommendation 3</li></ul></div>`,
+      invoice: `<div style="font-family: Calibri, sans-serif; font-size: 11pt; line-height: 1.15; color: #000; margin: 1in;"><div style="text-align: center; margin-bottom: 30px;"><h1 style="font-size: 24pt; font-weight: bold; color: #2F5496;">INVOICE</h1><p>Invoice #: INV-${Date.now().toString().slice(-6)}</p><p>Date: ${new Date().toLocaleDateString()}</p></div><div style="margin-bottom: 20px;"><strong>Bill To:</strong><br>Customer Name<br>Address Line 1<br>City, State ZIP</div><table style="width: 100%; border-collapse: collapse; border: 1px solid #333;"><tr style="background-color: #2F5496; color: white;"><th style="border: 1px solid #333; padding: 8px;">Description</th><th style="border: 1px solid #333; padding: 8px;">Quantity</th><th style="border: 1px solid #333; padding: 8px;">Rate</th><th style="border: 1px solid #333; padding: 8px;">Amount</th></tr><tr><td style="border: 1px solid #333; padding: 8px;">Service/Product</td><td style="border: 1px solid #333; padding: 8px; text-align: center;">1</td><td style="border: 1px solid #333; padding: 8px; text-align: right;">$100.00</td><td style="border: 1px solid #333; padding: 8px; text-align: right;">$100.00</td></tr></table></div>`,
+      letter: `<div style="font-family: Calibri, sans-serif; font-size: 11pt; line-height: 1.15; color: #000; margin: 1in;"><div style="margin-bottom: 40px;"><p>${new Date().toLocaleDateString()}</p></div><div style="margin-bottom: 30px;"><p>Dear [Recipient Name],</p></div><div style="margin-bottom: 30px;"><p>I am writing to [state your purpose]. Please find the details below.</p><p>[Continue with your message content here.]</p></div><div><p>Sincerely,</p><br><p>[Your Name]</p></div></div>`
     };
     
-    if (editorRef.current && templates[templateType as keyof typeof templates]) {
-      editorRef.current.innerHTML = templates[templateType as keyof typeof templates];
-      setContent(editorRef.current.innerHTML);
+    if (templates[templateType as keyof typeof templates]) {
+      setContent(templates[templateType as keyof typeof templates]);
     }
-  };
-
-  const insertTable = () => {
-    const tableHTML = `
-      <table border="1" style="width: 100%; border-collapse: collapse; margin: 10px 0;">
-        <tr>
-          <th style="padding: 8px; background-color: #f5f5f5;">Header 1</th>
-          <th style="padding: 8px; background-color: #f5f5f5;">Header 2</th>
-          <th style="padding: 8px; background-color: #f5f5f5;">Header 3</th>
-        </tr>
-        <tr>
-          <td style="padding: 8px;">Cell 1</td>
-          <td style="padding: 8px;">Cell 2</td>
-          <td style="padding: 8px;">Cell 3</td>
-        </tr>
-      </table>
-    `;
-    execCommand('insertHTML', tableHTML);
-  };
-
-  const insertImage = () => {
-    const input = window.document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*';
-    input.onchange = (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          const imageUrl = e.target?.result as string;
-          setCurrentImageUrl(imageUrl);
-          setShowImageEditor(true);
-        };
-        reader.readAsDataURL(file);
-      }
-    };
-    input.click();
-  };
-
-  const handleImageSave = (editedImageUrl: string) => {
-    const img = `<img src="${editedImageUrl}" alt="Inserted image" style="max-width: 100%; height: auto; margin: 10px 0; border: 2px solid transparent; border-radius: 4px;" class="editable-image" />`;
-    execCommand('insertHTML', img);
-    setShowImageEditor(false);
-    setCurrentImageUrl('');
-  };
-
-  const handleImageCancel = () => {
-    setShowImageEditor(false);
-    setCurrentImageUrl('');
   };
 
   return (
@@ -221,101 +106,12 @@ export default function AdvancedPDFEditor({ initialData, onChange }: PDFEditorPr
               {/* Main Editor */}
               <div>
                 <Label>Content</Label>
-                <div className="border rounded-lg mt-1">
-                  {/* Toolbar */}
-                  <div className="flex flex-wrap gap-1 p-3 border-b bg-gray-50">
-                    <Select value={fontFamily} onValueChange={(value) => {
-                      setFontFamily(value);
-                      execCommand('fontName', value);
-                    }}>
-                      <SelectTrigger className="w-32">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Arial">Arial</SelectItem>
-                        <SelectItem value="Times New Roman">Times New Roman</SelectItem>
-                        <SelectItem value="Helvetica">Helvetica</SelectItem>
-                        <SelectItem value="Georgia">Georgia</SelectItem>
-                      </SelectContent>
-                    </Select>
-
-                    <Select value={fontSize} onValueChange={(value) => {
-                      setFontSize(value);
-                      execCommand('fontSize', value);
-                    }}>
-                      <SelectTrigger className="w-16">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="1">8</SelectItem>
-                        <SelectItem value="2">10</SelectItem>
-                        <SelectItem value="3">12</SelectItem>
-                        <SelectItem value="4">14</SelectItem>
-                        <SelectItem value="5">16</SelectItem>
-                        <SelectItem value="6">18</SelectItem>
-                        <SelectItem value="7">24</SelectItem>
-                      </SelectContent>
-                    </Select>
-
-                    <div className="flex gap-1 border-l pl-2">
-                      <Button variant="outline" size="sm" onClick={() => execCommand('bold')}>
-                        <Bold className="h-4 w-4" />
-                      </Button>
-                      <Button variant="outline" size="sm" onClick={() => execCommand('italic')}>
-                        <Italic className="h-4 w-4" />
-                      </Button>
-                      <Button variant="outline" size="sm" onClick={() => execCommand('underline')}>
-                        <Underline className="h-4 w-4" />
-                      </Button>
-                    </div>
-
-                    <div className="flex gap-1 border-l pl-2">
-                      <Button variant="outline" size="sm" onClick={() => execCommand('justifyLeft')}>
-                        <AlignLeft className="h-4 w-4" />
-                      </Button>
-                      <Button variant="outline" size="sm" onClick={() => execCommand('justifyCenter')}>
-                        <AlignCenter className="h-4 w-4" />
-                      </Button>
-                      <Button variant="outline" size="sm" onClick={() => execCommand('justifyRight')}>
-                        <AlignRight className="h-4 w-4" />
-                      </Button>
-                    </div>
-
-                    <div className="flex gap-1 border-l pl-2">
-                      <Button variant="outline" size="sm" onClick={() => execCommand('insertUnorderedList')}>
-                        <List className="h-4 w-4" />
-                      </Button>
-                      <Button variant="outline" size="sm" onClick={() => execCommand('insertOrderedList')}>
-                        <ListOrdered className="h-4 w-4" />
-                      </Button>
-                    </div>
-
-                    <div className="flex gap-1 border-l pl-2">
-                      <Button variant="outline" size="sm" onClick={insertTable}>
-                        <Table className="h-4 w-4" />
-                      </Button>
-                      <Button variant="outline" size="sm" onClick={insertImage}>
-                        {/* eslint-disable-next-line jsx-a11y/alt-text */}
-                        <Image className="h-4 w-4" />
-                      </Button>
-                    </div>
-
-                    <input 
-                      type="color" 
-                      className="w-8 h-8 border rounded cursor-pointer"
-                      onChange={(e) => execCommand('foreColor', e.target.value)}
-                      title="Text Color"
-                    />
-                  </div>
-
-                  {/* Editor Area */}
-                  <div
-                    ref={editorRef}
-                    contentEditable
-                    className="min-h-64 p-4 focus:outline-none"
-                    onInput={() => setContent(editorRef.current?.innerHTML || '')}
-                    dangerouslySetInnerHTML={{ __html: content }}
-                    suppressContentEditableWarning={true}
+                <div className="mt-1">
+                  <RichTextEditor
+                    value={content}
+                    onChange={setContent}
+                    placeholder="Start typing your document content..."
+                    className="min-h-[500px]"
                   />
                 </div>
               </div>
@@ -420,14 +216,7 @@ export default function AdvancedPDFEditor({ initialData, onChange }: PDFEditorPr
         </div>
       </div>
 
-      {/* Image Editor Modal */}
-      {showImageEditor && currentImageUrl && (
-        <ImageEditor
-          imageUrl={currentImageUrl}
-          onSave={handleImageSave}
-          onCancel={handleImageCancel}
-        />
-      )}
+
     </div>
   );
 }
