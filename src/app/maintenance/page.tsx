@@ -137,6 +137,7 @@ export default function MaintenancePage() {
 
   const [vehicleSearch, setVehicleSearch] = useState('')
   const [mechanicSearch, setMechanicSearch] = useState('')
+  const [selectedMechanics, setSelectedMechanics] = useState<Mechanic[]>([])
   const [showVehicleDropdown, setShowVehicleDropdown] = useState(false)
   const [showMechanicDropdown, setShowMechanicDropdown] = useState(false)
   
@@ -438,7 +439,8 @@ export default function MaintenancePage() {
       }
       
       setVehicleSearch(selectedVehicle ? `${selectedVehicle.displayName || ''} - ${selectedVehicle.identifier || ''}` : '')
-      setMechanicSearch(selectedMechanic ? `${selectedMechanic.name || ''} - ${selectedMechanic.email || ''}` : record.mechanicId === 'none' ? 'No mechanic' : '')
+      setSelectedMechanics(selectedMechanic ? [selectedMechanic] : [])
+      setMechanicSearch('')
       
       setFormData({
         truckId: record.truckId || '',
@@ -489,6 +491,7 @@ export default function MaintenancePage() {
     setSelectedJobs([])
     setVehicleSearch('')
     setMechanicSearch('')
+    setSelectedMechanics([])
     setShowVehicleDropdown(false)
     setShowMechanicDropdown(false)
     setFormData({
@@ -743,55 +746,82 @@ export default function MaintenancePage() {
                 <Label htmlFor="mechanicId" className="text-right">
                   {t('maintenance.mechanic')}
                 </Label>
-                <div className="col-span-3 relative" ref={mechanicDropdownRef}>
-                  <Input
-                    placeholder="Search mechanics..."
-                    value={mechanicSearch}
-                    onChange={(e) => setMechanicSearch(e.target.value)}
-                    onFocus={() => setShowMechanicDropdown(true)}
-                    className="w-full"
-                  />
-                  {showMechanicDropdown && (
-                    <div className="absolute z-50 w-full mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-auto">
-                      <div
-                        className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
-                        onClick={() => {
-                          setFormData({...formData, mechanicId: 'none'})
-                          setMechanicSearch('No mechanic')
-                          setShowMechanicDropdown(false)
-                        }}
-                      >
-                        {t('maintenance.noMechanic')}
-                      </div>
-                      {mechanics
-                        .filter(mechanic => 
-                          mechanic && mechanic.id &&
-                          (mechanic.name?.toLowerCase().includes(mechanicSearch.toLowerCase()) ||
-                          mechanic.email?.toLowerCase().includes(mechanicSearch.toLowerCase()))
-                        )
-                        .map((mechanic) => {
-                          if (!mechanic || !mechanic.id) return null;
-                          return (
-                            <div
-                              key={mechanic.id}
-                              className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
-                              onClick={() => {
-                                setFormData({...formData, mechanicId: mechanic.id})
-                                setMechanicSearch(`${mechanic.name} - ${mechanic.email}`)
-                                setShowMechanicDropdown(false)
-                              }}
-                            >
-                              {mechanic.name} - {mechanic.email}
-                            </div>
+                <div className="col-span-3 space-y-2">
+                  <div className="relative" ref={mechanicDropdownRef}>
+                    <Input
+                      placeholder="Search mechanics..."
+                      value={mechanicSearch}
+                      onChange={(e) => setMechanicSearch(e.target.value)}
+                      onFocus={() => setShowMechanicDropdown(true)}
+                      className="w-full"
+                    />
+                    {showMechanicDropdown && (
+                      <div className="absolute z-50 w-full mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-auto">
+                        <div className="px-3 py-2 hover:bg-gray-100 cursor-pointer flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={selectedMechanics.length === 0}
+                            onChange={() => {
+                              setSelectedMechanics([])
+                              setFormData({...formData, mechanicId: 'none'})
+                            }}
+                            className="w-4 h-4"
+                          />
+                          <span>No mechanic</span>
+                        </div>
+                        {mechanics
+                          .filter(mechanic => 
+                            mechanic && mechanic.id &&
+                            (mechanic.name?.toLowerCase().includes(mechanicSearch.toLowerCase()) ||
+                            mechanic.email?.toLowerCase().includes(mechanicSearch.toLowerCase()))
                           )
-                        }).filter(Boolean)
-                      }
-                      {mechanics.filter(mechanic => 
-                        mechanic.name.toLowerCase().includes(mechanicSearch.toLowerCase()) ||
-                        mechanic.email.toLowerCase().includes(mechanicSearch.toLowerCase())
-                      ).length === 0 && mechanicSearch !== '' && (
-                        <div className="px-3 py-2 text-gray-500">No mechanics found</div>
-                      )}
+                          .map((mechanic) => {
+                            if (!mechanic || !mechanic.id) return null;
+                            const isSelected = selectedMechanics.some(m => m.id === mechanic.id)
+                            return (
+                              <div
+                                key={mechanic.id}
+                                className="px-3 py-2 hover:bg-gray-100 cursor-pointer flex items-center gap-2"
+                                onClick={() => {
+                                  const newSelection = isSelected
+                                    ? selectedMechanics.filter(m => m.id !== mechanic.id)
+                                    : [...selectedMechanics, mechanic]
+                                  setSelectedMechanics(newSelection)
+                                  setFormData({...formData, mechanicId: newSelection.length > 0 ? newSelection[0].id : 'none'})
+                                }}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={isSelected}
+                                  onChange={() => {}}
+                                  className="w-4 h-4"
+                                />
+                                <span>{mechanic.name}</span>
+                              </div>
+                            )
+                          }).filter(Boolean)
+                        }
+                      </div>
+                    )}
+                  </div>
+                  {selectedMechanics.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {selectedMechanics.map(mechanic => (
+                        <div key={mechanic.id} className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs flex items-center gap-1">
+                          <span>{mechanic.name}</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const newSelection = selectedMechanics.filter(m => m.id !== mechanic.id)
+                              setSelectedMechanics(newSelection)
+                              setFormData({...formData, mechanicId: newSelection.length > 0 ? newSelection[0].id : 'none'})
+                            }}
+                            className="text-green-600 hover:text-green-800"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>
