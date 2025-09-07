@@ -43,6 +43,7 @@ interface JobCard {
 }
 
 export default function JobCardsPage() {
+  console.log('JobCardsPage component mounted')
   const [jobCards, setJobCards] = useState<JobCard[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedJobCard, setSelectedJobCard] = useState<JobCard | null>(null)
@@ -50,17 +51,22 @@ export default function JobCardsPage() {
   const [searchTerm, setSearchTerm] = useState('')
 
   useEffect(() => {
+    console.log('JobCardsPage useEffect triggered')
     fetchJobCards()
   }, [])
 
   const fetchJobCards = async () => {
     try {
+      console.log('Fetching job cards...')
       setLoading(true)
       const response = await apiGet('/api/job-cards?limit=100')
+      console.log('Job cards API response:', response.status)
       if (response.ok) {
         const data = await response.json()
+        console.log('Job cards data:', data)
         setJobCards(data.data || [])
       } else {
+        console.error('Job cards API error:', response.status)
         toast.error('Failed to fetch job cards')
       }
     } catch (error) {
