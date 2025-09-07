@@ -41,6 +41,7 @@ model User {
   trailerMaintenanceRecords TrailerMaintenanceRecord[]
   createdTires             Tire[]
   userActivities           UserActivity[]
+  jobCardPrints            JobCardPrint[]
 
   @@map("users")
 }
@@ -215,6 +216,7 @@ model MaintenanceRecord {
   maintenanceJob    MaintenanceJob?   @relation(fields: [maintenanceJobId], references: [id])
   mechanic          Mechanic?         @relation(fields: [mechanicId], references: [id])
   truck             Truck             @relation(fields: [truckId], references: [id], onDelete: Cascade)
+  jobCard           JobCard?
 
   @@map("maintenance_records")
 }
@@ -481,6 +483,62 @@ model EmailLog {
   @@map("email_logs")
 }
 
+model JobCard {
+  id                    String              @id @default(cuid())
+  maintenanceRecordId   String              @unique
+  jobCardNumber         String              @unique
+  qrCode                String?
+  customerSignature     String?
+  mechanicSignature     String?
+  supervisorSignature   String?
+  status                JobCardStatus       @default(DRAFT)
+  templateId            String?
+  customFields          Json?
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+  maintenanceRecord     MaintenanceRecord   @relation(fields: [maintenanceRecordId], references: [id], onDelete: Cascade)
+  template              JobCardTemplate?    @relation(fields: [templateId], references: [id])
+  printLogs             JobCardPrint[]
+
+  @@index([jobCardNumber])
+  @@index([status])
+  @@index([createdAt])
+  @@map("job_cards")
+}
+
+model JobCardTemplate {
+  id          String    @id @default(cuid())
+  name        String
+  description String?
+  layout      Json
+  isDefault   Boolean   @default(false)
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  jobCards    JobCard[]
+
+  @@index([isDefault])
+  @@index([isActive])
+  @@map("job_card_templates")
+}
+
+model JobCardPrint {
+  id          String   @id @default(cuid())
+  jobCardId   String
+  printedBy   String
+  printedAt   DateTime @default(now())
+  printCount  Int      @default(1)
+  ipAddress   String?
+  userAgent   String?
+  jobCard     JobCard  @relation(fields: [jobCardId], references: [id], onDelete: Cascade)
+  user        User     @relation(fields: [printedBy], references: [id])
+
+  @@index([jobCardId])
+  @@index([printedBy])
+  @@index([printedAt])
+  @@map("job_card_prints")
+}
+
 enum RiskLevel {
   LOW
   MEDIUM
@@ -522,4 +580,12 @@ enum TireOrigin {
   EUROPEAN
   AMERICAN
   OTHER
+}
+
+enum JobCardStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  COMPLETED
+  CANCELLED
 }

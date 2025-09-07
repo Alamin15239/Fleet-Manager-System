@@ -20,6 +20,7 @@ import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api'
 import { MaintenanceJobSelector } from '@/components/maintenance-job-selector'
 import { useLanguage } from '@/contexts/language-context'
 import { PageHeader } from '@/components/page-header'
+import { JobCardManager } from '@/components/job-card-manager'
 
 interface MaintenanceJob {
   id: string
@@ -953,81 +954,94 @@ export default function MaintenancePage() {
 
       {/* View Dialog */}
       <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-        <DialogContent className="sm:max-w-[400px] max-h-[90vh]">
+        <DialogContent className="sm:max-w-[800px] max-h-[90vh]">
           <DialogHeader>
             <DialogTitle className="text-lg">Maintenance Details</DialogTitle>
           </DialogHeader>
           {viewingRecord && (
-            <div className="space-y-4 max-h-[70vh] overflow-y-auto px-1">
-              <div className="bg-gray-50 p-3 rounded">
-                <div className="font-medium text-sm">
-                  {viewingRecord.truck 
-                    ? `${viewingRecord.truck.year} ${viewingRecord.truck.make} ${viewingRecord.truck.model}`
-                    : 'Trailer'}
+            <div className="space-y-6 max-h-[70vh] overflow-y-auto px-1">
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <div className="bg-gray-50 p-3 rounded">
+                    <div className="font-medium text-sm">
+                      {viewingRecord.truck 
+                        ? `${viewingRecord.truck.year} ${viewingRecord.truck.make} ${viewingRecord.truck.model}`
+                        : 'Trailer'}
+                    </div>
+                    <div className="text-xs text-gray-600">
+                      {viewingRecord.truck?.licensePlate || 'N/A'}
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label className="text-xs text-gray-500">Service</Label>
+                    <p className="text-sm font-medium truncate" title={viewingRecord.serviceType}>
+                      {viewingRecord.serviceType}
+                    </p>
+                    {viewingRecord.isOilChange && (
+                      <Badge variant="secondary" className="text-xs mt-1">🛢️ Oil Change</Badge>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div>
+                      <Label className="text-xs text-gray-500">Date</Label>
+                      <p>{new Date(viewingRecord.datePerformed).toLocaleDateString()}</p>
+                    </div>
+                    <div>
+                      <Label className="text-xs text-gray-500">Status</Label>
+                      <Badge className={`text-xs ${getStatusColor(viewingRecord.status)}`}>
+                        {viewingRecord.status.replace('_', ' ')}
+                      </Badge>
+                    </div>
+                  </div>
+
+                  {viewingRecord.mechanic && (
+                    <div>
+                      <Label className="text-xs text-gray-500">Mechanic</Label>
+                      <p className="text-sm font-medium">{viewingRecord.mechanic.name}</p>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-3 gap-2 text-sm">
+                    <div>
+                      <Label className="text-xs text-gray-500">Parts</Label>
+                      <p className="font-medium">{formatCurrencyWithSettings(viewingRecord.partsCost)}</p>
+                    </div>
+                    <div>
+                      <Label className="text-xs text-gray-500">Labor</Label>
+                      <p className="font-medium">{formatCurrencyWithSettings(viewingRecord.laborCost)}</p>
+                    </div>
+                    <div>
+                      <Label className="text-xs text-gray-500">Total</Label>
+                      <p className="font-medium text-green-600">{formatCurrencyWithSettings(viewingRecord.totalCost)}</p>
+                    </div>
+                  </div>
+
+                  {viewingRecord.description && (
+                    <div>
+                      <Label className="text-xs text-gray-500">Description</Label>
+                      <p className="text-sm bg-gray-50 p-2 rounded text-wrap break-words">{viewingRecord.description}</p>
+                    </div>
+                  )}
+
+                  {viewingRecord.notes && (
+                    <div>
+                      <Label className="text-xs text-gray-500">Notes</Label>
+                      <p className="text-sm bg-gray-50 p-2 rounded">{viewingRecord.notes}</p>
+                    </div>
+                  )}
                 </div>
-                <div className="text-xs text-gray-600">
-                  {viewingRecord.truck?.licensePlate || 'N/A'}
+                
+                <div>
+                  <JobCardManager 
+                    maintenanceRecordId={viewingRecord.id}
+                    onJobCardCreated={() => {
+                      // Optionally refresh maintenance records or show success message
+                    }}
+                  />
                 </div>
               </div>
-
-              <div>
-                <Label className="text-xs text-gray-500">Service</Label>
-                <p className="text-sm font-medium truncate" title={viewingRecord.serviceType}>
-                  {viewingRecord.serviceType}
-                </p>
-                {viewingRecord.isOilChange && (
-                  <Badge variant="secondary" className="text-xs mt-1">🛢️ Oil Change</Badge>
-                )}
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <div>
-                  <Label className="text-xs text-gray-500">Date</Label>
-                  <p>{new Date(viewingRecord.datePerformed).toLocaleDateString()}</p>
-                </div>
-                <div>
-                  <Label className="text-xs text-gray-500">Status</Label>
-                  <Badge className={`text-xs ${getStatusColor(viewingRecord.status)}`}>
-                    {viewingRecord.status.replace('_', ' ')}
-                  </Badge>
-                </div>
-              </div>
-
-              {viewingRecord.mechanic && (
-                <div>
-                  <Label className="text-xs text-gray-500">Mechanic</Label>
-                  <p className="text-sm font-medium">{viewingRecord.mechanic.name}</p>
-                </div>
-              )}
-
-              <div className="grid grid-cols-3 gap-2 text-sm">
-                <div>
-                  <Label className="text-xs text-gray-500">Parts</Label>
-                  <p className="font-medium">{formatCurrencyWithSettings(viewingRecord.partsCost)}</p>
-                </div>
-                <div>
-                  <Label className="text-xs text-gray-500">Labor</Label>
-                  <p className="font-medium">{formatCurrencyWithSettings(viewingRecord.laborCost)}</p>
-                </div>
-                <div>
-                  <Label className="text-xs text-gray-500">Total</Label>
-                  <p className="font-medium text-green-600">{formatCurrencyWithSettings(viewingRecord.totalCost)}</p>
-                </div>
-              </div>
-
-              {viewingRecord.description && (
-                <div>
-                  <Label className="text-xs text-gray-500">Description</Label>
-                  <p className="text-sm bg-gray-50 p-2 rounded text-wrap break-words">{viewingRecord.description}</p>
-                </div>
-              )}
-
-              {viewingRecord.notes && (
-                <div>
-                  <Label className="text-xs text-gray-500">Notes</Label>
-                  <p className="text-sm bg-gray-50 p-2 rounded">{viewingRecord.notes}</p>
-                </div>
-              )}
             </div>
           )}
           <DialogFooter>
@@ -1106,10 +1120,10 @@ export default function MaintenancePage() {
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-1">
-                        <Button variant="ghost" size="sm" onClick={() => handleView(record)}>
+                        <Button variant="ghost" size="sm" onClick={() => handleView(record)} title="View Details">
                           <Eye className="h-3 w-3" />
                         </Button>
-                        <Button variant="ghost" size="sm" onClick={() => handleEdit(record)}>
+                        <Button variant="ghost" size="sm" onClick={() => handleEdit(record)} title="Edit Record">
                           <Edit className="h-3 w-3" />
                         </Button>
                         <Button 
@@ -1117,6 +1131,7 @@ export default function MaintenancePage() {
                           size="sm" 
                           onClick={() => handleDelete(record.id)}
                           className="text-red-600 hover:text-red-700"
+                          title="Delete Record"
                         >
                           <Trash2 className="h-3 w-3" />
                         </Button>
