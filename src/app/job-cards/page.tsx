@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -46,6 +47,7 @@ interface JobCard {
 }
 
 export default function JobCardsPage() {
+  const router = useRouter()
   const [jobCards, setJobCards] = useState<JobCard[]>([])
   const [filteredJobCards, setFilteredJobCards] = useState<JobCard[]>([])
   const [loading, setLoading] = useState(true)
@@ -53,6 +55,7 @@ export default function JobCardsPage() {
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     fetchJobCards()
@@ -65,15 +68,22 @@ export default function JobCardsPage() {
   const fetchJobCards = async () => {
     try {
       setLoading(true)
+      setError(null)
+      console.log('Fetching job cards...')
       const response = await apiGet('/api/job-cards?limit=100')
       if (response.ok) {
         const data = await response.json()
         setJobCards(data.data || [])
+        console.log('Job cards fetched:', data.data?.length || 0)
       } else {
+        const errorText = await response.text()
+        console.error('API Error:', response.status, errorText)
+        setError(`Failed to fetch job cards: ${response.status}`)
         toast.error('Failed to fetch job cards')
       }
     } catch (error) {
       console.error('Error fetching job cards:', error)
+      setError('Network error while fetching job cards')
       toast.error('Failed to fetch job cards')
     } finally {
       setLoading(false)
@@ -144,6 +154,23 @@ export default function JobCardsPage() {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900"></div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="container mx-auto p-6">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-red-600 mb-4">Error Loading Job Cards</h1>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+          >
+            Retry
+          </button>
+        </div>
       </div>
     )
   }
