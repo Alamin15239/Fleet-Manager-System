@@ -404,39 +404,64 @@ export default function MaintenancePage() {
   }
 
   const handleEdit = (record: MaintenanceRecord) => {
-    if (!record || !record.id) return;
-    
-    setEditingRecord(record)
-    setSelectedJob(record.maintenanceJob || null)
-    
-    const selectedVehicle = Array.isArray(vehicles) ? vehicles.find(v => v && v.id && v.id === record.truckId) : null
-    const selectedMechanic = Array.isArray(mechanics) ? mechanics.find(m => m && m.id && m.id === record.mechanicId) : null
-    
-    setVehicleSearch(selectedVehicle ? `${selectedVehicle.displayName || ''} - ${selectedVehicle.identifier || ''}` : '')
-    setMechanicSearch(selectedMechanic ? `${selectedMechanic.name || ''} - ${selectedMechanic.email || ''}` : record.mechanicId === 'none' ? 'No mechanic' : '')
-    
-    const driverName = selectedVehicle?.type === 'truck' 
-      ? (Array.isArray(trucks) ? trucks.find(t => t && t.id && t.id === selectedVehicle.id)?.driverName || '' : '')
-      : (Array.isArray(trailers) ? trailers.find(t => t && t.id && t.id === selectedVehicle.id)?.driverName || '' : '')
-    
-    setFormData({
-      truckId: record.truckId || '',
-      serviceType: record.serviceType || '',
-      description: record.description || '',
-      datePerformed: record.datePerformed || new Date().toISOString().split('T')[0],
-      partsCost: typeof record.partsCost === 'number' ? record.partsCost : 0,
-      laborCost: typeof record.laborCost === 'number' ? record.laborCost : 0,
-      mechanicId: record.mechanicId || 'none',
-      nextServiceDue: record.nextServiceDue || '',
-      status: record.status || 'SCHEDULED',
-      notes: record.notes || '',
-      isOilChange: record.isOilChange || false,
-      oilChangeInterval: record.oilChangeInterval || 5000,
-      currentMileage: record.currentMileage || 0,
-      maintenanceJobId: record.maintenanceJobId || '',
-      driverName
-    })
-    setIsDialogOpen(true)
+    try {
+      if (!record || !record.id) return;
+      
+      setEditingRecord(record)
+      setSelectedJob(record.maintenanceJob || null)
+      
+      let selectedVehicle = null
+      let selectedMechanic = null
+      let driverName = ''
+      
+      try {
+        selectedVehicle = vehicles?.find?.(v => v?.id === record.truckId) || null
+      } catch (e) {
+        console.error('Error finding vehicle:', e)
+      }
+      
+      try {
+        selectedMechanic = mechanics?.find?.(m => m?.id === record.mechanicId) || null
+      } catch (e) {
+        console.error('Error finding mechanic:', e)
+      }
+      
+      try {
+        if (selectedVehicle?.type === 'truck') {
+          driverName = trucks?.find?.(t => t?.id === selectedVehicle?.id)?.driverName || ''
+        } else {
+          driverName = trailers?.find?.(t => t?.id === selectedVehicle?.id)?.driverName || ''
+        }
+      } catch (e) {
+        console.error('Error finding driver:', e)
+        driverName = ''
+      }
+      
+      setVehicleSearch(selectedVehicle ? `${selectedVehicle.displayName || ''} - ${selectedVehicle.identifier || ''}` : '')
+      setMechanicSearch(selectedMechanic ? `${selectedMechanic.name || ''} - ${selectedMechanic.email || ''}` : record.mechanicId === 'none' ? 'No mechanic' : '')
+      
+      setFormData({
+        truckId: record.truckId || '',
+        serviceType: record.serviceType || '',
+        description: record.description || '',
+        datePerformed: record.datePerformed || new Date().toISOString().split('T')[0],
+        partsCost: typeof record.partsCost === 'number' ? record.partsCost : 0,
+        laborCost: typeof record.laborCost === 'number' ? record.laborCost : 0,
+        mechanicId: record.mechanicId || 'none',
+        nextServiceDue: record.nextServiceDue || '',
+        status: record.status || 'SCHEDULED',
+        notes: record.notes || '',
+        isOilChange: record.isOilChange || false,
+        oilChangeInterval: record.oilChangeInterval || 5000,
+        currentMileage: record.currentMileage || 0,
+        maintenanceJobId: record.maintenanceJobId || '',
+        driverName
+      })
+      setIsDialogOpen(true)
+    } catch (error) {
+      console.error('Error in handleEdit:', error)
+      toast.error('Error opening edit dialog')
+    }
   }
 
   const handleJobSelect = (job: MaintenanceJob) => {
