@@ -1128,7 +1128,9 @@ export default function MaintenancePage() {
                               : 'Vehicle'}
                         </div>
                         <div className="text-xs text-gray-500">
-                          {record.truck?.licensePlate || record.trailer?.driverName || 'N/A'}
+                          {record.truck 
+                            ? `${record.truck.licensePlate}${record.driverName ? ` - ${record.driverName}` : ''}` 
+                            : record.trailer?.driverName || 'N/A'}
                         </div>
                       </div>
                     </TableCell>
