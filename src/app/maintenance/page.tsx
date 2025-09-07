@@ -168,13 +168,13 @@ export default function MaintenancePage() {
 
   useEffect(() => {
     const combinedVehicles: Vehicle[] = [
-      ...trucks.map(truck => ({
+      ...trucks.filter(truck => truck && truck.id).map(truck => ({
         id: truck.id,
         type: 'truck' as const,
         displayName: `${truck.year} ${truck.make} ${truck.model}`,
         identifier: truck.licensePlate
       })),
-      ...trailers.map(trailer => ({
+      ...trailers.filter(trailer => trailer && trailer.id).map(trailer => ({
         id: trailer.id,
         type: 'trailer' as const,
         displayName: `Trailer ${trailer.number}`,
