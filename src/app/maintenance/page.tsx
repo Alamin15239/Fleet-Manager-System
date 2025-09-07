@@ -407,8 +407,8 @@ export default function MaintenancePage() {
     setEditingRecord(record)
     setSelectedJob(record.maintenanceJob || null)
     
-    const selectedVehicle = vehicles.find(v => v.id === record.truckId)
-    const selectedMechanic = mechanics.find(m => m.id === record.mechanicId)
+    const selectedVehicle = vehicles.find(v => v && v.id === record.truckId)
+    const selectedMechanic = mechanics.find(m => m && m.id === record.mechanicId)
     
     setVehicleSearch(selectedVehicle ? `${selectedVehicle.displayName} - ${selectedVehicle.identifier}` : '')
     setMechanicSearch(selectedMechanic ? `${selectedMechanic.name} - ${selectedMechanic.email}` : record.mechanicId === 'none' ? 'No mechanic' : '')
@@ -429,8 +429,8 @@ export default function MaintenancePage() {
       currentMileage: record.currentMileage || 0,
       maintenanceJobId: record.maintenanceJobId || '',
       driverName: selectedVehicle?.type === 'truck' 
-        ? trucks.find(t => t.id === selectedVehicle.id)?.driverName || ''
-        : trailers.find(t => t.id === selectedVehicle.id)?.driverName || ''
+        ? trucks.find(t => t && t.id === selectedVehicle.id)?.driverName || ''
+        : trailers.find(t => t && t.id === selectedVehicle.id)?.driverName || ''
     })
     setIsDialogOpen(true)
   }
