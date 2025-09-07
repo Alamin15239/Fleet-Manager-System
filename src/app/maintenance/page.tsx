@@ -1046,109 +1046,78 @@ export default function MaintenancePage() {
       {/* Maintenance Records Table */}
       <Card>
         <CardHeader>
-          <CardTitle>{t('maintenance.maintenanceRecords')}</CardTitle>
+          <CardTitle>Maintenance Records</CardTitle>
           <CardDescription>
-            {t('maintenance.showingRecords').replace('{count}', maintenanceRecords.length.toString())}
+            Showing {maintenanceRecords.length} maintenance records
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="rounded-md border">
+          <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>{t('table.date')}</TableHead>
-                  <TableHead>{t('table.serviceType')}</TableHead>
-                  <TableHead>{t('table.category')}</TableHead>
-                  <TableHead>{t('table.truck')}</TableHead>
-                  <TableHead>{t('table.mechanic')}</TableHead>
-                  <TableHead>{t('table.cost')}</TableHead>
-                  <TableHead>{t('table.status')}</TableHead>
-                  <TableHead className="text-right">{t('table.actions')}</TableHead>
+                  <TableHead className="w-24">Date</TableHead>
+                  <TableHead className="w-48">Service</TableHead>
+                  <TableHead className="w-32">Vehicle</TableHead>
+                  <TableHead className="w-24">Mechanic</TableHead>
+                  <TableHead className="w-20">Cost</TableHead>
+                  <TableHead className="w-20">Status</TableHead>
+                  <TableHead className="w-24">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {maintenanceRecords.map((record) => (
                   <TableRow key={record.id}>
-                    <TableCell>
-                      <div>
-                        <div className="font-medium">{format(new Date(record.datePerformed), 'MMM dd, yyyy')}</div>
-                        {record.nextServiceDue && (
-                          <div className="text-sm text-muted-foreground">
-                            {t('maintenance.nextService')}: {format(new Date(record.nextServiceDue), 'MMM dd, yyyy')}
-                          </div>
-                        )}
-                      </div>
+                    <TableCell className="text-sm">
+                      {format(new Date(record.datePerformed), 'MMM dd')}
                     </TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium">{record.serviceType}</span>
+                      <div className="max-w-48">
+                        <div className="font-medium text-sm truncate">{record.serviceType}</div>
                         {record.isOilChange && (
-                          <Badge variant="secondary" className="text-xs">
-                            🛢️ {t('maintenance.oilChange')}
-                          </Badge>
+                          <span className="text-xs text-blue-600">🛢️ Oil Change</span>
+                        )}
+                        {record.maintenanceJob && (
+                          <div className="text-xs text-gray-500 truncate">{record.maintenanceJob.category}</div>
                         )}
                       </div>
-                      {record.description && (
-                        <div className="text-sm text-muted-foreground">
-                          {record.description}
+                    </TableCell>
+                    <TableCell>
+                      <div className="text-sm">
+                        <div className="font-medium truncate">
+                          {record.truck ? `${record.truck.year} ${record.truck.make}` : 'Trailer'}
                         </div>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {record.maintenanceJob && (
-                        <Badge className={getCategoryColor(record.maintenanceJob.category)}>
-                          {record.maintenanceJob.category}
-                        </Badge>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <div>
-                        <div className="font-medium">{record.truck?.year} {record.truck?.make} {record.truck?.model}</div>
-                        <div className="text-sm text-muted-foreground">
-                          {record.truck?.licensePlate}
+                        <div className="text-xs text-gray-500">
+                          {record.truck?.licensePlate || 'N/A'}
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell>
-                      {record.mechanic ? (
-                        <div>
-                          <div className="font-medium">{record.mechanic.name}</div>
-                          <div className="text-sm text-muted-foreground">
-                            {record.mechanic.email}
-                          </div>
-                        </div>
-                      ) : (
-                        <span className="text-muted-foreground">{t('maintenance.noMechanic')}</span>
-                      )}
+                    <TableCell className="text-sm">
+                      {record.mechanic?.name || 'None'}
+                    </TableCell>
+                    <TableCell className="text-sm font-medium">
+                      {formatCurrencyWithSettings(record.totalCost)}
                     </TableCell>
                     <TableCell>
-                      <div>
-                        <div className="font-medium">{formatCurrencyWithSettings(record.totalCost)}</div>
-                        <div className="text-sm text-muted-foreground">
-                          {t('maintenance.partsCost')}: {formatCurrencyWithSettings(record.partsCost)} • {t('maintenance.laborCost')}: {formatCurrencyWithSettings(record.laborCost)}
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge className={getStatusColor(record.status)}>
-                        {record.status}
+                      <Badge className={`text-xs ${getStatusColor(record.status)}`}>
+                        {record.status === 'IN_PROGRESS' ? 'IN PROGRESS' : record.status}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button variant="outline" size="sm" onClick={() => handleView(record)}>
-                          <Eye className="h-4 w-4" />
+                    <TableCell>
+                      <div className="flex gap-1">
+                        <Button variant="ghost" size="sm" onClick={() => handleView(record)}>
+                          <Eye className="h-3 w-3" />
                         </Button>
-                        <Button variant="outline" size="sm" onClick={() => handleEdit(record)}>
-                          <Edit className="h-4 w-4" />
+                        <Button variant="ghost" size="sm" onClick={() => handleEdit(record)}>
+                          <Edit className="h-3 w-3" />
                         </Button>
                         <Button 
-                          variant="outline" 
+                          variant="ghost" 
                           size="sm" 
                           onClick={() => handleDelete(record.id)}
                           className="text-red-600 hover:text-red-700"
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Trash2 className="h-3 w-3" />
                         </Button>
                       </div>
                     </TableCell>
