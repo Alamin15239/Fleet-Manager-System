@@ -543,9 +543,10 @@ export default function MaintenancePage() {
                     <div className="absolute z-50 w-full mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-auto">
                       {vehicleSearch === '' ? (
                         vehicles.map((vehicle) => {
+                          if (!vehicle || !vehicle.id) return null;
                           const driverInfo = vehicle.type === 'truck' 
-                            ? trucks.find(t => t.id === vehicle.id)?.driverName
-                            : trailers.find(t => t.id === vehicle.id)?.driverName
+                            ? trucks.find(t => t && t.id === vehicle.id)?.driverName
+                            : trailers.find(t => t && t.id === vehicle.id)?.driverName
                           return (
                             <div
                               key={vehicle.id}
@@ -560,17 +561,19 @@ export default function MaintenancePage() {
                               {driverInfo && <span className="text-gray-500 ml-2">({driverInfo})</span>}
                             </div>
                           )
-                        })
+                        }).filter(Boolean)
                       ) : (
                         vehicles
                           .filter(vehicle => 
-                            vehicle.displayName.toLowerCase().includes(vehicleSearch.toLowerCase()) ||
-                            vehicle.identifier.toLowerCase().includes(vehicleSearch.toLowerCase())
+                            vehicle && vehicle.id &&
+                            (vehicle.displayName?.toLowerCase().includes(vehicleSearch.toLowerCase()) ||
+                            vehicle.identifier?.toLowerCase().includes(vehicleSearch.toLowerCase()))
                           )
                           .map((vehicle) => {
+                            if (!vehicle || !vehicle.id) return null;
                             const driverInfo = vehicle.type === 'truck' 
-                              ? trucks.find(t => t.id === vehicle.id)?.driverName
-                              : trailers.find(t => t.id === vehicle.id)?.driverName
+                              ? trucks.find(t => t && t.id === vehicle.id)?.driverName
+                              : trailers.find(t => t && t.id === vehicle.id)?.driverName
                             return (
                               <div
                                 key={vehicle.id}
@@ -585,7 +588,7 @@ export default function MaintenancePage() {
                                 {driverInfo && <span className="text-gray-500 ml-2">({driverInfo})</span>}
                               </div>
                             )
-                          })
+                          }).filter(Boolean)
                       )}
                       {vehicleSearch !== '' && vehicles.filter(vehicle => 
                         vehicle.displayName.toLowerCase().includes(vehicleSearch.toLowerCase()) ||
@@ -726,22 +729,26 @@ export default function MaintenancePage() {
                       </div>
                       {mechanics
                         .filter(mechanic => 
-                          mechanic.name.toLowerCase().includes(mechanicSearch.toLowerCase()) ||
-                          mechanic.email.toLowerCase().includes(mechanicSearch.toLowerCase())
+                          mechanic && mechanic.id &&
+                          (mechanic.name?.toLowerCase().includes(mechanicSearch.toLowerCase()) ||
+                          mechanic.email?.toLowerCase().includes(mechanicSearch.toLowerCase()))
                         )
-                        .map((mechanic) => (
-                          <div
-                            key={mechanic.id}
-                            className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
-                            onClick={() => {
-                              setFormData({...formData, mechanicId: mechanic.id})
-                              setMechanicSearch(`${mechanic.name} - ${mechanic.email}`)
-                              setShowMechanicDropdown(false)
-                            }}
-                          >
-                            {mechanic.name} - {mechanic.email}
-                          </div>
-                        ))
+                        .map((mechanic) => {
+                          if (!mechanic || !mechanic.id) return null;
+                          return (
+                            <div
+                              key={mechanic.id}
+                              className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                              onClick={() => {
+                                setFormData({...formData, mechanicId: mechanic.id})
+                                setMechanicSearch(`${mechanic.name} - ${mechanic.email}`)
+                                setShowMechanicDropdown(false)
+                              }}
+                            >
+                              {mechanic.name} - {mechanic.email}
+                            </div>
+                          )
+                        }).filter(Boolean)
                       }
                       {mechanics.filter(mechanic => 
                         mechanic.name.toLowerCase().includes(mechanicSearch.toLowerCase()) ||
