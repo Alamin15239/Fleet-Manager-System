@@ -404,33 +404,37 @@ export default function MaintenancePage() {
   }
 
   const handleEdit = (record: MaintenanceRecord) => {
+    if (!record || !record.id) return;
+    
     setEditingRecord(record)
     setSelectedJob(record.maintenanceJob || null)
     
-    const selectedVehicle = vehicles.find(v => v && v.id === record.truckId)
-    const selectedMechanic = mechanics.find(m => m && m.id === record.mechanicId)
+    const selectedVehicle = Array.isArray(vehicles) ? vehicles.find(v => v && v.id && v.id === record.truckId) : null
+    const selectedMechanic = Array.isArray(mechanics) ? mechanics.find(m => m && m.id && m.id === record.mechanicId) : null
     
-    setVehicleSearch(selectedVehicle ? `${selectedVehicle.displayName} - ${selectedVehicle.identifier}` : '')
-    setMechanicSearch(selectedMechanic ? `${selectedMechanic.name} - ${selectedMechanic.email}` : record.mechanicId === 'none' ? 'No mechanic' : '')
+    setVehicleSearch(selectedVehicle ? `${selectedVehicle.displayName || ''} - ${selectedVehicle.identifier || ''}` : '')
+    setMechanicSearch(selectedMechanic ? `${selectedMechanic.name || ''} - ${selectedMechanic.email || ''}` : record.mechanicId === 'none' ? 'No mechanic' : '')
+    
+    const driverName = selectedVehicle?.type === 'truck' 
+      ? (Array.isArray(trucks) ? trucks.find(t => t && t.id && t.id === selectedVehicle.id)?.driverName || '' : '')
+      : (Array.isArray(trailers) ? trailers.find(t => t && t.id && t.id === selectedVehicle.id)?.driverName || '' : '')
     
     setFormData({
-      truckId: record.truckId,
-      serviceType: record.serviceType,
+      truckId: record.truckId || '',
+      serviceType: record.serviceType || '',
       description: record.description || '',
-      datePerformed: record.datePerformed,
+      datePerformed: record.datePerformed || new Date().toISOString().split('T')[0],
       partsCost: typeof record.partsCost === 'number' ? record.partsCost : 0,
       laborCost: typeof record.laborCost === 'number' ? record.laborCost : 0,
       mechanicId: record.mechanicId || 'none',
       nextServiceDue: record.nextServiceDue || '',
-      status: record.status,
+      status: record.status || 'SCHEDULED',
       notes: record.notes || '',
       isOilChange: record.isOilChange || false,
       oilChangeInterval: record.oilChangeInterval || 5000,
       currentMileage: record.currentMileage || 0,
       maintenanceJobId: record.maintenanceJobId || '',
-      driverName: selectedVehicle?.type === 'truck' 
-        ? trucks.find(t => t && t.id === selectedVehicle.id)?.driverName || ''
-        : trailers.find(t => t && t.id === selectedVehicle.id)?.driverName || ''
+      driverName
     })
     setIsDialogOpen(true)
   }
