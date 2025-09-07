@@ -23,6 +23,7 @@ import {
   Zap,
   User,
   Shield,
+  ClipboardList,
 
 } from 'lucide-react'
 import { useLanguage } from '@/contexts/language-context'
@@ -54,7 +55,7 @@ const getNavigation = (t: (key: string) => string, language: string) => [
   { 
     name: 'Job Cards', 
     href: '/job-cards', 
-    icon: FileText,
+    icon: ClipboardList,
     resource: 'job-cards',
     action: 'read'
   },
