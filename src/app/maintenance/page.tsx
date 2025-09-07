@@ -553,21 +553,18 @@ export default function MaintenancePage() {
               {t('maintenance.addRecord')}
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[600px]">
+          <DialogContent className="sm:max-w-[500px] max-h-[90vh]">
             <DialogHeader>
-              <DialogTitle>
-                {editingRecord ? t('maintenance.editMaintenance') : t('maintenance.addMaintenance')}
+              <DialogTitle className="text-lg">
+                {editingRecord ? 'Edit Maintenance' : 'Add Maintenance'}
               </DialogTitle>
-              <DialogDescription>
-                {editingRecord ? t('maintenance.updateDetails') : t('maintenance.mechanicDetails')}
-              </DialogDescription>
             </DialogHeader>
-            <form onSubmit={handleSubmit} className="grid gap-4 py-4 max-h-[60vh] overflow-y-auto">
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="vehicleId" className="text-right">
+            <form onSubmit={handleSubmit} className="space-y-3 max-h-[70vh] overflow-y-auto px-1">
+              <div className="space-y-2">
+                <Label htmlFor="vehicleId" className="text-sm font-medium">
                   Vehicle
                 </Label>
-                <div className="col-span-3 relative" ref={vehicleDropdownRef}>
+                <div className="relative" ref={vehicleDropdownRef}>
                   <Input
                     placeholder="Search vehicles..."
                     value={vehicleSearch}
@@ -640,11 +637,11 @@ export default function MaintenancePage() {
                 </div>
               </div>
               
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label className="text-right">
-                  {t('maintenance.serviceType')}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">
+                  Service Type
                 </Label>
-                <div className="col-span-3 space-y-2">
+                <div className="space-y-2">
                   <MaintenanceJobSelector
                     onSelectJobs={handleJobsSelect}
                     selectedJobs={selectedJobs}
@@ -668,86 +665,78 @@ export default function MaintenancePage() {
                 </div>
               </div>
               
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="isOilChange" className="text-right">
-                  {t('maintenance.oilChangeService')}
-                </Label>
-                <div className="flex items-center space-x-2 col-span-3">
-                  <input
-                    type="checkbox"
-                    id="isOilChange"
-                    checked={formData.isOilChange}
-                    onChange={(e) => setFormData({...formData, isOilChange: e.target.checked})}
-                    className="rounded"
-                  />
-                  <Label htmlFor="isOilChange">{t('maintenance.isOilChange')}</Label>
-                </div>
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="isOilChange"
+                  checked={formData.isOilChange}
+                  onChange={(e) => setFormData({...formData, isOilChange: e.target.checked})}
+                  className="w-4 h-4"
+                />
+                <Label htmlFor="isOilChange" className="text-sm">Oil Change Service</Label>
               </div>
               
               {formData.isOilChange && (
-                <>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="oilChangeInterval" className="text-right">
-                      {t('maintenance.oilChangeInterval')}
-                    </Label>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-sm font-medium">Interval (km)</Label>
                     <Input
-                      id="oilChangeInterval"
                       type="number"
                       value={formData.oilChangeInterval}
                       onChange={(e) => setFormData({...formData, oilChangeInterval: parseInt(e.target.value) || 5000})}
-                      className="col-span-3"
                       step="1000"
+                      className="mt-1"
                     />
                   </div>
-                  
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="currentMileage" className="text-right">
-                      {t('maintenance.currentMileage')}
-                    </Label>
+                  <div>
+                    <Label className="text-sm font-medium">Current Mileage</Label>
                     <Input
-                      id="currentMileage"
                       type="number"
                       value={formData.currentMileage}
                       onChange={(e) => setFormData({...formData, currentMileage: parseInt(e.target.value) || 0})}
-                      className="col-span-3"
+                      className="mt-1"
                     />
                   </div>
-                </>
+                </div>
               )}
               
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="description" className="text-right">
-                  {t('form.description')}
-                </Label>
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Description</Label>
                 <Textarea
-                  id="description"
                   value={formData.description}
                   onChange={(e) => setFormData({...formData, description: e.target.value})}
-                  className="col-span-3"
                   rows={2}
+                  className="resize-none"
                 />
               </div>
               
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="datePerformed" className="text-right">
-                  {t('maintenance.datePerformed')}
-                </Label>
-                <Input
-                  id="datePerformed"
-                  type="date"
-                  value={formData.datePerformed}
-                  onChange={(e) => setFormData({...formData, datePerformed: e.target.value})}
-                  className="col-span-3"
-                  required
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-sm font-medium">Date Performed</Label>
+                  <Input
+                    type="date"
+                    value={formData.datePerformed}
+                    onChange={(e) => setFormData({...formData, datePerformed: e.target.value})}
+                    required
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label className="text-sm font-medium">Next Service Due</Label>
+                  <Input
+                    type="date"
+                    value={formData.nextServiceDue}
+                    onChange={(e) => setFormData({...formData, nextServiceDue: e.target.value})}
+                    className="mt-1"
+                  />
+                </div>
               </div>
               
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="mechanicId" className="text-right">
-                  {t('maintenance.mechanic')}
-                </Label>
-                <div className="col-span-3 space-y-2">
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Mechanic</Label>
+                <div className="space-y-2">
                   <div className="relative" ref={mechanicDropdownRef}>
+
                     <Input
                       placeholder="Search mechanics..."
                       value={mechanicSearch}
@@ -827,94 +816,59 @@ export default function MaintenancePage() {
                 </div>
               </div>
               
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="partsCost" className="text-right">
-                  {t('maintenance.partsCost')}
-                </Label>
-                <div className="col-span-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-sm font-medium">Parts Cost</Label>
                   <CurrencyInput
-                    id="partsCost"
                     value={formData.partsCost}
-                    onChange={(value) => {
-                      console.log('Parts cost changed:', { value, formData: formData.partsCost })
-                      setFormData({...formData, partsCost: value})
-                    }}
+                    onChange={(value) => setFormData({...formData, partsCost: value})}
                     placeholder="0.00"
+                    className="mt-1"
                   />
                 </div>
-              </div>
-              
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="laborCost" className="text-right">
-                  {t('maintenance.laborCost')}
-                </Label>
-                <div className="col-span-3">
+                <div>
+                  <Label className="text-sm font-medium">Labor Cost</Label>
                   <CurrencyInput
-                    id="laborCost"
                     value={formData.laborCost}
-                    onChange={(value) => {
-                      console.log('Labor cost changed:', { value, formData: formData.laborCost })
-                      setFormData({...formData, laborCost: value})
-                    }}
+                    onChange={(value) => setFormData({...formData, laborCost: value})}
                     placeholder="0.00"
+                    className="mt-1"
                   />
                 </div>
               </div>
               
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="nextServiceDue" className="text-right">
-                  {t('maintenance.nextServiceDue')}
-                </Label>
-                <Input
-                  id="nextServiceDue"
-                  type="date"
-                  value={formData.nextServiceDue}
-                  onChange={(e) => setFormData({...formData, nextServiceDue: e.target.value})}
-                  className="col-span-3"
-                />
-              </div>
-              
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="status" className="text-right">
-                  {t('table.status')}
-                </Label>
+              <div>
+                <Label className="text-sm font-medium">Status</Label>
                 <Select value={formData.status} onValueChange={(value) => setFormData({...formData, status: value as any})}>
-                  <SelectTrigger className="col-span-3">
-                    <SelectValue placeholder={t('placeholder.selectStatus')} />
+                  <SelectTrigger className="mt-1">
+                    <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="SCHEDULED">{t('status.scheduled')}</SelectItem>
-                    <SelectItem value="IN_PROGRESS">{t('status.inProgress')}</SelectItem>
-                    <SelectItem value="COMPLETED">{t('status.completed')}</SelectItem>
-                    <SelectItem value="CANCELLED">{t('status.cancelled')}</SelectItem>
+                    <SelectItem value="SCHEDULED">Scheduled</SelectItem>
+                    <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
+                    <SelectItem value="COMPLETED">Completed</SelectItem>
+                    <SelectItem value="CANCELLED">Cancelled</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="driverName" className="text-right">
-                  Driver Name
-                </Label>
+              <div>
+                <Label className="text-sm font-medium">Driver Name</Label>
                 <Input
-                  id="driverName"
                   value={formData.driverName}
-                  onChange={(e) => setFormData({...formData, driverName: e.target.value})}
-                  placeholder="Driver name (auto-filled from vehicle)"
-                  className="col-span-3"
+                  placeholder="Auto-filled from vehicle"
                   readOnly
+                  className="mt-1 bg-gray-50"
                 />
               </div>
               
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="notes" className="text-right">
-                  {t('form.notes')}
-                </Label>
+              <div>
+                <Label className="text-sm font-medium">Notes</Label>
                 <Textarea
-                  id="notes"
                   value={formData.notes}
                   onChange={(e) => setFormData({...formData, notes: e.target.value})}
-                  className="col-span-3"
-                  rows={3}
+                  rows={2}
+                  className="mt-1 resize-none"
                 />
               </div>
               
