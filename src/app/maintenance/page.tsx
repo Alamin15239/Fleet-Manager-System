@@ -115,7 +115,7 @@ export default function MaintenancePage() {
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false)
   const [editingRecord, setEditingRecord] = useState<MaintenanceRecord | null>(null)
   const [viewingRecord, setViewingRecord] = useState<MaintenanceRecord | null>(null)
-  const [selectedJob, setSelectedJob] = useState<MaintenanceJob | null>(null)
+  const [selectedJobs, setSelectedJobs] = useState<MaintenanceJob[]>([])
   
   const [formData, setFormData] = useState({
     truckId: '',
@@ -408,7 +408,7 @@ export default function MaintenancePage() {
       if (!record || !record.id) return;
       
       setEditingRecord(record)
-      setSelectedJob(record.maintenanceJob || null)
+      setSelectedJobs(record.maintenanceJob ? [record.maintenanceJob] : [])
       
       let selectedVehicle = null
       let selectedMechanic = null
@@ -464,14 +464,18 @@ export default function MaintenancePage() {
     }
   }
 
-  const handleJobSelect = (job: MaintenanceJob) => {
-    setSelectedJob(job)
-    setFormData({
-      ...formData,
-      serviceType: job.name,
-      description: job.parts || '',
-      maintenanceJobId: job.id
-    })
+  const handleJobsSelect = (jobs: MaintenanceJob[]) => {
+    setSelectedJobs(jobs)
+    if (jobs.length > 0) {
+      const combinedNames = jobs.map(j => j.name).join(', ')
+      const combinedParts = jobs.map(j => j.parts).filter(Boolean).join(', ')
+      setFormData({
+        ...formData,
+        serviceType: combinedNames,
+        description: combinedParts,
+        maintenanceJobId: jobs[0].id // Store first job ID for compatibility
+      })
+    }
   }
 
   const handleView = (record: MaintenanceRecord) => {
@@ -482,7 +486,7 @@ export default function MaintenancePage() {
   const resetForm = () => {
     setEditingRecord(null)
     setViewingRecord(null)
-    setSelectedJob(null)
+    setSelectedJobs([])
     setVehicleSearch('')
     setMechanicSearch('')
     setShowVehicleDropdown(false)
@@ -639,12 +643,15 @@ export default function MaintenancePage() {
                 </Label>
                 <div className="col-span-3 space-y-2">
                   <MaintenanceJobSelector
-                    onSelectJob={handleJobSelect}
-                    selectedJob={selectedJob}
+                    onSelectJobs={handleJobsSelect}
+                    selectedJobs={selectedJobs}
+                    multiple={true}
                   >
                     <Button variant="outline" className="w-full justify-start">
                       <BookOpen className="h-4 w-4 mr-2" />
-                      {selectedJob ? selectedJob.name : t('maintenance.selectJob')}
+                      {selectedJobs.length > 0 
+                        ? `${selectedJobs.length} job${selectedJobs.length > 1 ? 's' : ''} selected`
+                        : t('maintenance.selectJob')}
                     </Button>
                   </MaintenanceJobSelector>
                   <Input

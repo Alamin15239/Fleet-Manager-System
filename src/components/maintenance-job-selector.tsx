@@ -20,12 +20,13 @@ interface MaintenanceJob {
 }
 
 interface MaintenanceJobSelectorProps {
-  onSelectJob: (job: MaintenanceJob) => void
-  selectedJob?: MaintenanceJob | null
+  onSelectJobs: (jobs: MaintenanceJob[]) => void
+  selectedJobs?: MaintenanceJob[]
   children: React.ReactNode
+  multiple?: boolean
 }
 
-export function MaintenanceJobSelector({ onSelectJob, selectedJob, children }: MaintenanceJobSelectorProps) {
+export function MaintenanceJobSelector({ onSelectJobs, selectedJobs = [], children, multiple = false }: MaintenanceJobSelectorProps) {
   const [jobs, setJobs] = useState<MaintenanceJob[]>([])
   const [filteredJobs, setFilteredJobs] = useState<MaintenanceJob[]>([])
   const [loading, setLoading] = useState(true)
@@ -78,7 +79,21 @@ export function MaintenanceJobSelector({ onSelectJob, selectedJob, children }: M
   const categories = Array.from(new Set(jobs.map(job => job.category))).sort()
 
   const handleSelectJob = (job: MaintenanceJob) => {
-    onSelectJob(job)
+    if (multiple) {
+      const isSelected = selectedJobs.some(j => j.id === job.id)
+      const newSelection = isSelected 
+        ? selectedJobs.filter(j => j.id !== job.id)
+        : [...selectedJobs, job]
+      onSelectJobs(newSelection)
+    } else {
+      onSelectJobs([job])
+      setIsDialogOpen(false)
+      setSearchTerm('')
+      setCategoryFilter('all')
+    }
+  }
+  
+  const handleConfirmSelection = () => {
     setIsDialogOpen(false)
     setSearchTerm('')
     setCategoryFilter('all')
@@ -210,14 +225,23 @@ export function MaintenanceJobSelector({ onSelectJob, selectedJob, children }: M
                         {job.notes || '-'}
                       </TableCell>
                       <TableCell>
-                        <Button
-                          size="sm"
-                          onClick={() => handleSelectJob(job)}
-                          className="w-full"
-                        >
-                          <Plus className="h-4 w-4 mr-1" />
-                          Select
-                        </Button>
+                        {multiple ? (
+                          <input
+                            type="checkbox"
+                            checked={selectedJobs.some(j => j.id === job.id)}
+                            onChange={() => handleSelectJob(job)}
+                            className="w-4 h-4"
+                          />
+                        ) : (
+                          <Button
+                            size="sm"
+                            onClick={() => handleSelectJob(job)}
+                            className="w-full"
+                          >
+                            <Plus className="h-4 w-4 mr-1" />
+                            Select
+                          </Button>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))
@@ -226,34 +250,41 @@ export function MaintenanceJobSelector({ onSelectJob, selectedJob, children }: M
             </Table>
           </div>
 
-          {/* Selected Job Info */}
-          {selectedJob && (
+          {/* Selected Jobs Info */}
+          {selectedJobs.length > 0 && (
             <div className="border-t pt-4">
               <div className="bg-blue-50 p-4 rounded-lg">
-                <h4 className="font-medium text-blue-900 mb-2">Currently Selected Job</h4>
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <span className="font-medium text-blue-700">Name:</span>
-                    <span className="ml-2 text-blue-900">{selectedJob.name}</span>
-                  </div>
-                  <div>
-                    <span className="font-medium text-blue-700">Category:</span>
-                    <Badge className={`ml-2 ${getCategoryColor(selectedJob.category)}`}>
-                      {selectedJob.category}
-                    </Badge>
-                  </div>
-                  {selectedJob.parts && (
-                    <div className="col-span-2">
-                      <span className="font-medium text-blue-700">Common Parts:</span>
-                      <span className="ml-2 text-blue-900">{selectedJob.parts}</span>
-                    </div>
+                <div className="flex justify-between items-center mb-2">
+                  <h4 className="font-medium text-blue-900">
+                    Selected Jobs ({selectedJobs.length})
+                  </h4>
+                  {multiple && (
+                    <Button size="sm" onClick={handleConfirmSelection}>
+                      Confirm Selection
+                    </Button>
                   )}
-                  {selectedJob.notes && (
-                    <div className="col-span-2">
-                      <span className="font-medium text-blue-700">Notes:</span>
-                      <span className="ml-2 text-blue-900">{selectedJob.notes}</span>
+                </div>
+                <div className="space-y-2">
+                  {selectedJobs.map(job => (
+                    <div key={job.id} className="flex items-center justify-between bg-white p-2 rounded border">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-sm">{job.name}</span>
+                        <Badge className={getCategoryColor(job.category)}>
+                          {job.category}
+                        </Badge>
+                      </div>
+                      {multiple && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleSelectJob(job)}
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          Remove
+                        </Button>
+                      )}
                     </div>
-                  )}
+                  ))}
                 </div>
               </div>
             </div>
