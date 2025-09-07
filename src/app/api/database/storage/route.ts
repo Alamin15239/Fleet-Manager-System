@@ -50,23 +50,15 @@ export async function GET() {
     let actualDatabaseSize = null
     let availableSpace = null
     try {
-      const [sizeQuery, spaceQuery] = await Promise.all([
-        db.$queryRaw`
-          SELECT pg_size_pretty(pg_database_size(current_database())) as size,
-                 pg_database_size(current_database()) as size_bytes
-        ` as any[],
-        db.$queryRaw`
-          SELECT 
-            pg_size_pretty(pg_tablespace_size('pg_default')) as tablespace_size,
-            pg_tablespace_size('pg_default') as tablespace_bytes,
-            pg_size_pretty(pg_total_relation_size('pg_class')) as total_size
-        ` as any[]
-      ])
+      const sizeQuery = await db.$queryRaw`
+        SELECT pg_size_pretty(pg_database_size(current_database())) as size,
+               pg_database_size(current_database()) as size_bytes
+      ` as any[]
       
       if (sizeQuery && sizeQuery[0]) {
         const usedBytes = parseInt(sizeQuery[0].size_bytes)
-        const diskSpaceBytes = 50 * 1024 * 1024 * 1024 // Assume 50GB disk limit
-        const availableBytes = diskSpaceBytes - usedBytes
+        const diskSpaceBytes = 1024 * 1024 * 1024 // 1GB limit for Neon free tier
+        const availableBytes = Math.max(0, diskSpaceBytes - usedBytes)
         
         actualDatabaseSize = {
           formatted: sizeQuery[0].size,
@@ -82,7 +74,7 @@ export async function GET() {
         }
       }
     } catch (error) {
-      console.log('Using estimation for database size')
+      console.log('Database size query failed, using estimation')
     }
 
     return NextResponse.json({
