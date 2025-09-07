@@ -374,16 +374,17 @@ export default function MaintenancePage() {
 
       if (response.ok) {
         if (editingRecord) {
-          toast.success(t('message.success'))
+          toast.success('Maintenance record updated successfully')
         } else {
-          toast.success(t('message.success'))
+          toast.success('Maintenance record created successfully')
           if (formData.isOilChange) {
             toast.info('Next oil change date has been calculated and set')
           }
         }
         setIsDialogOpen(false)
         resetForm()
-        fetchMaintenanceRecords() // Refresh the list
+        // Refresh the list immediately to show new record at top
+        await fetchMaintenanceRecords()
       } else {
         let errorMessage = 'Failed to save maintenance record'
         try {
