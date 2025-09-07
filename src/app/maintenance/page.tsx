@@ -952,42 +952,41 @@ export default function MaintenancePage() {
 
       {/* View Dialog */}
       <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-        <DialogContent className="sm:max-w-[600px]">
+        <DialogContent className="sm:max-w-[400px] max-h-[90vh]">
           <DialogHeader>
-            <DialogTitle>{t('maintenance.maintenanceDetails')}</DialogTitle>
-            <DialogDescription>
-              {t('maintenance.completeInformation')}
-            </DialogDescription>
+            <DialogTitle className="text-lg">Maintenance Details</DialogTitle>
           </DialogHeader>
           {viewingRecord && (
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-sm font-medium text-gray-500">{t('maintenance.truck')}</Label>
-                  <p className="text-lg font-semibold">
-                    {viewingRecord.truck?.year} {viewingRecord.truck?.make} {viewingRecord.truck?.model}
-                  </p>
-                  <p className="text-sm text-gray-600">{viewingRecord.truck?.licensePlate}</p>
+            <div className="space-y-4 max-h-[70vh] overflow-y-auto px-1">
+              <div className="bg-gray-50 p-3 rounded">
+                <div className="font-medium text-sm">
+                  {viewingRecord.truck 
+                    ? `${viewingRecord.truck.year} ${viewingRecord.truck.make} ${viewingRecord.truck.model}`
+                    : 'Trailer'}
                 </div>
-                <div>
-                  <Label className="text-sm font-medium text-gray-500">{t('maintenance.serviceType')}</Label>
-                  <p className="text-lg font-semibold">{viewingRecord.serviceType}</p>
-                  {viewingRecord.isOilChange && (
-                    <Badge variant="secondary" className="mt-1">
-                      {t('maintenance.oilChange')}
-                    </Badge>
-                  )}
+                <div className="text-xs text-gray-600">
+                  {viewingRecord.truck?.licensePlate || 'N/A'}
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label className="text-xs text-gray-500">Service</Label>
+                <p className="text-sm font-medium truncate" title={viewingRecord.serviceType}>
+                  {viewingRecord.serviceType}
+                </p>
+                {viewingRecord.isOilChange && (
+                  <Badge variant="secondary" className="text-xs mt-1">🛢️ Oil Change</Badge>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
-                  <Label className="text-sm font-medium text-gray-500">{t('maintenance.datePerformed')}</Label>
-                  <p className="text-lg">{new Date(viewingRecord.datePerformed).toLocaleDateString()}</p>
+                  <Label className="text-xs text-gray-500">Date</Label>
+                  <p>{new Date(viewingRecord.datePerformed).toLocaleDateString()}</p>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium text-gray-500">{t('table.status')}</Label>
-                  <Badge className={getStatusColor(viewingRecord.status)}>
+                  <Label className="text-xs text-gray-500">Status</Label>
+                  <Badge className={`text-xs ${getStatusColor(viewingRecord.status)}`}>
                     {viewingRecord.status.replace('_', ' ')}
                   </Badge>
                 </div>
@@ -995,76 +994,44 @@ export default function MaintenancePage() {
 
               {viewingRecord.mechanic && (
                 <div>
-                  <Label className="text-sm font-medium text-gray-500">{t('maintenance.mechanic')}</Label>
-                  <p className="text-lg">{viewingRecord.mechanic.name}</p>
-                  <p className="text-sm text-gray-600">{viewingRecord.mechanic.email}</p>
+                  <Label className="text-xs text-gray-500">Mechanic</Label>
+                  <p className="text-sm font-medium">{viewingRecord.mechanic.name}</p>
                 </div>
               )}
 
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-3 gap-2 text-sm">
                 <div>
-                  <Label className="text-sm font-medium text-gray-500">{t('maintenance.partsCost')}</Label>
-                  <p className="text-lg font-semibold">{formatCurrencyWithSettings(viewingRecord.partsCost)}</p>
+                  <Label className="text-xs text-gray-500">Parts</Label>
+                  <p className="font-medium">{formatCurrencyWithSettings(viewingRecord.partsCost)}</p>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium text-gray-500">{t('maintenance.laborCost')}</Label>
-                  <p className="text-lg font-semibold">{formatCurrencyWithSettings(viewingRecord.laborCost)}</p>
+                  <Label className="text-xs text-gray-500">Labor</Label>
+                  <p className="font-medium">{formatCurrencyWithSettings(viewingRecord.laborCost)}</p>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium text-gray-500">{t('table.cost')}</Label>
-                  <p className="text-lg font-semibold text-green-600">{formatCurrencyWithSettings(viewingRecord.totalCost)}</p>
+                  <Label className="text-xs text-gray-500">Total</Label>
+                  <p className="font-medium text-green-600">{formatCurrencyWithSettings(viewingRecord.totalCost)}</p>
                 </div>
               </div>
 
-              {viewingRecord.isOilChange && (
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label className="text-sm font-medium text-gray-500">{t('maintenance.oilChangeInterval')}</Label>
-                    <p className="text-lg">{viewingRecord.oilChangeInterval || 5000} km</p>
-                  </div>
-                  <div>
-                    <Label className="text-sm font-medium text-gray-500">{t('maintenance.currentMileage')}</Label>
-                    <p className="text-lg">{viewingRecord.currentMileage || 0} km</p>
-                  </div>
-                </div>
-              )}
-
-              {viewingRecord.nextServiceDue && (
-                <div>
-                  <Label className="text-sm font-medium text-gray-500">{t('maintenance.nextServiceDue')}</Label>
-                  <p className="text-lg">{new Date(viewingRecord.nextServiceDue).toLocaleDateString()}</p>
-                </div>
-              )}
-
               {viewingRecord.description && (
                 <div>
-                  <Label className="text-sm font-medium text-gray-500">{t('form.description')}</Label>
-                  <p className="text-sm mt-1">{viewingRecord.description}</p>
+                  <Label className="text-xs text-gray-500">Description</Label>
+                  <p className="text-sm bg-gray-50 p-2 rounded text-wrap break-words">{viewingRecord.description}</p>
                 </div>
               )}
 
               {viewingRecord.notes && (
                 <div>
-                  <Label className="text-sm font-medium text-gray-500">{t('form.notes')}</Label>
-                  <p className="text-sm mt-1">{viewingRecord.notes}</p>
+                  <Label className="text-xs text-gray-500">Notes</Label>
+                  <p className="text-sm bg-gray-50 p-2 rounded">{viewingRecord.notes}</p>
                 </div>
               )}
-
-              <div className="grid grid-cols-2 gap-4 text-sm text-gray-500">
-                <div>
-                  <Label>{t('maintenance.created')}</Label>
-                  <p>{new Date(viewingRecord.createdAt).toLocaleDateString()}</p>
-                </div>
-                <div>
-                  <Label>{t('maintenance.lastUpdated')}</Label>
-                  <p>{new Date(viewingRecord.updatedAt).toLocaleDateString()}</p>
-                </div>
-              </div>
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsViewDialogOpen(false)}>
-              {t('action.close')}
+            <Button variant="outline" onClick={() => setIsViewDialogOpen(false)} className="w-full">
+              Close
             </Button>
           </DialogFooter>
         </DialogContent>
