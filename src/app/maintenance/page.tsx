@@ -1121,16 +1121,19 @@ export default function MaintenancePage() {
                     <TableCell>
                       <div className="text-sm">
                         <div className="font-medium truncate">
-                          {record.truck ? `${record.truck.year} ${record.truck.make}` : 'Trailer'}
+                          {record.truck 
+                            ? `${record.truck.year} ${record.truck.make}` 
+                            : record.trailer 
+                              ? `Trailer ${record.trailer.number}` 
+                              : 'Vehicle'}
                         </div>
                         <div className="text-xs text-gray-500">
-                          {record.truck?.licensePlate || 
-                           (vehicles.find(v => v.id === record.truckId)?.identifier) || 'N/A'}
+                          {record.truck?.licensePlate || record.trailer?.driverName || 'N/A'}
                         </div>
                       </div>
                     </TableCell>
                     <TableCell className="text-sm">
-                      {record.mechanic?.name || 'None'}
+                      {record.mechanic?.name || record.mechanicName || 'None'}
                     </TableCell>
                     <TableCell className="text-sm font-medium">
                       {formatCurrencyWithSettings(record.totalCost)}
