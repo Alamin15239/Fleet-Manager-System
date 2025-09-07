@@ -136,153 +136,103 @@ export function MaintenanceJobSelector({ onSelectJobs, selectedJobs = [], childr
       <DialogTrigger asChild>
         {children}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[900px] max-h-[80vh]">
+      <DialogContent className="sm:max-w-[500px] max-h-[90vh]">
         <DialogHeader>
-          <DialogTitle>Select Maintenance Job</DialogTitle>
-          <DialogDescription>
-            Search and select a predefined maintenance job from the list below.
-          </DialogDescription>
+          <DialogTitle className="text-lg">Select Jobs</DialogTitle>
         </DialogHeader>
         
-        <div className="space-y-4">
-          {/* Search and Filters */}
-          <div className="flex gap-4">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-              <Input
-                placeholder="Search jobs by name, category, parts, or notes..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-              <SelectTrigger className="w-48">
-                <Filter className="h-4 w-4 mr-2" />
-                <SelectValue placeholder="All Categories" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Categories</SelectItem>
-                {categories.map(category => (
-                  <SelectItem key={category} value={category}>
-                    {category}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+        <div className="space-y-3">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+            <Input
+              placeholder="Search jobs..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
           </div>
 
-          {/* Results Count */}
-          <div className="text-sm text-gray-600">
-            {filteredJobs.length} job{filteredJobs.length !== 1 ? 's' : ''} found
+          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+            <SelectTrigger>
+              <SelectValue placeholder="All Categories" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Categories</SelectItem>
+              {categories.map(category => (
+                <SelectItem key={category} value={category}>
+                  {category}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <div className="text-xs text-gray-600">
+            {filteredJobs.length} jobs found
           </div>
 
-          {/* Jobs Table */}
-          <div className="border rounded-lg max-h-[400px] overflow-y-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Job Name</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Common Parts</TableHead>
-                  <TableHead>Notes / Frequency</TableHead>
-                  <TableHead>Action</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {loading ? (
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
-                      <p className="mt-2 text-sm text-gray-600">Loading maintenance jobs...</p>
-                    </TableCell>
-                  </TableRow>
-                ) : filteredJobs.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8">
-                      <Wrench className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                      <p className="text-gray-600">No maintenance jobs found</p>
-                      <p className="text-sm text-gray-500 mt-1">
-                        Try adjusting your search or filters
-                      </p>
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredJobs.map((job) => (
-                    <TableRow key={job.id} className="hover:bg-gray-50">
-                      <TableCell className="font-medium">
-                        {job.name}
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={getCategoryColor(job.category)}>
+          <div className="border rounded max-h-[40vh] overflow-y-auto">
+            {loading ? (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-900 mx-auto"></div>
+                <p className="mt-2 text-xs text-gray-600">Loading...</p>
+              </div>
+            ) : filteredJobs.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-gray-600 text-sm">No jobs found</p>
+              </div>
+            ) : (
+              <div className="divide-y">
+                {filteredJobs.map((job) => (
+                  <div key={job.id} className="p-3 hover:bg-gray-50 flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      checked={selectedJobs.some(j => j.id === job.id)}
+                      onChange={() => handleSelectJob(job)}
+                      className="w-4 h-4 flex-shrink-0"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-sm truncate">{job.name}</div>
+                      <div className="flex items-center gap-2 mt-1">
+                        <Badge className={`text-xs ${getCategoryColor(job.category)}`}>
                           {job.category}
                         </Badge>
-                      </TableCell>
-                      <TableCell className="max-w-xs truncate">
-                        {job.parts || '-'}
-                      </TableCell>
-                      <TableCell className="max-w-xs truncate">
-                        {job.notes || '-'}
-                      </TableCell>
-                      <TableCell>
-                        {multiple ? (
-                          <input
-                            type="checkbox"
-                            checked={selectedJobs.some(j => j.id === job.id)}
-                            onChange={() => handleSelectJob(job)}
-                            className="w-4 h-4"
-                          />
-                        ) : (
-                          <Button
-                            size="sm"
-                            onClick={() => handleSelectJob(job)}
-                            className="w-full"
-                          >
-                            <Plus className="h-4 w-4 mr-1" />
-                            Select
-                          </Button>
+                        {job.notes && (
+                          <span className="text-xs text-gray-500 truncate">{job.notes}</span>
                         )}
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
-          {/* Selected Jobs Info */}
           {selectedJobs.length > 0 && (
-            <div className="border-t pt-4">
-              <div className="bg-blue-50 p-4 rounded-lg">
+            <div className="border-t pt-3">
+              <div className="bg-blue-50 p-3 rounded">
                 <div className="flex justify-between items-center mb-2">
-                  <h4 className="font-medium text-blue-900">
-                    Selected Jobs ({selectedJobs.length})
-                  </h4>
-                  {multiple && (
-                    <Button size="sm" onClick={handleConfirmSelection}>
-                      Confirm Selection
-                    </Button>
-                  )}
+                  <span className="text-sm font-medium text-blue-900">
+                    Selected ({selectedJobs.length})
+                  </span>
+                  <Button size="sm" onClick={handleConfirmSelection}>
+                    Confirm
+                  </Button>
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-1">
                   {selectedJobs.map(job => (
-                    <div key={job.id} className="flex items-center justify-between bg-white p-2 rounded border">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-sm">{job.name}</span>
-                        <Badge className={getCategoryColor(job.category)}>
+                    <div key={job.id} className="flex items-center justify-between bg-white p-2 rounded text-sm">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="font-medium truncate">{job.name}</span>
+                        <Badge className={`text-xs ${getCategoryColor(job.category)}`}>
                           {job.category}
                         </Badge>
                       </div>
-                      {multiple && (
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => handleSelectJob(job)}
-                          className="text-red-600 hover:text-red-700"
-                        >
-                          Remove
-                        </Button>
-                      )}
+                      <button
+                        onClick={() => handleSelectJob(job)}
+                        className="text-red-600 hover:text-red-700 ml-2 flex-shrink-0"
+                      >
+                        ×
+                      </button>
                     </div>
                   ))}
                 </div>
