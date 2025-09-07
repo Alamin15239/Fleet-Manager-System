@@ -1124,7 +1124,8 @@ export default function MaintenancePage() {
                           {record.truck ? `${record.truck.year} ${record.truck.make}` : 'Trailer'}
                         </div>
                         <div className="text-xs text-gray-500">
-                          {record.truck?.licensePlate || 'N/A'}
+                          {record.truck?.licensePlate || 
+                           (vehicles.find(v => v.id === record.truckId)?.identifier) || 'N/A'}
                         </div>
                       </div>
                     </TableCell>
