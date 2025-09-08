@@ -1121,39 +1121,79 @@ export default function MaintenancePage() {
                             const { jsPDF } = await import('jspdf')
                             const doc = new jsPDF()
                             
-                            doc.setFontSize(20)
-                            doc.text('JOB CARD', 105, 30, { align: 'center' })
+                            // Header
+                            doc.setFontSize(24)
+                            doc.setFont('helvetica', 'bold')
+                            doc.text('FLEET MAINTENANCE JOB CARD', 105, 25, { align: 'center' })
                             
+                            // Job Card Number
                             doc.setFontSize(12)
-                            let y = 60
+                            doc.setFont('helvetica', 'normal')
+                            doc.text(`Job Card #: ${record.id.slice(-8).toUpperCase()}`, 150, 40)
+                            doc.text(`Date: ${new Date(record.datePerformed).toLocaleDateString()}`, 150, 50)
                             
-                            doc.text(`Vehicle: ${record.truck ? `${record.truck.year} ${record.truck.make} ${record.truck.model}` : `Trailer ${record.trailer?.number || ''}`}`, 20, y)
-                            y += 15
-                            doc.text(`Plate Number: ${record.truck?.licensePlate || record.trailer?.number || ''}`, 20, y)
-                            y += 15
-                            doc.text(`Driver: ${record.driverName || 'N/A'}`, 20, y)
-                            y += 15
-                            doc.text(`Mechanic: ${record.mechanic?.name || 'None'}`, 20, y)
-                            y += 25
+                            // Vehicle Information Box
+                            doc.rect(20, 60, 170, 40)
+                            doc.setFont('helvetica', 'bold')
+                            doc.text('VEHICLE INFORMATION', 25, 70)
+                            doc.setFont('helvetica', 'normal')
+                            doc.text(`Vehicle: ${record.truck ? `${record.truck.year} ${record.truck.make} ${record.truck.model}` : `Trailer ${record.trailer?.number || ''}`}`, 25, 80)
+                            doc.text(`License Plate: ${record.truck?.licensePlate || record.trailer?.number || 'N/A'}`, 25, 90)
+                            doc.text(`Driver: ${record.driverName || 'Not Assigned'}`, 120, 80)
+                            doc.text(`Odometer: ${record.currentMileage || 'N/A'} km`, 120, 90)
                             
-                            doc.text(`Service Type: ${record.serviceType}`, 20, y)
-                            y += 15
-                            doc.text(`Description: ${record.description || 'N/A'}`, 20, y)
-                            y += 15
-                            doc.text(`Date: ${new Date(record.datePerformed).toLocaleDateString()}`, 20, y)
-                            y += 15
-                            doc.text(`Status: ${record.status}`, 20, y)
-                            y += 15
-                            doc.text(`Total Cost: ﷼${record.totalCost.toFixed(2)}`, 20, y)
-                            y += 25
+                            // Work Order Box
+                            doc.rect(20, 110, 170, 50)
+                            doc.setFont('helvetica', 'bold')
+                            doc.text('WORK ORDER', 25, 120)
+                            doc.setFont('helvetica', 'normal')
+                            doc.text(`Service Type: ${record.serviceType}`, 25, 130)
+                            const description = record.description || 'No description provided'
+                            const splitDescription = doc.splitTextToSize(description, 160)
+                            doc.text('Description:', 25, 140)
+                            doc.text(splitDescription, 25, 150)
                             
-                            doc.setFontSize(10)
-                            doc.text(`Generated on: ${new Date().toLocaleString()}`, 20, y)
+                            // Technician Assignment Box
+                            doc.rect(20, 170, 80, 30)
+                            doc.setFont('helvetica', 'bold')
+                            doc.text('ASSIGNED TECHNICIAN', 25, 180)
+                            doc.setFont('helvetica', 'normal')
+                            doc.text(`Name: ${record.mechanic?.name || 'Not Assigned'}`, 25, 190)
+                            
+                            // Status Box
+                            doc.rect(110, 170, 80, 30)
+                            doc.setFont('helvetica', 'bold')
+                            doc.text('STATUS', 115, 180)
+                            doc.setFont('helvetica', 'normal')
+                            doc.text(`Current: ${record.status.replace('_', ' ')}`, 115, 190)
+                            
+                            // Cost Information Box
+                            doc.rect(20, 210, 170, 30)
+                            doc.setFont('helvetica', 'bold')
+                            doc.text('COST BREAKDOWN', 25, 220)
+                            doc.setFont('helvetica', 'normal')
+                            doc.text(`Parts Cost: ﷼${record.partsCost.toFixed(2)}`, 25, 230)
+                            doc.text(`Labor Cost: ﷼${record.laborCost.toFixed(2)}`, 80, 230)
+                            doc.text(`Total Cost: ﷼${record.totalCost.toFixed(2)}`, 135, 230)
+                            
+                            // Signature Section
+                            doc.rect(20, 250, 80, 25)
+                            doc.text('TECHNICIAN SIGNATURE', 25, 260)
+                            doc.text('Date: _______________', 25, 270)
+                            
+                            doc.rect(110, 250, 80, 25)
+                            doc.text('SUPERVISOR APPROVAL', 115, 260)
+                            doc.text('Date: _______________', 115, 270)
+                            
+                            // Footer
+                            doc.setFontSize(8)
+                            doc.text(`Generated: ${new Date().toLocaleString()}`, 20, 285)
+                            doc.text('Fleet Management System', 105, 285, { align: 'center' })
                             
                             doc.save(`job-card-${record.truck?.licensePlate || record.trailer?.number || record.id}-${Date.now()}.pdf`)
-                            toast.success('Job card PDF generated successfully')
+                            toast.success('Professional job card generated successfully')
                           }}
-                          title="Generate Job Card PDF"
+                          title="Generate Professional Job Card"
                           className="text-blue-600 hover:text-blue-700"
                         >
                           <FileText className="h-3 w-3" />
