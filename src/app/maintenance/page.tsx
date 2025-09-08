@@ -1259,9 +1259,10 @@ export default function MaintenancePage() {
                             // Technician Assignment Box
                             doc.rect(20, 170, 80, 30)
                             doc.setFont('helvetica', 'bold')
-                            doc.text('ASSIGNED TECHNICIAN', 25, 180)
+                            doc.text('ASSIGNED TECHNICIAN(S)', 25, 180)
                             doc.setFont('helvetica', 'normal')
-                            doc.text(`Name: ${record.mechanic?.name || 'Not Assigned'}`, 25, 190)
+                            const mechanicNames = record.mechanicName || record.mechanic?.name || 'Not Assigned'
+                            doc.text(`Name: ${mechanicNames}`, 25, 190)
                             
                             // Status Box
                             doc.rect(110, 170, 80, 30)
