@@ -19,15 +19,19 @@ interface OilChangeRecord {
   truck?: {
     year: number
     make: string
+    model: string
     licensePlate: string
   }
   trailer?: {
-    trailerNumber: string
+    number: string
+    driverName?: string
   }
   mechanic?: {
     name: string
   }
-  assignedDrivers: string
+  driverName?: string
+  mechanicName?: string
+  vehicleName?: string
 }
 
 export default function OilChangesPage() {
@@ -72,8 +76,11 @@ export default function OilChangesPage() {
     const filtered = oilChanges.filter(record => 
       record.truck?.licensePlate?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       record.truck?.make?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      record.assignedDrivers?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      record.trailer?.number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      record.driverName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      record.trailer?.driverName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       record.mechanic?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      record.mechanicName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       record.status?.toLowerCase().includes(searchTerm.toLowerCase())
     )
     setFilteredRecords(filtered)
@@ -222,7 +229,7 @@ export default function OilChangesPage() {
                           {record.truck ? (
                             <div>
                               <div className="font-medium">
-                                {record.truck.year} {record.truck.make}
+                                {record.truck.year} {record.truck.make} {record.truck.model}
                               </div>
                               <div className="text-sm text-gray-500">
                                 {record.truck.licensePlate}
@@ -230,17 +237,19 @@ export default function OilChangesPage() {
                             </div>
                           ) : record.trailer ? (
                             <div>
-                              <div className="font-medium">Trailer {record.trailer.trailerNumber}</div>
+                              <div className="font-medium">Trailer {record.trailer.number}</div>
                             </div>
+                          ) : record.vehicleName ? (
+                            <div className="font-medium">{record.vehicleName}</div>
                           ) : (
                             <span className="text-gray-400">-</span>
                           )}
                         </TableCell>
                         <TableCell>
-                          {record.assignedDrivers || <span className="text-gray-400">-</span>}
+                          {record.driverName || record.trailer?.driverName || <span className="text-gray-400">-</span>}
                         </TableCell>
                         <TableCell>
-                          {record.mechanic?.name || <span className="text-gray-400">None</span>}
+                          {record.mechanic?.name || record.mechanicName || <span className="text-gray-400">-</span>}
                         </TableCell>
                         <TableCell className="font-medium">
                           {formatCurrency(record.totalCost)}
