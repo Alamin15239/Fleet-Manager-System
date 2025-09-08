@@ -1,14 +1,17 @@
 .draggable-dialog {
   position: fixed !important;
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
 }
 
 .drag-handle {
-  cursor: move;
-  user-select: none;
+  cursor: move !important;
+  user-select: none !important;
 }
 
 .drag-handle:active {
-  cursor: grabbing;
+  cursor: grabbing !important;
 }
 
 .draggable-dialog {
