@@ -138,7 +138,7 @@ export function DatabaseStorageMonitor() {
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">Available:</span>
                 <Badge variant="outline">
-                  {storageData.storage.available.availableGB.toFixed(2)} GB
+                  {storageData.storage.available.availableGB?.toFixed(2) || '0'} GB
                 </Badge>
               </div>
               
@@ -152,11 +152,11 @@ export function DatabaseStorageMonitor() {
               <div className="w-full bg-gray-200 rounded-full h-2">
                 <div 
                   className="bg-blue-600 h-2 rounded-full" 
-                  style={{ width: `${storageData.storage.available.usagePercent}%` }}
+                  style={{ width: `${storageData.storage.available.usagePercent || 0}%` }}
                 ></div>
               </div>
               <div className="text-xs text-center text-muted-foreground">
-                {storageData.storage.available.usagePercent}% used of {storageData.storage.available.totalGB} GB
+                {storageData.storage.available.usagePercent || 0}% used of {storageData.storage.available.totalGB || 0} GB
               </div>
             </>
           )}

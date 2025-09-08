@@ -146,7 +146,7 @@ export default function SettingsDashboard() {
                 <span className="font-medium">System Status</span>
               </div>
               <Badge className={getHealthColor(stats.systemHealth)}>
-                {stats.systemHealth.charAt(0).toUpperCase() + stats.systemHealth.slice(1)}
+                {stats.systemHealth?.charAt(0).toUpperCase() + stats.systemHealth?.slice(1) || 'Unknown'}
               </Badge>
             </div>
             
@@ -155,7 +155,7 @@ export default function SettingsDashboard() {
                 <Clock className="h-4 w-4 text-blue-600" />
                 <span className="font-medium">Uptime</span>
               </div>
-              <span className="text-sm font-semibold">{stats.uptime}</span>
+              <span className="text-sm font-semibold">{stats.uptime || '0 days'}</span>
             </div>
             
             <div className="flex items-center justify-between p-3 border rounded-lg">
@@ -163,7 +163,7 @@ export default function SettingsDashboard() {
                 <HardDrive className="h-4 w-4 text-purple-600" />
                 <span className="font-medium">Database Size</span>
               </div>
-              <span className="text-sm font-semibold">{stats.databaseSize}</span>
+              <span className="text-sm font-semibold">{stats.databaseSize || '0 MB'}</span>
             </div>
             
             <div className="flex items-center justify-between p-3 border rounded-lg">
@@ -171,7 +171,7 @@ export default function SettingsDashboard() {
                 <Database className="h-4 w-4 text-green-600" />
                 <span className="font-medium">Last Backup</span>
               </div>
-              <span className="text-sm font-semibold">{stats.lastBackup}</span>
+              <span className="text-sm font-semibold">{stats.lastBackup || 'Never'}</span>
             </div>
           </div>
         </CardContent>
