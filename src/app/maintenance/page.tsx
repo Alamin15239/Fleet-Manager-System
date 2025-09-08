@@ -229,7 +229,7 @@ export default function MaintenancePage() {
 
   const fetchMaintenanceRecords = async () => {
     try {
-      const response = await apiGet('/api/maintenance')
+      const response = await apiGet('/api/maintenance?limit=1000')
       if (response.ok) {
         const data = await response.json()
         // API returns { success: true, data: records, pagination: ... }
