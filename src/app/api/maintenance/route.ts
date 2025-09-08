@@ -258,44 +258,48 @@ export async function POST(request: NextRequest) {
     
     // Get mechanic name for historical data
     let mechanicName = null
-    if (body.mechanicId) {
-      const mechanic = await db.mechanic.findUnique({
-        where: { id: body.mechanicId },
-        select: { name: true }
-      })
-      mechanicName = mechanic?.name
+    if (body.mechanicId && body.mechanicId !== 'none') {
+      try {
+        const mechanic = await db.mechanic.findUnique({
+          where: { id: body.mechanicId },
+          select: { name: true }
+        })
+        mechanicName = mechanic?.name
+      } catch (mechanicError) {
+        console.error('Error fetching mechanic:', mechanicError)
+        // Continue without mechanic name
+      }
     }
     
     if (vehicleType === 'truck') {
+      const createData = {
+        truckId: body.truckId,
+        serviceType: body.serviceType,
+        description: body.description || null,
+        datePerformed: new Date(body.datePerformed),
+        partsCost,
+        laborCost,
+        totalCost,
+        mechanicId: (body.mechanicId && body.mechanicId !== 'none') ? body.mechanicId : null,
+        createdById: body.createdById || null,
+        nextServiceDue: body.nextServiceDue ? new Date(body.nextServiceDue) : null,
+        status: body.status,
+        notes: body.notes || null,
+        isOilChange: body.isOilChange || false,
+        oilChangeInterval: body.oilChangeInterval ? parseInt(body.oilChangeInterval) : null,
+        oilQuantityLiters: body.oilQuantityLiters ? parseFloat(body.oilQuantityLiters) : null,
+        currentMileage: body.currentMileage ? parseInt(body.currentMileage) : null,
+        maintenanceJobId: (body.maintenanceJobId && body.maintenanceJobId !== '') ? body.maintenanceJobId : null,
+        wasPredicted: body.wasPredicted || false,
+        vehicleName: `${vehicle.year || ''} ${vehicle.make || ''} ${vehicle.model || ''}`.trim(),
+        mechanicName: body.mechanicName || mechanicName || null,
+        driverName: vehicle.driverName || null
+      }
+      
+      console.log('Creating truck maintenance record with data:', createData)
+      
       maintenanceRecord = await db.maintenanceRecord.create({
-        data: {
-          truckId: body.truckId,
-          serviceType: body.serviceType,
-          description: body.description,
-          datePerformed: new Date(body.datePerformed),
-          partsCost,
-          laborCost,
-          totalCost,
-          mechanicId: body.mechanicId || null,
-          createdById: body.createdById || null,
-          nextServiceDue: body.nextServiceDue ? new Date(body.nextServiceDue) : null,
-          status: body.status,
-          notes: body.notes,
-          attachments: body.attachments,
-          isOilChange: body.isOilChange || false,
-          oilChangeInterval: body.oilChangeInterval ? parseInt(body.oilChangeInterval) : null,
-          oilQuantityLiters: body.oilQuantityLiters ? parseFloat(body.oilQuantityLiters) : null,
-          currentMileage: body.currentMileage ? parseInt(body.currentMileage) : null,
-          maintenanceJobId: body.maintenanceJobId || null,
-          wasPredicted: body.wasPredicted || false,
-          predictionId: body.predictionId,
-          downtimeHours: body.downtimeHours ? parseFloat(body.downtimeHours) : null,
-          failureMode: body.failureMode,
-          rootCause: body.rootCause,
-          vehicleName: `${vehicle.year || ''} ${vehicle.make || ''} ${vehicle.model || ''}`.trim(),
-          mechanicName: body.mechanicName || mechanicName,
-          driverName: vehicle.driverName || null
-        },
+        data: createData,
         include: {
           truck: {
             select: {
@@ -332,31 +336,30 @@ export async function POST(request: NextRequest) {
         }
       })
     } else {
+      const createData = {
+        trailerId: body.truckId,
+        serviceType: body.serviceType,
+        description: body.description || null,
+        datePerformed: new Date(body.datePerformed),
+        partsCost,
+        laborCost,
+        totalCost,
+        mechanicId: (body.mechanicId && body.mechanicId !== 'none') ? body.mechanicId : null,
+        createdById: body.createdById || null,
+        nextServiceDue: body.nextServiceDue ? new Date(body.nextServiceDue) : null,
+        status: body.status,
+        notes: body.notes || null,
+        maintenanceJobId: (body.maintenanceJobId && body.maintenanceJobId !== '') ? body.maintenanceJobId : null,
+        wasPredicted: body.wasPredicted || false,
+        vehicleName: `Trailer ${vehicle.number || ''}`,
+        mechanicName: body.mechanicName || mechanicName || null,
+        driverName: vehicle.driverName || null
+      }
+      
+      console.log('Creating trailer maintenance record with data:', createData)
+      
       maintenanceRecord = await db.trailerMaintenanceRecord.create({
-        data: {
-          trailerId: body.truckId,
-          serviceType: body.serviceType,
-          description: body.description,
-          datePerformed: new Date(body.datePerformed),
-          partsCost,
-          laborCost,
-          totalCost,
-          mechanicId: body.mechanicId || null,
-          createdById: body.createdById || null,
-          nextServiceDue: body.nextServiceDue ? new Date(body.nextServiceDue) : null,
-          status: body.status,
-          notes: body.notes,
-          attachments: body.attachments,
-          maintenanceJobId: body.maintenanceJobId || null,
-          wasPredicted: body.wasPredicted || false,
-          predictionId: body.predictionId,
-          downtimeHours: body.downtimeHours ? parseFloat(body.downtimeHours) : null,
-          failureMode: body.failureMode,
-          rootCause: body.rootCause,
-          vehicleName: `Trailer ${vehicle.number || ''}`,
-          mechanicName: body.mechanicName || mechanicName,
-          driverName: vehicle.driverName || null
-        },
+        data: createData,
         include: {
           trailer: {
             select: {
