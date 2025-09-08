@@ -1117,37 +1117,43 @@ export default function MaintenancePage() {
                         <Button 
                           variant="ghost" 
                           size="sm" 
-                          onClick={() => {
-                            const jobCardContent = `
-JOB CARD
-========
-
-Vehicle: ${record.truck ? `${record.truck.year} ${record.truck.make} ${record.truck.model}` : `Trailer ${record.trailer?.number || ''}`}
-Plate Number: ${record.truck?.licensePlate || record.trailer?.number || ''}
-Driver: ${record.driverName || 'N/A'}
-Mechanic: ${record.mechanic?.name || 'None'}
-
-Service Type: ${record.serviceType}
-Description: ${record.description || 'N/A'}
-Date: ${new Date(record.datePerformed).toLocaleDateString()}
-Status: ${record.status}
-Total Cost: ﷼${record.totalCost.toFixed(2)}
-
-Generated on: ${new Date().toLocaleString()}
-                            `.trim()
-
-                            const blob = new Blob([jobCardContent], { type: 'text/plain' })
-                            const url = URL.createObjectURL(blob)
-                            const a = document.createElement('a')
-                            a.href = url
-                            a.download = `job-card-${record.truck?.licensePlate || record.trailer?.number || record.id}-${Date.now()}.txt`
-                            document.body.appendChild(a)
-                            a.click()
-                            document.body.removeChild(a)
-                            URL.revokeObjectURL(url)
-                            toast.success('Job card generated successfully')
+                          onClick={async () => {
+                            const { jsPDF } = await import('jspdf')
+                            const doc = new jsPDF()
+                            
+                            doc.setFontSize(20)
+                            doc.text('JOB CARD', 105, 30, { align: 'center' })
+                            
+                            doc.setFontSize(12)
+                            let y = 60
+                            
+                            doc.text(`Vehicle: ${record.truck ? `${record.truck.year} ${record.truck.make} ${record.truck.model}` : `Trailer ${record.trailer?.number || ''}`}`, 20, y)
+                            y += 15
+                            doc.text(`Plate Number: ${record.truck?.licensePlate || record.trailer?.number || ''}`, 20, y)
+                            y += 15
+                            doc.text(`Driver: ${record.driverName || 'N/A'}`, 20, y)
+                            y += 15
+                            doc.text(`Mechanic: ${record.mechanic?.name || 'None'}`, 20, y)
+                            y += 25
+                            
+                            doc.text(`Service Type: ${record.serviceType}`, 20, y)
+                            y += 15
+                            doc.text(`Description: ${record.description || 'N/A'}`, 20, y)
+                            y += 15
+                            doc.text(`Date: ${new Date(record.datePerformed).toLocaleDateString()}`, 20, y)
+                            y += 15
+                            doc.text(`Status: ${record.status}`, 20, y)
+                            y += 15
+                            doc.text(`Total Cost: ﷼${record.totalCost.toFixed(2)}`, 20, y)
+                            y += 25
+                            
+                            doc.setFontSize(10)
+                            doc.text(`Generated on: ${new Date().toLocaleString()}`, 20, y)
+                            
+                            doc.save(`job-card-${record.truck?.licensePlate || record.trailer?.number || record.id}-${Date.now()}.pdf`)
+                            toast.success('Job card PDF generated successfully')
                           }}
-                          title="Generate Job Card"
+                          title="Generate Job Card PDF"
                           className="text-blue-600 hover:text-blue-700"
                         >
                           <FileText className="h-3 w-3" />
