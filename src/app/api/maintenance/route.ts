@@ -282,7 +282,7 @@ export async function POST(request: NextRequest) {
           failureMode: body.failureMode,
           rootCause: body.rootCause,
           vehicleName: `${vehicle.year} ${vehicle.make} ${vehicle.model}`,
-          mechanicName,
+          mechanicName: body.mechanicName || mechanicName,
           driverName: vehicle.driverName
         },
         include: {
@@ -343,7 +343,7 @@ export async function POST(request: NextRequest) {
           failureMode: body.failureMode,
           rootCause: body.rootCause,
           vehicleName: `Trailer ${vehicle.number}`,
-          mechanicName,
+          mechanicName: body.mechanicName || mechanicName,
           driverName: vehicle.driverName
         },
         include: {
