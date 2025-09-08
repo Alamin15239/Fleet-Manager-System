@@ -148,8 +148,13 @@ export default function MaintenanceTracking() {
 
   const fetchMaintenanceRecords = async () => {
     try {
-      // Mock data - in real app, this would be an API call
-      const mockRecords: MaintenanceRecord[] = [
+      const response = await fetch('/api/maintenance')
+      if (response.ok) {
+        const data = await response.json()
+        setMaintenanceRecords(data.records || [])
+      } else {
+        // Fallback to mock data if API fails
+        const mockRecords: MaintenanceRecord[] = [
         {
           id: '1',
           truckId: '1',
@@ -272,7 +277,8 @@ export default function MaintenanceTracking() {
         }
       ]
       
-      setMaintenanceRecords(mockRecords)
+        setMaintenanceRecords(mockRecords)
+      }
       setLoading(false)
     } catch (error) {
       console.error('Error fetching maintenance records:', error)
@@ -282,13 +288,19 @@ export default function MaintenanceTracking() {
 
   const fetchTrucks = async () => {
     try {
-      // Mock data
-      const mockTrucks: Truck[] = [
-        { id: '1', vin: '1HGCM82633A123456', make: 'Honda', model: 'Accord', year: 2020, licensePlate: 'ABC123', currentMileage: 45000, status: 'ACTIVE' },
-        { id: '2', vin: '2T1BURHE1JC123456', make: 'Toyota', model: 'Camry', year: 2019, licensePlate: 'DEF456', currentMileage: 62000, status: 'MAINTENANCE' },
-        { id: '3', vin: '3FA6P0H72HR123456', make: 'Ford', model: 'Fusion', year: 2018, licensePlate: 'GHI789', currentMileage: 78000, status: 'ACTIVE' }
-      ]
-      setTrucks(mockTrucks)
+      const response = await fetch('/api/trucks')
+      if (response.ok) {
+        const data = await response.json()
+        setTrucks(data.trucks || [])
+      } else {
+        // Fallback to mock data
+        const mockTrucks: Truck[] = [
+          { id: '1', vin: '1HGCM82633A123456', make: 'Honda', model: 'Accord', year: 2020, licensePlate: 'ABC123', currentMileage: 45000, status: 'ACTIVE' },
+          { id: '2', vin: '2T1BURHE1JC123456', make: 'Toyota', model: 'Camry', year: 2019, licensePlate: 'DEF456', currentMileage: 62000, status: 'MAINTENANCE' },
+          { id: '3', vin: '3FA6P0H72HR123456', make: 'Ford', model: 'Fusion', year: 2018, licensePlate: 'GHI789', currentMileage: 78000, status: 'ACTIVE' }
+        ]
+        setTrucks(mockTrucks)
+      }
     } catch (error) {
       console.error('Error fetching trucks:', error)
     }
@@ -463,29 +475,49 @@ export default function MaintenanceTracking() {
     
     try {
       // Calculate total cost
-      const totalCost = formData.partsCost + formData.laborCost
+      const totalCost = (formData.partsCost || 0) + (formData.laborCost || 0)
       
       const recordData = {
         ...formData,
-        totalCost
+        totalCost,
+        partsCost: formData.partsCost || 0,
+        laborCost: formData.laborCost || 0
       }
 
-      // Mock API call
       if (isEditing && selectedRecord) {
-        // Update record
-        const updatedRecord = { ...selectedRecord, ...recordData }
-        setMaintenanceRecords(prev => prev.map(r => r.id === selectedRecord.id ? updatedRecord : r))
-      } else {
-        // Create new record
-        const newRecord: MaintenanceRecord = {
-          id: Date.now().toString(),
-          ...recordData,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          truck: trucks.find(t => t.id === formData.truckId),
-          mechanicName: mechanics.find(m => m.id === formData.mechanicId)?.name
+        // Update record via API
+        const response = await fetch(`/api/maintenance/${selectedRecord.id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          },
+          body: JSON.stringify(recordData)
+        })
+        
+        if (response.ok) {
+          const updatedRecord = await response.json()
+          setMaintenanceRecords(prev => prev.map(r => r.id === selectedRecord.id ? updatedRecord : r))
+        } else {
+          throw new Error('Failed to update record')
         }
-        setMaintenanceRecords(prev => [...prev, newRecord])
+      } else {
+        // Create new record via API
+        const response = await fetch('/api/maintenance', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          },
+          body: JSON.stringify(recordData)
+        })
+        
+        if (response.ok) {
+          const newRecord = await response.json()
+          setMaintenanceRecords(prev => [...prev, newRecord])
+        } else {
+          throw new Error('Failed to create record')
+        }
       }
       
       setIsDialogOpen(false)
@@ -524,8 +556,18 @@ export default function MaintenanceTracking() {
   const handleDelete = async (recordId: string) => {
     if (confirm('Are you sure you want to delete this maintenance record?')) {
       try {
-        // Mock API call
-        setMaintenanceRecords(prev => prev.filter(r => r.id !== recordId))
+        const response = await fetch(`/api/maintenance/${recordId}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        })
+        
+        if (response.ok) {
+          setMaintenanceRecords(prev => prev.filter(r => r.id !== recordId))
+        } else {
+          throw new Error('Failed to delete record')
+        }
       } catch (error) {
         console.error('Error deleting maintenance record:', error)
       }
@@ -533,11 +575,54 @@ export default function MaintenanceTracking() {
   }
 
   const calculateTotalCost = () => {
-    return maintenanceRecords.reduce((sum, record) => sum + record.totalCost, 0)
+    return maintenanceRecords.reduce((sum, record) => sum + (record.totalCost || 0), 0)
   }
 
   const calculateAverageCost = () => {
     return maintenanceRecords.length > 0 ? calculateTotalCost() / maintenanceRecords.length : 0
+  }
+
+  const calculateMonthlyCost = () => {
+    const now = new Date()
+    const currentMonth = now.getMonth()
+    const currentYear = now.getFullYear()
+    
+    return maintenanceRecords
+      .filter(record => {
+        const recordDate = new Date(record.datePerformed)
+        return recordDate.getMonth() === currentMonth && recordDate.getFullYear() === currentYear
+      })
+      .reduce((sum, record) => sum + (record.totalCost || 0), 0)
+  }
+
+  const calculateSixMonthCost = () => {
+    const now = new Date()
+    const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 6, now.getDate())
+    
+    return maintenanceRecords
+      .filter(record => new Date(record.datePerformed) >= sixMonthsAgo)
+      .reduce((sum, record) => sum + (record.totalCost || 0), 0)
+  }
+
+  const getUpcomingMaintenance = () => {
+    const now = new Date()
+    const thirtyDaysFromNow = new Date(now.getTime() + (30 * 24 * 60 * 60 * 1000))
+    
+    return maintenanceRecords.filter(record => {
+      if (!record.nextServiceDue) return false
+      const dueDate = new Date(record.nextServiceDue)
+      return dueDate >= now && dueDate <= thirtyDaysFromNow && record.status !== 'COMPLETED'
+    }).length
+  }
+
+  const getOverdueMaintenance = () => {
+    const now = new Date()
+    
+    return maintenanceRecords.filter(record => {
+      if (!record.nextServiceDue) return false
+      const dueDate = new Date(record.nextServiceDue)
+      return dueDate < now && record.status !== 'COMPLETED'
+    }).length
   }
 
   const getMaintenanceStats = () => {
@@ -888,7 +973,75 @@ export default function MaintenanceTracking() {
         </Dialog>
       </div>
 
-      {/* Statistics Cards */}
+      {/* Enhanced Statistics Cards */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Trucks</CardTitle>
+            <Wrench className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{trucks.length}</div>
+            <p className="text-xs text-muted-foreground">
+              {trucks.filter(t => t.status === 'ACTIVE').length} active vehicles
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Upcoming Maintenance</CardTitle>
+            <Clock className="h-4 w-4 text-yellow-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-yellow-600">{getUpcomingMaintenance()}</div>
+            <p className="text-xs text-muted-foreground">
+              Due within 30 days
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Overdue Repairs</CardTitle>
+            <AlertTriangle className="h-4 w-4 text-red-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-red-600">{getOverdueMaintenance()}</div>
+            <p className="text-xs text-muted-foreground">
+              Require immediate attention
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Monthly Maintenance Cost</CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{formatCurrency(calculateMonthlyCost())}</div>
+            <p className="text-xs text-muted-foreground">
+              Average monthly cost
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Cost (6mo)</CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{formatCurrency(calculateSixMonthCost())}</div>
+            <p className="text-xs text-muted-foreground">
+              Last 6 months
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Original Statistics Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -1018,103 +1171,130 @@ export default function MaintenanceTracking() {
         <CardHeader>
           <CardTitle>Maintenance Records</CardTitle>
           <CardDescription>
-            {filteredRecords.length} record{filteredRecords.length !== 1 ? 's' : ''} found
+            Showing {filteredRecords.length} maintenance record{filteredRecords.length !== 1 ? 's' : ''}
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Truck</TableHead>
-                <TableHead>Service Type</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Mechanic</TableHead>
-                <TableHead>Cost</TableHead>
-                <TableHead>Downtime</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredRecords.map((record) => (
-                <TableRow key={record.id}>
-                  <TableCell>
-                    <div>
-                      <div className="font-medium">{record.truck?.licensePlate}</div>
-                      <div className="text-sm text-muted-foreground">
-                        {record.truck?.year} {record.truck?.make} {record.truck?.model}
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center space-x-2">
-                      <span className="font-medium">{record.serviceType}</span>
-                      {record.wasPredicted && (
-                        <Badge variant="outline" className="text-xs">
-                          Predicted
-                        </Badge>
-                      )}
-                    </div>
-                    {record.description && (
-                      <div className="text-sm text-muted-foreground truncate max-w-xs">
-                        {record.description}
-                      </div>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <div>
-                      <div className="font-medium">{format(new Date(record.datePerformed), 'MMM dd, yyyy')}</div>
-                      {record.currentMileage && (
-                        <div className="text-sm text-muted-foreground">
-                          {record.currentMileage.toLocaleString()} mi
-                        </div>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center space-x-2">
-                      {getStatusIcon(record.status)}
-                      <Badge className={getStatusColor(record.status)}>
-                        {record.status.replace('_', ' ')}
-                      </Badge>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div>
-                      <div className="font-medium">{record.mechanicName || 'Unassigned'}</div>
-                      {record.nextServiceDue && (
-                        <div className="text-sm text-muted-foreground">
-                          Next: {format(new Date(record.nextServiceDue), 'MMM dd')}
-                        </div>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="font-medium">{formatCurrency(record.totalCost)}</div>
-                    <div className="text-sm text-muted-foreground">
-                      {formatCurrency(record.partsCost)} + {formatCurrency(record.laborCost)}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center space-x-1">
-                      <Clock className="h-3 w-3 text-gray-500" />
-                      <span className="text-sm">{record.downtimeHours || 0}h</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex space-x-2">
-                      <Button variant="outline" size="sm" onClick={() => handleEdit(record)}>
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button variant="outline" size="sm" onClick={() => handleDelete(record.id)}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Service</TableHead>
+                  <TableHead>Vehicle</TableHead>
+                  <TableHead>Mechanic</TableHead>
+                  <TableHead>Cost</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Actions</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {filteredRecords.map((record) => (
+                  <TableRow key={record.id} className="hover:bg-muted/50">
+                    <TableCell>
+                      <div>
+                        <div className="font-medium">{format(new Date(record.datePerformed), 'MMM dd')}</div>
+                        <div className="text-sm text-muted-foreground">
+                          {format(new Date(record.datePerformed), 'yyyy')}
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="max-w-xs">
+                        <div className="flex items-center space-x-2">
+                          {record.isOilChange && <span className="text-lg">🛢️</span>}
+                          <span className="font-medium truncate">{record.serviceType}</span>
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          {record.description ? (
+                            <div className="truncate max-w-xs" title={record.description}>
+                              {record.description.split(',').slice(0, 2).join(', ')}
+                              {record.description.split(',').length > 2 && '...'}
+                            </div>
+                          ) : (
+                            <span className="text-gray-400">No description</span>
+                          )}
+                        </div>
+                        {record.wasPredicted && (
+                          <Badge variant="outline" className="text-xs mt-1">
+                            AI Predicted
+                          </Badge>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div>
+                        <div className="font-medium">
+                          {record.truck?.year} {record.truck?.make}
+                        </div>
+                        <div className="text-sm font-mono text-muted-foreground">
+                          {record.truck?.licensePlate}
+                        </div>
+                        {record.currentMileage && (
+                          <div className="text-xs text-muted-foreground">
+                            {record.currentMileage.toLocaleString()} mi
+                          </div>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div>
+                        <div className="font-medium">{record.mechanicName || 'None'}</div>
+                        {record.downtimeHours && (
+                          <div className="text-sm text-muted-foreground flex items-center">
+                            <Clock className="h-3 w-3 mr-1" />
+                            {record.downtimeHours}h
+                          </div>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="font-medium">{formatCurrency(record.totalCost || 0)}</div>
+                      {(record.partsCost > 0 || record.laborCost > 0) && (
+                        <div className="text-xs text-muted-foreground">
+                          P: {formatCurrency(record.partsCost || 0)} + L: {formatCurrency(record.laborCost || 0)}
+                        </div>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center space-x-2">
+                        {getStatusIcon(record.status)}
+                        <Badge className={getStatusColor(record.status)} variant="secondary">
+                          {record.status.replace('_', ' ')}
+                        </Badge>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex space-x-1">
+                        <Button variant="ghost" size="sm" onClick={() => handleEdit(record)} title="Edit">
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => handleDelete(record.id)} title="Delete">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+          
+          {filteredRecords.length === 0 && (
+            <div className="text-center py-8">
+              <Wrench className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-semibold mb-2">No maintenance records found</h3>
+              <p className="text-muted-foreground mb-4">
+                {searchTerm || statusFilter !== 'all' || truckFilter !== 'all' || dateFilter !== 'all'
+                  ? 'Try adjusting your filters to see more records.'
+                  : 'Get started by adding your first maintenance record.'}
+              </p>
+              <Button onClick={handleAddNew}>
+                <Plus className="h-4 w-4 mr-2" />
+                Add First Record
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
 

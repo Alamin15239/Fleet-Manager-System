@@ -11,9 +11,9 @@ export async function GET(request: NextRequest) {
       console.error('Database connection failed:', dbError)
       return NextResponse.json({
         success: true,
-        data: [],
+        records: [],
         pagination: { page: 1, limit: 10, total: 0, pages: 0 },
-        summary: { stats: [], predictedStats: { _count: { _all: 0 } }, totalCost: 0, totalDowntime: 0, averageCost: 0 }
+        summary: { totalCost: 0, totalDowntime: 0, averageCost: 0, predictedCount: 0, completedCount: 0, inProgressCount: 0, scheduledCount: 0 }
       })
     }
 
@@ -161,9 +161,29 @@ export async function GET(request: NextRequest) {
 
     const totalCount = truckCount + trailerCount
 
+    // Calculate summary statistics
+    const totalCost = allRecords.reduce((sum, record) => sum + (record.totalCost || 0), 0)
+    const totalDowntime = allRecords.reduce((sum, record) => sum + (record.downtimeHours || 0), 0)
+    const predictedCount = allRecords.filter(record => record.wasPredicted).length
+    
+    // Format records for frontend
+    const formattedRecords = allRecords.map(record => ({
+      ...record,
+      mechanicName: record.mechanic?.name || record.mechanicName || null,
+      truck: record.truck || {
+        id: record.trailer?.id || '',
+        vin: '',
+        make: 'Trailer',
+        model: record.trailer?.number || '',
+        year: 0,
+        licensePlate: `Trailer ${record.trailer?.number || ''}`,
+        currentMileage: 0
+      }
+    }))
+
     return NextResponse.json({
       success: true,
-      data: allRecords,
+      records: formattedRecords,
       pagination: {
         page,
         limit,
@@ -171,11 +191,13 @@ export async function GET(request: NextRequest) {
         pages: Math.ceil(totalCount / limit)
       },
       summary: {
-        stats: [],
-        predictedStats: { _count: { _all: 0 } },
-        totalCost: 0,
-        totalDowntime: 0,
-        averageCost: 0
+        totalCost,
+        totalDowntime,
+        averageCost: totalCount > 0 ? totalCost / totalCount : 0,
+        predictedCount,
+        completedCount: allRecords.filter(r => r.status === 'COMPLETED').length,
+        inProgressCount: allRecords.filter(r => r.status === 'IN_PROGRESS').length,
+        scheduledCount: allRecords.filter(r => r.status === 'SCHEDULED').length
       }
     })
 
@@ -184,9 +206,9 @@ export async function GET(request: NextRequest) {
     // Return empty data instead of 500 error
     return NextResponse.json({
       success: true,
-      data: [],
+      records: [],
       pagination: { page: 1, limit: 10, total: 0, pages: 0 },
-      summary: { stats: [], predictedStats: { _count: { _all: 0 } }, totalCost: 0, totalDowntime: 0, averageCost: 0 }
+      summary: { totalCost: 0, totalDowntime: 0, averageCost: 0, predictedCount: 0, completedCount: 0, inProgressCount: 0, scheduledCount: 0 }
     })
   }
 }
@@ -226,8 +248,8 @@ export async function POST(request: NextRequest) {
     })
 
     return NextResponse.json({
-      success: true,
-      data: maintenanceRecord
+      ...maintenanceRecord,
+      mechanicName: maintenanceRecord.mechanic?.name || maintenanceRecord.mechanicName
     })
 
   } catch (error) {

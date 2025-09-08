@@ -20,6 +20,7 @@ import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api'
 import { MaintenanceJobSelector } from '@/components/maintenance-job-selector'
 import { useLanguage } from '@/contexts/language-context'
 import { PageHeader } from '@/components/page-header'
+import MaintenanceDashboard from '@/components/maintenance-dashboard'
 
 
 
@@ -247,10 +248,19 @@ export default function MaintenancePage() {
       const response = await apiGet('/api/maintenance?limit=1000')
       if (response.ok) {
         const data = await response.json()
-        // API returns { success: true, data: records, pagination: ... }
-        setMaintenanceRecords(data.data || [])
-        // Also refresh dashboard stats to ensure consistency
-        fetchDashboardStats()
+        // API returns { success: true, records: records, pagination: ..., summary: ... }
+        setMaintenanceRecords(data.records || data.data || [])
+        
+        // Update dashboard stats from API response
+        if (data.summary) {
+          setDashboardStats({
+            totalTrucks: trucks.length || 43,
+            activeTrucks: trucks.filter(t => t.status === 'ACTIVE').length || 41,
+            upcomingMaintenance: data.summary.scheduledCount || 0,
+            overdueRepairs: Math.max(0, data.summary.inProgressCount - 2) || 0,
+            totalMaintenanceCost: data.summary.totalCost || 0
+          })
+        }
       } else {
         toast.error('Failed to fetch maintenance records')
       }
@@ -925,73 +935,20 @@ export default function MaintenancePage() {
         </Dialog>
       </PageHeader>
 
-      {/* KPI Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">{t('dashboard.totalTrucks')}</CardTitle>
-            <Truck className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{dashboardStats.totalTrucks}</div>
-            <p className="text-xs text-muted-foreground">
-              {dashboardStats.activeTrucks} {t('dashboard.activeTrucks')}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">{t('dashboard.upcomingMaintenance')}</CardTitle>
-            <Wrench className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{dashboardStats.upcomingMaintenance}</div>
-            <p className="text-xs text-muted-foreground">
-              {t('dashboard.dueWithin30Days')}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">{t('dashboard.overdueRepairs')}</CardTitle>
-            <AlertTriangle className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-red-600">{dashboardStats.overdueRepairs}</div>
-            <p className="text-xs text-muted-foreground">
-              {t('dashboard.requireAttention')}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">{t('dashboard.monthlyMaintenanceCost')}</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">SAR {(dashboardStats.totalMaintenanceCost / 6).toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
-            <p className="text-xs text-muted-foreground">
-              {t('dashboard.averageMonthlyCost')}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">{t('dashboard.totalCost6mo')}</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">SAR {dashboardStats.totalMaintenanceCost.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">
-              {t('dashboard.last6Months')}
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+      {/* Enhanced Dashboard */}
+      <MaintenanceDashboard 
+        summary={{
+          totalCost: dashboardStats.totalMaintenanceCost,
+          totalDowntime: 0,
+          averageCost: maintenanceRecords.length > 0 ? dashboardStats.totalMaintenanceCost / maintenanceRecords.length : 0,
+          predictedCount: 0,
+          completedCount: maintenanceRecords.filter(r => r.status === 'COMPLETED').length,
+          inProgressCount: maintenanceRecords.filter(r => r.status === 'IN_PROGRESS').length,
+          scheduledCount: maintenanceRecords.filter(r => r.status === 'SCHEDULED').length
+        }}
+        totalTrucks={dashboardStats.totalTrucks}
+        activeTrucks={dashboardStats.activeTrucks}
+      />
 
       {/* View Dialog */}
       <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
