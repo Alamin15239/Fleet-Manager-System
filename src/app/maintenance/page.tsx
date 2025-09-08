@@ -180,15 +180,7 @@ export default function MaintenancePage() {
     handleEdit(record)
   }
 
-  // Restore scroll position after edit
-  useEffect(() => {
-    if (!isDialogOpen && scrollPosition > 0) {
-      requestAnimationFrame(() => {
-        window.scrollTo({ top: scrollPosition, behavior: 'instant' })
-        setScrollPosition(0)
-      })
-    }
-  }, [isDialogOpen, scrollPosition])
+  // Don't restore scroll position here - handle it in handleSubmit instead
 
   // Add drag functionality
   useEffect(() => {
@@ -454,9 +446,12 @@ export default function MaintenancePage() {
         resetForm()
         // Refresh the list immediately to show new record at top
         await fetchMaintenanceRecords()
-        // Restore scroll position after refresh
-        if (scrollPosition > 0) {
-          setTimeout(() => window.scrollTo({ top: scrollPosition, behavior: 'instant' }), 50)
+        // Restore scroll position after refresh for edits only
+        if (editingRecord && scrollPosition > 0) {
+          setTimeout(() => {
+            window.scrollTo({ top: scrollPosition, behavior: 'instant' })
+            setScrollPosition(0)
+          }, 100)
         }
       } else {
         let errorMessage = 'Failed to save maintenance record'
