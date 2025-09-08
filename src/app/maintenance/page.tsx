@@ -20,7 +20,6 @@ import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api'
 import { MaintenanceJobSelector } from '@/components/maintenance-job-selector'
 import { useLanguage } from '@/contexts/language-context'
 import { PageHeader } from '@/components/page-header'
-import { JobCardPreviewModal } from '@/components/job-card-preview-modal'
 
 
 interface MaintenanceJob {
@@ -115,11 +114,9 @@ export default function MaintenancePage() {
   const [loading, setLoading] = useState(true)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false)
-  const [isJobCardModalOpen, setIsJobCardModalOpen] = useState(false)
   const [editingRecord, setEditingRecord] = useState<MaintenanceRecord | null>(null)
   const [viewingRecord, setViewingRecord] = useState<MaintenanceRecord | null>(null)
   const [selectedJobs, setSelectedJobs] = useState<MaintenanceJob[]>([])
-  const [jobCardData, setJobCardData] = useState<any>(null)
   
   const [formData, setFormData] = useState({
     truckId: '',
@@ -377,7 +374,6 @@ export default function MaintenancePage() {
       const response = await method(url, payload)
 
       if (response.ok) {
-        const result = await response.json()
         if (editingRecord) {
           toast.success('Maintenance record updated successfully')
         } else {
@@ -390,26 +386,6 @@ export default function MaintenancePage() {
         resetForm()
         // Refresh the list immediately to show new record at top
         await fetchMaintenanceRecords()
-        
-        // Store maintenance record for job card generation
-        if (result.data) {
-          const maintenanceRecord = result.data
-          setJobCardData({
-            maintenanceRecordId: maintenanceRecord.id,
-            vehicleType: maintenanceRecord.truck ? 'truck' : 'trailer',
-            vehicleId: maintenanceRecord.truckId,
-            vehicleName: maintenanceRecord.truck 
-              ? `${maintenanceRecord.truck.year} ${maintenanceRecord.truck.make} ${maintenanceRecord.truck.model}`
-              : `Trailer ${maintenanceRecord.trailer?.number || ''}`,
-            vehicleIdentifier: maintenanceRecord.truck?.licensePlate || maintenanceRecord.trailer?.number || '',
-            driverName: maintenanceRecord.driverName,
-            mechanicName: maintenanceRecord.mechanicName,
-            reportedIssues: maintenanceRecord.description,
-            requestedWork: maintenanceRecord.serviceType,
-            odometer: maintenanceRecord.currentMileage,
-            totalCost: maintenanceRecord.totalCost
-          })
-        }
       } else {
         let errorMessage = 'Failed to save maintenance record'
         try {
@@ -520,7 +496,6 @@ export default function MaintenancePage() {
     setSelectedMechanics([])
     setShowVehicleDropdown(false)
     setShowMechanicDropdown(false)
-    setJobCardData(null)
     setFormData({
       truckId: '',
       serviceType: '',
@@ -899,40 +874,10 @@ export default function MaintenancePage() {
                 />
               </div>
               
-              <DialogFooter className="gap-2">
+              <DialogFooter>
                 <Button type="submit">
                   {editingRecord ? t('maintenance.updateMaintenance') : t('maintenance.addRecord')}
                 </Button>
-                {!editingRecord && (
-                  <Button 
-                    type="button" 
-                    variant="outline"
-                    onClick={() => {
-                      // Generate job card data from current form
-                      const selectedVehicle = vehicles.find(v => v.id === formData.truckId)
-                      if (selectedVehicle) {
-                        setJobCardData({
-                          vehicleType: selectedVehicle.type,
-                          vehicleId: selectedVehicle.id,
-                          vehicleName: selectedVehicle.displayName,
-                          vehicleIdentifier: selectedVehicle.identifier,
-                          driverName: formData.driverName,
-                          mechanicName: selectedMechanics[0]?.name || '',
-                          reportedIssues: formData.description,
-                          requestedWork: formData.serviceType,
-                          odometer: formData.currentMileage,
-                          totalCost: (formData.partsCost || 0) + (formData.laborCost || 0)
-                        })
-                        setIsJobCardModalOpen(true)
-                      } else {
-                        toast.error('Please select a vehicle first')
-                      }
-                    }}
-                  >
-                    <FileText className="h-4 w-4 mr-2" />
-                    Generate Job Card
-                  </Button>
-                )}
               </DialogFooter>
             </form>
           </DialogContent>
@@ -1171,32 +1116,6 @@ export default function MaintenancePage() {
                         <Button 
                           variant="ghost" 
                           size="sm" 
-                          onClick={() => {
-                            setJobCardData({
-                              maintenanceRecordId: record.id,
-                              vehicleType: record.truck ? 'truck' : 'trailer',
-                              vehicleId: record.truckId,
-                              vehicleName: record.truck 
-                                ? `${record.truck.year} ${record.truck.make} ${record.truck.model}`
-                                : `Trailer ${record.trailer?.number || ''}`,
-                              vehicleIdentifier: record.truck?.licensePlate || record.trailer?.number || '',
-                              driverName: record.driverName,
-                              mechanicName: record.mechanicName,
-                              reportedIssues: record.description,
-                              requestedWork: record.serviceType,
-                              odometer: record.currentMileage,
-                              totalCost: record.totalCost
-                            })
-                            setIsJobCardModalOpen(true)
-                          }}
-                          title="Generate Job Card"
-                          className="text-blue-600 hover:text-blue-700"
-                        >
-                          <FileText className="h-3 w-3" />
-                        </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
                           onClick={() => handleDelete(record.id)}
                           className="text-red-600 hover:text-red-700"
                           title="Delete Record"
@@ -1212,21 +1131,6 @@ export default function MaintenancePage() {
           </div>
         </CardContent>
       </Card>
-
-      {/* Job Card Modal */}
-      <JobCardPreviewModal
-        isOpen={isJobCardModalOpen}
-        onClose={() => {
-          setIsJobCardModalOpen(false)
-          setJobCardData(null)
-        }}
-        initialData={jobCardData}
-        onSave={(jobCard) => {
-          toast.success('Job card created successfully')
-          // Optionally refresh maintenance records to show linked job cards
-          fetchMaintenanceRecords()
-        }}
-      />
     </div>
   )
 }

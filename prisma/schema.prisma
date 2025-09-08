@@ -41,8 +41,6 @@ model User {
   trailerMaintenanceRecords TrailerMaintenanceRecord[]
   createdTires             Tire[]
   userActivities           UserActivity[]
-  jobCards                 JobCard[]
-  jobCardTemplates         JobCardTemplate[]
 
 
   @@map("users")
@@ -62,7 +60,6 @@ model Mechanic {
   updatedAt          DateTime            @updatedAt
   maintenanceRecords MaintenanceRecord[]
   trailerMaintenanceRecords TrailerMaintenanceRecord[]
-  jobCards           JobCard[]
 
   @@map("mechanics")
 }
@@ -219,7 +216,7 @@ model MaintenanceRecord {
   maintenanceJob    MaintenanceJob?   @relation(fields: [maintenanceJobId], references: [id])
   mechanic          Mechanic?         @relation(fields: [mechanicId], references: [id])
   truck             Truck             @relation(fields: [truckId], references: [id], onDelete: Cascade)
-  jobCards          JobCard[]
+
 
   @@map("maintenance_records")
 }
@@ -257,7 +254,6 @@ model TrailerMaintenanceRecord {
   maintenanceJob    MaintenanceJob?   @relation(fields: [maintenanceJobId], references: [id])
   mechanic          Mechanic?         @relation(fields: [mechanicId], references: [id])
   trailer           Trailer           @relation(fields: [trailerId], references: [id], onDelete: Cascade)
-  jobCards          JobCard[]
 
   @@map("trailer_maintenance_records")
 }
@@ -520,63 +516,6 @@ enum TruckStatus {
 enum MaintenanceStatus {
   SCHEDULED
   IN_PROGRESS
-  COMPLETED
-  CANCELLED
-}
-
-model JobCard {
-  id                      String    @id @default(cuid())
-  jobCardNo               String    @unique
-  maintenanceRecordId     String?
-  trailerMaintenanceRecordId String?
-  status                  JobCardStatus @default(DRAFT)
-  vehicleType             String    // 'truck' or 'trailer'
-  vehicleId               String
-  vehicleName             String
-  vehicleIdentifier       String    // license plate or trailer number
-  driverName              String?
-  mechanicId              String?
-  mechanicName            String?
-  reportedIssues          String?
-  requestedWork           String?
-  tasks                   Json?     // Array of task objects
-  parts                   Json?     // Array of part objects
-  totalCost               Float     @default(0)
-  odometer                Int?
-  engineHours             Float?
-  qrToken                 String    @unique
-  signatures              Json?     // Customer, mechanic, supervisor signatures
-  printedBy               String?
-  printedAt               DateTime?
-  printCount              Int       @default(0)
-  createdById             String?
-  createdAt               DateTime  @default(now())
-  updatedAt               DateTime  @updatedAt
-  maintenanceRecord       MaintenanceRecord? @relation(fields: [maintenanceRecordId], references: [id], onDelete: Cascade)
-  trailerMaintenanceRecord TrailerMaintenanceRecord? @relation(fields: [trailerMaintenanceRecordId], references: [id], onDelete: Cascade)
-  mechanic                Mechanic? @relation(fields: [mechanicId], references: [id])
-  createdBy               User?     @relation(fields: [createdById], references: [id])
-
-  @@map("job_cards")
-}
-
-model JobCardTemplate {
-  id          String   @id @default(cuid())
-  name        String
-  content     String   // HTML template with tokens
-  isDefault   Boolean  @default(false)
-  isActive    Boolean  @default(true)
-  createdById String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  createdBy   User?    @relation(fields: [createdById], references: [id])
-
-  @@map("job_card_templates")
-}
-
-enum JobCardStatus {
-  DRAFT
-  ACTIVE
   COMPLETED
   CANCELLED
 }

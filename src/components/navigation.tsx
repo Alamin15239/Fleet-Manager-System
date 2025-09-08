@@ -51,13 +51,6 @@ const getNavigation = (t: (key: string) => string, language: string) => [
     resource: 'maintenance',
     action: 'read'
   },
-  { 
-    name: 'Job Cards', 
-    href: '/job-cards', 
-    icon: FileText,
-    resource: 'job-cards',
-    action: 'read'
-  },
 
   { 
     name: t('nav.mechanics'), 
