@@ -1232,7 +1232,7 @@ export default function MaintenanceTracking() {
                         </div>
                         {record.currentMileage && (
                           <div className="text-xs text-muted-foreground">
-                            {record.currentMileage.toLocaleString()} mi
+                            {record.currentMileage?.toLocaleString() || '0'} mi
                           </div>
                         )}
                       </div>
