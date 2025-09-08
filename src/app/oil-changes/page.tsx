@@ -172,10 +172,7 @@ export default function OilChangesPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-blue-600">
-              {oilChanges.reduce((sum, r) => {
-                console.log('Oil record:', r.id, 'quantity:', r.oilQuantityLiters)
-                return sum + (r.oilQuantityLiters || 0)
-              }, 0).toFixed(1)}L
+              {oilChanges.reduce((sum, r) => sum + (r.oilQuantityLiters || 0), 0).toFixed(1)}L
             </div>
             <p className="text-xs text-muted-foreground">
               {oilChanges.filter(r => r.oilQuantityLiters && r.oilQuantityLiters > 0).length} of {oilChanges.length} with quantity
