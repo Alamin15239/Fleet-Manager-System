@@ -273,6 +273,7 @@ export async function POST(request: NextRequest) {
           attachments: body.attachments,
           isOilChange: body.isOilChange || false,
           oilChangeInterval: body.oilChangeInterval ? parseInt(body.oilChangeInterval) : null,
+          oilQuantityLiters: body.oilQuantityLiters ? parseFloat(body.oilQuantityLiters) : null,
           currentMileage: body.currentMileage ? parseInt(body.currentMileage) : null,
           maintenanceJobId: body.maintenanceJobId || null,
           wasPredicted: body.wasPredicted || false,

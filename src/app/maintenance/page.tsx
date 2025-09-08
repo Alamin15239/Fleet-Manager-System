@@ -132,6 +132,7 @@ export default function MaintenancePage() {
     notes: '',
     isOilChange: false,
     oilChangeInterval: 5000, // Default 5000 km
+    oilQuantityLiters: 0,
     currentMileage: 0,
     maintenanceJobId: '',
     driverName: ''
@@ -458,6 +459,7 @@ export default function MaintenancePage() {
         notes: record.notes || '',
         isOilChange: record.isOilChange || false,
         oilChangeInterval: record.oilChangeInterval || 5000,
+        oilQuantityLiters: record.oilQuantityLiters || 0,
         currentMileage: record.currentMileage || 0,
         maintenanceJobId: record.maintenanceJobId || '',
         driverName
@@ -510,6 +512,7 @@ export default function MaintenancePage() {
       notes: '',
       isOilChange: false,
       oilChangeInterval: 5000,
+      oilQuantityLiters: 0,
       currentMileage: 0,
       maintenanceJobId: '',
       driverName: ''
@@ -680,7 +683,7 @@ export default function MaintenancePage() {
               </div>
               
               {formData.isOilChange && (
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-3 gap-3">
                   <div>
                     <Label className="text-sm font-medium">Interval (km)</Label>
                     <Input
@@ -688,6 +691,18 @@ export default function MaintenancePage() {
                       value={formData.oilChangeInterval}
                       onChange={(e) => setFormData({...formData, oilChangeInterval: parseInt(e.target.value) || 5000})}
                       step="1000"
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium">Oil Quantity (Liters)</Label>
+                    <Input
+                      type="number"
+                      value={formData.oilQuantityLiters}
+                      onChange={(e) => setFormData({...formData, oilQuantityLiters: parseFloat(e.target.value) || 0})}
+                      step="0.5"
+                      min="0"
+                      placeholder="e.g. 15"
                       className="mt-1"
                     />
                   </div>

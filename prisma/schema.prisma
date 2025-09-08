@@ -196,6 +196,7 @@ model MaintenanceRecord {
   attachments       Json?
   isOilChange       Boolean           @default(false)
   oilChangeInterval Int?
+  oilQuantityLiters Float?
   currentMileage    Int?
   maintenanceJobId  String?
   isDeleted         Boolean           @default(false)
