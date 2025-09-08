@@ -545,7 +545,8 @@ export default function MaintenancePage() {
         oilQuantityLiters: record.oilQuantityLiters || 0,
         currentMileage: record.currentMileage || 0,
         maintenanceJobId: record.maintenanceJobId || '',
-        driverName
+        driverName,
+        mechanicName: record.mechanicName || ''
       })
       setIsDialogOpen(true)
     } catch (error) {
