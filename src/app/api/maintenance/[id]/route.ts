@@ -185,6 +185,7 @@ export async function PUT(
           ...(body.attachments !== undefined && { attachments: body.attachments }),
           ...(body.isOilChange !== undefined && { isOilChange: body.isOilChange }),
           ...(body.oilChangeInterval !== undefined && { oilChangeInterval: body.oilChangeInterval ? parseInt(body.oilChangeInterval) : null }),
+          ...(body.oilQuantityLiters !== undefined && { oilQuantityLiters: body.oilQuantityLiters ? parseFloat(body.oilQuantityLiters) : null }),
           ...(body.currentMileage !== undefined && { currentMileage: body.currentMileage ? parseInt(body.currentMileage) : null }),
           ...(body.maintenanceJobId !== undefined && { maintenanceJobId: body.maintenanceJobId || null })
         },
