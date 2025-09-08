@@ -12,6 +12,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { Settings, Save, RefreshCw, Building, DollarSign, Bell, Wrench, Users, Shield, Crown, User, Briefcase, Activity, Clock } from 'lucide-react'
 import SystemStatus from '@/components/SystemStatus'
+import SettingsDashboard from '@/components/settings-dashboard'
+import SystemUtilities from '@/components/system-utilities'
 import { toast } from 'sonner'
 import { useAuth } from '@/contexts/auth-context'
 import { usePermissions } from '@/contexts/permissions-context'
@@ -504,15 +506,42 @@ export default function SettingsPage() {
       </div>
 
       <Tabs defaultValue="company" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-1">
-          <TabsTrigger value="company" className="text-xs sm:text-sm">Company</TabsTrigger>
-          <TabsTrigger value="currency" className="text-xs sm:text-sm">Currency</TabsTrigger>
-          <TabsTrigger value="maintenance" className="text-xs sm:text-sm">Maintenance</TabsTrigger>
-          <TabsTrigger value="notifications" className="text-xs sm:text-sm">Notifications</TabsTrigger>
-          <TabsTrigger value="system" className="text-xs sm:text-sm">System</TabsTrigger>
-          {isAdmin && <TabsTrigger value="roles" className="text-xs sm:text-sm">Roles</TabsTrigger>}
-          {isAdmin && <TabsTrigger value="activity" className="text-xs sm:text-sm">Activity</TabsTrigger>}
-        </TabsList>
+        <div className="overflow-x-auto">
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-1 min-w-max">
+            <TabsTrigger value="company" className="text-xs sm:text-sm flex items-center gap-1">
+              <Building className="h-3 w-3" />
+              <span className="hidden sm:inline">Company</span>
+            </TabsTrigger>
+            <TabsTrigger value="currency" className="text-xs sm:text-sm flex items-center gap-1">
+              <DollarSign className="h-3 w-3" />
+              <span className="hidden sm:inline">Currency</span>
+            </TabsTrigger>
+            <TabsTrigger value="maintenance" className="text-xs sm:text-sm flex items-center gap-1">
+              <Wrench className="h-3 w-3" />
+              <span className="hidden sm:inline">Maintenance</span>
+            </TabsTrigger>
+            <TabsTrigger value="notifications" className="text-xs sm:text-sm flex items-center gap-1">
+              <Bell className="h-3 w-3" />
+              <span className="hidden sm:inline">Notifications</span>
+            </TabsTrigger>
+            <TabsTrigger value="system" className="text-xs sm:text-sm flex items-center gap-1">
+              <Settings className="h-3 w-3" />
+              <span className="hidden sm:inline">System</span>
+            </TabsTrigger>
+            {isAdmin && (
+              <TabsTrigger value="roles" className="text-xs sm:text-sm flex items-center gap-1">
+                <Shield className="h-3 w-3" />
+                <span className="hidden sm:inline">Roles</span>
+              </TabsTrigger>
+            )}
+            {isAdmin && (
+              <TabsTrigger value="activity" className="text-xs sm:text-sm flex items-center gap-1">
+                <Activity className="h-3 w-3" />
+                <span className="hidden sm:inline">Activity</span>
+              </TabsTrigger>
+            )}
+          </TabsList>
+        </div>
 
         {/* Company Settings */}
         <TabsContent value="company" className="space-y-6">
@@ -692,13 +721,26 @@ export default function SettingsPage() {
                 </Select>
               </div>
 
-              <div className="p-4 bg-muted rounded-lg">
-                <h4 className="font-medium mb-2">Preview</h4>
-                <p className="text-lg font-semibold">
-                  {settings.symbolPosition === 'before' ? settings.currencySymbol : ''}
-                  1{settings.thousandsSeparator}000{settings.decimalPlaces > 0 ? settings.decimalSeparator + '00' : ''}
-                  {settings.symbolPosition === 'after' ? ` ${settings.currencySymbol}` : ''}
-                </p>
+              <div className="p-4 bg-gradient-to-r from-blue-50 to-green-50 border border-blue-200 rounded-lg">
+                <h4 className="font-medium mb-3 text-blue-800">Currency Preview</h4>
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-blue-700">Small Amount:</span>
+                    <span className="text-lg font-semibold text-green-700">
+                      {settings.symbolPosition === 'before' ? settings.currencySymbol : ''}
+                      123{settings.decimalPlaces > 0 ? settings.decimalSeparator + '45' : ''}
+                      {settings.symbolPosition === 'after' ? ` ${settings.currencySymbol}` : ''}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-blue-700">Large Amount:</span>
+                    <span className="text-xl font-bold text-green-700">
+                      {settings.symbolPosition === 'before' ? settings.currencySymbol : ''}
+                      1{settings.thousandsSeparator}234{settings.thousandsSeparator}567{settings.decimalPlaces > 0 ? settings.decimalSeparator + '89' : ''}
+                      {settings.symbolPosition === 'after' ? ` ${settings.currencySymbol}` : ''}
+                    </span>
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -845,48 +887,62 @@ export default function SettingsPage() {
                 </div>
               </div>
               
-              {/* Test Notifications */}
-              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <h4 className="font-medium mb-2 text-blue-800">Test Notifications</h4>
-                <p className="text-sm text-blue-700 mb-3">
-                  Test if your notification settings are working by triggering a notification check.
-                </p>
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={async () => {
-                    try {
-                      const token = localStorage.getItem('authToken')
-                      if (!token) {
-                        toast.error('Authentication required')
-                        return
-                      }
-                      
-                      const response = await fetch('/api/notifications/check', { 
-                        method: 'POST',
-                        headers: {
-                          'Authorization': `Bearer ${token}`,
-                          'Content-Type': 'application/json'
+              {/* Notification Summary */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                  <h4 className="font-medium mb-2 text-green-800">Active Notifications</h4>
+                  <div className="space-y-1 text-sm">
+                    {settings.notifications?.email && <div className="text-green-700">✓ Email notifications enabled</div>}
+                    {settings.notifications?.upcomingMaintenance && <div className="text-green-700">✓ Upcoming maintenance alerts</div>}
+                    {settings.notifications?.overdueMaintenance && <div className="text-green-700">✓ Overdue maintenance alerts</div>}
+                    {settings.notifications?.lowStock && <div className="text-green-700">✓ Low stock alerts</div>}
+                    {!Object.values(settings.notifications || {}).some(Boolean) && (
+                      <div className="text-gray-500">No notifications enabled</div>
+                    )}
+                  </div>
+                </div>
+                
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <h4 className="font-medium mb-2 text-blue-800">Test Notifications</h4>
+                  <p className="text-sm text-blue-700 mb-3">
+                    Test if your notification settings are working.
+                  </p>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={async () => {
+                      try {
+                        const token = localStorage.getItem('authToken')
+                        if (!token) {
+                          toast.error('Authentication required')
+                          return
                         }
-                      })
-                      
-                      if (response.ok) {
-                        const data = await response.json()
-                        toast.success('Notification check completed! Check your notifications panel.')
-                      } else {
-                        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
-                        toast.error(`Failed to run notification check: ${errorData.error || 'Unknown error'}`)
+                        
+                        const response = await fetch('/api/notifications/check', { 
+                          method: 'POST',
+                          headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/json'
+                          }
+                        })
+                        
+                        if (response.ok) {
+                          toast.success('Notification check completed!')
+                        } else {
+                          const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+                          toast.error(`Failed: ${errorData.error || 'Unknown error'}`)
+                        }
+                      } catch (error) {
+                        console.error('Notification check error:', error)
+                        toast.error('Failed to run notification check')
                       }
-                    } catch (error) {
-                      console.error('Notification check error:', error)
-                      toast.error('Failed to run notification check')
-                    }
-                  }}
-                  className="bg-blue-600 text-white hover:bg-blue-700"
-                >
-                  <Bell className="h-4 w-4 mr-2" />
-                  Test Notifications
-                </Button>
+                    }}
+                    className="bg-blue-600 text-white hover:bg-blue-700"
+                  >
+                    <Bell className="h-4 w-4 mr-2" />
+                    Test Now
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -1209,6 +1265,8 @@ export default function SettingsPage() {
 
         {/* System Status Tab */}
         <TabsContent value="system" className="space-y-6">
+          <SettingsDashboard />
+          {isAdmin && <SystemUtilities />}
           <SystemStatus />
         </TabsContent>
 

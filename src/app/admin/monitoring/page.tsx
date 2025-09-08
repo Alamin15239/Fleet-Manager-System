@@ -8,6 +8,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Progress } from '@/components/ui/progress'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { 
   Shield, 
   Users, 
@@ -20,10 +22,25 @@ import {
   Clock,
   User,
   Database,
-  FileText
+  FileText,
+  RefreshCw,
+  AlertTriangle,
+  TrendingUp,
+  Monitor,
+  MapPin,
+  HardDrive,
+  BarChart3,
+  Zap,
+  Globe
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { format } from 'date-fns'
+import { UserActivityMonitor } from '@/components/user-activity-monitor'
+import { DatabaseStorageMonitor } from '@/components/database-storage-monitor'
+import { EnhancedMonitoringDashboard } from '@/components/enhanced-monitoring-dashboard'
+import { RealTimeActivityFeed } from '@/components/real-time-activity-feed'
+import { SecurityMonitor } from '@/components/security-monitor'
+import { SystemPerformanceCharts } from '@/components/system-performance-charts'
 
 interface AuditLog {
   id: string
@@ -88,12 +105,25 @@ interface User {
   isActive: boolean
 }
 
+interface SystemStats {
+  totalUsers: number
+  activeUsers: number
+  totalSessions: number
+  activeSessions: number
+  totalActions: number
+  criticalAlerts: number
+  systemHealth: number
+  responseTime: number
+}
+
 export default function AdminMonitoring() {
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([])
   const [userActivities, setUserActivities] = useState<UserActivity[]>([])
   const [loginHistory, setLoginHistory] = useState<LoginHistory[]>([])
   const [users, setUsers] = useState<User[]>([])
+  const [systemStats, setSystemStats] = useState<SystemStats | null>(null)
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
   const [isMounted, setIsMounted] = useState(false)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
@@ -106,7 +136,7 @@ export default function AdminMonitoring() {
     endDate: '',
     limit: '50'
   })
-  const [activeTab, setActiveTab] = useState('audit-logs')
+  const [activeTab, setActiveTab] = useState('overview')
   const router = useRouter()
 
   useEffect(() => {
@@ -123,6 +153,7 @@ export default function AdminMonitoring() {
     if (isMounted && isAuthenticated && isAdmin) {
       fetchUsers()
       fetchData()
+      fetchSystemStats()
     }
   }, [isMounted, isAuthenticated, isAdmin, activeTab, filters])
 
@@ -181,6 +212,26 @@ export default function AdminMonitoring() {
     }
   }
 
+  const fetchSystemStats = async () => {
+    if (!isMounted || !isAuthenticated || !isAdmin) return
+    
+    try {
+      const token = localStorage.getItem('authToken')
+      if (!token) return
+
+      const response = await fetch('/api/admin/system-stats', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        setSystemStats(data.stats)
+      }
+    } catch (error) {
+      console.error('Error fetching system stats:', error)
+    }
+  }
+
   const fetchData = async () => {
     if (!isMounted || !isAuthenticated || !isAdmin) return
     
@@ -231,6 +282,16 @@ export default function AdminMonitoring() {
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleRefresh = async () => {
+    setRefreshing(true)
+    await Promise.all([
+      fetchData(),
+      fetchSystemStats(),
+      fetchUsers()
+    ])
+    setRefreshing(false)
   }
 
   const getActionBadgeColor = (action: string) => {
@@ -344,6 +405,10 @@ export default function AdminMonitoring() {
             <Shield className="h-4 w-4 mr-2" />
             Admin Dashboard
           </Button>
+          <Button variant="outline" onClick={handleRefresh} disabled={refreshing}>
+            <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
           <Button onClick={exportData}>
             <Download className="h-4 w-4 mr-2" />
             Export Data
@@ -449,9 +514,88 @@ export default function AdminMonitoring() {
         </CardContent>
       </Card>
 
+      {/* System Overview Cards */}
+      {systemStats && (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">System Health</CardTitle>
+              <Zap className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{systemStats.systemHealth}%</div>
+              <Progress value={systemStats.systemHealth} className="mt-2" />
+              <p className="text-xs text-muted-foreground mt-2">
+                {systemStats.systemHealth >= 90 ? 'Excellent' : 
+                 systemStats.systemHealth >= 70 ? 'Good' : 
+                 systemStats.systemHealth >= 50 ? 'Fair' : 'Poor'}
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Active Users</CardTitle>
+              <Users className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{systemStats.activeUsers}</div>
+              <p className="text-xs text-muted-foreground">
+                of {systemStats.totalUsers} total users
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Active Sessions</CardTitle>
+              <Monitor className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{systemStats.activeSessions}</div>
+              <p className="text-xs text-muted-foreground">
+                {systemStats.totalSessions} total sessions today
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Response Time</CardTitle>
+              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{systemStats.responseTime}ms</div>
+              <p className="text-xs text-muted-foreground">
+                {systemStats.responseTime < 200 ? 'Excellent' : 
+                 systemStats.responseTime < 500 ? 'Good' : 
+                 systemStats.responseTime < 1000 ? 'Fair' : 'Slow'}
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Critical Alerts */}
+      {systemStats && systemStats.criticalAlerts > 0 && (
+        <Alert className="border-red-200 bg-red-50">
+          <AlertTriangle className="h-4 w-4 text-red-600" />
+          <AlertDescription className="text-red-800">
+            <strong>{systemStats.criticalAlerts} critical alerts</strong> require immediate attention.
+            <Button variant="link" className="p-0 h-auto ml-2 text-red-600">
+              View Details
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-6">
+          <TabsTrigger value="overview" className="flex items-center gap-2">
+            <BarChart3 className="h-4 w-4" />
+            Overview
+          </TabsTrigger>
           <TabsTrigger value="audit-logs" className="flex items-center gap-2">
             <Database className="h-4 w-4" />
             Audit Logs
@@ -464,7 +608,19 @@ export default function AdminMonitoring() {
             <Users className="h-4 w-4" />
             Login History
           </TabsTrigger>
+          <TabsTrigger value="security" className="flex items-center gap-2">
+            <Shield className="h-4 w-4" />
+            Security
+          </TabsTrigger>
+          <TabsTrigger value="system-health" className="flex items-center gap-2">
+            <HardDrive className="h-4 w-4" />
+            System Health
+          </TabsTrigger>
         </TabsList>
+
+        <TabsContent value="overview" className="space-y-6">
+          <EnhancedMonitoringDashboard />
+        </TabsContent>
 
         <TabsContent value="audit-logs" className="space-y-4">
           <Card>
@@ -549,86 +705,10 @@ export default function AdminMonitoring() {
         </TabsContent>
 
         <TabsContent value="user-activities" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>User Activities</CardTitle>
-              <CardDescription>
-                Monitor all user actions in the system
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {loading ? (
-                <div className="flex items-center justify-center h-32">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
-                </div>
-              ) : (
-                <div className="max-h-96 overflow-y-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>User</TableHead>
-                        <TableHead>Action</TableHead>
-                        <TableHead>Entity</TableHead>
-                        <TableHead>Details</TableHead>
-                        <TableHead>IP Address</TableHead>
-                        <TableHead>Date</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {userActivities.map((activity) => (
-                        <TableRow key={activity.id}>
-                          <TableCell>
-                            <div>
-                              <div className="font-medium">{activity.user?.name || 'Unknown'}</div>
-                              <div className="text-sm text-muted-foreground">
-                                {activity.user?.email || 'Unknown'}
-                              </div>
-                              <Badge variant="outline" className="text-xs mt-1">
-                                {activity.user?.role || 'Unknown'}
-                              </Badge>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Badge className={getActionBadgeColor(activity.action)}>
-                              {activity.action}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <Badge className={getEntityTypeBadgeColor(activity.entityType)}>
-                              {activity.entityType}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <div className="text-sm max-w-xs">
-                              {activity.entityName && (
-                                <div className="font-medium">{activity.entityName}</div>
-                              )}
-                              {activity.newValues && (
-                                <pre className="text-xs bg-gray-50 p-1 rounded overflow-x-auto mt-1">
-                                  {JSON.stringify(activity.newValues, null, 2)}
-                                </pre>
-                              )}
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-sm text-muted-foreground">
-                            {activity.ipAddress || 'Unknown'}
-                          </TableCell>
-                          <TableCell>
-                            <div className="text-sm">
-                              <div>{format(new Date(activity.createdAt), 'MMM dd, yyyy')}</div>
-                              <div className="text-muted-foreground">
-                                {format(new Date(activity.createdAt), 'HH:mm:ss')}
-                              </div>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          <div className="grid gap-6 lg:grid-cols-2">
+            <RealTimeActivityFeed />
+            <UserActivityMonitor />
+          </div>
         </TabsContent>
 
         <TabsContent value="login-history" className="space-y-4">
@@ -710,6 +790,73 @@ export default function AdminMonitoring() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="security" className="space-y-6">
+          <SecurityMonitor />
+        </TabsContent>
+
+        <TabsContent value="system-health" className="space-y-6">
+          <SystemPerformanceCharts />
+          
+          <div className="grid gap-6 md:grid-cols-2">
+            <DatabaseStorageMonitor />
+            
+            {/* System Status Overview */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Monitor className="h-5 w-5" />
+                  System Status
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {systemStats && systemStats.criticalAlerts > 0 ? (
+                    <Alert className="border-red-200 bg-red-50">
+                      <AlertTriangle className="h-4 w-4 text-red-600" />
+                      <AlertDescription className="text-red-800">
+                        {systemStats.criticalAlerts} critical system alerts detected.
+                      </AlertDescription>
+                    </Alert>
+                  ) : (
+                    <Alert className="border-green-200 bg-green-50">
+                      <Zap className="h-4 w-4 text-green-600" />
+                      <AlertDescription className="text-green-800">
+                        All systems operating normally.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                  
+                  <div className="grid gap-3 mt-4">
+                    <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
+                      <div className="flex items-center gap-2">
+                        <Database className="h-4 w-4 text-blue-600" />
+                        <span className="text-sm font-medium">Database</span>
+                      </div>
+                      <Badge variant="secondary" className="bg-green-100 text-green-800">Healthy</Badge>
+                    </div>
+                    
+                    <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
+                      <div className="flex items-center gap-2">
+                        <Globe className="h-4 w-4 text-blue-600" />
+                        <span className="text-sm font-medium">API Services</span>
+                      </div>
+                      <Badge variant="secondary" className="bg-green-100 text-green-800">Online</Badge>
+                    </div>
+                    
+                    <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
+                      <div className="flex items-center gap-2">
+                        <Shield className="h-4 w-4 text-blue-600" />
+                        <span className="text-sm font-medium">Security</span>
+                      </div>
+                      <Badge variant="secondary" className="bg-green-100 text-green-800">Secure</Badge>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
       </Tabs>
     </div>

@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Progress } from '@/components/ui/progress'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { 
   Shield, 
   Users, 
@@ -20,22 +22,67 @@ import {
   Eye,
   Settings,
   Activity,
-  Database
+  Database,
+  UserPlus,
+  Calendar,
+  BarChart3,
+  Zap,
+  Server,
+  HardDrive,
+  Wifi,
+  RefreshCw
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { formatCurrency } from '@/lib/currency'
+import { apiGet } from '@/lib/api'
+import { toast } from 'sonner'
 
-interface SystemStats {
-  totalUsers: number
-  activeUsers: number
-  totalTrucks: number
-  activeTrucks: number
-  totalTrailers: number
-  activeTrailers: number
-  totalMaintenance: number
-  pendingMaintenance: number
-  totalCost: number
-  recentActivity: any[]
+interface AdminDashboardData {
+  users: {
+    total: number
+    active: number
+    pending: number
+    admins: number
+    managers: number
+    regular: number
+    thisMonth: number
+  }
+  fleet: {
+    trucks: {
+      total: number
+      active: number
+      inactive: number
+      maintenance: number
+    }
+    trailers: {
+      total: number
+      active: number
+      inactive: number
+      maintenance: number
+    }
+  }
+  maintenance: {
+    total: number
+    completed: number
+    pending: number
+    totalCost: number
+    thisMonthCost: number
+    thisMonthCount: number
+    costGrowth: number
+  }
+  recentUsers: User[]
+  recentActivities: Activity[]
+  systemHealth: {
+    database: string
+    authentication: string
+    fileStorage: string
+    reportGeneration: string
+  }
+  metrics: {
+    averageMaintenanceCost: number
+    fleetUtilization: number
+    userApprovalRate: number
+  }
 }
 
 interface User {
@@ -44,24 +91,39 @@ interface User {
   name: string | null
   role: string
   isActive: boolean
+  isApproved: boolean
+  createdAt: string
+}
+
+interface Activity {
+  id: string
+  action: string
+  entityType: string
+  entityName: string
+  userName: string
   createdAt: string
 }
 
 export default function AdminDashboard() {
-  const [stats, setStats] = useState<SystemStats>({
-    totalUsers: 0,
-    activeUsers: 0,
-    totalTrucks: 0,
-    activeTrucks: 0,
-    totalTrailers: 0,
-    activeTrailers: 0,
-    totalMaintenance: 0,
-    pendingMaintenance: 0,
-    totalCost: 0,
-    recentActivity: []
+  const [dashboardData, setDashboardData] = useState<AdminDashboardData>({
+    users: { total: 0, active: 0, pending: 0, admins: 0, managers: 0, regular: 0, thisMonth: 0 },
+    fleet: {
+      trucks: { total: 0, active: 0, inactive: 0, maintenance: 0 },
+      trailers: { total: 0, active: 0, inactive: 0, maintenance: 0 }
+    },
+    maintenance: { total: 0, completed: 0, pending: 0, totalCost: 0, thisMonthCost: 0, thisMonthCount: 0, costGrowth: 0 },
+    recentUsers: [],
+    recentActivities: [],
+    systemHealth: {
+      database: 'Connected',
+      authentication: 'Operational',
+      fileStorage: 'Available',
+      reportGeneration: 'Ready'
+    },
+    metrics: { averageMaintenanceCost: 0, fleetUtilization: 0, userApprovalRate: 0 }
   })
-  const [recentUsers, setRecentUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
   const [isMounted, setIsMounted] = useState(false)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
@@ -117,80 +179,37 @@ export default function AdminDashboard() {
     }
   }
 
-  const fetchAdminData = async () => {
+  const fetchAdminData = async (showRefreshing = false) => {
     if (!isMounted || !isAuthenticated || !isAdmin) return
     
-    setLoading(true)
-    console.log('Fetching admin data...')
+    if (showRefreshing) {
+      setRefreshing(true)
+    } else {
+      setLoading(true)
+    }
+    
     try {
-      const token = localStorage.getItem('authToken')
-      if (!token) {
-        console.error('No auth token found')
-        return
+      const response = await apiGet('/api/admin/dashboard')
+      if (response.ok) {
+        const data = await response.json()
+        setDashboardData(data.data)
+        if (showRefreshing) {
+          toast.success('Dashboard data refreshed')
+        }
+      } else {
+        toast.error('Failed to fetch dashboard data')
       }
-
-      // Fetch users
-      const usersResponse = await fetch('/api/users?limit=1000', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
-      
-      if (usersResponse.ok) {
-        const usersResponseData = await usersResponse.json()
-        const usersData = usersResponseData.data || []
-        setRecentUsers(usersData.slice(0, 5))
-        
-        // Calculate user stats
-        const activeUsers = usersData.filter((u: User) => u.isActive).length
-        setStats(prev => ({
-          ...prev,
-          totalUsers: usersData.length,
-          activeUsers
-        }))
-        console.log('Users updated:', usersData.length, 'active:', activeUsers)
-      }
-
-      // Use hardcoded truck values to match dashboard
-      setStats(prev => ({
-        ...prev,
-        totalTrucks: 43,
-        activeTrucks: 41
-      }))
-      console.log('Trucks updated: 43 active: 41 (hardcoded)')
-
-      // Use hardcoded trailer values
-      setStats(prev => ({
-        ...prev,
-        totalTrailers: 36,
-        activeTrailers: 31
-      }))
-      console.log('Trailers updated: 36 active: 31 (hardcoded)')
-
-      // Fetch maintenance
-      const maintenanceResponse = await fetch('/api/maintenance', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
-      
-      if (maintenanceResponse.ok) {
-        const maintenanceResponseData = await maintenanceResponse.json()
-        const maintenanceData = maintenanceResponseData.data || []
-        const pendingMaintenance = maintenanceData.filter((m: any) => 
-          m.status === 'SCHEDULED' || m.status === 'IN_PROGRESS'
-        ).length
-        const totalCost = maintenanceData.reduce((sum: number, m: any) => sum + m.totalCost, 0)
-        
-        setStats(prev => ({
-          ...prev,
-          totalMaintenance: maintenanceData.length,
-          pendingMaintenance,
-          totalCost
-        }))
-      }
-
     } catch (error) {
       console.error('Error fetching admin data:', error)
+      toast.error('Failed to fetch dashboard data')
     } finally {
       setLoading(false)
+      setRefreshing(false)
     }
+  }
+
+  const handleRefresh = () => {
+    fetchAdminData(true)
   }
 
   const getRoleBadgeColor = (role: string) => {
@@ -235,10 +254,14 @@ export default function AdminDashboard() {
             Admin Dashboard
           </h1>
           <p className="text-muted-foreground">
-            Welcome back, {currentUser.name || currentUser.email}. Manage your fleet system from here.
+            Welcome back, {currentUser?.name || currentUser?.email}. Manage your fleet system from here.
           </p>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" onClick={handleRefresh} disabled={refreshing}>
+            <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+            {refreshing ? 'Refreshing...' : 'Refresh'}
+          </Button>
           <Button variant="outline" onClick={() => router.push('/users')}>
             <Users className="h-4 w-4 mr-2" />
             Manage Users
@@ -246,10 +269,6 @@ export default function AdminDashboard() {
           <Button variant="outline" onClick={() => router.push('/admin/activity')}>
             <Activity className="h-4 w-4 mr-2" />
             Activity Monitor
-          </Button>
-          <Button variant="outline" onClick={() => router.push('/admin/monitoring')}>
-            <Activity className="h-4 w-4 mr-2" />
-            Monitoring
           </Button>
           <Button variant="outline" onClick={() => router.push('/settings')}>
             <Settings className="h-4 w-4 mr-2" />
@@ -266,35 +285,41 @@ export default function AdminDashboard() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.totalUsers}</div>
+            <div className="text-2xl font-bold">{dashboardData.users.total}</div>
             <p className="text-xs text-muted-foreground">
-              {stats.activeUsers} active users
+              {dashboardData.users.active} active • {dashboardData.users.pending} pending
             </p>
+            <div className="mt-2">
+              <Progress value={dashboardData.metrics.userApprovalRate} className="h-1" />
+            </div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Trucks</CardTitle>
+            <CardTitle className="text-sm font-medium">Fleet Trucks</CardTitle>
             <Truck className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.totalTrucks}</div>
+            <div className="text-2xl font-bold">{dashboardData.fleet.trucks.total}</div>
             <p className="text-xs text-muted-foreground">
-              {stats.activeTrucks} active trucks
+              {dashboardData.fleet.trucks.active} active • {dashboardData.fleet.trucks.maintenance} in service
             </p>
+            <div className="mt-2">
+              <Progress value={dashboardData.metrics.fleetUtilization} className="h-1" />
+            </div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Trailers</CardTitle>
+            <CardTitle className="text-sm font-medium">Fleet Trailers</CardTitle>
             <Truck className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.totalTrailers}</div>
+            <div className="text-2xl font-bold">{dashboardData.fleet.trailers.total}</div>
             <p className="text-xs text-muted-foreground">
-              {stats.activeTrailers} active trailers
+              {dashboardData.fleet.trailers.active} active • {dashboardData.fleet.trailers.maintenance} in service
             </p>
           </CardContent>
         </Card>
@@ -305,9 +330,9 @@ export default function AdminDashboard() {
             <Wrench className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.totalMaintenance}</div>
+            <div className="text-2xl font-bold">{dashboardData.maintenance.total}</div>
             <p className="text-xs text-muted-foreground">
-              {stats.pendingMaintenance} pending
+              {dashboardData.maintenance.pending} pending • {dashboardData.maintenance.completed} completed
             </p>
           </CardContent>
         </Card>
@@ -318,10 +343,18 @@ export default function AdminDashboard() {
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(stats.totalCost)}</div>
+            <div className="text-2xl font-bold">{formatCurrency(dashboardData.maintenance.totalCost)}</div>
             <p className="text-xs text-muted-foreground">
-              Lifetime maintenance
+              Avg: {formatCurrency(dashboardData.metrics.averageMaintenanceCost)}
             </p>
+            {dashboardData.maintenance.costGrowth !== 0 && (
+              <div className={`text-xs flex items-center gap-1 mt-1 ${
+                dashboardData.maintenance.costGrowth > 0 ? 'text-red-600' : 'text-green-600'
+              }`}>
+                <TrendingUp className="h-3 w-3" />
+                {dashboardData.maintenance.costGrowth > 0 ? '+' : ''}{dashboardData.maintenance.costGrowth.toFixed(1)}% from last month
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -369,115 +402,275 @@ export default function AdminDashboard() {
         </Card>
       </div>
 
-      {/* Recent Users */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Recent Users</CardTitle>
-          <CardDescription>
-            Latest user registrations in the system
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>User</TableHead>
-                <TableHead>Role</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Joined</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {recentUsers.map((user) => (
-                <TableRow key={user.id}>
-                  <TableCell>
-                    <div>
-                      <div className="font-medium">{user.name || 'No name'}</div>
-                      <div className="text-sm text-muted-foreground">{user.email}</div>
+      <Tabs defaultValue="overview" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="users">Users</TabsTrigger>
+          <TabsTrigger value="activity">Activity</TabsTrigger>
+          <TabsTrigger value="system">System</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="overview" className="space-y-6">
+          {/* Monthly Performance */}
+          <div className="grid gap-4 md:grid-cols-3">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">This Month</CardTitle>
+                <Calendar className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{formatCurrency(dashboardData.maintenance.thisMonthCost)}</div>
+                <p className="text-xs text-muted-foreground">
+                  {dashboardData.maintenance.thisMonthCount} maintenance records
+                </p>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">New Users</CardTitle>
+                <UserPlus className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{dashboardData.users.thisMonth}</div>
+                <p className="text-xs text-muted-foreground">
+                  Registered this month
+                </p>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Fleet Utilization</CardTitle>
+                <BarChart3 className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{dashboardData.metrics.fleetUtilization.toFixed(1)}%</div>
+                <p className="text-xs text-muted-foreground">
+                  Active vehicles
+                </p>
+                <div className="mt-2">
+                  <Progress value={dashboardData.metrics.fleetUtilization} className="h-2" />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="users" className="space-y-6">
+          {/* User Statistics */}
+          <div className="grid gap-4 md:grid-cols-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Admins</CardTitle>
+                <Shield className="h-4 w-4 text-red-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-red-600">{dashboardData.users.admins}</div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Managers</CardTitle>
+                <Users className="h-4 w-4 text-blue-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-blue-600">{dashboardData.users.managers}</div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Users</CardTitle>
+                <Users className="h-4 w-4 text-green-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-green-600">{dashboardData.users.regular}</div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Pending</CardTitle>
+                <Clock className="h-4 w-4 text-orange-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-orange-600">{dashboardData.users.pending}</div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Recent Users */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Recent Users</CardTitle>
+              <CardDescription>
+                Latest user registrations in the system
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>User</TableHead>
+                    <TableHead>Role</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Joined</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {dashboardData.recentUsers.map((user) => (
+                    <TableRow key={user.id}>
+                      <TableCell>
+                        <div>
+                          <div className="font-medium">{user.name || 'No name'}</div>
+                          <div className="text-sm text-muted-foreground">{user.email}</div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge className={getRoleBadgeColor(user.role)}>
+                          {user.role}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          {user.isActive ? (
+                            <CheckCircle className="h-4 w-4 text-green-600" />
+                          ) : (
+                            <AlertTriangle className="h-4 w-4 text-red-600" />
+                          )}
+                          <span className={user.isActive ? 'text-green-600' : 'text-red-600'}>
+                            {user.isActive ? 'Active' : 'Inactive'}
+                          </span>
+                          {!user.isApproved && (
+                            <Badge variant="outline" className="ml-2 text-orange-600">
+                              Pending
+                            </Badge>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {new Date(user.createdAt).toLocaleDateString()}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => router.push(`/users`)}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="activity" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Activity className="h-5 w-5 text-blue-600" />
+                Recent Activity
+              </CardTitle>
+              <CardDescription>
+                Latest system activities and user actions
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {dashboardData.recentActivities.length > 0 ? (
+                <div className="space-y-4">
+                  {dashboardData.recentActivities.map((activity) => (
+                    <div key={activity.id} className="flex items-start gap-3 p-3 rounded-lg border">
+                      <div className="p-2 rounded-full bg-blue-100">
+                        <Activity className="h-4 w-4 text-blue-600" />
+                      </div>
+                      <div className="flex-1">
+                        <div className="font-medium">{activity.action}</div>
+                        <div className="text-sm text-muted-foreground">
+                          {activity.entityType}: {activity.entityName || 'N/A'}
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-1">
+                          By {activity.userName} • {new Date(activity.createdAt).toLocaleString()}
+                        </div>
+                      </div>
                     </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge className={getRoleBadgeColor(user.role)}>
-                      {user.role}
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  <Activity className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                  <p className="text-sm">No recent activities</p>
+                  <p className="text-xs text-gray-400">Activities will appear here as users interact with the system</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="system" className="space-y-6">
+          {/* System Health */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Server className="h-5 w-5 text-green-600" />
+                System Health
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center p-3 rounded-lg border">
+                    <div className="flex items-center gap-2">
+                      <Database className="h-4 w-4 text-green-600" />
+                      <span>Database</span>
+                    </div>
+                    <Badge variant="default" className="bg-green-100 text-green-800">
+                      {dashboardData.systemHealth.database}
                     </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-1">
-                      {user.isActive ? (
-                        <CheckCircle className="h-4 w-4 text-green-600" />
-                      ) : (
-                        <AlertTriangle className="h-4 w-4 text-red-600" />
-                      )}
-                      <span className={user.isActive ? 'text-green-600' : 'text-red-600'}>
-                        {user.isActive ? 'Active' : 'Inactive'}
-                      </span>
+                  </div>
+                  <div className="flex justify-between items-center p-3 rounded-lg border">
+                    <div className="flex items-center gap-2">
+                      <Shield className="h-4 w-4 text-green-600" />
+                      <span>Authentication</span>
                     </div>
-                  </TableCell>
-                  <TableCell>
-                    {new Date(user.createdAt).toLocaleDateString()}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => router.push(`/users`)}
-                    >
-                      <Eye className="h-4 w-4" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+                    <Badge variant="default" className="bg-green-100 text-green-800">
+                      {dashboardData.systemHealth.authentication}
+                    </Badge>
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center p-3 rounded-lg border">
+                    <div className="flex items-center gap-2">
+                      <HardDrive className="h-4 w-4 text-green-600" />
+                      <span>File Storage</span>
+                    </div>
+                    <Badge variant="default" className="bg-green-100 text-green-800">
+                      {dashboardData.systemHealth.fileStorage}
+                    </Badge>
+                  </div>
+                  <div className="flex justify-between items-center p-3 rounded-lg border">
+                    <div className="flex items-center gap-2">
+                      <FileText className="h-4 w-4 text-green-600" />
+                      <span>Report Generation</span>
+                    </div>
+                    <Badge variant="default" className="bg-green-100 text-green-800">
+                      {dashboardData.systemHealth.reportGeneration}
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
-      {/* System Status */}
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <CheckCircle className="h-5 w-5 text-green-600" />
-              System Status
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex justify-between items-center">
-              <span>Authentication</span>
-              <Badge variant="default">Operational</Badge>
-            </div>
-            <div className="flex justify-between items-center">
-              <span>Database</span>
-              <Badge variant="default">Connected</Badge>
-            </div>
-            <div className="flex justify-between items-center">
-              <span>File Storage</span>
-              <Badge variant="default">Available</Badge>
-            </div>
-            <div className="flex justify-between items-center">
-              <span>Report Generation</span>
-              <Badge variant="default">Ready</Badge>
-            </div>
-          </CardContent>
-        </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Clock className="h-5 w-5 text-blue-600" />
-              Recent Activity
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-center py-8 text-gray-500">
-              <Clock className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-              <p className="text-sm">No recent activities</p>
-              <p className="text-xs text-gray-400">Activities will appear here as users interact with the system</p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
     </div>
   )
 }

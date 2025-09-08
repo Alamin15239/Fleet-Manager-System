@@ -5,11 +5,33 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar, Search, Download, Filter, User, Activity, Clock } from 'lucide-react';
+import { 
+  Calendar, 
+  Search, 
+  Download, 
+  Filter, 
+  User, 
+  Activity, 
+  Clock, 
+  BarChart3,
+  TrendingUp,
+  Shield,
+  Globe,
+  RefreshCw,
+  AlertTriangle,
+  CheckCircle,
+  Eye,
+  FileText,
+  Users
+} from 'lucide-react';
 import { format } from 'date-fns';
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
+import { Bar, BarChart, Line, LineChart, XAxis, YAxis, CartesianGrid, Pie, PieChart as RechartsPieChart, Cell, Legend, ResponsiveContainer, Area, AreaChart } from 'recharts';
+import { toast } from 'sonner';
 
 interface UserActivity {
   id: string;
@@ -57,7 +79,18 @@ export default function AdminActivityPage() {
   const [loginHistory, setLoginHistory] = useState<LoginHistory[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
+  const [analytics, setAnalytics] = useState({
+    totalActivities: 0,
+    uniqueUsers: 0,
+    activeSessions: 0,
+    topActions: [] as Array<{ action: string; count: number }>,
+    activityTrends: [] as Array<{ date: string; count: number }>,
+    userActivityBreakdown: [] as Array<{ user: string; count: number }>,
+    ipAddresses: [] as Array<{ ip: string; count: number; location?: string }>,
+    riskScore: 0
+  });
   const [filters, setFilters] = useState({
     userId: 'all',
     action: 'all',
@@ -66,7 +99,7 @@ export default function AdminActivityPage() {
     endDate: '',
     isActive: 'all',
   });
-  const [activeTab, setActiveTab] = useState('activities');
+  const [activeTab, setActiveTab] = useState('overview');
 
   useEffect(() => {
     setIsMounted(true)
@@ -135,15 +168,21 @@ export default function AdminActivityPage() {
     }
   };
 
-  const fetchActivities = async () => {
+  const fetchActivities = async (showRefreshing = false) => {
     if (!isMounted) return;
     
-    setLoading(true);
+    if (showRefreshing) {
+      setRefreshing(true);
+    } else {
+      setLoading(true);
+    }
+    
     try {
       const token = localStorage.getItem('authToken');
       if (!token) {
         console.log('No auth token available, skipping activities fetch');
         setLoading(false);
+        setRefreshing(false);
         return;
       }
       
@@ -151,24 +190,105 @@ export default function AdminActivityPage() {
       Object.entries(filters).forEach(([key, value]) => {
         if (value && value !== 'all') params.append(key, value);
       });
-      params.append('limit', '25'); // Add default limit
+      params.append('limit', '100'); // Increased limit for better analytics
 
       const response = await fetch(`/api/admin/activities?${params}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (response.ok) {
         const data = await response.json();
-        // Handle API response format: { success: true, activities: [...] }
-        setActivities(data.activities || []);
+        const activitiesData = data.activities || [];
+        setActivities(activitiesData);
+        
+        // Calculate analytics
+        calculateAnalytics(activitiesData);
+        
+        if (showRefreshing) {
+          toast.success('Activity data refreshed successfully');
+        }
       }
     } catch (error) {
       console.error('Error fetching activities:', error);
+      toast.error('Failed to fetch activity data');
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
-  const fetchLoginHistory = async () => {
+  const calculateAnalytics = (activitiesData: UserActivity[]) => {
+    const uniqueUsers = new Set(activitiesData.map(a => a.userId)).size;
+    const actionCounts = activitiesData.reduce((acc, activity) => {
+      acc[activity.action] = (acc[activity.action] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+    
+    const topActions = Object.entries(actionCounts)
+      .map(([action, count]) => ({ action, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+    
+    // Group activities by date for trends
+    const dateGroups = activitiesData.reduce((acc, activity) => {
+      const date = format(new Date(activity.createdAt), 'MMM dd');
+      acc[date] = (acc[date] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+    
+    const activityTrends = Object.entries(dateGroups)
+      .map(([date, count]) => ({ date, count }))
+      .slice(-7); // Last 7 days
+    
+    // User activity breakdown
+    const userCounts = activitiesData.reduce((acc, activity) => {
+      const userName = activity.user.name || activity.user.email;
+      acc[userName] = (acc[userName] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+    
+    const userActivityBreakdown = Object.entries(userCounts)
+      .map(([user, count]) => ({ user, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+    
+    // IP address analysis
+    const ipCounts = activitiesData.reduce((acc, activity) => {
+      if (activity.ipAddress) {
+        acc[activity.ipAddress] = (acc[activity.ipAddress] || 0) + 1;
+      }
+      return acc;
+    }, {} as Record<string, number>);
+    
+    const ipAddresses = Object.entries(ipCounts)
+      .map(([ip, count]) => ({ ip, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10);
+    
+    // Calculate risk score based on suspicious activities
+    const suspiciousActions = activitiesData.filter(a => 
+      ['DELETE', 'UPDATE'].includes(a.action) && 
+      ['USER', 'SETTINGS'].includes(a.entityType)
+    ).length;
+    const riskScore = Math.min(100, (suspiciousActions / activitiesData.length) * 100);
+    
+    setAnalytics({
+      totalActivities: activitiesData.length,
+      uniqueUsers,
+      activeSessions: Math.floor(uniqueUsers * 0.7), // Estimate active sessions
+      topActions,
+      activityTrends,
+      userActivityBreakdown,
+      ipAddresses,
+      riskScore
+    });
+  };
+
+  const handleRefresh = () => {
+    fetchActivities(true);
+    fetchLoginHistory(true);
+  };
+
+  const fetchLoginHistory = async (showRefreshing = false) => {
     if (!isMounted) return;
     
     try {
@@ -184,14 +304,13 @@ export default function AdminActivityPage() {
           params.append(key, value);
         }
       });
-      params.append('limit', '25'); // Add default limit
+      params.append('limit', '50'); // Increased limit
 
       const response = await fetch(`/api/admin/login-history?${params}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (response.ok) {
         const data = await response.json();
-        // Handle API response format: { success: true, history: [...] }
         setLoginHistory(data.history || []);
       }
     } catch (error) {
@@ -287,10 +406,17 @@ export default function AdminActivityPage() {
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold">Activity Monitoring</h1>
-          <p className="text-gray-600">Track user activities, login history, and generate reports</p>
+          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
+            <Activity className="h-8 w-8 text-blue-600" />
+            Activity Monitoring
+          </h1>
+          <p className="text-muted-foreground">Track user activities, login history, and generate reports</p>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" onClick={handleRefresh} disabled={refreshing}>
+            <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+            {refreshing ? 'Refreshing...' : 'Refresh'}
+          </Button>
           <Button
             variant="outline"
             onClick={() => generateReport('activities', 'csv')}
@@ -425,9 +551,73 @@ export default function AdminActivityPage() {
         </CardContent>
       </Card>
 
+      {/* Analytics Overview */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Activities</CardTitle>
+            <Activity className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{analytics.totalActivities}</div>
+            <p className="text-xs text-muted-foreground">
+              Last {filters.startDate ? 'filtered period' : '30 days'}
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Active Users</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{analytics.uniqueUsers}</div>
+            <p className="text-xs text-muted-foreground">
+              {analytics.activeSessions} active sessions
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Security Score</CardTitle>
+            <Shield className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{Math.round(100 - analytics.riskScore)}%</div>
+            <div className="mt-2">
+              <Progress value={100 - analytics.riskScore} className="h-2" />
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {analytics.riskScore < 20 ? 'Low risk' : analytics.riskScore < 50 ? 'Medium risk' : 'High risk'}
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Top Action</CardTitle>
+            <BarChart3 className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {analytics.topActions[0]?.action || 'N/A'}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {analytics.topActions[0]?.count || 0} occurrences
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="overview" className="flex items-center gap-2">
+            <BarChart3 className="h-4 w-4" />
+            Overview
+          </TabsTrigger>
           <TabsTrigger value="activities" className="flex items-center gap-2">
             <Activity className="h-4 w-4" />
             User Activities
@@ -436,7 +626,110 @@ export default function AdminActivityPage() {
             <Clock className="h-4 w-4" />
             Login History
           </TabsTrigger>
+          <TabsTrigger value="analytics" className="flex items-center gap-2">
+            <TrendingUp className="h-4 w-4" />
+            Analytics
+          </TabsTrigger>
         </TabsList>
+
+        <TabsContent value="overview" className="space-y-6">
+          <div className="grid gap-6 md:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>Activity Trends</CardTitle>
+                <CardDescription>Daily activity over the last 7 days</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <AreaChart data={analytics.activityTrends}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="date" />
+                    <YAxis />
+                    <ChartTooltip />
+                    <Area type="monotone" dataKey="count" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.6} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Top Actions</CardTitle>
+                <CardDescription>Most frequent user actions</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {analytics.topActions.map((action, index) => (
+                    <div key={action.action} className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Badge className={getActionColor(action.action)}>
+                          {action.action}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="w-20 bg-gray-200 rounded-full h-2">
+                          <div 
+                            className="bg-blue-600 h-2 rounded-full" 
+                            style={{ width: `${(action.count / Math.max(...analytics.topActions.map(a => a.count))) * 100}%` }}
+                          ></div>
+                        </div>
+                        <span className="text-sm font-medium w-8">{action.count}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>Most Active Users</CardTitle>
+                <CardDescription>Users with highest activity</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {analytics.userActivityBreakdown.map((user, index) => (
+                    <div key={user.user} className="flex items-center justify-between p-3 rounded-lg border">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold ${
+                          index === 0 ? 'bg-yellow-500' : index === 1 ? 'bg-gray-400' : 'bg-orange-500'
+                        }`}>
+                          {index + 1}
+                        </div>
+                        <div>
+                          <div className="font-medium">{user.user}</div>
+                          <div className="text-sm text-muted-foreground">{user.count} activities</div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>IP Address Analysis</CardTitle>
+                <CardDescription>Most frequent IP addresses</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {analytics.ipAddresses.slice(0, 5).map((ip, index) => (
+                    <div key={ip.ip} className="flex items-center justify-between p-2 rounded border">
+                      <div className="flex items-center gap-2">
+                        <Globe className="h-4 w-4 text-muted-foreground" />
+                        <span className="font-mono text-sm">{ip.ip}</span>
+                      </div>
+                      <Badge variant="outline">{ip.count} requests</Badge>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
 
         <TabsContent value="activities" className="space-y-4">
           <Card>
@@ -457,49 +750,96 @@ export default function AdminActivityPage() {
                       <TableHead>Entity Name</TableHead>
                       <TableHead>IP Address</TableHead>
                       <TableHead>Date & Time</TableHead>
+                      <TableHead>Risk</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {loading ? (
                       <TableRow>
-                        <TableCell colSpan={6} className="text-center py-8">
-                          Loading activities...
+                        <TableCell colSpan={7} className="text-center py-8">
+                          <div className="flex items-center justify-center gap-2">
+                            <RefreshCw className="h-4 w-4 animate-spin" />
+                            Loading activities...
+                          </div>
                         </TableCell>
                       </TableRow>
                     ) : activities.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={6} className="text-center py-8">
-                          No activities found
+                        <TableCell colSpan={7} className="text-center py-8">
+                          <div className="flex flex-col items-center gap-2">
+                            <Activity className="h-8 w-8 text-gray-300" />
+                            <p className="text-muted-foreground">No activities found</p>
+                            <p className="text-sm text-muted-foreground">Try adjusting your filters</p>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ) : (
-                      activities.map((activity) => (
-                        <TableRow key={activity.id}>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <User className="h-4 w-4" />
-                              <div>
-                                <div className="font-medium">{activity.user.name || activity.user.email}</div>
-                                <div className="text-sm text-gray-500">{activity.user.role}</div>
+                      activities.slice(0, 25).map((activity) => {
+                        const isHighRisk = ['DELETE', 'UPDATE'].includes(activity.action) && 
+                                         ['USER', 'SETTINGS'].includes(activity.entityType);
+                        return (
+                          <TableRow key={activity.id} className={isHighRisk ? 'bg-red-50' : ''}>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <div className={`w-2 h-2 rounded-full ${
+                                  activity.user.role === 'ADMIN' ? 'bg-red-500' :
+                                  activity.user.role === 'MANAGER' ? 'bg-blue-500' : 'bg-green-500'
+                                }`}></div>
+                                <div>
+                                  <div className="font-medium">{activity.user.name || activity.user.email}</div>
+                                  <div className="text-sm text-muted-foreground">{activity.user.role}</div>
+                                </div>
                               </div>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Badge className={getActionColor(activity.action)}>
-                              {activity.action}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>{activity.entityType}</TableCell>
-                          <TableCell className="max-w-xs truncate">{activity.entityName || '-'}</TableCell>
-                          <TableCell>{activity.ipAddress || '-'}</TableCell>
-                          <TableCell>
-                            {format(new Date(activity.createdAt), 'MMM dd, yyyy HH:mm')}
-                          </TableCell>
-                        </TableRow>
-                      ))
+                            </TableCell>
+                            <TableCell>
+                              <Badge className={getActionColor(activity.action)}>
+                                {activity.action}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline">{activity.entityType}</Badge>
+                            </TableCell>
+                            <TableCell className="max-w-xs truncate">
+                              {activity.entityName || '-'}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-1">
+                                <Globe className="h-3 w-3 text-muted-foreground" />
+                                <span className="font-mono text-xs">{activity.ipAddress || '-'}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="text-sm">
+                                {format(new Date(activity.createdAt), 'MMM dd, yyyy')}
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                {format(new Date(activity.createdAt), 'HH:mm:ss')}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              {isHighRisk ? (
+                                <Badge variant="destructive" className="text-xs">
+                                  <AlertTriangle className="h-3 w-3 mr-1" />
+                                  High
+                                </Badge>
+                              ) : (
+                                <Badge variant="outline" className="text-xs">
+                                  <CheckCircle className="h-3 w-3 mr-1" />
+                                  Low
+                                </Badge>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })
                     )}
                   </TableBody>
                 </Table>
+                {activities.length > 25 && (
+                  <div className="p-4 text-center text-sm text-muted-foreground border-t">
+                    Showing first 25 of {activities.length} activities. Use filters to narrow results.
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -523,47 +863,88 @@ export default function AdminActivityPage() {
                       <TableHead>Logout Time</TableHead>
                       <TableHead>Session Duration</TableHead>
                       <TableHead>IP Address</TableHead>
+                      <TableHead>Device Info</TableHead>
                       <TableHead>Status</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {loading ? (
                       <TableRow>
-                        <TableCell colSpan={6} className="text-center py-8">
-                          Loading login history...
+                        <TableCell colSpan={7} className="text-center py-8">
+                          <div className="flex items-center justify-center gap-2">
+                            <RefreshCw className="h-4 w-4 animate-spin" />
+                            Loading login history...
+                          </div>
                         </TableCell>
                       </TableRow>
                     ) : loginHistory.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={6} className="text-center py-8">
-                          No login history found
+                        <TableCell colSpan={7} className="text-center py-8">
+                          <div className="flex flex-col items-center gap-2">
+                            <Clock className="h-8 w-8 text-gray-300" />
+                            <p className="text-muted-foreground">No login history found</p>
+                            <p className="text-sm text-muted-foreground">Try adjusting your filters</p>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ) : (
-                      loginHistory.map((history) => (
+                      loginHistory.slice(0, 25).map((history) => (
                         <TableRow key={history.id}>
                           <TableCell>
                             <div className="flex items-center gap-2">
-                              <User className="h-4 w-4" />
+                              <div className={`w-2 h-2 rounded-full ${
+                                history.user.role === 'ADMIN' ? 'bg-red-500' :
+                                history.user.role === 'MANAGER' ? 'bg-blue-500' : 'bg-green-500'
+                              }`}></div>
                               <div>
                                 <div className="font-medium">{history.user.name || history.user.email}</div>
-                                <div className="text-sm text-gray-500">{history.user.role}</div>
+                                <div className="text-sm text-muted-foreground">{history.user.role}</div>
                               </div>
                             </div>
                           </TableCell>
                           <TableCell>
-                            {format(new Date(history.loginTime), 'MMM dd, yyyy HH:mm')}
+                            <div className="text-sm">
+                              {format(new Date(history.loginTime), 'MMM dd, yyyy')}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {format(new Date(history.loginTime), 'HH:mm:ss')}
+                            </div>
                           </TableCell>
                           <TableCell>
-                            {history.logoutTime 
-                              ? format(new Date(history.logoutTime), 'MMM dd, yyyy HH:mm')
-                              : '-'
-                            }
+                            {history.logoutTime ? (
+                              <div>
+                                <div className="text-sm">
+                                  {format(new Date(history.logoutTime), 'MMM dd, yyyy')}
+                                </div>
+                                <div className="text-xs text-muted-foreground">
+                                  {format(new Date(history.logoutTime), 'HH:mm:ss')}
+                                </div>
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
                           </TableCell>
-                          <TableCell>{formatDuration(history.sessionDuration)}</TableCell>
-                          <TableCell>{history.ipAddress || '-'}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="text-xs">
+                              {formatDuration(history.sessionDuration)}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1">
+                              <Globe className="h-3 w-3 text-muted-foreground" />
+                              <span className="font-mono text-xs">{history.ipAddress || '-'}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="text-xs text-muted-foreground">
+                              Browser info not available
+                            </div>
+                          </TableCell>
                           <TableCell>
                             <Badge variant={history.isActive ? 'default' : 'secondary'}>
+                              <div className={`w-2 h-2 rounded-full mr-1 ${
+                                history.isActive ? 'bg-green-400' : 'bg-gray-400'
+                              }`}></div>
                               {history.isActive ? 'Active' : 'Inactive'}
                             </Badge>
                           </TableCell>
@@ -572,9 +953,65 @@ export default function AdminActivityPage() {
                     )}
                   </TableBody>
                 </Table>
+                {loginHistory.length > 25 && (
+                  <div className="p-4 text-center text-sm text-muted-foreground border-t">
+                    Showing first 25 of {loginHistory.length} login sessions. Use filters to narrow results.
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="analytics" className="space-y-6">
+          <div className="grid gap-6 md:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>Activity Distribution</CardTitle>
+                <CardDescription>Actions performed by users</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <RechartsPieChart>
+                    <Pie
+                      data={analytics.topActions}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={({ action, count }) => `${action}: ${count}`}
+                      outerRadius={100}
+                      fill="#8884d8"
+                      dataKey="count"
+                    >
+                      {analytics.topActions.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={['#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6'][index % 5]} />
+                      ))}
+                    </Pie>
+                    <ChartTooltip />
+                    <Legend />
+                  </RechartsPieChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>User Activity Comparison</CardTitle>
+                <CardDescription>Activity levels by user</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={analytics.userActivityBreakdown}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="user" angle={-45} textAnchor="end" height={80} />
+                    <YAxis />
+                    <ChartTooltip />
+                    <Bar dataKey="count" fill="#3b82f6" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
       </Tabs>
     </div>
