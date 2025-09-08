@@ -1140,7 +1140,8 @@ export default function MaintenancePage() {
                             doc.text(`Vehicle: ${record.truck ? `${record.truck.year} ${record.truck.make} ${record.truck.model}` : `Trailer ${record.trailer?.number || ''}`}`, 25, 80)
                             doc.text(`License Plate: ${record.truck?.licensePlate || record.trailer?.number || 'N/A'}`, 25, 90)
                             doc.text(`Driver: ${record.driverName || 'Not Assigned'}`, 120, 80)
-                            doc.text(`Odometer: ${record.currentMileage ? `${record.currentMileage.toLocaleString()} km` : '___________ km'}`, 120, 90)
+                            const odometerValue = record.truck ? (record.currentMileage || record.truck.currentMileage) : null
+                            doc.text(`Odometer: ${odometerValue ? `${odometerValue.toLocaleString()} km` : (record.truck ? '___________ km' : 'N/A (Trailer)')}`, 120, 90)
                             
                             // Work Order Box
                             doc.rect(20, 110, 170, 50)
