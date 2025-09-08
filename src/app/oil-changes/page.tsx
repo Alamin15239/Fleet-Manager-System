@@ -174,6 +174,9 @@ export default function OilChangesPage() {
             <div className="text-2xl font-bold text-blue-600">
               {oilChanges.reduce((sum, r) => sum + (r.oilQuantityLiters || 0), 0).toFixed(1)}L
             </div>
+            <p className="text-xs text-muted-foreground">
+              {oilChanges.filter(r => r.oilQuantityLiters && r.oilQuantityLiters > 0).length} records with quantity
+            </p>
           </CardContent>
         </Card>
 
