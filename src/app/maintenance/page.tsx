@@ -135,7 +135,8 @@ export default function MaintenancePage() {
     oilQuantityLiters: 0,
     currentMileage: 0,
     maintenanceJobId: '',
-    driverName: ''
+    driverName: '',
+    mechanicName: ''
   })
 
   const [vehicleSearch, setVehicleSearch] = useState('')
@@ -515,7 +516,8 @@ export default function MaintenancePage() {
       oilQuantityLiters: 0,
       currentMileage: 0,
       maintenanceJobId: '',
-      driverName: ''
+      driverName: '',
+      mechanicName: ''
     })
   }
 
@@ -794,7 +796,8 @@ export default function MaintenancePage() {
                                     ? selectedMechanics.filter(m => m.id !== mechanic.id)
                                     : [...selectedMechanics, mechanic]
                                   setSelectedMechanics(newSelection)
-                                  setFormData({...formData, mechanicId: newSelection.length > 0 ? newSelection[0].id : 'none'})
+                                  const mechanicNames = newSelection.map(m => m.name).join(', ')
+                                  setFormData({...formData, mechanicId: newSelection.length > 0 ? newSelection[0].id : 'none', mechanicName: mechanicNames})
                                 }}
                               >
                                 <input
@@ -821,7 +824,8 @@ export default function MaintenancePage() {
                             onClick={() => {
                               const newSelection = selectedMechanics.filter(m => m.id !== mechanic.id)
                               setSelectedMechanics(newSelection)
-                              setFormData({...formData, mechanicId: newSelection.length > 0 ? newSelection[0].id : 'none'})
+                              const mechanicNames = newSelection.map(m => m.name).join(', ')
+                              setFormData({...formData, mechanicId: newSelection.length > 0 ? newSelection[0].id : 'none', mechanicName: mechanicNames})
                             }}
                             className="text-green-600 hover:text-green-800"
                           >
