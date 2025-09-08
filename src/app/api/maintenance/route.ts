@@ -194,217 +194,29 @@ export async function GET(request: NextRequest) {
 // POST create new maintenance record
 export async function POST(request: NextRequest) {
   try {
-    // Test database connection first
-    try {
-      await db.$queryRaw`SELECT 1`
-    } catch (dbError) {
-      console.error('Database connection failed in POST:', dbError)
-      return NextResponse.json(
-        { error: 'Database connection failed' },
-        { status: 500 }
-      )
-    }
-
     const body = await request.json()
+    console.log('Received request body:', JSON.stringify(body, null, 2))
 
-    // Validate required fields
-    const requiredFields = ['truckId', 'serviceType', 'datePerformed', 'status']
-    for (const field of requiredFields) {
-      if (body[field] === undefined || body[field] === null || body[field] === '') {
-        return NextResponse.json(
-          { error: `${field} is required` },
-          { status: 400 }
-        )
-      }
-    }
-
-    // Check if vehicle exists (truck or trailer)
-    let vehicle = null
-    let vehicleType = 'truck'
-    
-    // First try to find as truck
-    vehicle = await db.truck.findUnique({
-      where: { 
-        id: body.truckId,
-        isDeleted: false 
-      }
-    })
-    
-    // If not found as truck, try as trailer
-    if (!vehicle) {
-      vehicle = await db.trailer.findUnique({
-        where: { 
-          id: body.truckId,
-          isDeleted: false 
-        }
-      })
-      vehicleType = 'trailer'
-    }
-
-    if (!vehicle) {
-      return NextResponse.json(
-        { error: 'Vehicle not found' },
-        { status: 404 }
-      )
-    }
-
-    // Calculate total cost
-    const partsCost = parseFloat(body.partsCost) || 0
-    const laborCost = parseFloat(body.laborCost) || 0
-    const totalCost = partsCost + laborCost
-
-    // Create maintenance record based on vehicle type
-    let maintenanceRecord
-    
-    // Get mechanic name for historical data
-    let mechanicName = null
-    if (body.mechanicId && body.mechanicId !== 'none') {
-      try {
-        const mechanic = await db.mechanic.findUnique({
-          where: { id: body.mechanicId },
-          select: { name: true }
-        })
-        mechanicName = mechanic?.name
-      } catch (mechanicError) {
-        console.error('Error fetching mechanic:', mechanicError)
-        // Continue without mechanic name
-      }
-    }
-    
-    if (vehicleType === 'truck') {
-      const createData = {
+    // Create minimal maintenance record for truck only
+    const maintenanceRecord = await db.maintenanceRecord.create({
+      data: {
         truckId: body.truckId,
         serviceType: body.serviceType,
-        description: body.description || null,
         datePerformed: new Date(body.datePerformed),
-        partsCost,
-        laborCost,
-        totalCost,
-        mechanicId: (body.mechanicId && body.mechanicId !== 'none') ? body.mechanicId : null,
-        createdById: body.createdById || null,
-        nextServiceDue: body.nextServiceDue ? new Date(body.nextServiceDue) : null,
-        status: body.status,
-        notes: body.notes || null,
-        isOilChange: body.isOilChange || false,
-        oilChangeInterval: body.oilChangeInterval ? parseInt(body.oilChangeInterval) : null,
-        oilQuantityLiters: body.oilQuantityLiters ? parseFloat(body.oilQuantityLiters) : null,
-        currentMileage: body.currentMileage ? parseInt(body.currentMileage) : null,
-        maintenanceJobId: (body.maintenanceJobId && body.maintenanceJobId !== '') ? body.maintenanceJobId : null,
-        wasPredicted: body.wasPredicted || false,
-        vehicleName: `${vehicle.year || ''} ${vehicle.make || ''} ${vehicle.model || ''}`.trim(),
-        mechanicName: body.mechanicName || mechanicName || null,
-        driverName: vehicle.driverName || null
+        partsCost: parseFloat(body.partsCost) || 0,
+        laborCost: parseFloat(body.laborCost) || 0,
+        totalCost: (parseFloat(body.partsCost) || 0) + (parseFloat(body.laborCost) || 0),
+        status: body.status || 'COMPLETED'
       }
-      
-      console.log('Creating truck maintenance record with data:', createData)
-      
-      maintenanceRecord = await db.maintenanceRecord.create({
-        data: createData,
-        include: {
-          truck: {
-            select: {
-              id: true,
-              vin: true,
-              make: true,
-              model: true,
-              year: true,
-              licensePlate: true,
-              currentMileage: true
-            }
-          },
-          mechanic: {
-            select: {
-              id: true,
-              name: true,
-              specialty: true
-            }
-          },
-          maintenanceJob: {
-            select: {
-              id: true,
-              name: true,
-              category: true
-            }
-          },
-          createdBy: {
-            select: {
-              id: true,
-              name: true,
-              email: true
-            }
-          }
-        }
-      })
-    } else {
-      const createData = {
-        trailerId: body.truckId,
-        serviceType: body.serviceType,
-        description: body.description || null,
-        datePerformed: new Date(body.datePerformed),
-        partsCost,
-        laborCost,
-        totalCost,
-        mechanicId: (body.mechanicId && body.mechanicId !== 'none') ? body.mechanicId : null,
-        createdById: body.createdById || null,
-        nextServiceDue: body.nextServiceDue ? new Date(body.nextServiceDue) : null,
-        status: body.status,
-        notes: body.notes || null,
-        maintenanceJobId: (body.maintenanceJobId && body.maintenanceJobId !== '') ? body.maintenanceJobId : null,
-        wasPredicted: body.wasPredicted || false,
-        vehicleName: `Trailer ${vehicle.number || ''}`,
-        mechanicName: body.mechanicName || mechanicName || null,
-        driverName: vehicle.driverName || null
-      }
-      
-      console.log('Creating trailer maintenance record with data:', createData)
-      
-      maintenanceRecord = await db.trailerMaintenanceRecord.create({
-        data: createData,
-        include: {
-          trailer: {
-            select: {
-              id: true,
-              number: true,
-              status: true,
-              driverName: true
-            }
-          },
-          mechanic: {
-            select: {
-              id: true,
-              name: true,
-              specialty: true
-            }
-          },
-          maintenanceJob: {
-            select: {
-              id: true,
-              name: true,
-              category: true
-            }
-          },
-          createdBy: {
-            select: {
-              id: true,
-              name: true,
-              email: true
-            }
-          }
-        }
-      })
-    }
+    })
 
     return NextResponse.json({
       success: true,
-      data: maintenanceRecord,
-      message: 'Maintenance record created successfully'
+      data: maintenanceRecord
     })
 
   } catch (error) {
     console.error('Error creating maintenance record:', error)
-    console.error('Request body:', body)
-    console.error('Vehicle found:', vehicle)
-    console.error('Vehicle type:', vehicleType)
     return NextResponse.json(
       { error: 'Failed to create maintenance record', details: error.message },
       { status: 500 }
