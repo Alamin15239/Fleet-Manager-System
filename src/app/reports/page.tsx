@@ -239,8 +239,8 @@ export default function ReportsPage() {
           <div class="summary">
             <h2>Maintenance Summary</h2>
             <p><strong>Total Records:</strong> ${data.length}</p>
-            <p><strong>Total Cost:</strong> $${totalCost.toFixed(2)}</p>
-            <p><strong>Average Cost:</strong> $${data.length > 0 ? (totalCost / data.length).toFixed(2) : '0.00'}</p>
+            <p><strong>Total Cost:</strong> SAR ${totalCost.toFixed(2)}</p>
+            <p><strong>Average Cost:</strong> SAR ${data.length > 0 ? (totalCost / data.length).toFixed(2) : '0.00'}</p>
           </div>
 
           <h2>Maintenance Records</h2>
@@ -270,17 +270,17 @@ export default function ReportsPage() {
                   <td>${record.description || 'N/A'}</td>
                   <td>${record.mechanic?.name || 'N/A'}</td>
                   <td>${record.createdBy?.name || 'N/A'}</td>
-                  <td>$${record.partsCost.toFixed(2)}</td>
-                  <td>$${record.laborCost.toFixed(2)}</td>
-                  <td>$${record.totalCost.toFixed(2)}</td>
+                  <td>SAR ${record.partsCost.toFixed(2)}</td>
+                  <td>SAR ${record.laborCost.toFixed(2)}</td>
+                  <td>SAR ${record.totalCost.toFixed(2)}</td>
                   <td>${record.status}</td>
                 </tr>
               `).join('')}
               <tr class="total-row">
                 <td colspan="7"><strong>TOTAL</strong></td>
-                <td><strong>$${totalParts.toFixed(2)}</strong></td>
-                <td><strong>$${totalLabor.toFixed(2)}</strong></td>
-                <td><strong>$${totalCost.toFixed(2)}</strong></td>
+                <td><strong>SAR ${totalParts.toFixed(2)}</strong></td>
+                <td><strong>SAR ${totalLabor.toFixed(2)}</strong></td>
+                <td><strong>SAR ${totalCost.toFixed(2)}</strong></td>
                 <td></td>
               </tr>
             </tbody>
@@ -328,8 +328,8 @@ export default function ReportsPage() {
           <div class="summary">
             <h2>Maintenance Summary</h2>
             <p><strong>Total Records:</strong> ${data.length}</p>
-            <p><strong>Total Cost:</strong> $${totalCost.toFixed(2)}</p>
-            <p><strong>Average Cost:</strong> $${data.length > 0 ? (totalCost / data.length).toFixed(2) : '0.00'}</p>
+            <p><strong>Total Cost:</strong> SAR ${totalCost.toFixed(2)}</p>
+            <p><strong>Average Cost:</strong> SAR ${data.length > 0 ? (totalCost / data.length).toFixed(2) : '0.00'}</p>
           </div>
 
           <h2>Maintenance Records</h2>
@@ -359,17 +359,17 @@ export default function ReportsPage() {
                   <td>${record.description || 'N/A'}</td>
                   <td>${record.mechanic?.name || 'N/A'}</td>
                   <td>${record.createdBy?.name || 'N/A'}</td>
-                  <td>$${record.partsCost.toFixed(2)}</td>
-                  <td>$${record.laborCost.toFixed(2)}</td>
-                  <td>$${record.totalCost.toFixed(2)}</td>
+                  <td>SAR ${record.partsCost.toFixed(2)}</td>
+                  <td>SAR ${record.laborCost.toFixed(2)}</td>
+                  <td>SAR ${record.totalCost.toFixed(2)}</td>
                   <td>${record.status}</td>
                 </tr>
               `).join('')}
               <tr class="total-row">
                 <td colspan="7"><strong>TOTAL</strong></td>
-                <td><strong>$${totalParts.toFixed(2)}</strong></td>
-                <td><strong>$${totalLabor.toFixed(2)}</strong></td>
-                <td><strong>$${totalCost.toFixed(2)}</strong></td>
+                <td><strong>SAR ${totalParts.toFixed(2)}</strong></td>
+                <td><strong>SAR ${totalLabor.toFixed(2)}</strong></td>
+                <td><strong>SAR ${totalCost.toFixed(2)}</strong></td>
                 <td></td>
               </tr>
             </tbody>
@@ -393,7 +393,7 @@ export default function ReportsPage() {
     csv += `Generated: ${new Date().toLocaleDateString()}\n`
     csv += `Period: ${startDate || 'All Time'} to ${endDate || 'Current'}\n\n`
     csv += `Total Records: ${data.length}\n`
-    csv += `Total Cost: $${totalCost.toFixed(2)}\n\n`
+    csv += `Total Cost: SAR ${totalCost.toFixed(2)}\n\n`
     csv += "Date,Vehicle,Driver,Service Type,Description,Mechanic,Creator,Parts Cost,Labor Cost,Total Cost,Status\n"
     
     data.forEach(record => {
@@ -520,13 +520,13 @@ export default function ReportsPage() {
               <div className="flex justify-between">
                 <span>Total Cost:</span>
                 <span className="font-bold">
-                  ${filteredMaintenance.reduce((sum, record) => sum + record.totalCost, 0).toFixed(2)}
+                  SAR {filteredMaintenance.reduce((sum, record) => sum + record.totalCost, 0).toFixed(2)}
                 </span>
               </div>
               <div className="flex justify-between">
                 <span>Average Cost:</span>
                 <span className="font-bold">
-                  ${filteredMaintenance.length > 0 
+                  SAR {filteredMaintenance.length > 0 
                     ? (filteredMaintenance.reduce((sum, record) => sum + record.totalCost, 0) / filteredMaintenance.length).toFixed(2)
                     : '0.00'
                   }
@@ -579,7 +579,7 @@ export default function ReportsPage() {
                       </td>
                       <td className="border border-gray-300 p-2">{getDriverName(record)}</td>
                       <td className="border border-gray-300 p-2">{record.serviceType}</td>
-                      <td className="border border-gray-300 p-2">${record.totalCost.toFixed(2)}</td>
+                      <td className="border border-gray-300 p-2">SAR {record.totalCost.toFixed(2)}</td>
                       <td className="border border-gray-300 p-2">{record.status}</td>
                     </tr>
                   )
