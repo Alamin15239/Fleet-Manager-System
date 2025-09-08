@@ -284,7 +284,7 @@ export default function Dashboard() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">﷼{(stats.totalMaintenanceCost / 6).toLocaleString()}</div>
+            <div className="text-2xl font-bold">﷼{((stats.totalMaintenanceCost || 0) / 6).toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">
               {t('dashboard.averageMonthlyCost')}
             </p>
@@ -297,7 +297,7 @@ export default function Dashboard() {
             <Activity className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">﷼{stats.totalMaintenanceCost.toLocaleString()}</div>
+            <div className="text-2xl font-bold">﷼{(stats.totalMaintenanceCost || 0).toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">
               {t('dashboard.last6Months')}
             </p>
@@ -389,7 +389,7 @@ export default function Dashboard() {
                           <div>
                             <h3 className="font-semibold">{truck.year} {truck.make} {truck.model}</h3>
                             <p className="text-sm text-muted-foreground">
-                              {truck.licensePlate} • {truck.currentMileage.toLocaleString()} miles
+                              {truck.licensePlate} • {(truck.currentMileage || 0).toLocaleString()} miles
                             </p>
                           </div>
                         </div>
@@ -427,7 +427,7 @@ export default function Dashboard() {
                               {record.truck.year} {record.truck.make} {record.truck.model} • {record.truck.licensePlate}
                             </p>
                             <p className="text-sm text-muted-foreground">
-                              {new Date(record.datePerformed).toLocaleDateString()} • {typeof record.totalCost === 'number' ? record.totalCost.toLocaleString() : '0'}
+                              {new Date(record.datePerformed).toLocaleDateString()} • {typeof record.totalCost === 'number' ? (record.totalCost || 0).toLocaleString() : '0'}
                             </p>
                           </div>
                         </div>
