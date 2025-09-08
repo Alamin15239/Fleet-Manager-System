@@ -1,13 +1,10 @@
 import { NextResponse } from 'next/server'
 import { logUserActivity } from '@/lib/activity-tracking'
-import { verifyAuth } from '@/lib/auth'
+import { requireAuth } from '@/lib/auth'
 
 export async function POST(request: Request) {
   try {
-    const { user } = await verifyAuth(request)
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const user = await requireAuth(request)
 
     // Create sample activities
     const activities = [
