@@ -41,7 +41,7 @@ Service Type: ${jobCardData.serviceType}
 Description: ${jobCardData.description}
 Date: ${new Date(jobCardData.datePerformed).toLocaleDateString()}
 Status: ${jobCardData.status}
-Total Cost: ﷼${jobCardData.totalCost.toFixed(2)}
+Total Cost: ﷼{jobCardData.totalCost.toFixed(2)}
 
 Generated on: ${new Date().toLocaleString()}
     `.trim()
