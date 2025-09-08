@@ -16,11 +16,13 @@ interface OilChangeRecord {
   description: string
   totalCost: number
   status: string
+  currentMileage?: number
   truck?: {
     year: number
     make: string
     model: string
     licensePlate: string
+    currentMileage?: number
   }
   trailer?: {
     number: string
@@ -190,6 +192,7 @@ export default function OilChangesPage() {
                     <TableHead>Date</TableHead>
                     <TableHead>Service</TableHead>
                     <TableHead>Vehicle</TableHead>
+                    <TableHead>Odometer</TableHead>
                     <TableHead>Driver</TableHead>
                     <TableHead>Mechanic</TableHead>
                     <TableHead>Cost</TableHead>
@@ -199,7 +202,7 @@ export default function OilChangesPage() {
                 <TableBody>
                   {filteredRecords.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center py-8 text-gray-500">
+                      <TableCell colSpan={8} className="text-center py-8 text-gray-500">
                         No oil change records found
                       </TableCell>
                     </TableRow>
@@ -241,6 +244,15 @@ export default function OilChangesPage() {
                             </div>
                           ) : record.vehicleName ? (
                             <div className="font-medium">{record.vehicleName}</div>
+                          ) : (
+                            <span className="text-gray-400">-</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {record.currentMileage || record.truck?.currentMileage ? (
+                            <span className="font-mono">
+                              {(record.currentMileage || record.truck?.currentMileage)?.toLocaleString()} km
+                            </span>
                           ) : (
                             <span className="text-gray-400">-</span>
                           )}
