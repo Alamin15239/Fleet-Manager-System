@@ -20,6 +20,7 @@ import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api'
 import { MaintenanceJobSelector } from '@/components/maintenance-job-selector'
 import { useLanguage } from '@/contexts/language-context'
 import { PageHeader } from '@/components/page-header'
+import { JobCardModal } from '@/components/job-card-modal'
 
 
 interface MaintenanceJob {
@@ -114,8 +115,10 @@ export default function MaintenancePage() {
   const [loading, setLoading] = useState(true)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false)
+  const [isJobCardModalOpen, setIsJobCardModalOpen] = useState(false)
   const [editingRecord, setEditingRecord] = useState<MaintenanceRecord | null>(null)
   const [viewingRecord, setViewingRecord] = useState<MaintenanceRecord | null>(null)
+  const [jobCardRecord, setJobCardRecord] = useState<MaintenanceRecord | null>(null)
   const [selectedJobs, setSelectedJobs] = useState<MaintenanceJob[]>([])
   
   const [formData, setFormData] = useState({
@@ -1116,6 +1119,18 @@ export default function MaintenancePage() {
                         <Button 
                           variant="ghost" 
                           size="sm" 
+                          onClick={() => {
+                            setJobCardRecord(record)
+                            setIsJobCardModalOpen(true)
+                          }}
+                          title="Generate Job Card"
+                          className="text-blue-600 hover:text-blue-700"
+                        >
+                          <FileText className="h-3 w-3" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
                           onClick={() => handleDelete(record.id)}
                           className="text-red-600 hover:text-red-700"
                           title="Delete Record"
@@ -1131,6 +1146,16 @@ export default function MaintenancePage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Job Card Modal */}
+      <JobCardModal
+        isOpen={isJobCardModalOpen}
+        onClose={() => {
+          setIsJobCardModalOpen(false)
+          setJobCardRecord(null)
+        }}
+        maintenanceRecord={jobCardRecord}
+      />
     </div>
   )
 }
