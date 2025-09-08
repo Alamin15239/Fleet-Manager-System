@@ -194,37 +194,55 @@ export default function MaintenancePage() {
     let initialY = 0
 
     const handleMouseDown = (e: MouseEvent) => {
-      if (!(e.target as Element).closest('.drag-handle')) return
+      const target = e.target as Element
+      if (!target.closest('.drag-handle')) return
+      
+      e.preventDefault()
       isDragging = true
       startX = e.clientX
       startY = e.clientY
+      
       const rect = dialog.getBoundingClientRect()
       initialX = rect.left
       initialY = rect.top
+      
+      dialog.style.position = 'fixed'
+      dialog.style.zIndex = '9999'
+      
       document.addEventListener('mousemove', handleMouseMove)
       document.addEventListener('mouseup', handleMouseUp)
+      document.body.style.userSelect = 'none'
     }
 
     const handleMouseMove = (e: MouseEvent) => {
       if (!isDragging) return
+      e.preventDefault()
+      
       const deltaX = e.clientX - startX
       const deltaY = e.clientY - startY
-      dialog.style.left = `${initialX + deltaX}px`
-      dialog.style.top = `${initialY + deltaY}px`
+      
+      const newX = initialX + deltaX
+      const newY = initialY + deltaY
+      
+      dialog.style.left = `${Math.max(0, newX)}px`
+      dialog.style.top = `${Math.max(0, newY)}px`
       dialog.style.transform = 'none'
+      dialog.style.margin = '0'
     }
 
     const handleMouseUp = () => {
       isDragging = false
       document.removeEventListener('mousemove', handleMouseMove)
       document.removeEventListener('mouseup', handleMouseUp)
+      document.body.style.userSelect = ''
     }
 
-    dialog.addEventListener('mousedown', handleMouseDown)
+    document.addEventListener('mousedown', handleMouseDown)
     return () => {
-      dialog.removeEventListener('mousedown', handleMouseDown)
+      document.removeEventListener('mousedown', handleMouseDown)
       document.removeEventListener('mousemove', handleMouseMove)
       document.removeEventListener('mouseup', handleMouseUp)
+      document.body.style.userSelect = ''
     }
   }, [isDialogOpen])
 
@@ -625,7 +643,7 @@ export default function MaintenancePage() {
               {t('maintenance.addRecord')}
             </Button>
           </DialogTrigger>
-          <DialogContent ref={dialogRef} className="sm:max-w-[500px] max-h-[90vh] draggable-dialog">
+          <DialogContent ref={dialogRef} className="sm:max-w-[500px] max-h-[90vh] draggable-dialog" style={{ position: 'fixed' }}>
             <DialogHeader className="cursor-move drag-handle">
               <DialogTitle className="text-lg">
                 {editingRecord ? 'Edit Maintenance' : 'Add Maintenance'}
