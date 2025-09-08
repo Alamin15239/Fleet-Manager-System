@@ -1,0 +1,16 @@
+.draggable-dialog {
+  position: fixed !important;
+}
+
+.drag-handle {
+  cursor: move;
+  user-select: none;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+.draggable-dialog {
+  touch-action: none;
+}

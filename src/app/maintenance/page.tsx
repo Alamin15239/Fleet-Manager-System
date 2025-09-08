@@ -20,6 +20,7 @@ import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api'
 import { MaintenanceJobSelector } from '@/components/maintenance-job-selector'
 import { useLanguage } from '@/contexts/language-context'
 import { PageHeader } from '@/components/page-header'
+import '@/styles/draggable.css'
 
 
 
@@ -561,8 +562,8 @@ export default function MaintenancePage() {
               {t('maintenance.addRecord')}
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[500px] max-h-[90vh]">
-            <DialogHeader>
+          <DialogContent className="sm:max-w-[500px] max-h-[90vh] draggable-dialog">
+            <DialogHeader className="cursor-move drag-handle">
               <DialogTitle className="text-lg">
                 {editingRecord ? 'Edit Maintenance' : 'Add Maintenance'}
               </DialogTitle>
