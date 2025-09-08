@@ -94,7 +94,7 @@ export default function TireInventoryList() {
 
   // Available options for filters
   const [manufacturers, setManufacturers] = useState<string[]>([])
-  const [origins] = useState(['JAPANESE', 'EUROPEAN', 'AMERICAN', 'OTHER'])
+  const [origins] = useState(['CHINESE', 'JAPANESE', 'EUROPEAN', 'AMERICAN', 'OTHER'])
   const [plates, setPlates] = useState<string[]>([])
   const [drivers, setDrivers] = useState<string[]>([])
 
@@ -773,7 +773,7 @@ export default function TireInventoryList() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-
+                    <SelectItem value="CHINESE">Chinese</SelectItem>
                     <SelectItem value="JAPANESE">Japanese</SelectItem>
                     <SelectItem value="EUROPEAN">European</SelectItem>
                     <SelectItem value="AMERICAN">American</SelectItem>

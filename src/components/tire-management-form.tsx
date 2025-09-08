@@ -398,6 +398,7 @@ export default function TireManagementForm() {
                         <SelectValue placeholder="Select origin" />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="CHINESE">Chinese</SelectItem>
                         <SelectItem value="SAUDI">Saudi</SelectItem>
                         <SelectItem value="JAPANESE">Japanese</SelectItem>
                         <SelectItem value="EUROPEAN">European</SelectItem>
@@ -556,6 +557,7 @@ export default function TireManagementForm() {
                         <SelectValue placeholder="Select origin" />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="CHINESE">Chinese</SelectItem>
                         <SelectItem value="JAPANESE">Japanese</SelectItem>
                         <SelectItem value="EUROPEAN">European</SelectItem>
                         <SelectItem value="AMERICAN">American</SelectItem>

@@ -125,7 +125,7 @@ export default function ProfessionalReportGenerator() {
 
   // Available filter options
   const [manufacturers, setManufacturers] = useState<string[]>([])
-  const [origins] = useState(['JAPANESE', 'EUROPEAN', 'AMERICAN', 'OTHER'])
+  const [origins] = useState(['CHINESE', 'JAPANESE', 'EUROPEAN', 'AMERICAN', 'OTHER'])
   const [plates, setPlates] = useState<string[]>([])
   const [drivers, setDrivers] = useState<string[]>([])
 
