@@ -20,7 +20,7 @@ import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api'
 import { MaintenanceJobSelector } from '@/components/maintenance-job-selector'
 import { useLanguage } from '@/contexts/language-context'
 import { PageHeader } from '@/components/page-header'
-import '@/styles/draggable.css'
+
 
 
 
@@ -148,7 +148,7 @@ export default function MaintenancePage() {
   
   const vehicleDropdownRef = useRef<HTMLDivElement>(null)
   const mechanicDropdownRef = useRef<HTMLDivElement>(null)
-  const dialogRef = useRef<HTMLDivElement>(null)
+
   const [scrollPosition, setScrollPosition] = useState(0)
 
   useEffect(() => {
@@ -182,75 +182,7 @@ export default function MaintenancePage() {
 
   // Don't restore scroll position here - handle it in handleSubmit instead
 
-  // Add drag functionality
-  useEffect(() => {
-    if (!isDialogOpen) return
-    
-    const dialog = dialogRef.current
-    if (!dialog) return
 
-    let isDragging = false
-    let startX = 0
-    let startY = 0
-    let initialX = 0
-    let initialY = 0
-
-    const handleMouseDown = (e: MouseEvent) => {
-      const target = e.target as Element
-      const dragHandle = target.closest('.drag-handle')
-      if (!dragHandle) return
-      
-      e.preventDefault()
-      e.stopPropagation()
-      
-      isDragging = true
-      startX = e.clientX
-      startY = e.clientY
-      
-      const rect = dialog.getBoundingClientRect()
-      initialX = rect.left
-      initialY = rect.top
-      
-      document.addEventListener('mousemove', handleMouseMove)
-      document.addEventListener('mouseup', handleMouseUp)
-      document.body.style.userSelect = 'none'
-      document.body.style.cursor = 'grabbing'
-    }
-
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!isDragging) return
-      e.preventDefault()
-      
-      const deltaX = e.clientX - startX
-      const deltaY = e.clientY - startY
-      
-      const newX = Math.max(0, Math.min(window.innerWidth - dialog.offsetWidth, initialX + deltaX))
-      const newY = Math.max(0, Math.min(window.innerHeight - dialog.offsetHeight, initialY + deltaY))
-      
-      dialog.style.left = `${newX}px`
-      dialog.style.top = `${newY}px`
-      dialog.style.transform = 'none'
-    }
-
-    const handleMouseUp = () => {
-      isDragging = false
-      document.removeEventListener('mousemove', handleMouseMove)
-      document.removeEventListener('mouseup', handleMouseUp)
-      document.body.style.userSelect = ''
-      document.body.style.cursor = ''
-    }
-
-    // Add event listener to the dialog
-    dialog.addEventListener('mousedown', handleMouseDown)
-    
-    return () => {
-      dialog.removeEventListener('mousedown', handleMouseDown)
-      document.removeEventListener('mousemove', handleMouseMove)
-      document.removeEventListener('mouseup', handleMouseUp)
-      document.body.style.userSelect = ''
-      document.body.style.cursor = ''
-    }
-  }, [isDialogOpen])
 
   useEffect(() => {
     const combinedVehicles: Vehicle[] = [
@@ -650,8 +582,8 @@ export default function MaintenancePage() {
               {t('maintenance.addRecord')}
             </Button>
           </DialogTrigger>
-          <DialogContent ref={dialogRef} className="sm:max-w-[500px] max-h-[90vh] draggable-dialog">
-            <DialogHeader className="cursor-move drag-handle">
+          <DialogContent className="sm:max-w-[500px] max-h-[90vh]">
+            <DialogHeader>
               <DialogTitle className="text-lg">
                 {editingRecord ? 'Edit Maintenance' : 'Add Maintenance'}
               </DialogTitle>
