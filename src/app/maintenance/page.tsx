@@ -20,7 +20,7 @@ import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api'
 import { MaintenanceJobSelector } from '@/components/maintenance-job-selector'
 import { useLanguage } from '@/contexts/language-context'
 import { PageHeader } from '@/components/page-header'
-import { JobCardModal } from '@/components/job-card-modal'
+
 
 
 interface MaintenanceJob {
@@ -115,10 +115,8 @@ export default function MaintenancePage() {
   const [loading, setLoading] = useState(true)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false)
-  const [isJobCardModalOpen, setIsJobCardModalOpen] = useState(false)
   const [editingRecord, setEditingRecord] = useState<MaintenanceRecord | null>(null)
   const [viewingRecord, setViewingRecord] = useState<MaintenanceRecord | null>(null)
-  const [jobCardRecord, setJobCardRecord] = useState<MaintenanceRecord | null>(null)
   const [selectedJobs, setSelectedJobs] = useState<MaintenanceJob[]>([])
   
   const [formData, setFormData] = useState({
@@ -1120,8 +1118,34 @@ export default function MaintenancePage() {
                           variant="ghost" 
                           size="sm" 
                           onClick={() => {
-                            setJobCardRecord(record)
-                            setIsJobCardModalOpen(true)
+                            const jobCardContent = `
+JOB CARD
+========
+
+Vehicle: ${record.truck ? `${record.truck.year} ${record.truck.make} ${record.truck.model}` : `Trailer ${record.trailer?.number || ''}`}
+Plate Number: ${record.truck?.licensePlate || record.trailer?.number || ''}
+Driver: ${record.driverName || 'N/A'}
+Mechanic: ${record.mechanic?.name || 'None'}
+
+Service Type: ${record.serviceType}
+Description: ${record.description || 'N/A'}
+Date: ${new Date(record.datePerformed).toLocaleDateString()}
+Status: ${record.status}
+Total Cost: ﷼${record.totalCost.toFixed(2)}
+
+Generated on: ${new Date().toLocaleString()}
+                            `.trim()
+
+                            const blob = new Blob([jobCardContent], { type: 'text/plain' })
+                            const url = URL.createObjectURL(blob)
+                            const a = document.createElement('a')
+                            a.href = url
+                            a.download = `job-card-${record.truck?.licensePlate || record.trailer?.number || record.id}-${Date.now()}.txt`
+                            document.body.appendChild(a)
+                            a.click()
+                            document.body.removeChild(a)
+                            URL.revokeObjectURL(url)
+                            toast.success('Job card generated successfully')
                           }}
                           title="Generate Job Card"
                           className="text-blue-600 hover:text-blue-700"
@@ -1147,15 +1171,7 @@ export default function MaintenancePage() {
         </CardContent>
       </Card>
 
-      {/* Job Card Modal */}
-      <JobCardModal
-        isOpen={isJobCardModalOpen}
-        onClose={() => {
-          setIsJobCardModalOpen(false)
-          setJobCardRecord(null)
-        }}
-        maintenanceRecord={jobCardRecord}
-      />
+
     </div>
   )
 }
