@@ -340,7 +340,7 @@ export default function AdvancedAnalytics() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              ${analyticsData.costAnalysis.length > 0 
+              ﷼{analyticsData.costAnalysis.length > 0 
                 ? analyticsData.costAnalysis.reduce((sum, cost) => sum + cost.cost, 0).toLocaleString()
                 : '0'
               }
