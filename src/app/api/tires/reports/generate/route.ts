@@ -10,6 +10,10 @@ export async function GET(request: NextRequest) {
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+    
+    // Debug: Check total tire count first
+    const totalTireCount = await db.tire.count()
+    console.log(`Total tires in database: ${totalTireCount}`)
 
     const { searchParams } = new URL(request.url)
     const template = searchParams.get('template')
@@ -28,21 +32,32 @@ export async function GET(request: NextRequest) {
     if (!template || !startDate || !endDate) {
       return NextResponse.json({ error: 'Missing required parameters' }, { status: 400 })
     }
+    
+    console.log('Report generation parameters:', {
+      template,
+      startDate,
+      endDate,
+      manufacturer,
+      origin,
+      plateNumber,
+      trailerNumber,
+      driverName
+    })
 
     // Build where clause for filters
     const where: any = {}
     
-    // Only add date filter if dates are reasonable
+    // Parse dates
     const start = new Date(startDate)
     const end = new Date(endDate)
-    const now = new Date()
     
-    // If end date is not in the future, apply date filter
-    if (end <= now) {
-      where.createdAt = {
-        gte: start,
-        lte: end
-      }
+    // Set end date to end of day to include all records from that day
+    end.setHours(23, 59, 59, 999)
+    
+    // Always apply date filter, but be more lenient with future dates
+    where.createdAt = {
+      gte: start,
+      lte: end
     }
 
     if (manufacturer) {
@@ -65,7 +80,7 @@ export async function GET(request: NextRequest) {
       where.driverName = driverName
     }
 
-    // Fetch tire data - use historical data from tire records, not current vehicle data
+    // Fetch tire data
     let tires = await db.tire.findMany({
       where,
       orderBy: {
@@ -79,12 +94,12 @@ export async function GET(request: NextRequest) {
             email: true
           }
         }
-        // Removed vehicle include to use historical data from tire record itself
       }
     })
 
-    // If no data found with date filter, try without date filter
+    // If no data found with strict date filter, try with broader date range
     if (tires.length === 0 && where.createdAt) {
+      console.log('No data found with date filter, trying without date filter')
       const whereWithoutDate = { ...where }
       delete whereWithoutDate.createdAt
       
@@ -101,10 +116,13 @@ export async function GET(request: NextRequest) {
               email: true
             }
           }
-          // Removed vehicle include to use historical data from tire record itself
         }
       })
+      
+      console.log(`Found ${tires.length} records without date filter`)
     }
+    
+    console.log(`Final tire count: ${tires.length}`)
 
     // Calculate summary statistics
     const allVehicles = new Set([...tires.map(t => t.plateNumber).filter(Boolean), ...tires.map(t => t.trailerNumber).filter(Boolean)])
@@ -202,8 +220,16 @@ export async function GET(request: NextRequest) {
         plateNumber,
         trailerNumber,
         driverName
-      }
+      },
+      isEmpty: tires.length === 0
     }
+    
+    console.log('Report data prepared:', {
+      template,
+      tireCount: tires.length,
+      summary,
+      isEmpty: tires.length === 0
+    })
 
     return NextResponse.json(reportData)
   } catch (error) {

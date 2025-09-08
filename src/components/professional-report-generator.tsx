@@ -185,6 +185,8 @@ export default function ProfessionalReportGenerator() {
 
     try {
       console.log('Starting report generation...')
+      console.log('Report config:', reportConfig)
+      
       // Build query parameters
       const params = new URLSearchParams({
         template: reportConfig.template,
@@ -194,8 +196,11 @@ export default function ProfessionalReportGenerator() {
         format: reportConfig.format
       })
 
+      // Add filters only if they have values
       Object.entries(reportConfig.filters).forEach(([key, value]) => {
-        if (value && value !== 'all') params.append(key, value)
+        if (value && value !== 'all' && value.trim() !== '') {
+          params.append(key, value)
+        }
       })
 
       const apiUrl = `/api/tires/reports/generate?${params}`
@@ -206,31 +211,30 @@ export default function ProfessionalReportGenerator() {
 
       if (response.ok) {
         const data = await response.json()
-        console.log('Report data received:', data)
+        console.log('Report data received:', {
+          template: data.template,
+          tireCount: data.tires?.length || 0,
+          isEmpty: data.isEmpty,
+          summary: data.summary
+        })
         
-        // Check if we have valid data
-        if (!data.tires || data.tires.length === 0) {
-          setReportData({
-            ...data,
-            isEmpty: true
-          })
-          setSuccess('Report generated successfully - no data found for selected criteria')
+        setReportData(data)
+        
+        if (data.isEmpty || !data.tires || data.tires.length === 0) {
+          setSuccess('Report generated - no data found for selected criteria. Try adjusting your date range or filters.')
         } else {
-          setReportData(data)
-          setSuccess('Report generated successfully')
+          setSuccess(`Report generated successfully with ${data.tires.length} tire records`)
         }
+        
         setShowPreview(true)
       } else {
-        const errorData = await response.json()
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
         console.error('Report generation error:', errorData)
-        setError(errorData.error || 'Failed to generate report')
-        if (errorData.details) {
-          console.error('Error details:', errorData.details)
-        }
+        setError(errorData.error || `Failed to generate report (${response.status})`)
       }
     } catch (error) {
       console.error('Report generation exception:', error)
-      setError('Failed to generate report')
+      setError('Failed to generate report. Please check your connection and try again.')
     } finally {
       setGenerating(false)
     }
@@ -854,25 +858,21 @@ RECOMMENDATIONS
           </div>
 
           <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-2">
+            {reportData && (
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  console.log('Preview button clicked')
+                  setShowPreview(true)
+                }}
+                className="w-full sm:w-auto"
+              >
+                <Eye className="mr-2 h-4 w-4" />
+                Preview Report
+              </Button>
+            )}
             <Button 
-              variant="outline" 
-              onClick={() => {
-                console.log('Preview button clicked')
-                console.log('Report data available:', !!reportData)
-                setShowPreview(true)
-              }}
-              disabled={!reportData}
-              className="w-full sm:w-auto"
-            >
-              <Eye className="mr-2 h-4 w-4" />
-              Preview
-            </Button>
-            <Button 
-              onClick={() => {
-                console.log('Generate Report button clicked')
-                console.log('Current config:', reportConfig)
-                generateReport()
-              }}
+              onClick={generateReport}
               disabled={generating || !reportConfig.template}
               className="w-full sm:w-auto"
             >
@@ -1137,7 +1137,11 @@ RECOMMENDATIONS
               <X className="mr-2 h-4 w-4" />
               Close
             </Button>
-            <Button onClick={downloadReport} disabled={reportData?.isEmpty} className="w-full sm:w-auto">
+            <Button 
+              onClick={downloadReport} 
+              disabled={!reportData || reportData?.isEmpty || !reportData?.tires || reportData.tires.length === 0}
+              className="w-full sm:w-auto"
+            >
               <Download className="mr-2 h-4 w-4" />
               Download Report
             </Button>
