@@ -1,0 +1,264 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Badge } from '@/components/ui/badge'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Search, Droplets, Calendar, Truck } from 'lucide-react'
+import { apiGet } from '@/lib/api'
+import { formatCurrency } from '@/lib/currency'
+
+interface OilChangeRecord {
+  id: string
+  datePerformed: string
+  serviceType: string
+  description: string
+  totalCost: number
+  status: string
+  truck?: {
+    year: number
+    make: string
+    licensePlate: string
+  }
+  trailer?: {
+    trailerNumber: string
+  }
+  mechanic?: {
+    name: string
+  }
+  assignedDrivers: string
+}
+
+export default function OilChangesPage() {
+  const [oilChanges, setOilChanges] = useState<OilChangeRecord[]>([])
+  const [filteredRecords, setFilteredRecords] = useState<OilChangeRecord[]>([])
+  const [searchTerm, setSearchTerm] = useState('')
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetchOilChanges()
+  }, [])
+
+  useEffect(() => {
+    filterRecords()
+  }, [oilChanges, searchTerm])
+
+  const fetchOilChanges = async () => {
+    try {
+      const response = await apiGet('/api/maintenance')
+      if (response.ok) {
+        const data = await response.json()
+        const oilChangeRecords = data.data.filter((record: OilChangeRecord) => 
+          record.serviceType?.toLowerCase().includes('oil change') ||
+          record.description?.toLowerCase().includes('oil') ||
+          record.description?.toLowerCase().includes('engine oil')
+        )
+        setOilChanges(oilChangeRecords)
+      }
+    } catch (error) {
+      console.error('Error fetching oil changes:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const filterRecords = () => {
+    if (!searchTerm) {
+      setFilteredRecords(oilChanges)
+      return
+    }
+
+    const filtered = oilChanges.filter(record => 
+      record.truck?.licensePlate?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      record.truck?.make?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      record.assignedDrivers?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      record.mechanic?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      record.status?.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+    setFilteredRecords(filtered)
+  }
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'COMPLETED': return 'bg-green-100 text-green-800'
+      case 'IN_PROGRESS': return 'bg-blue-100 text-blue-800'
+      case 'SCHEDULED': return 'bg-yellow-100 text-yellow-800'
+      default: return 'bg-gray-100 text-gray-800'
+    }
+  }
+
+  return (
+    <div className="container mx-auto p-6 space-y-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
+            <Droplets className="h-8 w-8 text-blue-600" />
+            Oil Changes
+          </h1>
+          <p className="text-muted-foreground">Track and manage all oil change maintenance records</p>
+        </div>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Oil Changes</CardTitle>
+            <Droplets className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{oilChanges.length}</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Completed</CardTitle>
+            <Calendar className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600">
+              {oilChanges.filter(r => r.status === 'COMPLETED').length}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">In Progress</CardTitle>
+            <Truck className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-blue-600">
+              {oilChanges.filter(r => r.status === 'IN_PROGRESS').length}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Cost</CardTitle>
+            <Droplets className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {formatCurrency(oilChanges.reduce((sum, r) => sum + r.totalCost, 0))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardContent className="pt-6">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Input
+              placeholder="Search by vehicle, driver, mechanic, or status..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Droplets className="h-5 w-5" />
+            Oil Change Records
+          </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Showing {filteredRecords.length} oil change records
+          </p>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="text-center py-8">Loading oil change records...</div>
+          ) : (
+            <div className="rounded-md border overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Service</TableHead>
+                    <TableHead>Vehicle</TableHead>
+                    <TableHead>Driver</TableHead>
+                    <TableHead>Mechanic</TableHead>
+                    <TableHead>Cost</TableHead>
+                    <TableHead>Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredRecords.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center py-8 text-gray-500">
+                        No oil change records found
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    filteredRecords.map((record) => (
+                      <TableRow key={record.id}>
+                        <TableCell>
+                          {new Date(record.datePerformed).toLocaleDateString('en-US', {
+                            month: 'short',
+                            day: '2-digit'
+                          })}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Droplets className="h-4 w-4 text-blue-600" />
+                            <div>
+                              <div className="font-medium">{record.serviceType}</div>
+                              {record.description && (
+                                <div className="text-sm text-gray-500 truncate max-w-48">
+                                  {record.description}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {record.truck ? (
+                            <div>
+                              <div className="font-medium">
+                                {record.truck.year} {record.truck.make}
+                              </div>
+                              <div className="text-sm text-gray-500">
+                                {record.truck.licensePlate}
+                              </div>
+                            </div>
+                          ) : record.trailer ? (
+                            <div>
+                              <div className="font-medium">Trailer {record.trailer.trailerNumber}</div>
+                            </div>
+                          ) : (
+                            <span className="text-gray-400">-</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {record.assignedDrivers || <span className="text-gray-400">-</span>}
+                        </TableCell>
+                        <TableCell>
+                          {record.mechanic?.name || <span className="text-gray-400">None</span>}
+                        </TableCell>
+                        <TableCell className="font-medium">
+                          {formatCurrency(record.totalCost)}
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={getStatusColor(record.status)}>
+                            {record.status.replace('_', ' ')}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  )
+}

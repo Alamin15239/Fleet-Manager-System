@@ -23,6 +23,7 @@ import {
   Zap,
   User,
   Shield,
+  Droplets,
 
 } from 'lucide-react'
 import { useLanguage } from '@/contexts/language-context'
@@ -48,6 +49,13 @@ const getNavigation = (t: (key: string) => string, language: string) => [
     name: t('nav.maintenance'), 
     href: '/maintenance', 
     icon: Wrench,
+    resource: 'maintenance',
+    action: 'read'
+  },
+  { 
+    name: 'Oil Changes', 
+    href: '/oil-changes', 
+    icon: Droplets,
     resource: 'maintenance',
     action: 'read'
   },
