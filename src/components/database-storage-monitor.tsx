@@ -145,7 +145,7 @@ export function DatabaseStorageMonitor() {
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">Available (KB):</span>
                 <Badge variant="outline">
-                  {storageData.storage.available.availableKB.toLocaleString()} KB
+                  {storageData.storage.available.availableKB?.toLocaleString() || '0'} KB
                 </Badge>
               </div>
               
