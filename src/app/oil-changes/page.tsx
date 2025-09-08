@@ -46,7 +46,7 @@ export default function OilChangesPage() {
 
   const fetchOilChanges = async () => {
     try {
-      const response = await apiGet('/api/maintenance')
+      const response = await apiGet('/api/maintenance?limit=1000')
       if (response.ok) {
         const data = await response.json()
         const oilChangeRecords = data.data.filter((record: OilChangeRecord) => 
