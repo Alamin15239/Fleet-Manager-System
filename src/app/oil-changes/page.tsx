@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Search, Droplets, Calendar, Truck } from 'lucide-react'
+import { Search, Droplets, Calendar, Truck, User, BarChart3 } from 'lucide-react'
 import { apiGet } from '@/lib/api'
 import { formatCurrency } from '@/lib/currency'
 
@@ -97,6 +97,27 @@ export default function OilChangesPage() {
     }
   }
 
+  // Calculate mechanic statistics
+  const mechanicStats = oilChanges.reduce((acc, record) => {
+    const mechanicName = record.mechanic?.name || record.mechanicName || 'Unknown'
+    acc[mechanicName] = (acc[mechanicName] || 0) + 1
+    return acc
+  }, {} as Record<string, number>)
+
+  // Calculate monthly statistics
+  const monthlyStats = oilChanges.reduce((acc, record) => {
+    const month = new Date(record.datePerformed).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+    acc[month] = (acc[month] || 0) + 1
+    return acc
+  }, {} as Record<string, number>)
+
+  // Calculate yearly statistics
+  const yearlyStats = oilChanges.reduce((acc, record) => {
+    const year = new Date(record.datePerformed).getFullYear().toString()
+    acc[year] = (acc[year] || 0) + 1
+    return acc
+  }, {} as Record<string, number>)
+
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex justify-between items-center">
@@ -157,6 +178,75 @@ export default function OilChangesPage() {
         </Card>
       </div>
 
+      {/* Analytics Section */}
+      <div className="grid gap-6 md:grid-cols-3">
+        {/* Mechanic Statistics */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <User className="h-5 w-5" />
+              Mechanic Performance
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {Object.entries(mechanicStats)
+                .sort(([,a], [,b]) => b - a)
+                .map(([mechanic, count]) => (
+                <div key={mechanic} className="flex justify-between items-center">
+                  <span className="text-sm font-medium">{mechanic}</span>
+                  <Badge variant="secondary">{count} oil changes</Badge>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Monthly Statistics */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Calendar className="h-5 w-5" />
+              Monthly Breakdown
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {Object.entries(monthlyStats)
+                .sort(([a], [b]) => new Date(a).getTime() - new Date(b).getTime())
+                .map(([month, count]) => (
+                <div key={month} className="flex justify-between items-center">
+                  <span className="text-sm font-medium">{month}</span>
+                  <Badge variant="outline">{count} changes</Badge>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Yearly Statistics */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <BarChart3 className="h-5 w-5" />
+              Yearly Summary
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {Object.entries(yearlyStats)
+                .sort(([a], [b]) => parseInt(b) - parseInt(a))
+                .map(([year, count]) => (
+                <div key={year} className="flex justify-between items-center">
+                  <span className="text-sm font-medium">{year}</span>
+                  <Badge variant="default">{count} changes</Badge>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
       <Card>
         <CardContent className="pt-6">
           <div className="relative">
@@ -202,7 +292,7 @@ export default function OilChangesPage() {
                 <TableBody>
                   {filteredRecords.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="text-center py-8 text-gray-500">
+                      <TableCell colSpan={7} className="text-center py-8 text-gray-500">
                         No oil change records found
                       </TableCell>
                     </TableRow>
