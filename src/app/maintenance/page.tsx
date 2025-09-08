@@ -183,10 +183,10 @@ export default function MaintenancePage() {
   // Restore scroll position after edit
   useEffect(() => {
     if (!isDialogOpen && scrollPosition > 0) {
-      setTimeout(() => {
-        window.scrollTo(0, scrollPosition)
+      requestAnimationFrame(() => {
+        window.scrollTo({ top: scrollPosition, behavior: 'instant' })
         setScrollPosition(0)
-      }, 100)
+      })
     }
   }, [isDialogOpen, scrollPosition])
 
@@ -454,6 +454,10 @@ export default function MaintenancePage() {
         resetForm()
         // Refresh the list immediately to show new record at top
         await fetchMaintenanceRecords()
+        // Restore scroll position after refresh
+        if (scrollPosition > 0) {
+          setTimeout(() => window.scrollTo({ top: scrollPosition, behavior: 'instant' }), 50)
+        }
       } else {
         let errorMessage = 'Failed to save maintenance record'
         try {
