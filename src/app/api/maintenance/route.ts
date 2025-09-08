@@ -194,6 +194,17 @@ export async function GET(request: NextRequest) {
 // POST create new maintenance record
 export async function POST(request: NextRequest) {
   try {
+    // Test database connection first
+    try {
+      await db.$queryRaw`SELECT 1`
+    } catch (dbError) {
+      console.error('Database connection failed in POST:', dbError)
+      return NextResponse.json(
+        { error: 'Database connection failed' },
+        { status: 500 }
+      )
+    }
+
     const body = await request.json()
 
     // Validate required fields
@@ -281,9 +292,9 @@ export async function POST(request: NextRequest) {
           downtimeHours: body.downtimeHours ? parseFloat(body.downtimeHours) : null,
           failureMode: body.failureMode,
           rootCause: body.rootCause,
-          vehicleName: `${vehicle.year} ${vehicle.make} ${vehicle.model}`,
+          vehicleName: `${vehicle.year || ''} ${vehicle.make || ''} ${vehicle.model || ''}`.trim(),
           mechanicName: body.mechanicName || mechanicName,
-          driverName: vehicle.driverName
+          driverName: vehicle.driverName || null
         },
         include: {
           truck: {
@@ -342,9 +353,9 @@ export async function POST(request: NextRequest) {
           downtimeHours: body.downtimeHours ? parseFloat(body.downtimeHours) : null,
           failureMode: body.failureMode,
           rootCause: body.rootCause,
-          vehicleName: `Trailer ${vehicle.number}`,
+          vehicleName: `Trailer ${vehicle.number || ''}`,
           mechanicName: body.mechanicName || mechanicName,
-          driverName: vehicle.driverName
+          driverName: vehicle.driverName || null
         },
         include: {
           trailer: {
@@ -388,8 +399,11 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Error creating maintenance record:', error)
+    console.error('Request body:', body)
+    console.error('Vehicle found:', vehicle)
+    console.error('Vehicle type:', vehicleType)
     return NextResponse.json(
-      { error: 'Failed to create maintenance record' },
+      { error: 'Failed to create maintenance record', details: error.message },
       { status: 500 }
     )
   }
