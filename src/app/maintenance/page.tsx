@@ -237,9 +237,9 @@ export default function MaintenancePage() {
       document.body.style.userSelect = ''
     }
 
-    document.addEventListener('mousedown', handleMouseDown)
+    dialog.addEventListener('mousedown', handleMouseDown)
     return () => {
-      document.removeEventListener('mousedown', handleMouseDown)
+      dialog.removeEventListener('mousedown', handleMouseDown)
       document.removeEventListener('mousemove', handleMouseMove)
       document.removeEventListener('mouseup', handleMouseUp)
       document.body.style.userSelect = ''
