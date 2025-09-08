@@ -1140,7 +1140,7 @@ export default function MaintenancePage() {
                             doc.text(`Vehicle: ${record.truck ? `${record.truck.year} ${record.truck.make} ${record.truck.model}` : `Trailer ${record.trailer?.number || ''}`}`, 25, 80)
                             doc.text(`License Plate: ${record.truck?.licensePlate || record.trailer?.number || 'N/A'}`, 25, 90)
                             doc.text(`Driver: ${record.driverName || 'Not Assigned'}`, 120, 80)
-                            doc.text(`Odometer: ${record.currentMileage || 'N/A'} km`, 120, 90)
+                            doc.text(`Odometer: ${record.currentMileage ? `${record.currentMileage.toLocaleString()} km` : '___________ km'}`, 120, 90)
                             
                             // Work Order Box
                             doc.rect(20, 110, 170, 50)
@@ -1172,9 +1172,9 @@ export default function MaintenancePage() {
                             doc.setFont('helvetica', 'bold')
                             doc.text('COST BREAKDOWN', 25, 220)
                             doc.setFont('helvetica', 'normal')
-                            doc.text(`Parts Cost: ﷼${record.partsCost.toFixed(2)}`, 25, 230)
-                            doc.text(`Labor Cost: ﷼${record.laborCost.toFixed(2)}`, 80, 230)
-                            doc.text(`Total Cost: ﷼${record.totalCost.toFixed(2)}`, 135, 230)
+                            doc.text(`Parts Cost: SAR ${record.partsCost.toFixed(2)}`, 25, 230)
+                            doc.text(`Labor Cost: SAR ${record.laborCost.toFixed(2)}`, 80, 230)
+                            doc.text(`Total Cost: SAR ${record.totalCost.toFixed(2)}`, 135, 230)
                             
                             // Signature Section
                             doc.rect(20, 250, 80, 25)
