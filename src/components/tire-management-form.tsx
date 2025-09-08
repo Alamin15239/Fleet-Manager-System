@@ -53,7 +53,7 @@ export default function TireManagementForm() {
   const [formData, setFormData] = useState<TireFormData>({
     tireSize: '',
     manufacturer: '',
-    origin: 'JAPANESE',
+    origin: 'SAUDI',
     plateNumber: '',
     trailerNumber: '',
     driverName: '',
@@ -61,7 +61,7 @@ export default function TireManagementForm() {
     serialNumber: '',
     trailerTireSize: '',
     trailerManufacturer: '',
-    trailerOrigin: 'JAPANESE',
+    trailerOrigin: 'SAUDI',
     trailerQuantity: 0,
     trailerSerialNumber: '',
     notes: '',
@@ -210,7 +210,7 @@ export default function TireManagementForm() {
         setFormData({
           tireSize: '',
           manufacturer: '',
-          origin: 'JAPANESE',
+          origin: 'SAUDI',
           plateNumber: '',
           trailerNumber: '',
           driverName: '',
@@ -218,7 +218,7 @@ export default function TireManagementForm() {
           serialNumber: '',
           trailerTireSize: '',
           trailerManufacturer: '',
-          trailerOrigin: 'JAPANESE',
+          trailerOrigin: 'SAUDI',
           trailerQuantity: 0,
           trailerSerialNumber: '',
           notes: '',
@@ -398,6 +398,7 @@ export default function TireManagementForm() {
                         <SelectValue placeholder="Select origin" />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="SAUDI">Saudi</SelectItem>
                         <SelectItem value="JAPANESE">Japanese</SelectItem>
                         <SelectItem value="EUROPEAN">European</SelectItem>
                         <SelectItem value="AMERICAN">American</SelectItem>

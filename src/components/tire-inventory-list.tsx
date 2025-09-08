@@ -105,7 +105,7 @@ export default function TireInventoryList() {
   const [tireForm, setTireForm] = useState<TireFormData>({
     tireSize: '',
     manufacturer: '',
-    origin: 'JAPANESE',
+    origin: 'OTHER',
     plateNumber: '',
     trailerNumber: '',
     driverName: '',
