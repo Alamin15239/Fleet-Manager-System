@@ -8,57 +8,56 @@ datasource db {
 }
 
 model User {
-  id                       String              @id @default(cuid())
-  email                    String              @unique
-  name                     String?
-  password                 String
-  role                     Role                @default(USER)
-  isActive                 Boolean             @default(true)
-  isApproved               Boolean             @default(false)
-  isDeleted                Boolean             @default(false)
-  deletedAt                DateTime?
-  deletedBy                String?
-  permissions              Json?
-  profileImage             String?
-  phone                    String?
-  department               String?
-  title                    String?
-  bio                      String?
-  isEmailVerified          Boolean             @default(false)
-  emailVerificationToken   String?
-  emailVerificationExpires DateTime?
-  otpCode                  String?
-  otpExpires               DateTime?
-  lastOtpRequest           DateTime?
-  createdAt                DateTime            @default(now())
-  updatedAt                DateTime            @updatedAt
-  resetToken               String?
-  resetTokenExpires        DateTime?
-  auditLogs                AuditLog[]
-  createdDocuments         Document[]
-  loginHistory             LoginHistory[]
-  maintenanceRecords       MaintenanceRecord[]
+  id                        String                     @id @default(cuid())
+  email                     String                     @unique
+  name                      String?
+  password                  String
+  role                      Role                       @default(USER)
+  isActive                  Boolean                    @default(true)
+  isApproved                Boolean                    @default(false)
+  isDeleted                 Boolean                    @default(false)
+  deletedAt                 DateTime?
+  deletedBy                 String?
+  permissions               Json?
+  profileImage              String?
+  phone                     String?
+  department                String?
+  title                     String?
+  bio                       String?
+  isEmailVerified           Boolean                    @default(false)
+  emailVerificationToken    String?
+  emailVerificationExpires  DateTime?
+  otpCode                   String?
+  otpExpires                DateTime?
+  lastOtpRequest            DateTime?
+  createdAt                 DateTime                   @default(now())
+  updatedAt                 DateTime                   @updatedAt
+  resetToken                String?
+  resetTokenExpires         DateTime?
+  auditLogs                 AuditLog[]
+  createdDocuments          Document[]
+  loginHistory              LoginHistory[]
+  maintenanceRecords        MaintenanceRecord[]
+  createdTires              Tire[]
   trailerMaintenanceRecords TrailerMaintenanceRecord[]
-  createdTires             Tire[]
-  userActivities           UserActivity[]
-
+  userActivities            UserActivity[]
 
   @@map("users")
 }
 
 model Mechanic {
-  id                 String              @id @default(cuid())
-  name               String
-  email              String?
-  phone              String?
-  specialty          String?
-  isActive           Boolean             @default(true)
-  isDeleted          Boolean             @default(false)
-  deletedAt          DateTime?
-  deletedBy          String?
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt
-  maintenanceRecords MaintenanceRecord[]
+  id                        String                     @id @default(cuid())
+  name                      String
+  email                     String?
+  phone                     String?
+  specialty                 String?
+  isActive                  Boolean                    @default(true)
+  isDeleted                 Boolean                    @default(false)
+  deletedAt                 DateTime?
+  deletedBy                 String?
+  createdAt                 DateTime                   @default(now())
+  updatedAt                 DateTime                   @updatedAt
+  maintenanceRecords        MaintenanceRecord[]
   trailerMaintenanceRecords TrailerMaintenanceRecord[]
 
   @@map("mechanics")
@@ -73,7 +72,6 @@ model Truck {
   licensePlate       String
   currentMileage     Int
   status             TruckStatus         @default(ACTIVE)
-  driverName         String?
   image              String?
   isDeleted          Boolean             @default(false)
   deletedAt          DateTime?
@@ -89,6 +87,7 @@ model Truck {
   avgDailyMileage    Float?
   lastInspection     DateTime?
   nextInspection     DateTime?
+  driverName         String?
   maintenanceRecords MaintenanceRecord[]
   notifications      Notification[]
   predictiveAlerts   PredictiveAlert[]
@@ -97,39 +96,39 @@ model Truck {
 }
 
 model Trailer {
-  id                    String                 @id @default(cuid())
-  number                String                 @unique
-  status                TruckStatus            @default(ACTIVE)
-  driverName            String?
-  isDeleted             Boolean                @default(false)
-  deletedAt             DateTime?
-  deletedBy             String?
-  createdAt             DateTime               @default(now())
-  updatedAt             DateTime               @updatedAt
-  healthScore           Float?
-  riskLevel             RiskLevel              @default(LOW)
-  lastInspection        DateTime?
-  nextInspection        DateTime?
+  id                        String                     @id @default(cuid())
+  number                    String                     @unique
+  status                    TruckStatus                @default(ACTIVE)
+  isDeleted                 Boolean                    @default(false)
+  deletedAt                 DateTime?
+  deletedBy                 String?
+  createdAt                 DateTime                   @default(now())
+  updatedAt                 DateTime                   @updatedAt
+  healthScore               Float?
+  riskLevel                 RiskLevel                  @default(LOW)
+  lastInspection            DateTime?
+  nextInspection            DateTime?
+  driverName                String?
   trailerMaintenanceRecords TrailerMaintenanceRecord[]
-  trailerNotifications  TrailerNotification[]
-  trailerPredictiveAlerts TrailerPredictiveAlert[]
+  trailerNotifications      TrailerNotification[]
+  trailerPredictiveAlerts   TrailerPredictiveAlert[]
 
   @@map("trailers")
 }
 
 model MaintenanceJob {
-  id                 String              @id @default(cuid())
-  name               String
-  category           String
-  parts              String?
-  notes              String?
-  isActive           Boolean             @default(true)
-  isDeleted          Boolean             @default(false)
-  deletedAt          DateTime?
-  deletedBy          String?
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt
-  maintenanceRecords MaintenanceRecord[]
+  id                        String                     @id @default(cuid())
+  name                      String
+  category                  String
+  parts                     String?
+  notes                     String?
+  isActive                  Boolean                    @default(true)
+  isDeleted                 Boolean                    @default(false)
+  deletedAt                 DateTime?
+  deletedBy                 String?
+  createdAt                 DateTime                   @default(now())
+  updatedAt                 DateTime                   @updatedAt
+  maintenanceRecords        MaintenanceRecord[]
   trailerMaintenanceRecords TrailerMaintenanceRecord[]
 
   @@unique([name, category])
@@ -209,14 +208,16 @@ model MaintenanceRecord {
   downtimeHours     Float?
   failureMode       String?
   rootCause         String?
-  vehicleName       String?
-  mechanicName      String?
   driverName        String?
+  mechanicName      String?
+  vehicleName       String?
+  breakdownLocation String?
+  breakdownTime     DateTime?
+  isBreakdown       Boolean           @default(false)
   createdBy         User?             @relation(fields: [createdById], references: [id])
   maintenanceJob    MaintenanceJob?   @relation(fields: [maintenanceJobId], references: [id])
   mechanic          Mechanic?         @relation(fields: [mechanicId], references: [id])
   truck             Truck             @relation(fields: [truckId], references: [id], onDelete: Cascade)
-
 
   @@map("maintenance_records")
 }
@@ -247,9 +248,12 @@ model TrailerMaintenanceRecord {
   downtimeHours     Float?
   failureMode       String?
   rootCause         String?
-  vehicleName       String?
-  mechanicName      String?
   driverName        String?
+  mechanicName      String?
+  vehicleName       String?
+  breakdownLocation String?
+  breakdownTime     DateTime?
+  isBreakdown       Boolean           @default(false)
   createdBy         User?             @relation(fields: [createdById], references: [id])
   maintenanceJob    MaintenanceJob?   @relation(fields: [maintenanceJobId], references: [id])
   mechanic          Mechanic?         @relation(fields: [mechanicId], references: [id])
@@ -421,11 +425,11 @@ model Tire {
   trailerNumber String?
   driverName    String?
   quantity      Int      @default(1)
-  serialNumber  String?
   notes         String?
   createdById   String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+  serialNumber  String?
   createdBy     User?    @relation(fields: [createdById], references: [id])
   vehicle       Vehicle? @relation(fields: [plateNumber], references: [plateNumber])
 
@@ -442,27 +446,14 @@ model Document {
   id          String   @id @default(cuid())
   title       String
   type        String
-  description String?
   fileUrl     String?
   editorState Json?
-  content     String?
-  metadata    Json?
   version     Int      @default(1)
-  isTemplate  Boolean  @default(false)
-  tags        Json?
-  wordCount   Int      @default(0)
-  language    String   @default("en-US")
-  isPublic    Boolean  @default(false)
-  lastAccessed DateTime?
   createdById String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   createdBy   User?    @relation(fields: [createdById], references: [id])
 
-  @@index([type])
-  @@index([isTemplate])
-  @@index([isPublic])
-  @@index([createdAt])
   @@map("documents")
 }
 
@@ -482,8 +473,6 @@ model EmailLog {
   @@index([createdAt])
   @@map("email_logs")
 }
-
-
 
 enum RiskLevel {
   LOW
@@ -527,5 +516,3 @@ enum TireOrigin {
   AMERICAN
   OTHER
 }
-
-
