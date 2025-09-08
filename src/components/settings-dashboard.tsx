@@ -362,7 +362,7 @@ export default function SettingsDashboard() {
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Response Time:</span>
-                  <span className="font-medium text-green-600">< 200ms</span>
+                  <span className="font-medium text-green-600">&lt; 200ms</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Memory Usage:</span>
