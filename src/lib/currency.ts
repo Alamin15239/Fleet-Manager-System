@@ -13,7 +13,7 @@ export interface CurrencySettings {
 }
 
 export const DEFAULT_CURRENCY_SETTINGS: CurrencySettings = {
-  currencySymbol: '﷼',
+  currencySymbol: 'SAR',
   currencyCode: 'SAR',
   currencyName: 'Saudi Riyal',
   decimalPlaces: 2,

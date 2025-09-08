@@ -15,6 +15,7 @@ import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { format } from 'date-fns'
 import { CalendarIcon, Plus, Edit, Trash2, Search, Filter, Wrench, Clock, DollarSign, AlertTriangle, CheckCircle, XCircle, ClockIcon } from 'lucide-react'
+import { formatCurrency } from '@/lib/currency'
 
 interface MaintenanceRecord {
   id: string
@@ -686,7 +687,7 @@ export default function MaintenanceTracking() {
 
               <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <Label htmlFor="partsCost">Parts Cost (SAR)</Label>
+                  <Label htmlFor="partsCost">Parts Cost</Label>
                   <Input
                     id="partsCost"
                     type="number"
@@ -707,7 +708,7 @@ export default function MaintenanceTracking() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="laborCost">Labor Cost (SAR)</Label>
+                  <Label htmlFor="laborCost">Labor Cost</Label>
                   <Input
                     id="laborCost"
                     type="number"
@@ -947,9 +948,9 @@ export default function MaintenanceTracking() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">SAR {calculateTotalCost().toLocaleString()}</div>
+            <div className="text-2xl font-bold">{formatCurrency(calculateTotalCost())}</div>
             <p className="text-xs text-muted-foreground">
-              Avg: SAR {calculateAverageCost().toFixed(2)} per record
+              Avg: {formatCurrency(calculateAverageCost())} per record
             </p>
           </CardContent>
         </Card>
@@ -1089,9 +1090,9 @@ export default function MaintenanceTracking() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <div className="font-medium">SAR {record.totalCost.toFixed(2)}</div>
+                    <div className="font-medium">{formatCurrency(record.totalCost)}</div>
                     <div className="text-sm text-muted-foreground">
-                      SAR {record.partsCost.toFixed(2)} + SAR {record.laborCost.toFixed(2)}
+                      {formatCurrency(record.partsCost)} + {formatCurrency(record.laborCost)}
                     </div>
                   </TableCell>
                   <TableCell>
@@ -1171,15 +1172,15 @@ export default function MaintenanceTracking() {
                     <CardContent className="space-y-2">
                       <div className="flex justify-between">
                         <span className="text-sm text-muted-foreground">Parts Cost:</span>
-                        <span className="text-sm font-medium">SAR {selectedRecord.partsCost.toFixed(2)}</span>
+                        <span className="text-sm font-medium">{formatCurrency(selectedRecord.partsCost)}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-sm text-muted-foreground">Labor Cost:</span>
-                        <span className="text-sm font-medium">SAR {selectedRecord.laborCost.toFixed(2)}</span>
+                        <span className="text-sm font-medium">{formatCurrency(selectedRecord.laborCost)}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-sm text-muted-foreground">Total Cost:</span>
-                        <span className="text-sm font-medium">SAR {selectedRecord.totalCost.toFixed(2)}</span>
+                        <span className="text-sm font-medium">{formatCurrency(selectedRecord.totalCost)}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-sm text-muted-foreground">Downtime:</span>
@@ -1317,7 +1318,7 @@ export default function MaintenanceTracking() {
                           <div className="flex justify-between">
                             <span className="text-muted-foreground">Cost per Hour:</span>
                             <span className="font-medium">
-                              SAR {selectedRecord.downtimeHours ? (selectedRecord.totalCost / selectedRecord.downtimeHours).toFixed(2) : 'N/A'}
+                              {selectedRecord.downtimeHours ? formatCurrency(selectedRecord.totalCost / selectedRecord.downtimeHours) : 'N/A'}
                             </span>
                           </div>
                         </div>

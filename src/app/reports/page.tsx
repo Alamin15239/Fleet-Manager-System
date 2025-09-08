@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Download, Calendar as CalendarIcon } from 'lucide-react'
 import { format } from 'date-fns'
 import { toast } from 'sonner'
+import { formatCurrency } from '@/lib/currency'
 
 interface MaintenanceRecord {
   id: string
@@ -239,8 +240,8 @@ export default function ReportsPage() {
           <div class="summary">
             <h2>Maintenance Summary</h2>
             <p><strong>Total Records:</strong> ${data.length}</p>
-            <p><strong>Total Cost:</strong> SAR ${totalCost.toFixed(2)}</p>
-            <p><strong>Average Cost:</strong> SAR ${data.length > 0 ? (totalCost / data.length).toFixed(2) : '0.00'}</p>
+            <p><strong>Total Cost:</strong> ${formatCurrency(totalCost)}</p>
+            <p><strong>Average Cost:</strong> ${data.length > 0 ? formatCurrency(totalCost / data.length) : formatCurrency(0)}</p>
           </div>
 
           <h2>Maintenance Records</h2>
@@ -270,17 +271,17 @@ export default function ReportsPage() {
                   <td>${record.description || 'N/A'}</td>
                   <td>${record.mechanic?.name || 'N/A'}</td>
                   <td>${record.createdBy?.name || 'N/A'}</td>
-                  <td>SAR ${record.partsCost.toFixed(2)}</td>
-                  <td>SAR ${record.laborCost.toFixed(2)}</td>
-                  <td>SAR ${record.totalCost.toFixed(2)}</td>
+                  <td>${formatCurrency(record.partsCost)}</td>
+                  <td>${formatCurrency(record.laborCost)}</td>
+                  <td>${formatCurrency(record.totalCost)}</td>
                   <td>${record.status}</td>
                 </tr>
               `).join('')}
               <tr class="total-row">
                 <td colspan="7"><strong>TOTAL</strong></td>
-                <td><strong>SAR ${totalParts.toFixed(2)}</strong></td>
-                <td><strong>SAR ${totalLabor.toFixed(2)}</strong></td>
-                <td><strong>SAR ${totalCost.toFixed(2)}</strong></td>
+                <td><strong>${formatCurrency(totalParts)}</strong></td>
+                <td><strong>${formatCurrency(totalLabor)}</strong></td>
+                <td><strong>${formatCurrency(totalCost)}</strong></td>
                 <td></td>
               </tr>
             </tbody>
@@ -328,8 +329,8 @@ export default function ReportsPage() {
           <div class="summary">
             <h2>Maintenance Summary</h2>
             <p><strong>Total Records:</strong> ${data.length}</p>
-            <p><strong>Total Cost:</strong> SAR ${totalCost.toFixed(2)}</p>
-            <p><strong>Average Cost:</strong> SAR ${data.length > 0 ? (totalCost / data.length).toFixed(2) : '0.00'}</p>
+            <p><strong>Total Cost:</strong> ${formatCurrency(totalCost)}</p>
+            <p><strong>Average Cost:</strong> ${data.length > 0 ? formatCurrency(totalCost / data.length) : formatCurrency(0)}</p>
           </div>
 
           <h2>Maintenance Records</h2>
@@ -359,17 +360,17 @@ export default function ReportsPage() {
                   <td>${record.description || 'N/A'}</td>
                   <td>${record.mechanic?.name || 'N/A'}</td>
                   <td>${record.createdBy?.name || 'N/A'}</td>
-                  <td>SAR ${record.partsCost.toFixed(2)}</td>
-                  <td>SAR ${record.laborCost.toFixed(2)}</td>
-                  <td>SAR ${record.totalCost.toFixed(2)}</td>
+                  <td>${formatCurrency(record.partsCost)}</td>
+                  <td>${formatCurrency(record.laborCost)}</td>
+                  <td>${formatCurrency(record.totalCost)}</td>
                   <td>${record.status}</td>
                 </tr>
               `).join('')}
               <tr class="total-row">
                 <td colspan="7"><strong>TOTAL</strong></td>
-                <td><strong>SAR ${totalParts.toFixed(2)}</strong></td>
-                <td><strong>SAR ${totalLabor.toFixed(2)}</strong></td>
-                <td><strong>SAR ${totalCost.toFixed(2)}</strong></td>
+                <td><strong>${formatCurrency(totalParts)}</strong></td>
+                <td><strong>${formatCurrency(totalLabor)}</strong></td>
+                <td><strong>${formatCurrency(totalCost)}</strong></td>
                 <td></td>
               </tr>
             </tbody>
@@ -393,7 +394,7 @@ export default function ReportsPage() {
     csv += `Generated: ${new Date().toLocaleDateString()}\n`
     csv += `Period: ${startDate || 'All Time'} to ${endDate || 'Current'}\n\n`
     csv += `Total Records: ${data.length}\n`
-    csv += `Total Cost: SAR ${totalCost.toFixed(2)}\n\n`
+    csv += `Total Cost: ${formatCurrency(totalCost)}\n\n`
     csv += "Date,Vehicle,Driver,Service Type,Description,Mechanic,Creator,Parts Cost,Labor Cost,Total Cost,Status\n"
     
     data.forEach(record => {
@@ -520,15 +521,15 @@ export default function ReportsPage() {
               <div className="flex justify-between">
                 <span>Total Cost:</span>
                 <span className="font-bold">
-                  SAR {filteredMaintenance.reduce((sum, record) => sum + record.totalCost, 0).toFixed(2)}
+                  {formatCurrency(filteredMaintenance.reduce((sum, record) => sum + record.totalCost, 0))}
                 </span>
               </div>
               <div className="flex justify-between">
                 <span>Average Cost:</span>
                 <span className="font-bold">
-                  SAR {filteredMaintenance.length > 0 
-                    ? (filteredMaintenance.reduce((sum, record) => sum + record.totalCost, 0) / filteredMaintenance.length).toFixed(2)
-                    : '0.00'
+                  {filteredMaintenance.length > 0 
+                    ? formatCurrency(filteredMaintenance.reduce((sum, record) => sum + record.totalCost, 0) / filteredMaintenance.length)
+                    : formatCurrency(0)
                   }
                 </span>
               </div>
@@ -579,7 +580,7 @@ export default function ReportsPage() {
                       </td>
                       <td className="border border-gray-300 p-2">{getDriverName(record)}</td>
                       <td className="border border-gray-300 p-2">{record.serviceType}</td>
-                      <td className="border border-gray-300 p-2">SAR {record.totalCost.toFixed(2)}</td>
+                      <td className="border border-gray-300 p-2">{formatCurrency(record.totalCost)}</td>
                       <td className="border border-gray-300 p-2">{record.status}</td>
                     </tr>
                   )

@@ -53,7 +53,7 @@ export default function TireManagementForm() {
   const [formData, setFormData] = useState<TireFormData>({
     tireSize: '',
     manufacturer: '',
-    origin: 'CHINESE',
+    origin: 'JAPANESE',
     plateNumber: '',
     trailerNumber: '',
     driverName: '',
@@ -61,7 +61,7 @@ export default function TireManagementForm() {
     serialNumber: '',
     trailerTireSize: '',
     trailerManufacturer: '',
-    trailerOrigin: 'CHINESE',
+    trailerOrigin: 'JAPANESE',
     trailerQuantity: 0,
     trailerSerialNumber: '',
     notes: '',
@@ -210,7 +210,7 @@ export default function TireManagementForm() {
         setFormData({
           tireSize: '',
           manufacturer: '',
-          origin: 'CHINESE',
+          origin: 'JAPANESE',
           plateNumber: '',
           trailerNumber: '',
           driverName: '',
@@ -218,7 +218,7 @@ export default function TireManagementForm() {
           serialNumber: '',
           trailerTireSize: '',
           trailerManufacturer: '',
-          trailerOrigin: 'CHINESE',
+          trailerOrigin: 'JAPANESE',
           trailerQuantity: 0,
           trailerSerialNumber: '',
           notes: '',
@@ -398,7 +398,6 @@ export default function TireManagementForm() {
                         <SelectValue placeholder="Select origin" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="CHINESE">Chinese</SelectItem>
                         <SelectItem value="JAPANESE">Japanese</SelectItem>
                         <SelectItem value="EUROPEAN">European</SelectItem>
                         <SelectItem value="AMERICAN">American</SelectItem>
@@ -556,7 +555,6 @@ export default function TireManagementForm() {
                         <SelectValue placeholder="Select origin" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="CHINESE">Chinese</SelectItem>
                         <SelectItem value="JAPANESE">Japanese</SelectItem>
                         <SelectItem value="EUROPEAN">European</SelectItem>
                         <SelectItem value="AMERICAN">American</SelectItem>

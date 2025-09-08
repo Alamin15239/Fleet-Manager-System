@@ -94,7 +94,7 @@ export default function TireInventoryList() {
 
   // Available options for filters
   const [manufacturers, setManufacturers] = useState<string[]>([])
-  const [origins] = useState(['CHINESE', 'JAPANESE', 'EUROPEAN', 'AMERICAN', 'OTHER'])
+  const [origins] = useState(['JAPANESE', 'EUROPEAN', 'AMERICAN', 'OTHER'])
   const [plates, setPlates] = useState<string[]>([])
   const [drivers, setDrivers] = useState<string[]>([])
 
@@ -105,7 +105,7 @@ export default function TireInventoryList() {
   const [tireForm, setTireForm] = useState<TireFormData>({
     tireSize: '',
     manufacturer: '',
-    origin: 'CHINESE',
+    origin: 'JAPANESE',
     plateNumber: '',
     trailerNumber: '',
     driverName: '',
@@ -282,7 +282,7 @@ export default function TireInventoryList() {
 
   const getOriginColor = (origin: string) => {
     switch (origin) {
-      case 'CHINESE': return 'bg-red-100 text-red-800'
+      case 'JAPANESE': return 'bg-blue-100 text-blue-800'
       case 'JAPANESE': return 'bg-blue-100 text-blue-800'
       case 'EUROPEAN': return 'bg-green-100 text-green-800'
       case 'AMERICAN': return 'bg-purple-100 text-purple-800'
@@ -773,7 +773,7 @@ export default function TireInventoryList() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="CHINESE">Chinese</SelectItem>
+
                     <SelectItem value="JAPANESE">Japanese</SelectItem>
                     <SelectItem value="EUROPEAN">European</SelectItem>
                     <SelectItem value="AMERICAN">American</SelectItem>

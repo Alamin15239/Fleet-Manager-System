@@ -379,7 +379,7 @@ const translations = {
     'tires.trailerNumber': 'Trailer Number',
     'tires.driverName': 'Driver Name',
     'tires.quantity': 'Quantity',
-    'tires.chinese': 'Chinese',
+
     'tires.japanese': 'Japanese',
     'tires.european': 'European',
     'tires.american': 'American',
@@ -846,7 +846,7 @@ const translations = {
     'tires.trailerNumber': 'رقم المقطورة',
     'tires.driverName': 'اسم السائق',
     'tires.quantity': 'الكمية',
-    'tires.chinese': 'صيني',
+
     'tires.japanese': 'ياباني',
     'tires.european': 'أوروبي',
     'tires.american': 'أمريكي',
