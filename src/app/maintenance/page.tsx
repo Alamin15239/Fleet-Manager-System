@@ -1115,7 +1115,7 @@ export default function MaintenancePage() {
                       </div>
                     </TableCell>
                     <TableCell className="text-sm">
-                      {record.mechanic?.name || record.mechanicName || 'None'}
+                      {record.mechanicName || record.mechanic?.name || 'None'}
                     </TableCell>
                     <TableCell className="text-sm font-medium">
                       {formatCurrencyWithSettings(record.totalCost)}
