@@ -3,6 +3,9 @@ import { db } from '@/lib/db'
 
 export async function GET(request: NextRequest) {
   try {
+    // Check if maintenance table exists by trying a simple query
+    await db.$queryRaw`SELECT 1 FROM "MaintenanceRecord" LIMIT 1`
+    
     const records = await db.maintenanceRecord.findMany({
       include: {
         truck: true
@@ -22,39 +25,19 @@ export async function GET(request: NextRequest) {
       }
     })
   } catch (error) {
-    console.error('Maintenance error:', error)
+    console.error('Maintenance table not found:', error)
     return NextResponse.json({
       success: true,
       records: [],
       pagination: { page: 1, limit: 100, total: 0, pages: 0 },
-      summary: { totalCost: 0, completedCount: 0, inProgressCount: 0, scheduledCount: 0 }
+      summary: { totalCost: 0, completedCount: 0, inProgressCount: 0, scheduledCount: 0 },
+      message: 'Maintenance feature requires database setup'
     })
   }
 }
 
 export async function POST(request: NextRequest) {
-  try {
-    const body = await request.json()
-
-    const record = await db.maintenanceRecord.create({
-      data: {
-        truckId: body.truckId,
-        serviceType: body.serviceType,
-        description: body.description,
-        datePerformed: new Date(body.datePerformed),
-        partsCost: parseFloat(body.partsCost) || 0,
-        laborCost: parseFloat(body.laborCost) || 0,
-        totalCost: (parseFloat(body.partsCost) || 0) + (parseFloat(body.laborCost) || 0),
-        status: body.status || 'COMPLETED'
-      },
-      include: {
-        truck: true
-      }
-    })
-
-    return NextResponse.json(record)
-  } catch (error) {
-    console.error('Maintenance POST error:', error)
-    return NextResponse.json({ error: 'Failed to create record' }, { status: 500 })
-  }
+  return NextResponse.json({ 
+    error: 'Maintenance feature requires database setup. Please run database migrations first.' 
+  }, { status: 400 })
 }
