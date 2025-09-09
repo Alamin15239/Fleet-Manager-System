@@ -36,18 +36,46 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
 
-    const record = await db.maintenanceRecord.create({
-      data: {
-        truckId: body.truckId,
-        serviceType: body.serviceType,
-        description: body.description,
-        datePerformed: new Date(body.datePerformed),
-        partsCost: parseFloat(body.partsCost) || 0,
-        laborCost: parseFloat(body.laborCost) || 0,
-        totalCost: (parseFloat(body.partsCost) || 0) + (parseFloat(body.laborCost) || 0),
-        status: body.status || 'COMPLETED'
-      }
-    })
+    // Check if the selected vehicle is a trailer by checking if it exists in trailer table
+    let isTrailer = false
+    try {
+      const trailer = await db.trailer.findUnique({ where: { id: body.truckId } })
+      isTrailer = !!trailer
+    } catch (e) {
+      // If trailer table doesn't exist, treat as truck
+      isTrailer = false
+    }
+    
+    let record
+    if (isTrailer) {
+      // Create trailer maintenance record
+      record = await db.trailerMaintenanceRecord.create({
+        data: {
+          trailerId: body.truckId,
+          serviceType: body.serviceType,
+          description: body.description,
+          datePerformed: new Date(body.datePerformed),
+          partsCost: parseFloat(body.partsCost) || 0,
+          laborCost: parseFloat(body.laborCost) || 0,
+          totalCost: (parseFloat(body.partsCost) || 0) + (parseFloat(body.laborCost) || 0),
+          status: body.status || 'COMPLETED'
+        }
+      })
+    } else {
+      // Create truck maintenance record
+      record = await db.maintenanceRecord.create({
+        data: {
+          truckId: body.truckId,
+          serviceType: body.serviceType,
+          description: body.description,
+          datePerformed: new Date(body.datePerformed),
+          partsCost: parseFloat(body.partsCost) || 0,
+          laborCost: parseFloat(body.laborCost) || 0,
+          totalCost: (parseFloat(body.partsCost) || 0) + (parseFloat(body.laborCost) || 0),
+          status: body.status || 'COMPLETED'
+        }
+      })
+    }
 
     return NextResponse.json(record)
   } catch (error) {
