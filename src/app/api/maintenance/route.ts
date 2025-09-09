@@ -4,75 +4,14 @@ import { db } from '@/lib/db'
 // GET all maintenance records
 export async function GET(request: NextRequest) {
   try {
-    // Test database connection first
-    try {
-      await db.$queryRaw`SELECT 1`
-    } catch (dbError) {
-      console.error('Database connection failed:', dbError)
-      return NextResponse.json({
-        success: true,
-        records: [],
-        pagination: { page: 1, limit: 10, total: 0, pages: 0 },
-        summary: { totalCost: 0, totalDowntime: 0, averageCost: 0, predictedCount: 0, completedCount: 0, inProgressCount: 0, scheduledCount: 0 }
-      })
-    }
-
     const { searchParams } = new URL(request.url)
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '10')
-    const search = searchParams.get('search')
-    const status = searchParams.get('status')
-    const truckId = searchParams.get('truckId')
-    const mechanicId = searchParams.get('mechanicId')
-    const dateFrom = searchParams.get('dateFrom')
-    const dateTo = searchParams.get('dateTo')
-    const wasPredicted = searchParams.get('wasPredicted')
-
     const skip = (page - 1) * limit
 
-    const whereClause: any = {
-      isDeleted: false
-    }
+    const whereClause = { isDeleted: false }
 
-    if (search) {
-      whereClause.OR = [
-        { serviceType: { contains: search, mode: 'insensitive' } },
-        { description: { contains: search, mode: 'insensitive' } },
-        { notes: { contains: search, mode: 'insensitive' } }
-      ]
-    }
-
-    if (status && status !== 'all') {
-      whereClause.status = status
-    }
-
-    if (truckId) {
-      whereClause.truckId = truckId
-    }
-
-    if (mechanicId) {
-      whereClause.mechanicId = mechanicId
-    }
-
-    if (dateFrom) {
-      whereClause.datePerformed = {
-        gte: new Date(dateFrom)
-      }
-    }
-
-    if (dateTo) {
-      whereClause.datePerformed = {
-        ...(whereClause.datePerformed || {}),
-        lte: new Date(dateTo)
-      }
-    }
-
-    if (wasPredicted !== null) {
-      whereClause.wasPredicted = wasPredicted === 'true'
-    }
-
-    // Get both truck and trailer maintenance records
-    const [truckRecords, trailerRecords, truckCount, trailerCount] = await Promise.all([
+    const [records, totalCount] = await Promise.all([
       db.maintenanceRecord.findMany({
         where: whereClause,
         include: {
@@ -86,104 +25,20 @@ export async function GET(request: NextRequest) {
               licensePlate: true,
               currentMileage: true
             }
-          },
-          mechanic: {
-            select: {
-              id: true,
-              name: true,
-              specialty: true
-            }
-          },
-          maintenanceJob: {
-            select: {
-              id: true,
-              name: true,
-              category: true
-            }
-          },
-          createdBy: {
-            select: {
-              id: true,
-              name: true,
-              email: true
-            }
           }
         },
         orderBy: { datePerformed: 'desc' },
         skip,
         take: limit
       }),
-      db.trailerMaintenanceRecord.findMany({
-        where: whereClause.truckId ? { ...whereClause, trailerId: whereClause.truckId } : whereClause,
-        include: {
-          trailer: {
-            select: {
-              id: true,
-              number: true,
-              status: true,
-              driverName: true
-            }
-          },
-          mechanic: {
-            select: {
-              id: true,
-              name: true,
-              specialty: true
-            }
-          },
-          maintenanceJob: {
-            select: {
-              id: true,
-              name: true,
-              category: true
-            }
-          },
-          createdBy: {
-            select: {
-              id: true,
-              name: true,
-              email: true
-            }
-          }
-        },
-        orderBy: { datePerformed: 'desc' },
-        skip,
-        take: limit
-      }),
-      db.maintenanceRecord.count({ where: whereClause }),
-      db.trailerMaintenanceRecord.count({ where: whereClause.truckId ? { ...whereClause, trailerId: whereClause.truckId } : whereClause })
+      db.maintenanceRecord.count({ where: whereClause })
     ])
 
-    // Combine and sort records
-    const allRecords = [...truckRecords, ...trailerRecords].sort((a, b) => 
-      new Date(b.datePerformed).getTime() - new Date(a.datePerformed).getTime()
-    )
-
-    const totalCount = truckCount + trailerCount
-
-    // Calculate summary statistics
-    const totalCost = allRecords.reduce((sum, record) => sum + (record.totalCost || 0), 0)
-    const totalDowntime = allRecords.reduce((sum, record) => sum + (record.downtimeHours || 0), 0)
-    const predictedCount = allRecords.filter(record => record.wasPredicted).length
-    
-    // Format records for frontend
-    const formattedRecords = allRecords.map(record => ({
-      ...record,
-      mechanicName: record.mechanic?.name || record.mechanicName || null,
-      truck: record.truck || {
-        id: record.trailer?.id || '',
-        vin: '',
-        make: 'Trailer',
-        model: record.trailer?.number || '',
-        year: 0,
-        licensePlate: `Trailer ${record.trailer?.number || ''}`,
-        currentMileage: 0
-      }
-    }))
+    const totalCost = records.reduce((sum, record) => sum + (record.totalCost || 0), 0)
 
     return NextResponse.json({
       success: true,
-      records: formattedRecords,
+      records,
       pagination: {
         page,
         limit,
@@ -192,18 +47,17 @@ export async function GET(request: NextRequest) {
       },
       summary: {
         totalCost,
-        totalDowntime,
+        totalDowntime: 0,
         averageCost: totalCount > 0 ? totalCost / totalCount : 0,
-        predictedCount,
-        completedCount: allRecords.filter(r => r.status === 'COMPLETED').length,
-        inProgressCount: allRecords.filter(r => r.status === 'IN_PROGRESS').length,
-        scheduledCount: allRecords.filter(r => r.status === 'SCHEDULED').length
+        predictedCount: 0,
+        completedCount: records.filter(r => r.status === 'COMPLETED').length,
+        inProgressCount: records.filter(r => r.status === 'IN_PROGRESS').length,
+        scheduledCount: records.filter(r => r.status === 'SCHEDULED').length
       }
     })
 
   } catch (error) {
     console.error('Error fetching maintenance records:', error)
-    // Return empty data instead of 500 error
     return NextResponse.json({
       success: true,
       records: [],
@@ -227,35 +81,23 @@ export async function POST(request: NextRequest) {
         partsCost: parseFloat(body.partsCost) || 0,
         laborCost: parseFloat(body.laborCost) || 0,
         totalCost: (parseFloat(body.partsCost) || 0) + (parseFloat(body.laborCost) || 0),
-        mechanicId: (body.mechanicId && body.mechanicId !== 'none') ? body.mechanicId : null,
-        createdById: body.createdById || null,
-        nextServiceDue: body.nextServiceDue ? new Date(body.nextServiceDue) : null,
         status: body.status || 'COMPLETED',
         notes: body.notes || null,
-        isOilChange: body.isOilChange || false,
-        oilChangeInterval: body.oilChangeInterval ? parseInt(body.oilChangeInterval) : null,
-        oilQuantityLiters: body.oilQuantityLiters ? parseFloat(body.oilQuantityLiters) : null,
         currentMileage: body.currentMileage ? parseInt(body.currentMileage) : null,
-        maintenanceJobId: (body.maintenanceJobId && body.maintenanceJobId !== '') ? body.maintenanceJobId : null,
         mechanicName: body.mechanicName || null,
         driverName: body.driverName || null
       },
       include: {
-        truck: true,
-        mechanic: true,
-        maintenanceJob: true
+        truck: true
       }
     })
 
-    return NextResponse.json({
-      ...maintenanceRecord,
-      mechanicName: maintenanceRecord.mechanic?.name || maintenanceRecord.mechanicName
-    })
+    return NextResponse.json(maintenanceRecord)
 
   } catch (error) {
     console.error('Error creating maintenance record:', error)
     return NextResponse.json(
-      { error: 'Failed to create maintenance record', details: error.message },
+      { error: 'Failed to create maintenance record' },
       { status: 500 }
     )
   }
