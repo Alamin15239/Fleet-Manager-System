@@ -112,7 +112,7 @@ export default function OilChangesPage() {
       const response = await apiGet('/api/trucks?limit=1000')
       if (response.ok) {
         const data = await response.json()
-        setTrucks(data.trucks || [])
+        setTrucks(data.data || [])
       }
     } catch (error) {
       console.error('Error fetching trucks:', error)
