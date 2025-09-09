@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
-import { Truck, Plus, Edit, Eye, Trash2, Wrench, AlertTriangle, TrendingUp } from 'lucide-react'
+import { Truck, Plus, Edit, Eye, Trash2, Wrench, AlertTriangle, TrendingUp, Search, Filter, RefreshCw, Download, Calendar } from 'lucide-react'
 import { toast } from 'sonner'
 import { usePermissions } from '@/contexts/permissions-context'
 import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api'
@@ -42,6 +42,11 @@ export default function TrucksPage() {
   const { canAccess, canCreate, canUpdate, canDelete, loading: permissionsLoading } = usePermissions()
   const { t } = useLanguage()
   const [trucks, setTrucks] = useState<Truck[]>([])
+  const [filteredTrucks, setFilteredTrucks] = useState<Truck[]>([])
+  const [searchTerm, setSearchTerm] = useState('')
+  const [statusFilter, setStatusFilter] = useState('ALL')
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage] = useState(10)
   const [dashboardStats, setDashboardStats] = useState<DashboardStats>({
     totalTrucks: 0,
     activeTrucks: 0,
@@ -101,6 +106,30 @@ export default function TrucksPage() {
     fetchDashboardStats()
     fetchTrucks()
   }, [])
+
+  // Filter and search trucks
+  useEffect(() => {
+    let filtered = trucks
+    
+    // Apply search filter
+    if (searchTerm) {
+      filtered = filtered.filter(truck => 
+        truck.vin.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        truck.make.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        truck.model.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        truck.licensePlate.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (truck.driverName && truck.driverName.toLowerCase().includes(searchTerm.toLowerCase()))
+      )
+    }
+    
+    // Apply status filter
+    if (statusFilter !== 'ALL') {
+      filtered = filtered.filter(truck => truck.status === statusFilter)
+    }
+    
+    setFilteredTrucks(filtered)
+    setCurrentPage(1) // Reset to first page when filters change
+  }, [trucks, searchTerm, statusFilter])
 
   const fetchDashboardStats = async () => {
     try {
@@ -207,7 +236,9 @@ export default function TrucksPage() {
       if (response.ok) {
         const data = await response.json()
         // API returns { success: true, data: trucks, pagination: ... }
-        setTrucks(data.data || [])
+        const trucksData = data.data || []
+        setTrucks(trucksData)
+        setFilteredTrucks(trucksData)
         // Also refresh dashboard stats to ensure consistency
         fetchDashboardStats()
       } else {
@@ -329,6 +360,41 @@ export default function TrucksPage() {
     setIsDialogOpen(true)
   }
 
+  const handleRefresh = () => {
+    fetchTrucks()
+    fetchDashboardStats()
+  }
+
+  const handleExport = () => {
+    const csvContent = [
+      ['VIN', 'Make', 'Model', 'Year', 'License Plate', 'Driver', 'Mileage', 'Status'],
+      ...filteredTrucks.map(truck => [
+        truck.vin,
+        truck.make,
+        truck.model,
+        truck.year.toString(),
+        truck.licensePlate,
+        truck.driverName || '',
+        truck.currentMileage.toString(),
+        truck.status
+      ])
+    ].map(row => row.join(',')).join('\n')
+    
+    const blob = new Blob([csvContent], { type: 'text/csv' })
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `fleet-data-${new Date().toISOString().split('T')[0]}.csv`
+    a.click()
+    window.URL.revokeObjectURL(url)
+  }
+
+  // Pagination
+  const totalPages = Math.ceil(filteredTrucks.length / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const endIndex = startIndex + itemsPerPage
+  const currentTrucks = filteredTrucks.slice(startIndex, endIndex)
+
   const handleDelete = async (truckId: string) => {
     if (confirm(t('message.deleteConfirm'))) {
       try {
@@ -381,22 +447,34 @@ export default function TrucksPage() {
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">{t('trucks.title')}</h1>
+          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
+            <Truck className="h-8 w-8 text-blue-600" />
+            {t('trucks.title')}
+          </h1>
           <p className="text-muted-foreground">{t('trucks.subtitle')}</p>
         </div>
-        {canCreate('trucks') && (
-          <Dialog open={isDialogOpen} onOpenChange={(open) => {
-            setIsDialogOpen(open)
-            if (!open) {
-              resetForm()
-            }
-          }}>
-            <DialogTrigger asChild>
-              <Button onClick={handleAddTruck}>
-                <Plus className="h-4 w-4 mr-2" />
-                {t('trucks.addTruck')}
-              </Button>
-            </DialogTrigger>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={handleRefresh}>
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Refresh
+          </Button>
+          <Button variant="outline" onClick={handleExport}>
+            <Download className="h-4 w-4 mr-2" />
+            Export
+          </Button>
+          {canCreate('trucks') && (
+            <Dialog open={isDialogOpen} onOpenChange={(open) => {
+              setIsDialogOpen(open)
+              if (!open) {
+                resetForm()
+              }
+            }}>
+              <DialogTrigger asChild>
+                <Button onClick={handleAddTruck}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  {t('trucks.addTruck')}
+                </Button>
+              </DialogTrigger>
           <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
               <DialogTitle>
@@ -593,7 +671,8 @@ export default function TrucksPage() {
             </form>
           </DialogContent>
         </Dialog>
-        )}
+          )}
+        </div>
       </div>
 
       {/* KPI Cards */}
@@ -643,7 +722,7 @@ export default function TrucksPage() {
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">﷼{(dashboardStats.totalMaintenanceCost / 6).toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
+            <div className="text-2xl font-bold">﷼{((dashboardStats.totalMaintenanceCost || 0) / 6).toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
             <p className="text-xs text-muted-foreground">
               {t('dashboard.averageMonthlyCost')}
             </p>
@@ -656,7 +735,7 @@ export default function TrucksPage() {
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">﷼{dashboardStats.totalMaintenanceCost.toLocaleString()}</div>
+            <div className="text-2xl font-bold">﷼{(dashboardStats.totalMaintenanceCost || 0).toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">
               {t('dashboard.last6Months')}
             </p>
@@ -702,7 +781,7 @@ export default function TrucksPage() {
                 </div>
                 <div>
                   <Label className="text-sm font-medium text-gray-500">{t('trucks.currentMileage')}</Label>
-                  <p className="text-lg font-semibold">{selectedTruck.currentMileage.toLocaleString()} {t('trucks.miles')}</p>
+                  <p className="text-lg font-semibold">{(selectedTruck.currentMileage || 0).toLocaleString()} {t('trucks.miles')}</p>
                 </div>
               </div>
               
@@ -748,13 +827,58 @@ export default function TrucksPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Search and Filters */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Filter className="h-5 w-5" />
+            Search & Filters
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex-1">
+              <div className="relative">
+                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search by VIN, make, model, license plate, or driver..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Filter by status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">All Status</SelectItem>
+                <SelectItem value="ACTIVE">Active</SelectItem>
+                <SelectItem value="MAINTENANCE">Maintenance</SelectItem>
+                <SelectItem value="INACTIVE">Inactive</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Trucks Table */}
       <Card>
         <CardHeader>
-          <CardTitle>{t('trucks.fleetOverview')}</CardTitle>
-          <CardDescription>
-            {t('trucks.showingTrucks').replace('{count}', trucks.length.toString())}
-          </CardDescription>
+          <div className="flex justify-between items-center">
+            <div>
+              <CardTitle>{t('trucks.fleetOverview')}</CardTitle>
+              <CardDescription>
+                Showing {filteredTrucks.length} trucks
+                {searchTerm && ` (filtered from ${trucks.length} total)`}
+              </CardDescription>
+            </div>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Calendar className="h-4 w-4" />
+              Last updated: {new Date().toLocaleTimeString()}
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="rounded-md border">
@@ -771,53 +895,121 @@ export default function TrucksPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {trucks.map((truck) => (
-                  <TableRow key={truck.id}>
-                    <TableCell className="font-medium">{truck.vin}</TableCell>
-                    <TableCell>
-                      <div>
-                        <div className="font-medium">{truck.year} {truck.make} {truck.model}</div>
-                        <div className="text-sm text-muted-foreground">
-                          {t('trucks.added')} {new Date(truck.createdAt).toLocaleDateString()}
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>{truck.licensePlate}</TableCell>
-                    <TableCell>{truck.driverName || 'No driver'}</TableCell>
-                    <TableCell>{truck.currentMileage.toLocaleString()} {t('trucks.miles')}</TableCell>
-                    <TableCell>
-                      <Badge className={getStatusColor(truck.status)}>
-                        {truck.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button variant="outline" size="sm" onClick={() => handleViewTruck(truck)}>
-                          <Eye className="h-4 w-4" />
-                        </Button>
-
-                        {canUpdate('trucks') && (
-                          <Button variant="outline" size="sm" onClick={() => handleEdit(truck)}>
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                        )}
-                        {canDelete('trucks') && (
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            onClick={() => handleDelete(truck.id)}
-                            className="text-red-600 hover:text-red-700"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        )}
+                {filteredTrucks.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center py-8">
+                      <div className="flex flex-col items-center gap-2">
+                        <Truck className="h-12 w-12 text-muted-foreground" />
+                        <p className="text-lg font-medium">No trucks found</p>
+                        <p className="text-sm text-muted-foreground">
+                          {searchTerm || statusFilter !== 'ALL' 
+                            ? 'Try adjusting your search or filters'
+                            : 'Add your first truck to get started'
+                          }
+                        </p>
                       </div>
                     </TableCell>
                   </TableRow>
-                ))}
+                ) : (
+                  filteredTrucks.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((truck) => (
+                    <TableRow key={truck.id}>
+                      <TableCell className="font-medium">{truck.vin}</TableCell>
+                      <TableCell>
+                        <div>
+                          <div className="font-medium">{truck.year} {truck.make} {truck.model}</div>
+                          <div className="text-sm text-muted-foreground">
+                            {t('trucks.added')} {new Date(truck.createdAt).toLocaleDateString()}
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>{truck.licensePlate}</TableCell>
+                      <TableCell>{truck.driverName || 'No driver'}</TableCell>
+                      <TableCell>{(truck.currentMileage || 0).toLocaleString()} {t('trucks.miles')}</TableCell>
+                      <TableCell>
+                        <Badge className={getStatusColor(truck.status)}>
+                          {truck.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button variant="outline" size="sm" onClick={() => handleViewTruck(truck)}>
+                            <Eye className="h-4 w-4" />
+                          </Button>
+
+                          {canUpdate('trucks') && (
+                            <Button variant="outline" size="sm" onClick={() => handleEdit(truck)}>
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {canDelete('trucks') && (
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              onClick={() => handleDelete(truck.id)}
+                              className="text-red-600 hover:text-red-700"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
               </TableBody>
             </Table>
           </div>
+          
+          {/* Pagination */}
+          {Math.ceil(filteredTrucks.length / itemsPerPage) > 1 && (
+            <div className="flex items-center justify-between px-2 py-4">
+              <div className="text-sm text-muted-foreground">
+                Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredTrucks.length)} of {filteredTrucks.length} results
+              </div>
+              <div className="flex items-center space-x-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                  disabled={currentPage === 1}
+                >
+                  Previous
+                </Button>
+                <div className="flex items-center space-x-1">
+                  {Array.from({ length: Math.ceil(filteredTrucks.length / itemsPerPage) }, (_, i) => i + 1)
+                    .filter(page => 
+                      page === 1 || 
+                      page === Math.ceil(filteredTrucks.length / itemsPerPage) || 
+                      Math.abs(page - currentPage) <= 1
+                    )
+                    .map((page, index, array) => (
+                      <div key={page} className="flex items-center">
+                        {index > 0 && array[index - 1] !== page - 1 && (
+                          <span className="px-2 text-muted-foreground">...</span>
+                        )}
+                        <Button
+                          variant={currentPage === page ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setCurrentPage(page)}
+                          className="w-8 h-8 p-0"
+                        >
+                          {page}
+                        </Button>
+                      </div>
+                    ))
+                  }
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, Math.ceil(filteredTrucks.length / itemsPerPage)))}
+                  disabled={currentPage === Math.ceil(filteredTrucks.length / itemsPerPage)}
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
