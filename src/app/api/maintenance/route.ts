@@ -3,22 +3,49 @@ import { db } from '@/lib/db'
 
 export async function GET(request: NextRequest) {
   try {
-    const records = await db.maintenanceRecord.findMany({
-      include: {
-        truck: true
-      },
-      orderBy: { datePerformed: 'desc' }
-    })
+    // Get both truck and trailer maintenance records
+    const [truckRecords, trailerRecords] = await Promise.all([
+      db.maintenanceRecord.findMany({
+        include: {
+          truck: true
+        },
+        orderBy: { datePerformed: 'desc' }
+      }),
+      db.trailerMaintenanceRecord.findMany({
+        include: {
+          trailer: true
+        },
+        orderBy: { datePerformed: 'desc' }
+      }).catch(() => []) // Return empty array if trailer table doesn't exist
+    ])
+
+    // Combine and format records
+    const allRecords = [
+      ...truckRecords,
+      ...trailerRecords.map(record => ({
+        ...record,
+        // Add truck field for compatibility
+        truck: {
+          id: record.trailer?.id || '',
+          vin: '',
+          make: 'Trailer',
+          model: record.trailer?.number || '',
+          year: 0,
+          licensePlate: `Trailer ${record.trailer?.number || ''}`,
+          currentMileage: 0
+        }
+      }))
+    ].sort((a, b) => new Date(b.datePerformed).getTime() - new Date(a.datePerformed).getTime())
 
     return NextResponse.json({
       success: true,
-      records,
-      pagination: { page: 1, limit: 100, total: records.length, pages: 1 },
+      records: allRecords,
+      pagination: { page: 1, limit: 100, total: allRecords.length, pages: 1 },
       summary: {
-        totalCost: records.reduce((sum, r) => sum + (r.totalCost || 0), 0),
-        completedCount: records.filter(r => r.status === 'COMPLETED').length,
-        inProgressCount: records.filter(r => r.status === 'IN_PROGRESS').length,
-        scheduledCount: records.filter(r => r.status === 'SCHEDULED').length
+        totalCost: allRecords.reduce((sum, r) => sum + (r.totalCost || 0), 0),
+        completedCount: allRecords.filter(r => r.status === 'COMPLETED').length,
+        inProgressCount: allRecords.filter(r => r.status === 'IN_PROGRESS').length,
+        scheduledCount: allRecords.filter(r => r.status === 'SCHEDULED').length
       }
     })
   } catch (error) {
