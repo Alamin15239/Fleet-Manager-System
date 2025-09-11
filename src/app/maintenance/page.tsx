@@ -398,8 +398,13 @@ export default function MaintenancePage() {
         resetForm()
         await fetchMaintenanceRecords()
       } else {
-        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
-        toast.error(errorData.error || 'Failed to save record')
+        if (response.status === 404) {
+          toast.error('Record not found. It may have been deleted.')
+          await fetchMaintenanceRecords() // Refresh to remove deleted records
+        } else {
+          const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+          toast.error(errorData.error || 'Failed to save record')
+        }
       }
     } catch (error) {
       console.error('Submit error:', error)
