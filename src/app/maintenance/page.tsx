@@ -363,79 +363,36 @@ export default function MaintenancePage() {
     e.preventDefault()
     
     try {
+      console.log('Submitting form', { editingRecord: !!editingRecord, formData })
+      
       const totalCost = (formData.partsCost || 0) + (formData.laborCost || 0)
-      
-      // Calculate next service due date for oil changes
-      let nextServiceDue = formData.nextServiceDue
-      if (formData.isOilChange && formData.currentMileage && formData.oilChangeInterval) {
-        const nextOilChangeMileage = formData.currentMileage + formData.oilChangeInterval
-        const nextOilChangeDate = new Date()
-        nextOilChangeDate.setDate(nextOilChangeDate.getDate() + 90) // Estimate 90 days for oil change interval
-        nextServiceDue = nextOilChangeDate.toISOString().split('T')[0]
-      }
-      
-      // Get current user ID from API
-      let currentUserId = null
-      try {
-        const userResponse = await apiGet('/api/auth/me')
-        if (userResponse.ok) {
-          const userData = await userResponse.json()
-          currentUserId = userData.user?.id || userData.id
-        }
-      } catch (e) {
-        console.error('Error getting current user:', e)
-      }
       
       const payload = {
         ...formData,
         mechanicId: formData.mechanicId === "none" ? null : formData.mechanicId,
-        createdById: currentUserId,
-        totalCost,
-        nextServiceDue
+        totalCost
       }
       
       const url = editingRecord ? `/api/maintenance/${editingRecord.id}` : '/api/maintenance'
       const method = editingRecord ? apiPut : apiPost
       
+      console.log('API call', { url, method: editingRecord ? 'PUT' : 'POST', payload })
+      
       const response = await method(url, payload)
 
       if (response.ok) {
-        if (editingRecord) {
-          toast.success('Maintenance record updated successfully')
-        } else {
-          toast.success('Maintenance record created successfully')
-          if (formData.isOilChange) {
-            toast.info('Next oil change date has been calculated and set')
-          }
-        }
+        toast.success(editingRecord ? 'Updated successfully' : 'Created successfully')
         setIsDialogOpen(false)
         resetForm()
-        // Refresh the list immediately to show new record at top
         await fetchMaintenanceRecords()
-        // Restore scroll position after refresh for edits only
-        if (editingRecord && scrollPosition > 0) {
-          setTimeout(() => {
-            window.scrollTo({ top: scrollPosition, behavior: 'instant' })
-            setScrollPosition(0)
-          }, 100)
-        }
       } else {
-        let errorMessage = 'Failed to save maintenance record'
-        try {
-          const responseClone = response.clone()
-          const text = await responseClone.text()
-          if (text && !text.startsWith('<!DOCTYPE')) {
-            const errorData = JSON.parse(text)
-            errorMessage = errorData.error || errorMessage
-          }
-        } catch (e) {
-          console.error('Failed to parse error response:', e)
-        }
-        toast.error(errorMessage)
+        const errorText = await response.text()
+        console.error('API error:', errorText)
+        toast.error('Failed to save record')
       }
     } catch (error) {
-      console.error('Error saving maintenance record:', error)
-      toast.error('Failed to save maintenance record')
+      console.error('Submit error:', error)
+      toast.error('Failed to save record')
     }
   }
 
@@ -1105,97 +1062,21 @@ export default function MaintenancePage() {
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-1">
-                        <Button variant="ghost" size="sm" onClick={() => handleView(record)} title="View Details">
-                          <Eye className="h-3 w-3" />
-                        </Button>
-                        <Button variant="ghost" size="sm" onClick={() => handleEditWithScroll(record)} title="Edit Record">
-                          <Edit className="h-3 w-3" />
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => handleView(record)} 
+                          title="View Details"
+                        >
+                          <Eye className="h-4 w-4" />
                         </Button>
                         <Button 
                           variant="ghost" 
                           size="sm" 
-                          onClick={async () => {
-                            const { jsPDF } = await import('jspdf')
-                            const doc = new jsPDF()
-                            
-                            // Header
-                            doc.setFontSize(24)
-                            doc.setFont('helvetica', 'bold')
-                            doc.text('FLEET MAINTENANCE JOB CARD', 105, 25, { align: 'center' })
-                            
-                            // Job Card Number
-                            doc.setFontSize(12)
-                            doc.setFont('helvetica', 'normal')
-                            doc.text(`Job Card #: ${record.id.slice(-8).toUpperCase()}`, 150, 40)
-                            doc.text(`Date: ${new Date(record.datePerformed).toLocaleDateString()}`, 150, 50)
-                            
-                            // Vehicle Information Box
-                            doc.rect(20, 60, 170, 40)
-                            doc.setFont('helvetica', 'bold')
-                            doc.text('VEHICLE INFORMATION', 25, 70)
-                            doc.setFont('helvetica', 'normal')
-                            doc.text(`Vehicle: ${record.truck ? `${record.truck.year} ${record.truck.make} ${record.truck.model}` : `Trailer ${record.trailer?.number || ''}`}`, 25, 80)
-                            doc.text(`License Plate: ${record.truck?.licensePlate || record.trailer?.number || 'N/A'}`, 25, 90)
-                            doc.text(`Driver: ${record.driverName || 'Not Assigned'}`, 120, 80)
-                            const odometerValue = record.truck ? (record.currentMileage || record.truck.currentMileage) : null
-                            doc.text(`Odometer: ${odometerValue ? `${odometerValue.toLocaleString()} km` : (record.truck ? '___________ km' : 'N/A (Trailer)')}`, 120, 90)
-                            
-                            // Work Order Box
-                            doc.rect(20, 110, 170, 50)
-                            doc.setFont('helvetica', 'bold')
-                            doc.text('WORK ORDER', 25, 120)
-                            doc.setFont('helvetica', 'normal')
-                            doc.text(`Service Type: ${record.serviceType}`, 25, 130)
-                            const description = record.description || 'No description provided'
-                            const splitDescription = doc.splitTextToSize(description, 160)
-                            doc.text('Description:', 25, 140)
-                            doc.text(splitDescription, 25, 150)
-                            
-                            // Technician Assignment Box
-                            doc.rect(20, 170, 80, 30)
-                            doc.setFont('helvetica', 'bold')
-                            doc.text('ASSIGNED TECHNICIAN(S)', 25, 180)
-                            doc.setFont('helvetica', 'normal')
-                            const mechanicNames = record.mechanicName || record.mechanic?.name || 'Not Assigned'
-                            doc.text(`Name: ${mechanicNames}`, 25, 190)
-                            
-                            // Status Box
-                            doc.rect(110, 170, 80, 30)
-                            doc.setFont('helvetica', 'bold')
-                            doc.text('STATUS', 115, 180)
-                            doc.setFont('helvetica', 'normal')
-                            doc.text(`Current: ${record.status.replace('_', ' ')}`, 115, 190)
-                            
-                            // Cost Information Box
-                            doc.rect(20, 210, 170, 30)
-                            doc.setFont('helvetica', 'bold')
-                            doc.text('COST BREAKDOWN', 25, 220)
-                            doc.setFont('helvetica', 'normal')
-                            doc.text(`Parts Cost: SAR ${record.partsCost.toFixed(2)}`, 25, 230)
-                            doc.text(`Labor Cost: SAR ${record.laborCost.toFixed(2)}`, 80, 230)
-                            doc.text(`Total Cost: SAR ${record.totalCost.toFixed(2)}`, 135, 230)
-                            
-                            // Signature Section
-                            doc.rect(20, 250, 80, 25)
-                            doc.text('TECHNICIAN SIGNATURE', 25, 260)
-                            doc.text('Date: _______________', 25, 270)
-                            
-                            doc.rect(110, 250, 80, 25)
-                            doc.text('SUPERVISOR APPROVAL', 115, 260)
-                            doc.text('Date: _______________', 115, 270)
-                            
-                            // Footer
-                            doc.setFontSize(8)
-                            doc.text(`Generated: ${new Date().toLocaleString()}`, 20, 285)
-                            doc.text('Fleet Management System', 105, 285, { align: 'center' })
-                            
-                            doc.save(`job-card-${record.truck?.licensePlate || record.trailer?.number || record.id}-${Date.now()}.pdf`)
-                            toast.success('Professional job card generated successfully')
-                          }}
-                          title="Generate Professional Job Card"
-                          className="text-blue-600 hover:text-blue-700"
+                          onClick={() => handleEdit(record)} 
+                          title="Edit Record"
                         >
-                          <FileText className="h-3 w-3" />
+                          <Edit className="h-4 w-4" />
                         </Button>
                         <Button 
                           variant="ghost" 
@@ -1204,7 +1085,7 @@ export default function MaintenancePage() {
                           className="text-red-600 hover:text-red-700"
                           title="Delete Record"
                         >
-                          <Trash2 className="h-3 w-3" />
+                          <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
                     </TableCell>
