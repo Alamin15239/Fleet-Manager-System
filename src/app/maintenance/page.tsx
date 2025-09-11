@@ -408,13 +408,23 @@ export default function MaintenancePage() {
   }
 
   const handleEdit = (record: MaintenanceRecord) => {
+    console.log('Editing record:', record)
     setEditingRecord(record)
     setSelectedJobs(record.maintenanceJob ? [record.maintenanceJob] : [])
     
-    // Find and set vehicle
-    const selectedVehicle = vehicles.find(v => v.id === record.truckId)
+    // Find vehicle (could be truck or trailer)
+    const vehicleId = record.truckId || record.trailerId
+    const selectedVehicle = vehicles.find(v => v.id === vehicleId)
+    
     if (selectedVehicle) {
       setVehicleSearch(`${selectedVehicle.displayName} - ${selectedVehicle.identifier}`)
+    } else {
+      // Fallback for trailer records
+      if (record.truck) {
+        setVehicleSearch(`${record.truck.year} ${record.truck.make} - ${record.truck.licensePlate}`)
+      } else {
+        setVehicleSearch('Trailer - Unknown')
+      }
     }
     
     // Find and set mechanic
@@ -422,15 +432,15 @@ export default function MaintenancePage() {
     setSelectedMechanics(selectedMechanic ? [selectedMechanic] : [])
     
     setFormData({
-      truckId: record.truckId,
-      serviceType: record.serviceType,
+      truckId: vehicleId || record.truckId,
+      serviceType: record.serviceType || '',
       description: record.description || '',
       datePerformed: new Date(record.datePerformed).toISOString().split('T')[0],
-      partsCost: record.partsCost || 0,
-      laborCost: record.laborCost || 0,
+      partsCost: Number(record.partsCost) || 0,
+      laborCost: Number(record.laborCost) || 0,
       mechanicId: record.mechanicId || 'none',
       nextServiceDue: record.nextServiceDue ? new Date(record.nextServiceDue).toISOString().split('T')[0] : '',
-      status: record.status,
+      status: record.status || 'COMPLETED',
       notes: record.notes || '',
       isOilChange: record.isOilChange || false,
       oilChangeInterval: record.oilChangeInterval || 5000,
