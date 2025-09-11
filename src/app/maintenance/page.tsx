@@ -151,6 +151,7 @@ export default function MaintenancePage() {
   const mechanicDropdownRef = useRef<HTMLDivElement>(null)
 
   const [scrollPosition, setScrollPosition] = useState(0)
+  const [searchTerm, setSearchTerm] = useState('')
 
   useEffect(() => {
     fetchDashboardStats()
@@ -362,33 +363,43 @@ export default function MaintenancePage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
+    if (!formData.truckId || !formData.serviceType) {
+      toast.error('Please fill in required fields')
+      return
+    }
+    
     try {
-      console.log('Submitting form', { editingRecord: !!editingRecord, formData })
-      
       const totalCost = (formData.partsCost || 0) + (formData.laborCost || 0)
       
       const payload = {
-        ...formData,
-        mechanicId: formData.mechanicId === "none" ? null : formData.mechanicId,
-        totalCost
+        truckId: formData.truckId,
+        serviceType: formData.serviceType,
+        description: formData.description || '',
+        datePerformed: formData.datePerformed,
+        partsCost: Number(formData.partsCost) || 0,
+        laborCost: Number(formData.laborCost) || 0,
+        totalCost,
+        mechanicId: formData.mechanicId === 'none' ? null : formData.mechanicId,
+        status: formData.status,
+        notes: formData.notes || '',
+        nextServiceDue: formData.nextServiceDue || null,
+        mechanicName: formData.mechanicName || ''
       }
       
       const url = editingRecord ? `/api/maintenance/${editingRecord.id}` : '/api/maintenance'
-      const method = editingRecord ? apiPut : apiPost
       
-      console.log('API call', { url, method: editingRecord ? 'PUT' : 'POST', payload })
-      
-      const response = await method(url, payload)
+      const response = editingRecord 
+        ? await apiPut(url, payload)
+        : await apiPost(url, payload)
 
       if (response.ok) {
-        toast.success(editingRecord ? 'Updated successfully' : 'Created successfully')
+        toast.success(editingRecord ? 'Record updated successfully' : 'Record created successfully')
         setIsDialogOpen(false)
         resetForm()
         await fetchMaintenanceRecords()
       } else {
-        const errorText = await response.text()
-        console.error('API error:', errorText)
-        toast.error('Failed to save record')
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+        toast.error(errorData.error || 'Failed to save record')
       }
     } catch (error) {
       console.error('Submit error:', error)
@@ -397,67 +408,40 @@ export default function MaintenancePage() {
   }
 
   const handleEdit = (record: MaintenanceRecord) => {
-    try {
-      if (!record || !record.id) return;
-      
-      setEditingRecord(record)
-      setSelectedJobs(record.maintenanceJob ? [record.maintenanceJob] : [])
-      
-      let selectedVehicle = null
-      let selectedMechanic = null
-      let driverName = ''
-      
-      try {
-        selectedVehicle = vehicles?.find?.(v => v?.id === record.truckId) || null
-      } catch (e) {
-        console.error('Error finding vehicle:', e)
-      }
-      
-      try {
-        selectedMechanic = mechanics?.find?.(m => m?.id === record.mechanicId) || null
-      } catch (e) {
-        console.error('Error finding mechanic:', e)
-      }
-      
-      try {
-        if (selectedVehicle?.type === 'truck') {
-          driverName = trucks?.find?.(t => t?.id === selectedVehicle?.id)?.driverName || ''
-        } else {
-          driverName = trailers?.find?.(t => t?.id === selectedVehicle?.id)?.driverName || ''
-        }
-      } catch (e) {
-        console.error('Error finding driver:', e)
-        driverName = ''
-      }
-      
-      setVehicleSearch(selectedVehicle ? `${selectedVehicle.displayName || ''} - ${selectedVehicle.identifier || ''}` : '')
-      setSelectedMechanics(selectedMechanic ? [selectedMechanic] : [])
-      setMechanicSearch('')
-      
-      setFormData({
-        truckId: record.truckId || '',
-        serviceType: record.serviceType || '',
-        description: record.description || '',
-        datePerformed: record.datePerformed ? new Date(record.datePerformed).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-        partsCost: typeof record.partsCost === 'number' ? record.partsCost : 0,
-        laborCost: typeof record.laborCost === 'number' ? record.laborCost : 0,
-        mechanicId: record.mechanicId || 'none',
-        nextServiceDue: record.nextServiceDue ? new Date(record.nextServiceDue).toISOString().split('T')[0] : '',
-        status: record.status || 'SCHEDULED',
-        notes: record.notes || '',
-        isOilChange: record.isOilChange || false,
-        oilChangeInterval: record.oilChangeInterval || 5000,
-        oilQuantityLiters: record.oilQuantityLiters || 0,
-        currentMileage: record.currentMileage || 0,
-        maintenanceJobId: record.maintenanceJobId || '',
-        driverName,
-        mechanicName: record.mechanicName || ''
-      })
-      setIsDialogOpen(true)
-    } catch (error) {
-      console.error('Error in handleEdit:', error)
-      toast.error('Error opening edit dialog')
+    setEditingRecord(record)
+    setSelectedJobs(record.maintenanceJob ? [record.maintenanceJob] : [])
+    
+    // Find and set vehicle
+    const selectedVehicle = vehicles.find(v => v.id === record.truckId)
+    if (selectedVehicle) {
+      setVehicleSearch(`${selectedVehicle.displayName} - ${selectedVehicle.identifier}`)
     }
+    
+    // Find and set mechanic
+    const selectedMechanic = mechanics.find(m => m.id === record.mechanicId)
+    setSelectedMechanics(selectedMechanic ? [selectedMechanic] : [])
+    
+    setFormData({
+      truckId: record.truckId,
+      serviceType: record.serviceType,
+      description: record.description || '',
+      datePerformed: new Date(record.datePerformed).toISOString().split('T')[0],
+      partsCost: record.partsCost || 0,
+      laborCost: record.laborCost || 0,
+      mechanicId: record.mechanicId || 'none',
+      nextServiceDue: record.nextServiceDue ? new Date(record.nextServiceDue).toISOString().split('T')[0] : '',
+      status: record.status,
+      notes: record.notes || '',
+      isOilChange: record.isOilChange || false,
+      oilChangeInterval: record.oilChangeInterval || 5000,
+      oilQuantityLiters: record.oilQuantityLiters || 0,
+      currentMileage: record.currentMileage || 0,
+      maintenanceJobId: record.maintenanceJobId || '',
+      driverName: record.driverName || '',
+      mechanicName: record.mechanic?.name || record.mechanicName || ''
+    })
+    
+    setIsDialogOpen(true)
   }
 
   const handleJobsSelect = (jobs: MaintenanceJob[]) => {
@@ -999,8 +983,22 @@ export default function MaintenancePage() {
         <CardHeader>
           <CardTitle>Maintenance Records</CardTitle>
           <CardDescription>
-            Showing {maintenanceRecords.length} maintenance records
+            Showing {maintenanceRecords.filter(record => 
+              record.serviceType.toLowerCase().includes(searchTerm.toLowerCase()) ||
+              record.truck?.licensePlate?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+              record.mechanic?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+              record.mechanicName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+              record.status.toLowerCase().includes(searchTerm.toLowerCase())
+            ).length} of {maintenanceRecords.length} maintenance records
           </CardDescription>
+          <div className="mt-4">
+            <Input
+              placeholder="Search by service, vehicle, mechanic, or status..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="max-w-sm"
+            />
+          </div>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
@@ -1017,7 +1015,15 @@ export default function MaintenancePage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {maintenanceRecords.map((record) => (
+                {maintenanceRecords
+                  .filter(record => 
+                    record.serviceType.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                    record.truck?.licensePlate?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                    record.mechanic?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                    record.mechanicName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                    record.status.toLowerCase().includes(searchTerm.toLowerCase())
+                  )
+                  .map((record) => (
                   <TableRow key={record.id}>
                     <TableCell className="text-sm">
                       {format(new Date(record.datePerformed), 'MMM dd')}
@@ -1050,7 +1056,7 @@ export default function MaintenancePage() {
                       </div>
                     </TableCell>
                     <TableCell className="text-sm">
-                      {record.mechanicName || record.mechanic?.name || 'None'}
+                      {record.mechanic?.name || record.mechanicName || 'None'}
                     </TableCell>
                     <TableCell className="text-sm font-medium">
                       {formatCurrencyWithSettings(record.totalCost)}
