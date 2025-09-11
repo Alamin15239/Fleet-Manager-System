@@ -76,10 +76,12 @@ class ResendEmailService {
         return
       }
 
-      console.log('Sending OTP email with config:', {
+      console.log('🔧 Sending OTP email with config:', {
         from: this.config.from,
         to: email,
-        apiKeyPresent: !!this.config.apiKey
+        apiKeyPresent: !!this.config.apiKey,
+        domain: process.env.RESEND_DOMAIN,
+        appUrl: process.env.NEXT_PUBLIC_APP_URL
       })
       
       const { data, error } = await resend.emails.send({
@@ -157,8 +159,18 @@ class ResendEmailService {
           error,
           message: error.message,
           name: error.name,
-          details: error
+          details: error,
+          from: this.config.from,
+          to: email,
+          domain: process.env.RESEND_DOMAIN
         })
+        
+        // Check for domain verification issues
+        if (error.message?.includes('domain') || error.message?.includes('verify')) {
+          console.error('🚨 DOMAIN VERIFICATION ISSUE: Domain may not be verified in Resend')
+          console.error('💡 Try using onboarding@resend.dev temporarily')
+        }
+        
         throw new Error(`Failed to send OTP email: ${error.message}`)
       }
 
