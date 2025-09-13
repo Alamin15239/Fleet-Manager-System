@@ -91,6 +91,8 @@ export default function TireInventoryList() {
   const [selectedOrigin, setSelectedOrigin] = useState('')
   const [selectedPlate, setSelectedPlate] = useState('')
   const [selectedDriver, setSelectedDriver] = useState('')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
 
   // Available options for filters
   const [manufacturers, setManufacturers] = useState<string[]>([])
@@ -134,7 +136,7 @@ export default function TireInventoryList() {
     }, 500)
 
     return () => clearTimeout(timeoutId)
-  }, [searchTerm, selectedManufacturer, selectedOrigin, selectedPlate, selectedDriver])
+  }, [searchTerm, selectedManufacturer, selectedOrigin, selectedPlate, selectedDriver, dateFrom, dateTo])
 
   const fetchTires = async () => {
     try {
@@ -148,6 +150,8 @@ export default function TireInventoryList() {
       if (selectedOrigin && selectedOrigin !== 'all') params.append('origin', selectedOrigin)
       if (selectedPlate && selectedPlate !== 'all') params.append('plateNumber', selectedPlate)
       if (selectedDriver && selectedDriver !== 'all') params.append('driverName', selectedDriver)
+      if (dateFrom) params.append('dateFrom', dateFrom)
+      if (dateTo) params.append('dateTo', dateTo)
 
       const response = await apiGet(`/api/tires?${params}`)
       if (response.ok) {
@@ -309,7 +313,7 @@ export default function TireInventoryList() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-4">
             <div className="space-y-2 sm:col-span-2 lg:col-span-1">
               <Label className="text-sm">Search</Label>
               <div className="relative">
@@ -389,6 +393,26 @@ export default function TireInventoryList() {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-sm">Date From</Label>
+              <Input
+                type="date"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                className="text-sm"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-sm">Date To</Label>
+              <Input
+                type="date"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+                className="text-sm"
+              />
             </div>
           </div>
         </CardContent>
