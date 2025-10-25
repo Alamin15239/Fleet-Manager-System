@@ -3,10 +3,10 @@ import { advancedEmailService } from '@/lib/advanced-email-service'
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const emailId = params.id
+    const { id: emailId } = await params
     const { scheduledAt } = await request.json()
 
     if (!emailId) {
