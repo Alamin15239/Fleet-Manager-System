@@ -78,11 +78,11 @@ export async function GET(request: NextRequest) {
       newValues: activity.newValues,
       ipAddress: activity.ipAddress,
       deviceInfo: formatDeviceInfo({
-        deviceName: activity.deviceName,
-        deviceType: activity.deviceType,
-        browser: activity.browser,
-        os: activity.os,
-        userAgent: activity.userAgent
+        deviceName: activity.deviceName ?? undefined,
+        deviceType: activity.deviceType ?? undefined,
+        browser: activity.browser ?? undefined,
+        os: activity.os ?? undefined,
+        userAgent: activity.userAgent ?? undefined
       }),
       locationInfo: formatLocationInfo(activity.location as any),
       rawLocation: activity.location,
