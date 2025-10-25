@@ -444,7 +444,7 @@ export default function AdvancedAnalytics() {
                         <Cell key={`cell-${index}`} fill={['#3b82f6', '#22c55e', '#f59e0b', '#ef4444'][index % 4]} />
                       ))}
                     </Pie>
-                    <ChartTooltip formatter={(value) => formatCurrency(value)} />
+                    <ChartTooltip formatter={(value) => formatCurrency(Number(value))} />
                     <Legend />
                   </RechartsPieChart>
                 </ResponsiveContainer>
