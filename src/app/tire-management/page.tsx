@@ -23,7 +23,7 @@ import TireManagementForm from '@/components/tire-management-form'
 import TireInventoryList from '@/components/tire-inventory-list'
 import TireReports from '@/components/tire-reports'
 import VehicleManagement from '@/components/vehicle-management'
-import ProfessionalReportGenerator from '@/components/professional-report-generator'
+import TireReportsSimple from '@/components/tire-reports-simple'
 import { useLanguage } from '@/contexts/language-context'
 
 interface InitializationStatus {
@@ -191,7 +191,7 @@ export default function TireManagementPage() {
         </TabsContent>
 
         <TabsContent value="reports" className="space-y-4">
-          <ProfessionalReportGenerator />
+          <TireReportsSimple />
         </TabsContent>
       </Tabs>
     </div>
