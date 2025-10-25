@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { useSidebar } from '@/contexts/sidebar-context'
 import { useAuth } from '@/contexts/auth-context'
@@ -31,6 +32,7 @@ interface Notification {
 }
 
 export function Header() {
+  const router = useRouter()
   const { toggleSidebar, isSidebarOpen } = useSidebar()
   const { user, logout } = useAuth()
   const [notifications, setNotifications] = useState<Notification[]>([])
@@ -256,11 +258,11 @@ export function Header() {
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem onClick={() => window.location.href = '/profile'}>
+              <DropdownMenuItem onClick={() => router.push('/profile')}>
                 <User className="mr-2 h-4 w-4" />
                 <span>Profile</span>
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => window.location.href = '/settings'}>
+              <DropdownMenuItem onClick={() => router.push('/settings')}>
                 <Settings className="mr-2 h-4 w-4" />
                 <span>Settings</span>
               </DropdownMenuItem>

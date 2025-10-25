@@ -69,11 +69,9 @@ export default function Dashboard() {
     
     if (isAuthenticated) {
       fetchDashboardData()
-    } else {
-      // Only redirect after auth has finished loading
-      router.push('/login')
     }
-  }, [isAuthenticated, isLoading, router])
+    // Remove automatic redirect - let middleware handle authentication
+  }, [isAuthenticated, isLoading])
 
   const fetchDashboardData = async () => {
     try {

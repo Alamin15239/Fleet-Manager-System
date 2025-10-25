@@ -166,7 +166,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       localStorage.removeItem('authToken')
       localStorage.removeItem('user')
       
-      // Redirect to login page
+      // Use window.location for logout to ensure complete state reset
       window.location.href = '/login'
     }
   }
@@ -267,8 +267,12 @@ export function ProtectedRoute({
     if (fallback) {
       return <>{fallback}</>
     }
-    window.location.href = '/login'
-    return null
+    // Let the layout handle authentication redirects
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <TruckLoader size="lg" className="mx-auto" />
+      </div>
+    )
   }
 
   if (requiredRole && !hasRole(requiredRole)) {
@@ -281,7 +285,11 @@ export function ProtectedRoute({
             You don't have permission to access this page.
           </p>
           <button 
-            onClick={() => window.location.href = '/'}
+            onClick={() => {
+              if (typeof window !== 'undefined') {
+                window.location.href = '/'
+              }
+            }}
             className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
           >
             Go to Dashboard
