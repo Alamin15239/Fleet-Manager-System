@@ -2,7 +2,7 @@
 const nextConfig = {
   serverExternalPackages: ['@prisma/client', 'prisma'],
   typescript: {
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: false,
   },
   // Keep server for API routes
   // output: 'export',
@@ -15,7 +15,13 @@ const nextConfig = {
     ],
   },
   images: {
-    unoptimized: true
+    unoptimized: false,
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: '**',
+      },
+    ],
   },
   webpack: (config, { isServer }) => {
     if (!isServer) {
@@ -28,12 +34,6 @@ const nextConfig = {
     }
     return config;
   },
-  env: {
-    DATABASE_URL: process.env.DATABASE_URL,
-    JWT_SECRET: process.env.JWT_SECRET,
-    NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET,
-    RESEND_API_KEY: process.env.RESEND_API_KEY,
-  }
 };
 
 module.exports = nextConfig;
