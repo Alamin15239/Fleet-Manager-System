@@ -30,11 +30,11 @@ async function main() {
   if (trailerCount > 0) {
     const trailers = await prisma.trailer.findMany({
       where: { isDeleted: false },
-      select: { trailerNumber: true, status: true }
+      select: { number: true, status: true }
     })
     console.log('\nTrailers:')
     trailers.forEach(trailer => {
-      console.log(`- ${trailer.trailerNumber} (${trailer.status})`)
+      console.log(`- ${trailer.number} (${trailer.status})`)
     })
   }
 }
