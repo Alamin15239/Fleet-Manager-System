@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireAuth } from '@/lib/auth'
+import { createTireSchema, tireQuerySchema } from '@/lib/validations/tire'
+import { ZodError } from 'zod'
 
 // GET /api/tires - Get all tires with filtering and pagination
 export async function GET(request: NextRequest) {
@@ -17,13 +19,20 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url)
-    const page = parseInt(searchParams.get('page') || '1')
-    const limit = parseInt(searchParams.get('limit') || '20')
-    const search = searchParams.get('search')
-    const manufacturer = searchParams.get('manufacturer')
-    const origin = searchParams.get('origin')
-    const plateNumber = searchParams.get('plateNumber')
-    const driverName = searchParams.get('driverName')
+    
+    // Validate query parameters
+    const queryData = {
+      page: searchParams.get('page'),
+      limit: searchParams.get('limit'),
+      search: searchParams.get('search'),
+      manufacturer: searchParams.get('manufacturer'),
+      origin: searchParams.get('origin'),
+      plateNumber: searchParams.get('plateNumber'),
+      driverName: searchParams.get('driverName')
+    }
+    
+    const validatedQuery = tireQuerySchema.parse(queryData)
+    const { page, limit, search, manufacturer, origin, plateNumber, driverName } = validatedQuery
     const offset = (page - 1) * limit
 
     let whereClause: any = {}
@@ -90,16 +99,12 @@ export async function GET(request: NextRequest) {
 // POST /api/tires - Create new tire(s)
 export async function POST(request: NextRequest) {
   try {
-    console.log('POST /api/tires - Starting request')
-    
-    const authHeader = request.headers.get('authorization')
-    console.log('Auth header:', authHeader ? 'Present' : 'Missing')
-    
     const user = await requireAuth(request)
-    console.log('User authenticated:', user.id, user.email)
     
     const body = await request.json()
-    console.log('Request body:', body)
+    
+    // Validate input data
+    const validatedData = createTireSchema.parse(body)
     
     const { 
       tireSize, 
@@ -117,7 +122,7 @@ export async function POST(request: NextRequest) {
       trailerSerialNumber,
       notes,
       createdAt
-    } = body
+    } = validatedData
 
     // Handle vehicle creation/update if plate number is provided
     if (plateNumber) {
@@ -196,12 +201,9 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.log('Creating', tiresData.length, 'tire records')
     const createdTires = await db.tire.createMany({
       data: tiresData
     })
-
-    console.log('Successfully created', createdTires.count, 'tires')
     
     // Emit real-time update
     if (global.io) {
@@ -218,20 +220,25 @@ export async function POST(request: NextRequest) {
       count: createdTires.count 
     }, { status: 201 })
   } catch (error) {
-    console.error('Error creating tires:', error)
+    if (error instanceof ZodError) {
+      return NextResponse.json(
+        { error: 'Validation failed', details: error.errors },
+        { status: 400 }
+      )
+    }
     
     if (error instanceof Error) {
-      console.log('Error type:', error.message)
       if (error.message === 'No token provided' || error.message === 'Invalid token' || error.message === 'User not found or inactive') {
         return NextResponse.json(
-          { error: 'Authentication required', details: error.message },
+          { error: 'Authentication required' },
           { status: 401 }
         )
       }
     }
     
+    console.error('Error creating tires:', error)
     return NextResponse.json(
-      { error: 'Failed to create tires', details: error instanceof Error ? error.message : 'Unknown error' },
+      { error: 'Failed to create tires' },
       { status: 500 }
     )
   }

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -10,6 +10,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Loader2, Plus, CheckCircle, AlertCircle, Search, Truck, User, Package, Database } from 'lucide-react'
 import { apiPost, apiGet } from '@/lib/api'
+import { useDebounce } from '@/hooks/use-debounce'
+import { toast } from 'sonner'
 
 interface Vehicle {
   id: string
@@ -89,9 +91,16 @@ export default function TireManagementForm() {
     fetchVehicles()
   }, [])
 
+  // Debounce search terms to prevent excessive API calls
+  const debouncedPlateNumber = useDebounce(formData.plateNumber, 300)
+  const debouncedTrailerNumber = useDebounce(formData.trailerNumber, 300)
+  const debouncedDriverName = useDebounce(formData.driverName, 300)
+  const debouncedTireSize = useDebounce(formData.tireSize, 300)
+  const debouncedManufacturer = useDebounce(formData.manufacturer, 300)
+
   useEffect(() => {
     searchMatchingTires()
-  }, [formData.plateNumber, formData.trailerNumber, formData.driverName, formData.tireSize, formData.manufacturer])
+  }, [debouncedPlateNumber, debouncedTrailerNumber, debouncedDriverName, debouncedTireSize, debouncedManufacturer])
 
   const fetchVehicles = async () => {
     try {
@@ -115,7 +124,7 @@ export default function TireManagementForm() {
 
   const searchMatchingTires = async () => {
     // Only search if at least one field has value
-    const hasSearchCriteria = formData.plateNumber || formData.trailerNumber || formData.driverName || formData.tireSize || formData.manufacturer
+    const hasSearchCriteria = debouncedPlateNumber || debouncedTrailerNumber || debouncedDriverName || debouncedTireSize || debouncedManufacturer
     
     if (!hasSearchCriteria) {
       setMatchingTires([])
@@ -125,19 +134,23 @@ export default function TireManagementForm() {
     setLoadingTires(true)
     try {
       const params = new URLSearchParams()
-      if (formData.plateNumber) params.append('plateNumber', formData.plateNumber)
-      if (formData.trailerNumber) params.append('trailerNumber', formData.trailerNumber)
-      if (formData.driverName) params.append('driverName', formData.driverName)
-      if (formData.tireSize) params.append('tireSize', formData.tireSize)
-      if (formData.manufacturer) params.append('manufacturer', formData.manufacturer)
+      if (debouncedPlateNumber) params.append('plateNumber', debouncedPlateNumber)
+      if (debouncedTrailerNumber) params.append('trailerNumber', debouncedTrailerNumber)
+      if (debouncedDriverName) params.append('driverName', debouncedDriverName)
+      if (debouncedTireSize) params.append('tireSize', debouncedTireSize)
+      if (debouncedManufacturer) params.append('manufacturer', debouncedManufacturer)
       
-      const response = await apiGet(`/api/tires/search?${params.toString()}`)
+      const response = await apiGet(`/api/tires?${params.toString()}`)
       if (response.ok) {
         const data = await response.json()
         setMatchingTires(data.tires || [])
+      } else {
+        console.error('Failed to search tires')
+        setMatchingTires([])
       }
     } catch (error) {
       console.error('Error searching tires:', error)
+      setMatchingTires([])
     } finally {
       setLoadingTires(false)
     }
@@ -196,14 +209,14 @@ export default function TireManagementForm() {
     setSuccess(null)
 
     try {
-      console.log('Submitting tire creation form...')
       const response = await apiPost('/api/tires', formData)
 
       if (response.ok) {
         const data = await response.json()
-        console.log('Tire creation successful:', data)
         const totalTires = (formData.tireSize && formData.manufacturer ? formData.quantity : 0) + 
                           (formData.trailerTireSize && formData.trailerManufacturer ? formData.trailerQuantity : 0)
+        
+        toast.success(`Successfully created ${totalTires} tire(s)`)
         setSuccess(`Successfully created ${totalTires} tire(s)`)
         
         // Reset form
@@ -234,27 +247,34 @@ export default function TireManagementForm() {
         }, 1500)
       } else {
         const errorData = await response.json()
-        console.error('Tire creation failed:', errorData)
-        setError(errorData.error || 'Failed to create tires')
+        const errorMessage = errorData.details ? 
+          `Validation error: ${errorData.details.map(d => d.message).join(', ')}` : 
+          errorData.error || 'Failed to create tires'
+        
+        setError(errorMessage)
+        toast.error(errorMessage)
         
         // If authentication error, redirect to login
         if (response.status === 401) {
-          console.log('Authentication error, redirecting to login')
           window.location.href = '/login'
         }
       }
     } catch (error) {
-      console.error('Error creating tires:', error)
-      setError('Failed to create tires')
+      const errorMessage = 'Network error: Failed to create tires'
+      setError(errorMessage)
+      toast.error(errorMessage)
     } finally {
       setSubmitting(false)
     }
   }
 
-  const filteredVehicles = vehicles.filter(vehicle =>
-    vehicle.plateNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    vehicle.trailerNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    vehicle.driverName?.toLowerCase().includes(searchTerm.toLowerCase())
+  // Memoize filtered vehicles to prevent unnecessary re-renders
+  const filteredVehicles = useMemo(() => 
+    vehicles.filter(vehicle =>
+      vehicle.plateNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      vehicle.trailerNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      vehicle.driverName?.toLowerCase().includes(searchTerm.toLowerCase())
+    ), [vehicles, searchTerm]
   )
 
   if (loading) {

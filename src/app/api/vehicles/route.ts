@@ -1,15 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireAuth } from '@/lib/auth'
+import { vehicleSchema, vehicleQuerySchema } from '@/lib/validations/vehicle'
+import { ZodError } from 'zod'
 
 // GET /api/vehicles - Get all vehicles
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
-    const search = searchParams.get('search')
-    const plateOnly = searchParams.get('plateOnly') === 'true'
-    const trailerOnly = searchParams.get('trailerOnly') === 'true'
-    const status = searchParams.get('status') // 'active', 'inactive', or 'all'
+    
+    // Validate query parameters
+    const queryData = {
+      search: searchParams.get('search'),
+      plateOnly: searchParams.get('plateOnly'),
+      trailerOnly: searchParams.get('trailerOnly'),
+      status: searchParams.get('status')
+    }
+    
+    const { search, plateOnly, trailerOnly, status } = vehicleQuerySchema.parse(queryData)
 
     let whereClause: any = {}
 
@@ -74,14 +82,10 @@ export async function POST(request: NextRequest) {
   try {
     const user = await requireAuth(request)
     const body = await request.json()
-    const { plateNumber, trailerNumber, driverName, isActive = true } = body
-
-    if (!plateNumber) {
-      return NextResponse.json(
-        { error: 'Plate number is required' },
-        { status: 400 }
-      )
-    }
+    
+    // Validate input data
+    const validatedData = vehicleSchema.parse(body)
+    const { plateNumber, trailerNumber, driverName, isActive } = validatedData
 
     // Check if vehicle already exists
     const existingVehicle = await db.vehicle.findUnique({
@@ -106,7 +110,12 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ vehicle }, { status: 201 })
   } catch (error) {
-    console.error('Error creating vehicle:', error)
+    if (error instanceof ZodError) {
+      return NextResponse.json(
+        { error: 'Validation failed', details: error.errors },
+        { status: 400 }
+      )
+    }
     
     if (error instanceof Error && error.message === 'No token provided') {
       return NextResponse.json(
@@ -115,6 +124,7 @@ export async function POST(request: NextRequest) {
       )
     }
     
+    console.error('Error creating vehicle:', error)
     return NextResponse.json(
       { error: 'Failed to create vehicle' },
       { status: 500 }
