@@ -7,6 +7,21 @@ export async function GET() {
       setTimeout(() => reject(new Error('Database operation timeout')), 8000)
     })
 
+    const counts = await Promise.race([
+      Promise.all([
+        db.user.count(),
+        db.truck.count(),
+        db.trailer.count(),
+        db.maintenanceRecord.count(),
+        db.tire.count(),
+        db.mechanic.count(),
+        db.notification.count(),
+        db.auditLog.count(),
+        db.document.count()
+      ]),
+      timeoutPromise
+    ]) as number[];
+
     const [
       userCount,
       truckCount,
@@ -17,20 +32,7 @@ export async function GET() {
       notificationCount,
       auditLogCount,
       documentCount
-    ] = await Promise.race([
-      Promise.all([
-      db.user.count(),
-      db.truck.count(),
-      db.trailer.count(),
-      db.maintenanceRecord.count(),
-      db.tire.count(),
-      db.mechanic.count(),
-      db.notification.count(),
-      db.auditLog.count(),
-        db.document.count()
-      ]),
-      timeoutPromise
-    ])
+    ] = counts
 
     const estimatedStorage = {
       users: userCount * 2,
@@ -106,7 +108,7 @@ export async function GET() {
     })
   } catch (error) {
     console.error('Error fetching database storage info:', error)
-    if (error.message === 'Database operation timeout') {
+    if (error instanceof Error && error.message === 'Database operation timeout') {
       return NextResponse.json(
         { success: false, error: 'Database connection timeout. Please try again.' },
         { status: 503 }
