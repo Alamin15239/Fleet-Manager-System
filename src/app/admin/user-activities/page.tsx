@@ -7,16 +7,16 @@ import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
 
 export default function UserActivitiesPage() {
-  const { user, loading } = useAuth()
+  const { user, isLoading } = useAuth()
   const router = useRouter()
 
   useEffect(() => {
-    if (!loading && (!user || user.role !== 'ADMIN')) {
+    if (!isLoading && (!user || user.role !== 'ADMIN')) {
       router.push('/dashboard')
     }
-  }, [user, loading, router])
+  }, [user, isLoading, router])
 
-  if (loading) {
+  if (isLoading) {
     return <div className="flex items-center justify-center min-h-screen">Loading...</div>
   }
 
