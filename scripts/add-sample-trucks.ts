@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient, TruckStatus } from '@prisma/client'
 
 const prisma = new PrismaClient()
 
@@ -13,7 +13,7 @@ async function main() {
       year: 2022,
       licensePlate: 'TRK001',
       currentMileage: 45000,
-      status: 'ACTIVE',
+      status: 'ACTIVE' as TruckStatus,
       driverName: 'John Smith'
     },
     {
@@ -23,7 +23,7 @@ async function main() {
       year: 2021,
       licensePlate: 'TRK002',
       currentMileage: 67000,
-      status: 'ACTIVE',
+      status: 'ACTIVE' as TruckStatus,
       driverName: 'Mike Johnson'
     },
     {
@@ -33,7 +33,7 @@ async function main() {
       year: 2023,
       licensePlate: 'TRK003',
       currentMileage: 23000,
-      status: 'MAINTENANCE',
+      status: 'MAINTENANCE' as TruckStatus,
       driverName: 'Sarah Wilson'
     }
   ]
