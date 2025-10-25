@@ -1,4 +1,4 @@
-async function testDashboardAPI() {
+export async function testDashboardAPI() {
   try {
     console.log('Testing dashboard stats API...')
     const response = await fetch('http://localhost:3000/api/dashboard/stats')
@@ -16,4 +16,6 @@ async function testDashboardAPI() {
   }
 }
 
-testDashboardAPI()
+if (require.main === module) {
+  testDashboardAPI()
+}
