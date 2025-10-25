@@ -48,7 +48,7 @@ export const tireQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(20),
   search: z.string().max(100).optional(),
   manufacturer: z.string().max(100).optional(),
-  origin: z.enum(['CHINESE', 'SAUDI', 'JAPANESE', 'EUROPEAN', 'AMERICAN', 'OTHER']).optional(),
+  origin: z.string().optional(), // Allow any string for existing data
   plateNumber: z.string().max(50).optional(),
   driverName: z.string().max(100).optional()
 })

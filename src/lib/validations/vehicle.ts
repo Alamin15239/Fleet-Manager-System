@@ -11,7 +11,7 @@ export const vehicleQuerySchema = z.object({
   search: z.string().max(100).optional(),
   plateOnly: z.coerce.boolean().default(false),
   trailerOnly: z.coerce.boolean().default(false),
-  status: z.enum(['active', 'inactive', 'all']).default('all')
+  status: z.string().default('all') // Allow any string for existing data
 })
 
 export type VehicleInput = z.infer<typeof vehicleSchema>

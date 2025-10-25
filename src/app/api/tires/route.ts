@@ -20,19 +20,14 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url)
     
-    // Validate query parameters
-    const queryData = {
-      page: searchParams.get('page'),
-      limit: searchParams.get('limit'),
-      search: searchParams.get('search'),
-      manufacturer: searchParams.get('manufacturer'),
-      origin: searchParams.get('origin'),
-      plateNumber: searchParams.get('plateNumber'),
-      driverName: searchParams.get('driverName')
-    }
-    
-    const validatedQuery = tireQuerySchema.parse(queryData)
-    const { page, limit, search, manufacturer, origin, plateNumber, driverName } = validatedQuery
+    // Parse query parameters directly without strict validation
+    const page = parseInt(searchParams.get('page') || '1')
+    const limit = parseInt(searchParams.get('limit') || '20')
+    const search = searchParams.get('search')
+    const manufacturer = searchParams.get('manufacturer')
+    const origin = searchParams.get('origin')
+    const plateNumber = searchParams.get('plateNumber')
+    const driverName = searchParams.get('driverName')
     const offset = (page - 1) * limit
 
     let whereClause: any = {}

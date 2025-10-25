@@ -9,15 +9,11 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     
-    // Validate query parameters
-    const queryData = {
-      search: searchParams.get('search'),
-      plateOnly: searchParams.get('plateOnly'),
-      trailerOnly: searchParams.get('trailerOnly'),
-      status: searchParams.get('status')
-    }
-    
-    const { search, plateOnly, trailerOnly, status } = vehicleQuerySchema.parse(queryData)
+    // Parse query parameters directly
+    const search = searchParams.get('search')
+    const plateOnly = searchParams.get('plateOnly') === 'true'
+    const trailerOnly = searchParams.get('trailerOnly') === 'true'
+    const status = searchParams.get('status') || 'all'
 
     let whereClause: any = {}
 
