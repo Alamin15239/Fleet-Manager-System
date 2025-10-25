@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { MaintenanceStatus } from '@prisma/client'
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,7 +17,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Sample maintenance records
-    const sampleRecords = [
+    const sampleRecords: any[] = [
       {
         truckId: truck.id,
         serviceType: "Oil Change",
@@ -25,7 +26,7 @@ export async function POST(request: NextRequest) {
         partsCost: 45.00,
         laborCost: 35.00,
         totalCost: 80.00,
-        status: "COMPLETED",
+        status: MaintenanceStatus.COMPLETED,
         notes: "Used synthetic oil, next change due in 5000 km",
         isOilChange: true,
         oilChangeInterval: 5000,
@@ -39,7 +40,7 @@ export async function POST(request: NextRequest) {
         partsCost: 120.00,
         laborCost: 80.00,
         totalCost: 200.00,
-        status: "COMPLETED",
+        status: MaintenanceStatus.COMPLETED,
         notes: "Front brake pads replaced, rear pads still good"
       },
       {
@@ -50,7 +51,7 @@ export async function POST(request: NextRequest) {
         partsCost: 0.00,
         laborCost: 25.00,
         totalCost: 25.00,
-        status: "COMPLETED",
+        status: MaintenanceStatus.COMPLETED,
         notes: "All tires rotated, pressure adjusted to specification"
       },
       {
@@ -61,7 +62,7 @@ export async function POST(request: NextRequest) {
         partsCost: 15.00,
         laborCost: 60.00,
         totalCost: 75.00,
-        status: "COMPLETED",
+        status: MaintenanceStatus.COMPLETED,
         notes: "Replaced faulty oxygen sensor, cleared error codes"
       },
       {
@@ -72,7 +73,7 @@ export async function POST(request: NextRequest) {
         partsCost: 85.00,
         laborCost: 120.00,
         totalCost: 205.00,
-        status: "COMPLETED",
+        status: MaintenanceStatus.COMPLETED,
         notes: "Transmission fluid and filter changed, system running smoothly"
       },
       {
@@ -83,7 +84,7 @@ export async function POST(request: NextRequest) {
         partsCost: 25.00,
         laborCost: 20.00,
         totalCost: 45.00,
-        status: "COMPLETED",
+        status: MaintenanceStatus.COMPLETED,
         notes: "Air filter was dirty, replaced with new OEM filter"
       }
     ]
