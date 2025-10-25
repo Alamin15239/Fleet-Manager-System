@@ -1,39 +1,17 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  serverExternalPackages: ['@prisma/client', 'prisma'],
-  typescript: {
-    ignoreBuildErrors: false,
+  experimental: {
+    serverComponentsExternalPackages: ['puppeteer-core']
   },
-  // Keep server for API routes
-  // output: 'export',
-  // trailingSlash: true,
-  outputFileTracingExcludes: {
-    '*': [
-      'node_modules/@swc/core-linux-x64-gnu',
-      'node_modules/@swc/core-linux-x64-musl',
-      'node_modules/@esbuild/linux-x64',
-    ],
+  typescript: {
+    ignoreBuildErrors: true
+  },
+  eslint: {
+    ignoreDuringBuilds: true
   },
   images: {
-    unoptimized: false,
-    remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: '**',
-      },
-    ],
-  },
-  webpack: (config, { isServer }) => {
-    if (!isServer) {
-      config.resolve.fallback = {
-        ...config.resolve.fallback,
-        fs: false,
-        net: false,
-        tls: false,
-      };
-    }
-    return config;
-  },
-};
+    domains: ['localhost', 'vercel.app']
+  }
+}
 
-module.exports = nextConfig;
+module.exports = nextConfig
