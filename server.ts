@@ -50,7 +50,7 @@ async function createCustomServer() {
       const realtimeSync = new RealtimeSync(io, syncConfig);
       await realtimeSync.start();
     } catch (error) {
-      console.log('⚠️  Real-time sync disabled:', error.message);
+      console.log('⚠️  Real-time sync disabled:', error instanceof Error ? error.message : 'Unknown error');
     }
 
     // Start the server
