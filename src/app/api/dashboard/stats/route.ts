@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
     })
 
   } catch (dbError) {
-    console.log('Database query failed:', dbError.message)
+    console.log('Database query failed:', dbError instanceof Error ? dbError.message : 'Unknown error')
     return NextResponse.json({
       totalTrucks: 0,
       activeTrucks: 0,
