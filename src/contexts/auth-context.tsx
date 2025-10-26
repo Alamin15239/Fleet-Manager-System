@@ -46,31 +46,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     // Check for existing auth state on mount
-    const savedToken = typeof window !== 'undefined' ? localStorage.getItem('authToken') : null
-    const savedUser = typeof window !== 'undefined' ? localStorage.getItem('user') : null
-
-    const initializeAuth = () => {
-      if (savedToken && savedUser) {
-        try {
-          const parsedUser = JSON.parse(savedUser)
-          setToken(savedToken)
-          setUser(parsedUser)
-          console.log('Auth initialized from localStorage')
-        } catch (error) {
-          console.error('Error parsing stored user data:', error)
-          localStorage.removeItem('authToken')
-          localStorage.removeItem('user')
+    const initializeAuth = async () => {
+      try {
+        if (typeof window === 'undefined') {
+          setIsLoading(false)
+          return
         }
+
+        const savedToken = localStorage.getItem('authToken')
+        const savedUser = localStorage.getItem('user')
+
+        if (savedToken && savedUser) {
+          try {
+            const parsedUser = JSON.parse(savedUser)
+            setToken(savedToken)
+            setUser(parsedUser)
+          } catch (error) {
+            console.error('Error parsing stored user data:', error)
+            localStorage.removeItem('authToken')
+            localStorage.removeItem('user')
+          }
+        }
+      } catch (error) {
+        console.error('Auth initialization error:', error)
+      } finally {
+        setIsLoading(false)
       }
-      setIsLoading(false)
     }
 
-    // Only run on client side
-    if (typeof window !== 'undefined') {
-      initializeAuth()
-    } else {
-      setIsLoading(false)
-    }
+    initializeAuth()
   }, [])
 
   const login = async (email: string, passwordOrOtp: string, isOtp: boolean = true): Promise<boolean> => {
