@@ -28,9 +28,16 @@ export default function TireExcelViewer() {
   const [tires, setTires] = useState<Tire[]>([])
   const [filteredTires, setFilteredTires] = useState<Tire[]>([])
   const [loading, setLoading] = useState(true)
-  const [searchTerm, setSearchTerm] = useState('')
-  const [manufacturerFilter, setManufacturerFilter] = useState('')
-  const [originFilter, setOriginFilter] = useState('')
+  const [filters, setFilters] = useState({
+    tireSize: '',
+    manufacturer: '',
+    origin: '',
+    plateNumber: '',
+    trailerNumber: '',
+    driverName: '',
+    quantity: '',
+    serialNumber: ''
+  })
 
   const fetchTires = async () => {
     setLoading(true)
@@ -79,28 +86,44 @@ export default function TireExcelViewer() {
   useEffect(() => {
     let filtered = tires
 
-    if (searchTerm) {
-      filtered = filtered.filter(tire => 
-        tire.tireSize.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        tire.manufacturer.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        tire.plateNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        tire.driverName?.toLowerCase().includes(searchTerm.toLowerCase())
-      )
-    }
-
-    if (manufacturerFilter && manufacturerFilter !== 'all') {
-      filtered = filtered.filter(tire => tire.manufacturer === manufacturerFilter)
-    }
-
-    if (originFilter && originFilter !== 'all') {
-      filtered = filtered.filter(tire => tire.origin === originFilter)
-    }
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value && value !== 'all') {
+        filtered = filtered.filter(tire => {
+          const tireValue = tire[key as keyof Tire]
+          if (tireValue === null || tireValue === undefined) return false
+          return tireValue.toString().toLowerCase().includes(value.toLowerCase())
+        })
+      }
+    })
 
     setFilteredTires(filtered)
-  }, [tires, searchTerm, manufacturerFilter, originFilter])
+  }, [tires, filters])
 
-  const uniqueManufacturers = [...new Set(tires.map(t => t.manufacturer))]
-  const uniqueOrigins = [...new Set(tires.map(t => t.origin))]
+  const uniqueValues = {
+    tireSize: [...new Set(tires.map(t => t.tireSize))],
+    manufacturer: [...new Set(tires.map(t => t.manufacturer))],
+    origin: [...new Set(tires.map(t => t.origin))],
+    plateNumber: [...new Set(tires.map(t => t.plateNumber).filter(Boolean))],
+    trailerNumber: [...new Set(tires.map(t => t.trailerNumber).filter(Boolean))],
+    driverName: [...new Set(tires.map(t => t.driverName).filter(Boolean))]
+  }
+
+  const updateFilter = (key: string, value: string) => {
+    setFilters(prev => ({ ...prev, [key]: value }))
+  }
+
+  const clearFilters = () => {
+    setFilters({
+      tireSize: '',
+      manufacturer: '',
+      origin: '',
+      plateNumber: '',
+      trailerNumber: '',
+      driverName: '',
+      quantity: '',
+      serialNumber: ''
+    })
+  }
 
   return (
     <Card>
@@ -147,56 +170,107 @@ export default function TireExcelViewer() {
                   <TableHead>Created At</TableHead>
                 </TableRow>
                 <TableRow className="bg-blue-50">
-                  <TableHead className="p-2">
+                  <TableHead className="p-1">
+                    <Select value={filters.tireSize} onValueChange={(v) => updateFilter('tireSize', v)}>
+                      <SelectTrigger className="h-7 text-xs">
+                        <SelectValue placeholder="All" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">All</SelectItem>
+                        {uniqueValues.tireSize.map(v => (
+                          <SelectItem key={v} value={v}>{v}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </TableHead>
+                  <TableHead className="p-1">
+                    <Select value={filters.manufacturer} onValueChange={(v) => updateFilter('manufacturer', v)}>
+                      <SelectTrigger className="h-7 text-xs">
+                        <SelectValue placeholder="All" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">All</SelectItem>
+                        {uniqueValues.manufacturer.map(v => (
+                          <SelectItem key={v} value={v}>{v}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </TableHead>
+                  <TableHead className="p-1">
+                    <Select value={filters.origin} onValueChange={(v) => updateFilter('origin', v)}>
+                      <SelectTrigger className="h-7 text-xs">
+                        <SelectValue placeholder="All" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">All</SelectItem>
+                        {uniqueValues.origin.map(v => (
+                          <SelectItem key={v} value={v}>{v}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </TableHead>
+                  <TableHead className="p-1">
+                    <Select value={filters.plateNumber} onValueChange={(v) => updateFilter('plateNumber', v)}>
+                      <SelectTrigger className="h-7 text-xs">
+                        <SelectValue placeholder="All" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">All</SelectItem>
+                        {uniqueValues.plateNumber.map(v => (
+                          <SelectItem key={v} value={v}>{v}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </TableHead>
+                  <TableHead className="p-1">
+                    <Select value={filters.trailerNumber} onValueChange={(v) => updateFilter('trailerNumber', v)}>
+                      <SelectTrigger className="h-7 text-xs">
+                        <SelectValue placeholder="All" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">All</SelectItem>
+                        {uniqueValues.trailerNumber.map(v => (
+                          <SelectItem key={v} value={v}>{v}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </TableHead>
+                  <TableHead className="p-1">
+                    <Select value={filters.driverName} onValueChange={(v) => updateFilter('driverName', v)}>
+                      <SelectTrigger className="h-7 text-xs">
+                        <SelectValue placeholder="All" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">All</SelectItem>
+                        {uniqueValues.driverName.map(v => (
+                          <SelectItem key={v} value={v}>{v}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </TableHead>
+                  <TableHead className="p-1">
                     <Input
-                      placeholder="Filter..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="h-8 text-xs"
+                      placeholder="Qty"
+                      value={filters.quantity}
+                      onChange={(e) => updateFilter('quantity', e.target.value)}
+                      className="h-7 text-xs"
                     />
                   </TableHead>
-                  <TableHead className="p-2">
-                    <Select value={manufacturerFilter} onValueChange={setManufacturerFilter}>
-                      <SelectTrigger className="h-8 text-xs">
-                        <SelectValue placeholder="All" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All</SelectItem>
-                        {uniqueManufacturers.filter(m => m).map(m => (
-                          <SelectItem key={m} value={m}>{m}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                  <TableHead className="p-1">
+                    <Input
+                      placeholder="Serial"
+                      value={filters.serialNumber}
+                      onChange={(e) => updateFilter('serialNumber', e.target.value)}
+                      className="h-7 text-xs"
+                    />
                   </TableHead>
-                  <TableHead className="p-2">
-                    <Select value={originFilter} onValueChange={setOriginFilter}>
-                      <SelectTrigger className="h-8 text-xs">
-                        <SelectValue placeholder="All" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All</SelectItem>
-                        {uniqueOrigins.filter(o => o).map(o => (
-                          <SelectItem key={o} value={o}>{o}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </TableHead>
-                  <TableHead className="p-2"></TableHead>
-                  <TableHead className="p-2"></TableHead>
-                  <TableHead className="p-2"></TableHead>
-                  <TableHead className="p-2"></TableHead>
-                  <TableHead className="p-2"></TableHead>
-                  <TableHead className="p-2"></TableHead>
-                  <TableHead className="p-2">
+                  <TableHead className="p-1"></TableHead>
+                  <TableHead className="p-1">
                     <Button 
-                      onClick={() => {
-                        setSearchTerm('')
-                        setManufacturerFilter('all')
-                        setOriginFilter('all')
-                      }}
+                      onClick={clearFilters}
                       variant="outline"
                       size="sm"
-                      className="h-6 text-xs"
+                      className="h-6 text-xs px-2"
                     >
                       Clear
                     </Button>
