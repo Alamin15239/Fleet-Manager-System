@@ -3,9 +3,11 @@
 import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
-import { FileSpreadsheet, RefreshCw, Download } from 'lucide-react'
+import { FileSpreadsheet, RefreshCw, Download, Filter } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface Tire {
@@ -24,7 +26,11 @@ interface Tire {
 
 export default function TireExcelViewer() {
   const [tires, setTires] = useState<Tire[]>([])
+  const [filteredTires, setFilteredTires] = useState<Tire[]>([])
   const [loading, setLoading] = useState(true)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [manufacturerFilter, setManufacturerFilter] = useState('')
+  const [originFilter, setOriginFilter] = useState('')
 
   const fetchTires = async () => {
     setLoading(true)
@@ -35,6 +41,7 @@ export default function TireExcelViewer() {
       if (response.ok) {
         const data = await response.json()
         setTires(data.tires || [])
+        setFilteredTires(data.tires || [])
       }
     } catch (error) {
       toast.error('Failed to load tire data')
@@ -69,13 +76,39 @@ export default function TireExcelViewer() {
     fetchTires()
   }, [])
 
+  useEffect(() => {
+    let filtered = tires
+
+    if (searchTerm) {
+      filtered = filtered.filter(tire => 
+        tire.tireSize.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        tire.manufacturer.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        tire.plateNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        tire.driverName?.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    }
+
+    if (manufacturerFilter) {
+      filtered = filtered.filter(tire => tire.manufacturer === manufacturerFilter)
+    }
+
+    if (originFilter) {
+      filtered = filtered.filter(tire => tire.origin === originFilter)
+    }
+
+    setFilteredTires(filtered)
+  }, [tires, searchTerm, manufacturerFilter, originFilter])
+
+  const uniqueManufacturers = [...new Set(tires.map(t => t.manufacturer))]
+  const uniqueOrigins = [...new Set(tires.map(t => t.origin))]
+
   return (
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2">
             <FileSpreadsheet className="h-5 w-5" />
-            Excel View - Tire Inventory
+            Excel View - Tire Inventory ({filteredTires.length} items)
           </CardTitle>
           <div className="flex gap-2">
             <Button onClick={fetchTires} variant="outline" size="sm">
@@ -87,6 +120,47 @@ export default function TireExcelViewer() {
               Download
             </Button>
           </div>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
+          <Input
+            placeholder="Search tires..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+          <Select value={manufacturerFilter} onValueChange={setManufacturerFilter}>
+            <SelectTrigger>
+              <SelectValue placeholder="All Manufacturers" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">All Manufacturers</SelectItem>
+              {uniqueManufacturers.map(m => (
+                <SelectItem key={m} value={m}>{m}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={originFilter} onValueChange={setOriginFilter}>
+            <SelectTrigger>
+              <SelectValue placeholder="All Origins" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">All Origins</SelectItem>
+              {uniqueOrigins.map(o => (
+                <SelectItem key={o} value={o}>{o}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button 
+            onClick={() => {
+              setSearchTerm('')
+              setManufacturerFilter('')
+              setOriginFilter('')
+            }}
+            variant="outline"
+          >
+            <Filter className="h-4 w-4 mr-1" />
+            Clear
+          </Button>
         </div>
       </CardHeader>
       <CardContent>
@@ -113,7 +187,7 @@ export default function TireExcelViewer() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {tires.map((tire) => (
+                {filteredTires.map((tire) => (
                   <TableRow key={tire.id}>
                     <TableCell className="font-medium">{tire.tireSize}</TableCell>
                     <TableCell>{tire.manufacturer}</TableCell>
@@ -131,6 +205,11 @@ export default function TireExcelViewer() {
                 ))}
               </TableBody>
             </Table>
+            {filteredTires.length === 0 && tires.length > 0 && (
+              <div className="text-center py-8 text-gray-500">
+                No tires match the current filters
+              </div>
+            )}
             {tires.length === 0 && (
               <div className="text-center py-8 text-gray-500">
                 No tire data available
