@@ -1,4 +1,5 @@
-import * as XLSX from 'xlsx'
+// Dynamic import for Node.js compatibility
+const XLSX = require('xlsx')
 
 export interface TireExcelData {
   id?: string
@@ -16,23 +17,29 @@ export interface TireExcelData {
 
 export class ExcelService {
   static async exportTiresToExcel(tires: TireExcelData[]): Promise<Buffer> {
-    const worksheet = XLSX.utils.json_to_sheet(tires.map(tire => ({
-      'Tire Size': tire.tireSize,
-      'Manufacturer': tire.manufacturer,
-      'Origin': tire.origin,
-      'Plate Number': tire.plateNumber || '',
-      'Trailer Number': tire.trailerNumber || '',
-      'Driver Name': tire.driverName || '',
-      'Quantity': tire.quantity,
-      'Serial Number': tire.serialNumber || '',
-      'Notes': tire.notes || '',
-      'Created At': new Date(tire.createdAt).toLocaleString()
-    })))
+    try {
+      const data = tires.map(tire => ({
+        'Tire Size': tire.tireSize || '',
+        'Manufacturer': tire.manufacturer || '',
+        'Origin': tire.origin || '',
+        'Plate Number': tire.plateNumber || '',
+        'Trailer Number': tire.trailerNumber || '',
+        'Driver Name': tire.driverName || '',
+        'Quantity': tire.quantity || 0,
+        'Serial Number': tire.serialNumber || '',
+        'Notes': tire.notes || '',
+        'Created At': tire.createdAt ? new Date(tire.createdAt).toLocaleString() : ''
+      }))
 
-    const workbook = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Tires')
+      const worksheet = XLSX.utils.json_to_sheet(data)
+      const workbook = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Tires')
 
-    return XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' })
+      return Buffer.from(XLSX.write(workbook, { type: 'array', bookType: 'xlsx' }))
+    } catch (error) {
+      console.error('Excel export error:', error)
+      throw new Error('Failed to create Excel file')
+    }
   }
 
   static async importTiresFromExcel(buffer: Buffer): Promise<TireExcelData[]> {

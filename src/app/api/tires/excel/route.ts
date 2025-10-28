@@ -7,12 +7,22 @@ import { ExcelService } from '@/lib/excel-service'
 export async function GET(request: NextRequest) {
   try {
     const user = await requireAuth(request)
+    console.log('Exporting tires for user:', user.id)
     
     const tires = await db.tire.findMany({
       orderBy: { createdAt: 'desc' }
     })
+    console.log('Found tires:', tires.length)
+
+    if (tires.length === 0) {
+      return NextResponse.json(
+        { error: 'No tires found to export' },
+        { status: 404 }
+      )
+    }
 
     const excelBuffer = await ExcelService.exportTiresToExcel(tires)
+    console.log('Excel buffer created, size:', excelBuffer.length)
 
     return new NextResponse(excelBuffer, {
       headers: {
@@ -23,7 +33,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('Error exporting tires to Excel:', error)
     return NextResponse.json(
-      { error: 'Failed to export tires' },
+      { error: `Failed to export tires: ${error instanceof Error ? error.message : 'Unknown error'}` },
       { status: 500 }
     )
   }

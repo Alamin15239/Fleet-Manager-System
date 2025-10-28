@@ -21,9 +21,7 @@ export default function TireExcelIntegration() {
     try {
       const response = await fetch('/api/tires/excel', {
         method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
+        credentials: 'include'
       })
 
       if (response.ok) {
@@ -65,9 +63,7 @@ export default function TireExcelIntegration() {
 
       const response = await fetch('/api/tires/excel', {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
+        credentials: 'include',
         body: formData
       })
 
