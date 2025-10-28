@@ -24,6 +24,7 @@ import TireInventoryList from '@/components/tire-inventory-list'
 import TireReports from '@/components/tire-reports'
 import VehicleManagement from '@/components/vehicle-management'
 import TireReportsSimple from '@/components/tire-reports-simple'
+import TireExcelIntegration from '@/components/tire-excel-integration'
 import { useLanguage } from '@/contexts/language-context'
 
 interface InitializationStatus {
@@ -151,7 +152,7 @@ export default function TireManagementPage() {
       )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-5 h-auto p-1">
+        <TabsList className="grid w-full grid-cols-6 h-auto p-1">
           <TabsTrigger value="form" className="flex flex-col items-center gap-1 text-xs p-1.5 min-h-[60px]">
             <Plus className="h-4 w-4" />
             <span className="leading-tight">Add</span>
@@ -164,12 +165,16 @@ export default function TireManagementPage() {
             <Truck className="h-4 w-4" />
             <span className="leading-tight">Cars</span>
           </TabsTrigger>
+          <TabsTrigger value="excel" className="flex flex-col items-center gap-1 text-xs p-1.5 min-h-[60px]">
+            <FileText className="h-4 w-4" />
+            <span className="leading-tight">Excel</span>
+          </TabsTrigger>
           <TabsTrigger value="analytics" className="flex flex-col items-center gap-1 text-xs p-1.5 min-h-[60px]">
             <BarChart3 className="h-4 w-4" />
             <span className="leading-tight">Stats</span>
           </TabsTrigger>
           <TabsTrigger value="reports" className="flex flex-col items-center gap-1 text-xs p-1.5 min-h-[60px]">
-            <FileText className="h-4 w-4" />
+            <Settings className="h-4 w-4" />
             <span className="leading-tight">Reports</span>
           </TabsTrigger>
         </TabsList>
@@ -184,6 +189,10 @@ export default function TireManagementPage() {
 
         <TabsContent value="vehicles" className="space-y-4">
           <VehicleManagement />
+        </TabsContent>
+
+        <TabsContent value="excel" className="space-y-4">
+          <TireExcelIntegration />
         </TabsContent>
 
         <TabsContent value="analytics" className="space-y-4">

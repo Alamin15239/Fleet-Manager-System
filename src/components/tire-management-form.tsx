@@ -86,9 +86,12 @@ export default function TireManagementForm() {
   })
   const [matchingTires, setMatchingTires] = useState<Tire[]>([])
   const [loadingTires, setLoadingTires] = useState(false)
+  const [recentTires, setRecentTires] = useState<Tire[]>([])
+  const [loadingRecent, setLoadingRecent] = useState(true)
 
   useEffect(() => {
     fetchVehicles()
+    fetchRecentTires()
   }, [])
 
   // Debounce search terms to prevent excessive API calls
@@ -119,6 +122,20 @@ export default function TireManagementForm() {
       }
     } catch (error) {
       console.error('Error fetching vehicles:', error)
+    }
+  }
+
+  const fetchRecentTires = async () => {
+    try {
+      const response = await apiGet('/api/tires?limit=10')
+      if (response.ok) {
+        const data = await response.json()
+        setRecentTires(data.tires || [])
+      }
+    } catch (error) {
+      console.error('Error fetching recent tires:', error)
+    } finally {
+      setLoadingRecent(false)
     }
   }
 
@@ -240,6 +257,7 @@ export default function TireManagementForm() {
         
         // Refresh data
         fetchVehicles()
+        fetchRecentTires()
         
         // Redirect to list page after 1.5 seconds
         setTimeout(() => {
@@ -287,6 +305,57 @@ export default function TireManagementForm() {
 
   return (
     <div className="space-y-4 sm:space-y-6">
+      {/* Recent Tires Preview */}
+      <Card className="border-purple-200 shadow-sm">
+        <CardHeader className="bg-purple-50 border-b border-purple-200">
+          <CardTitle className="flex items-center gap-2 text-purple-800">
+            <Database className="h-5 w-5" />
+            Recent Tires (Last 10)
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="pt-4">
+          {loadingRecent ? (
+            <div className="flex items-center justify-center py-4">
+              <Loader2 className="h-5 w-5 animate-spin text-purple-600" />
+              <span className="ml-2 text-purple-700">Loading recent tires...</span>
+            </div>
+          ) : recentTires.length === 0 ? (
+            <div className="text-center py-4 text-gray-500">
+              <Package className="h-8 w-8 mx-auto text-gray-300 mb-2" />
+              <p className="text-sm">No tires added yet</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-64 overflow-y-auto">
+              {recentTires.map((tire) => (
+                <div key={tire.id} className="p-3 border border-purple-100 rounded-lg bg-purple-50/50">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="font-medium text-purple-900 text-sm">{tire.tireSize}</span>
+                    <Badge variant="outline" className="text-xs">{tire.manufacturer}</Badge>
+                  </div>
+                  <div className="text-xs text-purple-700 space-y-1">
+                    {tire.plateNumber && (
+                      <div className="flex items-center gap-1">
+                        <Truck className="h-3 w-3" />
+                        {tire.plateNumber}
+                      </div>
+                    )}
+                    {tire.trailerNumber && (
+                      <div className="flex items-center gap-1">
+                        <Package className="h-3 w-3" />
+                        {tire.trailerNumber}
+                      </div>
+                    )}
+                    <div className="text-gray-500">
+                      Qty: {tire.quantity} • {new Date(tire.createdAt).toLocaleDateString()}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">

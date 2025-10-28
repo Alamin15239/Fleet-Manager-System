@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireAuth } from '@/lib/auth'
 import { createTireSchema, tireQuerySchema } from '@/lib/validations/tire'
+import { ExcelService } from '@/lib/excel-service'
 import { ZodError } from 'zod'
+import path from 'path'
+import fs from 'fs/promises'
 
 // GET /api/tires - Get all tires with filtering and pagination
 export async function GET(request: NextRequest) {
@@ -200,6 +203,24 @@ export async function POST(request: NextRequest) {
       data: tiresData
     })
     
+    // Auto-export to Excel file
+    try {
+      const excelDir = path.join(process.cwd(), 'public', 'excel')
+      await fs.mkdir(excelDir, { recursive: true })
+      
+      const excelPath = path.join(excelDir, 'tires.xlsx')
+      
+      // Get all tires for export
+      const allTires = await db.tire.findMany({
+        orderBy: { createdAt: 'desc' }
+      })
+      
+      const excelBuffer = await ExcelService.exportTiresToExcel(allTires)
+      await fs.writeFile(excelPath, excelBuffer)
+    } catch (excelError) {
+      console.error('Failed to update Excel file:', excelError)
+    }
+
     // Emit real-time update
     if (global.io) {
       global.io.emit('tire-created', {
@@ -212,7 +233,8 @@ export async function POST(request: NextRequest) {
     
     return NextResponse.json({ 
       message: `Successfully created ${totalTires} tire(s)`,
-      count: createdTires.count 
+      count: createdTires.count,
+      excelUpdated: true
     }, { status: 201 })
   } catch (error) {
     if (error instanceof ZodError) {
