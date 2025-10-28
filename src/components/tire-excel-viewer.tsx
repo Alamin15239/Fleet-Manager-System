@@ -122,46 +122,7 @@ export default function TireExcelViewer() {
           </div>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
-          <Input
-            placeholder="Search tires..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-          <Select value={manufacturerFilter} onValueChange={setManufacturerFilter}>
-            <SelectTrigger>
-              <SelectValue placeholder="All Manufacturers" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Manufacturers</SelectItem>
-              {uniqueManufacturers.filter(m => m).map(m => (
-                <SelectItem key={m} value={m}>{m}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={originFilter} onValueChange={setOriginFilter}>
-            <SelectTrigger>
-              <SelectValue placeholder="All Origins" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Origins</SelectItem>
-              {uniqueOrigins.filter(o => o).map(o => (
-                <SelectItem key={o} value={o}>{o}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Button 
-            onClick={() => {
-              setSearchTerm('')
-              setManufacturerFilter('all')
-              setOriginFilter('all')
-            }}
-            variant="outline"
-          >
-            <Filter className="h-4 w-4 mr-1" />
-            Clear
-          </Button>
-        </div>
+
       </CardHeader>
       <CardContent>
         {loading ? (
@@ -184,6 +145,62 @@ export default function TireExcelViewer() {
                   <TableHead>Serial Number</TableHead>
                   <TableHead>Notes</TableHead>
                   <TableHead>Created At</TableHead>
+                </TableRow>
+                <TableRow className="bg-blue-50">
+                  <TableHead className="p-2">
+                    <Input
+                      placeholder="Filter..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="h-8 text-xs"
+                    />
+                  </TableHead>
+                  <TableHead className="p-2">
+                    <Select value={manufacturerFilter} onValueChange={setManufacturerFilter}>
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue placeholder="All" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All</SelectItem>
+                        {uniqueManufacturers.filter(m => m).map(m => (
+                          <SelectItem key={m} value={m}>{m}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </TableHead>
+                  <TableHead className="p-2">
+                    <Select value={originFilter} onValueChange={setOriginFilter}>
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue placeholder="All" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All</SelectItem>
+                        {uniqueOrigins.filter(o => o).map(o => (
+                          <SelectItem key={o} value={o}>{o}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </TableHead>
+                  <TableHead className="p-2"></TableHead>
+                  <TableHead className="p-2"></TableHead>
+                  <TableHead className="p-2"></TableHead>
+                  <TableHead className="p-2"></TableHead>
+                  <TableHead className="p-2"></TableHead>
+                  <TableHead className="p-2"></TableHead>
+                  <TableHead className="p-2">
+                    <Button 
+                      onClick={() => {
+                        setSearchTerm('')
+                        setManufacturerFilter('all')
+                        setOriginFilter('all')
+                      }}
+                      variant="outline"
+                      size="sm"
+                      className="h-6 text-xs"
+                    >
+                      Clear
+                    </Button>
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
