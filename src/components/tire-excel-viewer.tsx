@@ -29,12 +29,12 @@ export default function TireExcelViewer() {
   const [filteredTires, setFilteredTires] = useState<Tire[]>([])
   const [loading, setLoading] = useState(true)
   const [filters, setFilters] = useState({
-    tireSize: '',
-    manufacturer: '',
-    origin: '',
-    plateNumber: '',
-    trailerNumber: '',
-    driverName: '',
+    tireSize: 'all',
+    manufacturer: 'all',
+    origin: 'all',
+    plateNumber: 'all',
+    trailerNumber: 'all',
+    driverName: 'all',
     quantity: '',
     serialNumber: ''
   })
@@ -114,12 +114,12 @@ export default function TireExcelViewer() {
 
   const clearFilters = () => {
     setFilters({
-      tireSize: '',
-      manufacturer: '',
-      origin: '',
-      plateNumber: '',
-      trailerNumber: '',
-      driverName: '',
+      tireSize: 'all',
+      manufacturer: 'all',
+      origin: 'all',
+      plateNumber: 'all',
+      trailerNumber: 'all',
+      driverName: 'all',
       quantity: '',
       serialNumber: ''
     })
@@ -144,8 +144,6 @@ export default function TireExcelViewer() {
             </Button>
           </div>
         </div>
-        
-
       </CardHeader>
       <CardContent>
         {loading ? (
@@ -176,7 +174,7 @@ export default function TireExcelViewer() {
                         <SelectValue placeholder="All" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">All</SelectItem>
+                        <SelectItem value="all">All</SelectItem>
                         {uniqueValues.tireSize.map(v => (
                           <SelectItem key={v} value={v}>{v}</SelectItem>
                         ))}
@@ -189,7 +187,7 @@ export default function TireExcelViewer() {
                         <SelectValue placeholder="All" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">All</SelectItem>
+                        <SelectItem value="all">All</SelectItem>
                         {uniqueValues.manufacturer.map(v => (
                           <SelectItem key={v} value={v}>{v}</SelectItem>
                         ))}
@@ -202,7 +200,7 @@ export default function TireExcelViewer() {
                         <SelectValue placeholder="All" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">All</SelectItem>
+                        <SelectItem value="all">All</SelectItem>
                         {uniqueValues.origin.map(v => (
                           <SelectItem key={v} value={v}>{v}</SelectItem>
                         ))}
@@ -215,7 +213,7 @@ export default function TireExcelViewer() {
                         <SelectValue placeholder="All" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">All</SelectItem>
+                        <SelectItem value="all">All</SelectItem>
                         {uniqueValues.plateNumber.map(v => (
                           <SelectItem key={v} value={v}>{v}</SelectItem>
                         ))}
@@ -228,7 +226,7 @@ export default function TireExcelViewer() {
                         <SelectValue placeholder="All" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">All</SelectItem>
+                        <SelectItem value="all">All</SelectItem>
                         {uniqueValues.trailerNumber.map(v => (
                           <SelectItem key={v} value={v}>{v}</SelectItem>
                         ))}
@@ -241,7 +239,7 @@ export default function TireExcelViewer() {
                         <SelectValue placeholder="All" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">All</SelectItem>
+                        <SelectItem value="all">All</SelectItem>
                         {uniqueValues.driverName.map(v => (
                           <SelectItem key={v} value={v}>{v}</SelectItem>
                         ))}
