@@ -1,34 +1,36 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { db } from '@/lib/db'
 import { requireAuth } from '@/lib/auth'
-import path from 'path'
-import fs from 'fs/promises'
+import { ExcelService } from '@/lib/excel-service'
 
-// GET /api/tires/excel-file - Get the current Excel file
+// GET /api/tires/excel-file - Get current Excel export
 export async function GET(request: NextRequest) {
   try {
     const user = await requireAuth(request)
     
-    const excelPath = path.join(process.cwd(), 'public', 'excel', 'tires.xlsx')
-    
-    try {
-      const fileBuffer = await fs.readFile(excelPath)
-      
-      return new NextResponse(fileBuffer, {
-        headers: {
-          'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-          'Content-Disposition': `attachment; filename="tires-current.xlsx"`
-        }
-      })
-    } catch (fileError) {
+    const tires = await db.tire.findMany({
+      orderBy: { createdAt: 'desc' }
+    })
+
+    if (tires.length === 0) {
       return NextResponse.json(
-        { error: 'Excel file not found. Add some tires first.' },
+        { error: 'No tires found' },
         { status: 404 }
       )
     }
+
+    const excelBuffer = await ExcelService.exportTiresToExcel(tires)
+
+    return new NextResponse(excelBuffer, {
+      headers: {
+        'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'Content-Disposition': `attachment; filename="tires-current.xlsx"`
+      }
+    })
   } catch (error) {
-    console.error('Error accessing Excel file:', error)
+    console.error('Error creating Excel file:', error)
     return NextResponse.json(
-      { error: 'Failed to access Excel file' },
+      { error: 'Failed to create Excel file' },
       { status: 500 }
     )
   }

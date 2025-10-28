@@ -203,23 +203,7 @@ export async function POST(request: NextRequest) {
       data: tiresData
     })
     
-    // Auto-export to Excel file
-    try {
-      const excelDir = path.join(process.cwd(), 'public', 'excel')
-      await fs.mkdir(excelDir, { recursive: true })
-      
-      const excelPath = path.join(excelDir, 'tires.xlsx')
-      
-      // Get all tires for export
-      const allTires = await db.tire.findMany({
-        orderBy: { createdAt: 'desc' }
-      })
-      
-      const excelBuffer = await ExcelService.exportTiresToExcel(allTires)
-      await fs.writeFile(excelPath, excelBuffer)
-    } catch (excelError) {
-      console.error('Failed to update Excel file:', excelError)
-    }
+    // Note: Auto-export removed for serverless compatibility
 
     // Emit real-time update
     if (global.io) {

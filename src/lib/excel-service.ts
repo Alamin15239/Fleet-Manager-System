@@ -1,5 +1,11 @@
-// Dynamic import for Node.js compatibility
-const XLSX = require('xlsx')
+let XLSX: any
+
+try {
+  XLSX = require('xlsx')
+} catch {
+  // Fallback for environments where xlsx is not available
+  XLSX = null
+}
 
 export interface TireExcelData {
   id?: string
@@ -17,6 +23,10 @@ export interface TireExcelData {
 
 export class ExcelService {
   static async exportTiresToExcel(tires: TireExcelData[]): Promise<Buffer> {
+    if (!XLSX) {
+      throw new Error('XLSX library not available')
+    }
+
     try {
       const data = tires.map(tire => ({
         'Tire Size': tire.tireSize || '',
