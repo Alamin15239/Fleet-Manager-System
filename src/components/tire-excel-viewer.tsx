@@ -88,11 +88,11 @@ export default function TireExcelViewer() {
       )
     }
 
-    if (manufacturerFilter) {
+    if (manufacturerFilter && manufacturerFilter !== 'all') {
       filtered = filtered.filter(tire => tire.manufacturer === manufacturerFilter)
     }
 
-    if (originFilter) {
+    if (originFilter && originFilter !== 'all') {
       filtered = filtered.filter(tire => tire.origin === originFilter)
     }
 
@@ -133,8 +133,8 @@ export default function TireExcelViewer() {
               <SelectValue placeholder="All Manufacturers" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All Manufacturers</SelectItem>
-              {uniqueManufacturers.map(m => (
+              <SelectItem value="all">All Manufacturers</SelectItem>
+              {uniqueManufacturers.filter(m => m).map(m => (
                 <SelectItem key={m} value={m}>{m}</SelectItem>
               ))}
             </SelectContent>
@@ -144,8 +144,8 @@ export default function TireExcelViewer() {
               <SelectValue placeholder="All Origins" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All Origins</SelectItem>
-              {uniqueOrigins.map(o => (
+              <SelectItem value="all">All Origins</SelectItem>
+              {uniqueOrigins.filter(o => o).map(o => (
                 <SelectItem key={o} value={o}>{o}</SelectItem>
               ))}
             </SelectContent>
@@ -153,8 +153,8 @@ export default function TireExcelViewer() {
           <Button 
             onClick={() => {
               setSearchTerm('')
-              setManufacturerFilter('')
-              setOriginFilter('')
+              setManufacturerFilter('all')
+              setOriginFilter('all')
             }}
             variant="outline"
           >
