@@ -17,7 +17,8 @@ import {
   Settings,
   FileText,
   Truck,
-  Users
+  Users,
+  Upload
 } from 'lucide-react'
 import TireManagementForm from '@/components/tire-management-form'
 import TireInventoryList from '@/components/tire-inventory-list'
