@@ -33,7 +33,14 @@ export const createTireSchema = z.object({
   // Common fields
   driverName: z.string().optional(),
   notes: z.string().max(500).optional(),
-  createdAt: z.string().datetime().optional()
+  createdAt: z.string().optional().transform(val => {
+    if (!val) return undefined
+    // Handle datetime-local format (YYYY-MM-DDTHH:MM)
+    if (val.length === 16 && val.includes('T')) {
+      return val + ':00.000Z'
+    }
+    return val
+  })
 }).refine(
   (data) => {
     const hasTruckData = data.tireSize && data.manufacturer && data.origin && data.quantity > 0
