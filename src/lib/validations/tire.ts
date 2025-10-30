@@ -17,7 +17,7 @@ export const createTireSchema = z.object({
   // Truck tires
   tireSize: z.string().optional(),
   manufacturer: z.string().optional(),
-  origin: z.enum(['CHINESE', 'SAUDI', 'JAPANESE', 'EUROPEAN', 'AMERICAN', 'OTHER']).optional(),
+  origin: z.string().transform(val => val?.toUpperCase()).pipe(z.enum(['CHINESE', 'SAUDI', 'JAPANESE', 'EUROPEAN', 'AMERICAN', 'OTHER'])).optional(),
   plateNumber: z.string().optional(),
   quantity: z.number().int().min(0).max(100).default(1),
   serialNumber: z.string().optional(),
@@ -25,7 +25,7 @@ export const createTireSchema = z.object({
   // Trailer tires
   trailerTireSize: z.string().optional(),
   trailerManufacturer: z.string().optional(),
-  trailerOrigin: z.enum(['CHINESE', 'SAUDI', 'JAPANESE', 'EUROPEAN', 'AMERICAN', 'OTHER']).optional(),
+  trailerOrigin: z.string().transform(val => val?.toUpperCase()).pipe(z.enum(['CHINESE', 'SAUDI', 'JAPANESE', 'EUROPEAN', 'AMERICAN', 'OTHER'])).optional(),
   trailerNumber: z.string().optional(),
   trailerQuantity: z.number().int().min(0).max(100).default(1),
   trailerSerialNumber: z.string().optional(),
@@ -36,8 +36,8 @@ export const createTireSchema = z.object({
   createdAt: z.string().datetime().optional()
 }).refine(
   (data) => {
-    const hasTruckData = data.tireSize && data.manufacturer && data.quantity > 0
-    const hasTrailerData = data.trailerTireSize && data.trailerManufacturer && data.trailerQuantity > 0
+    const hasTruckData = data.tireSize && data.manufacturer && data.origin && data.quantity > 0
+    const hasTrailerData = data.trailerTireSize && data.trailerManufacturer && data.trailerOrigin && data.trailerQuantity > 0
     return hasTruckData || hasTrailerData
   },
   { message: 'Either truck or trailer tire data must be provided with quantity > 0' }
