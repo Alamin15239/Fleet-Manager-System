@@ -159,7 +159,7 @@ export default function TireManagementPage() {
             <Plus className="h-4 w-4" />
             <span className="leading-tight">Add</span>
           </TabsTrigger>
-          <TabsTrigger value="grouped" className="flex flex-col items-center gap-1 text-xs p-1.5 min-h-[60px]">
+          <TabsTrigger value="inventory" className="flex flex-col items-center gap-1 text-xs p-1.5 min-h-[60px]">
             <List className="h-4 w-4" />
             <span className="leading-tight">List</span>
           </TabsTrigger>
@@ -185,7 +185,7 @@ export default function TireManagementPage() {
           <TireManagementForm />
         </TabsContent>
 
-        <TabsContent value="grouped" className="space-y-4">
+        <TabsContent value="inventory" className="space-y-4">
           <TireInventoryGrouped />
         </TabsContent>
 
