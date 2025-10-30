@@ -36,8 +36,8 @@ export const createTireSchema = z.object({
   createdAt: z.string().datetime().optional()
 }).refine(
   (data) => {
-    const hasTruckData = data.tireSize && data.manufacturer && data.origin && data.plateNumber
-    const hasTrailerData = data.trailerTireSize && data.trailerManufacturer && data.trailerOrigin && data.trailerNumber
+    const hasTruckData = data.tireSize && data.manufacturer && data.origin
+    const hasTrailerData = data.trailerTireSize && data.trailerManufacturer && data.trailerOrigin
     return hasTruckData || hasTrailerData
   },
   { message: 'Either truck or trailer tire data must be provided' }
