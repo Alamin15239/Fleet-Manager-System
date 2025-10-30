@@ -226,6 +226,7 @@ export default function TireManagementForm() {
     setSuccess(null)
 
     try {
+      console.log('Sending tire data:', JSON.stringify(formData, null, 2))
       const response = await apiPost('/api/tires', formData)
 
       if (response.ok) {
