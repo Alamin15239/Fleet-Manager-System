@@ -2,14 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireAuth } from '@/lib/auth'
 
-// Simple Excel parsing without external library
-function parseExcelBuffer(buffer: Buffer) {
-  // Convert buffer to text and try to extract readable data
-  const text = buffer.toString('utf8')
-  const lines = text.split('\n').filter(line => line.includes('\t') || line.includes(','))
-  return lines
-}
-
 export async function POST(request: NextRequest) {
   try {
     const user = await requireAuth(request)
@@ -24,67 +16,66 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    let lines: string[]
+    // Dynamic import of xlsx
+    const XLSX = await import('xlsx')
     
-    if (file.name.endsWith('.csv')) {
-      // CSV file
-      const text = await file.text()
-      lines = text.split('\n').filter(line => line.trim())
-    } else {
-      // Excel file - simple parsing
-      const buffer = Buffer.from(await file.arrayBuffer())
-      lines = parseExcelBuffer(buffer)
-    }
+    const buffer = Buffer.from(await file.arrayBuffer())
+    const workbook = XLSX.read(buffer, { type: 'buffer' })
     
-    if (lines.length < 2) {
-      return NextResponse.json(
-        { error: 'File must have at least header and one data row' },
-        { status: 400 }
-      )
-    }
-
     let totalCreated = 0
     
-    // Skip header row, process data rows
-    for (let i = 1; i < lines.length; i++) {
-      const separator = lines[i].includes('\t') ? '\t' : ','
-      const columns = lines[i].split(separator).map(col => col.trim().replace(/"/g, ''))
+    // Process each sheet
+    for (const sheetName of workbook.SheetNames) {
+      const worksheet = workbook.Sheets[sheetName]
+      const data = XLSX.utils.sheet_to_json(worksheet)
       
-      if (columns.length >= 3) {
-        const plateNumber = columns[1] || `TRUCK-${i}`
-        const driverName = columns[2] || null
-        const quantity = parseInt(columns[4]) || 1
-        
+      // Determine origin from sheet name
+      let origin = 'OTHER'
+      if (sheetName.toLowerCase().includes('china')) {
+        origin = 'CHINESE'
+      } else if (sheetName.toLowerCase().includes('japan')) {
+        origin = 'JAPANESE'
+      }
+      
+      // Process each row
+      for (const row of data as any[]) {
         try {
-          // Create vehicle if doesn't exist
-          await db.vehicle.upsert({
-            where: { plateNumber },
-            create: {
-              plateNumber,
-              driverName
-            },
-            update: {
-              driverName
-            }
-          })
+          const plateNumber = row['Truck #'] || row['Truck'] || row['Plate'] || ''
+          const driverName = row['Name Driver'] || row['Driver'] || row['Name'] || ''
+          const serialNumber = row['Serial Number'] || row['Serial'] || ''
+          const quantity = parseInt(row['OUT QTY'] || row['QTY'] || row['Quantity'] || '1')
           
-          // Create tire record
-          await db.tire.create({
-            data: {
-              tireSize: '295/80R22.5',
-              manufacturer: 'Imported Brand',
-              origin: 'CHINESE',
-              plateNumber,
-              driverName,
-              quantity,
-              serialNumber: columns[3] || null,
-              createdById: user.id
-            }
-          })
-          
-          totalCreated++
-        } catch (error) {
-          console.error('Error processing row:', error)
+          if (plateNumber && quantity > 0) {
+            // Create vehicle if doesn't exist
+            await db.vehicle.upsert({
+              where: { plateNumber },
+              create: {
+                plateNumber,
+                driverName: driverName || null
+              },
+              update: {
+                driverName: driverName || null
+              }
+            })
+            
+            // Create tire record
+            await db.tire.create({
+              data: {
+                tireSize: '295/80R22.5',
+                manufacturer: origin === 'CHINESE' ? 'Chinese Brand' : 'Japanese Brand',
+                origin,
+                plateNumber,
+                driverName: driverName || null,
+                quantity,
+                serialNumber: serialNumber || null,
+                createdById: user.id
+              }
+            })
+            
+            totalCreated++
+          }
+        } catch (rowError) {
+          console.error('Error processing row:', rowError)
         }
       }
     }
@@ -96,7 +87,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Error in bulk upload:', error)
     return NextResponse.json(
-      { error: 'Failed to process file' },
+      { error: 'Failed to process Excel file' },
       { status: 500 }
     )
   }

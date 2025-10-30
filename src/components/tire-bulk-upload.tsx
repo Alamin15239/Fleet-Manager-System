@@ -81,7 +81,7 @@ export default function TireBulkUpload() {
             <h3 className="font-medium mb-2">Upload Excel File</h3>
             <Input
               type="file"
-              accept=".csv,.xlsx,.xls"
+              accept=".xlsx,.xls"
               onChange={handleUpload}
               disabled={uploading}
               className="cursor-pointer"
@@ -89,18 +89,17 @@ export default function TireBulkUpload() {
           </div>
 
           <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-            <h4 className="font-medium text-blue-900 mb-2">Supported Formats:</h4>
+            <h4 className="font-medium text-blue-900 mb-2">Excel Format Required:</h4>
             <div className="text-sm text-blue-800 space-y-2">
-              <div className="font-mono text-xs bg-white p-2 rounded border">
-                Date,Truck #,Name Driver,Serial Number,OUT QTY<br/>
-                2024-01-01,ABC123,John Doe,SN001,4<br/>
-                2024-01-02,XYZ789,Jane Smith,SN002,6
+              <div>
+                <strong>China Sheet:</strong> Date | Truck # | Name Driver | Serial Number | OUT QTY<br/>
+                <strong>Japan Sheet:</strong> Date | Truck # | Name Driver | Serial Number | OUT QTY
               </div>
               <div className="mt-2 text-xs">
-                • <strong>CSV files:</strong> Direct upload<br/>
-                • <strong>Excel files:</strong> Will be parsed automatically<br/>
-                • Column order: Date, Truck #, Driver Name, Serial, Quantity<br/>
-                • Truck # becomes the plate number
+                • Upload .xlsx or .xls files directly<br/>
+                • Sheet names determine tire origin (China/Japan)<br/>
+                • Truck # becomes plate number<br/>
+                • OUT QTY is the tire quantity
               </div>
             </div>
           </div>
