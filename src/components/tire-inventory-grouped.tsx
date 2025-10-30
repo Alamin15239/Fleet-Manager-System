@@ -3,6 +3,9 @@
 import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { 
@@ -12,7 +15,9 @@ import {
   Package, 
   User,
   Calendar,
-  RefreshCw
+  RefreshCw,
+  Search,
+  Filter
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { apiGet } from '@/lib/api'
@@ -49,6 +54,11 @@ export default function TireInventoryGrouped() {
   const [groupedTires, setGroupedTires] = useState<GroupedTires>({})
   const [loading, setLoading] = useState(true)
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set())
+  const [searchTerm, setSearchTerm] = useState('')
+  const [selectedManufacturer, setSelectedManufacturer] = useState('')
+  const [selectedOrigin, setSelectedOrigin] = useState('')
+  const [vehicleType, setVehicleType] = useState('')
+  const [manufacturers, setManufacturers] = useState<string[]>([])
   const { refreshData } = useRealTime()
 
   useEffect(() => {
@@ -59,13 +69,29 @@ export default function TireInventoryGrouped() {
     fetchAndGroupTires()
   }, [refreshData])
 
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      fetchAndGroupTires()
+    }, 500)
+    return () => clearTimeout(timeoutId)
+  }, [searchTerm, selectedManufacturer, selectedOrigin])
+
   const fetchAndGroupTires = async () => {
     try {
-      const response = await apiGet('/api/tires?limit=1000') // Get all tires
+      const params = new URLSearchParams({ limit: '1000' })
+      if (selectedManufacturer) params.append('manufacturer', selectedManufacturer)
+      if (selectedOrigin) params.append('origin', selectedOrigin)
+      if (searchTerm) params.append('search', searchTerm)
+      
+      const response = await apiGet(`/api/tires?${params}`)
       if (response.ok) {
         const data = await response.json()
         const grouped = groupTiresByVehicle(data.tires)
         setGroupedTires(grouped)
+        
+        // Extract manufacturers for filter
+        const uniqueManufacturers = [...new Set(data.tires.map(t => t.manufacturer))]
+        setManufacturers(uniqueManufacturers)
       }
     } catch (error) {
       console.error('Error fetching tires:', error)
@@ -77,7 +103,14 @@ export default function TireInventoryGrouped() {
   const groupTiresByVehicle = (tires: Tire[]): GroupedTires => {
     const grouped: GroupedTires = {}
 
-    tires.forEach(tire => {
+    let filteredTires = tires
+    if (vehicleType === 'truck') {
+      filteredTires = tires.filter(t => t.plateNumber && !t.trailerNumber)
+    } else if (vehicleType === 'trailer') {
+      filteredTires = tires.filter(t => t.trailerNumber)
+    }
+
+    filteredTires.forEach(tire => {
       let key: string
       let vehicleInfo: any
 
@@ -150,6 +183,88 @@ export default function TireInventoryGrouped() {
 
   return (
     <div className="space-y-4">
+      {/* Filters */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Filter className="h-5 w-5" />
+            Filters
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+            <div className="space-y-2">
+              <Label className="text-sm">Search</Label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="Search vehicles, drivers..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <Label className="text-sm">Vehicle Type</Label>
+              <Select value={vehicleType} onValueChange={setVehicleType}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All types" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">All types</SelectItem>
+                  <SelectItem value="truck">Trucks only</SelectItem>
+                  <SelectItem value="trailer">Trailers only</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="space-y-2">
+              <Label className="text-sm">Manufacturer</Label>
+              <Select value={selectedManufacturer} onValueChange={setSelectedManufacturer}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All manufacturers" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">All manufacturers</SelectItem>
+                  {manufacturers.map((manufacturer) => (
+                    <SelectItem key={manufacturer} value={manufacturer}>
+                      {manufacturer}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="space-y-2">
+              <Label className="text-sm">Origin</Label>
+              <Select value={selectedOrigin} onValueChange={setSelectedOrigin}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All origins" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">All origins</SelectItem>
+                  <SelectItem value="CHINESE">Chinese</SelectItem>
+                  <SelectItem value="JAPANESE">Japanese</SelectItem>
+                  <SelectItem value="EUROPEAN">European</SelectItem>
+                  <SelectItem value="AMERICAN">American</SelectItem>
+                  <SelectItem value="OTHER">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="space-y-2">
+              <Label className="text-sm">Actions</Label>
+              <Button variant="outline" onClick={fetchAndGroupTires} className="w-full">
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Refresh
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-2xl font-bold">Tires by Vehicle</h2>
@@ -157,10 +272,6 @@ export default function TireInventoryGrouped() {
             {Object.keys(groupedTires).length} vehicles with tires
           </p>
         </div>
-        <Button variant="outline" onClick={fetchAndGroupTires}>
-          <RefreshCw className="mr-2 h-4 w-4" />
-          Refresh
-        </Button>
       </div>
 
       <div className="space-y-3">
