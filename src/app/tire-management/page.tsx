@@ -22,6 +22,7 @@ import {
 } from 'lucide-react'
 import TireManagementForm from '@/components/tire-management-form'
 import TireInventoryList from '@/components/tire-inventory-list'
+import TireInventoryGrouped from '@/components/tire-inventory-grouped'
 import TireReports from '@/components/tire-reports'
 import VehicleManagement from '@/components/vehicle-management'
 import TireReportsSimple from '@/components/tire-reports-simple'
@@ -154,7 +155,7 @@ export default function TireManagementPage() {
       )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-6 h-auto p-1">
+        <TabsList className="grid w-full grid-cols-7 h-auto p-1">
           <TabsTrigger value="form" className="flex flex-col items-center gap-1 text-xs p-1.5 min-h-[60px]">
             <Plus className="h-4 w-4" />
             <span className="leading-tight">Add</span>
@@ -163,11 +164,14 @@ export default function TireManagementPage() {
             <List className="h-4 w-4" />
             <span className="leading-tight">List</span>
           </TabsTrigger>
+          <TabsTrigger value="grouped" className="flex flex-col items-center gap-1 text-xs p-1.5 min-h-[60px]">
+            <Users className="h-4 w-4" />
+            <span className="leading-tight">By Vehicle</span>
+          </TabsTrigger>
           <TabsTrigger value="vehicles" className="flex flex-col items-center gap-1 text-xs p-1.5 min-h-[60px]">
             <Truck className="h-4 w-4" />
             <span className="leading-tight">Cars</span>
           </TabsTrigger>
-
           <TabsTrigger value="excel" className="flex flex-col items-center gap-1 text-xs p-1.5 min-h-[60px]">
             <FileText className="h-4 w-4" />
             <span className="leading-tight">Excel</span>
@@ -188,6 +192,10 @@ export default function TireManagementPage() {
 
         <TabsContent value="inventory" className="space-y-4">
           <TireInventoryList />
+        </TabsContent>
+
+        <TabsContent value="grouped" className="space-y-4">
+          <TireInventoryGrouped />
         </TabsContent>
 
         <TabsContent value="vehicles" className="space-y-4">

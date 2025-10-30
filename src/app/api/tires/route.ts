@@ -111,11 +111,9 @@ export async function POST(request: NextRequest) {
     const user = await requireAuth(request)
     
     const body = await request.json()
-    console.log('Received tire data:', JSON.stringify(body, null, 2))
     
     // Validate input data
     const validatedData = createTireSchema.parse(body)
-    console.log('Validated tire data:', JSON.stringify(validatedData, null, 2))
     
     const { 
       tireSize, 
