@@ -189,6 +189,20 @@ export async function POST(request: NextRequest) {
 
     // Create trailer tires if trailer info provided
     if (trailerTireSize && trailerManufacturer && trailerOrigin && trailerNumber) {
+      // Get driver name from vehicle if not provided
+      let finalDriverName = driverName
+      if (!finalDriverName) {
+        const vehicle = await db.vehicle.findFirst({
+          where: {
+            OR: [
+              { trailerNumber },
+              { plateNumber: trailerNumber }
+            ]
+          }
+        })
+        finalDriverName = vehicle?.driverName || null
+      }
+      
       for (let i = 0; i < trailerQuantity; i++) {
         tiresData.push({
           tireSize: trailerTireSize,
@@ -196,7 +210,7 @@ export async function POST(request: NextRequest) {
           origin: trailerOrigin,
           plateNumber: null, // Trailer tires don't have plate number
           trailerNumber: trailerNumber,
-          driverName: driverName || null,
+          driverName: finalDriverName,
           quantity: 1,
           serialNumber: trailerSerialNumber || null,
           notes: notes || null,
