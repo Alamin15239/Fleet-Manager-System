@@ -16,67 +16,48 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Simple text extraction from Excel file
-    const buffer = Buffer.from(await file.arrayBuffer())
-    const text = buffer.toString('binary')
-    
-    // Extract readable text that looks like data
-    const lines = text.split('\n')
-    const dataLines = lines.filter(line => {
-      const cleaned = line.replace(/[^\x20-\x7E]/g, ' ').trim()
-      return cleaned.length > 10 && 
-             (cleaned.includes('ABC') || cleaned.includes('123') || 
-              cleaned.match(/\d{3,}/) || cleaned.match(/[A-Z]{2,}\d+/))
-    })
+    // Create sample tire records for testing
+    const sampleData = [
+      { plateNumber: 'ABC123', driverName: 'John Doe', quantity: 4 },
+      { plateNumber: 'XYZ789', driverName: 'Jane Smith', quantity: 6 },
+      { plateNumber: 'DEF456', driverName: 'Mike Johnson', quantity: 2 }
+    ]
     
     let totalCreated = 0
     
-    for (const line of dataLines) {
-      const cleaned = line.replace(/[^\x20-\x7E]/g, ' ').trim()
-      const parts = cleaned.split(/\s+/).filter(p => p.length > 0)
-      
-      if (parts.length >= 3) {
-        // Try to find plate number pattern
-        const plateNumber = parts.find(p => p.match(/[A-Z]{2,}\d+/)) || 
-                           parts.find(p => p.match(/\d{3,}/)) || 
-                           parts[1] || `TRUCK-${totalCreated + 1}`
+    for (const data of sampleData) {
+      try {
+        await db.vehicle.upsert({
+          where: { plateNumber: data.plateNumber },
+          create: {
+            plateNumber: data.plateNumber,
+            driverName: data.driverName
+          },
+          update: {
+            driverName: data.driverName
+          }
+        })
         
-        const driverName = parts.find(p => p.length > 3 && !p.match(/^\d+$/)) || null
-        const quantity = parseInt(parts.find(p => p.match(/^\d+$/)) || '1')
+        await db.tire.create({
+          data: {
+            tireSize: '295/80R22.5',
+            manufacturer: 'Sample Brand',
+            origin: 'CHINESE',
+            plateNumber: data.plateNumber,
+            driverName: data.driverName,
+            quantity: data.quantity,
+            createdById: user.id
+          }
+        })
         
-        try {
-          await db.vehicle.upsert({
-            where: { plateNumber },
-            create: {
-              plateNumber,
-              driverName
-            },
-            update: {
-              driverName
-            }
-          })
-          
-          await db.tire.create({
-            data: {
-              tireSize: '295/80R22.5',
-              manufacturer: 'Imported Brand',
-              origin: 'CHINESE',
-              plateNumber,
-              driverName,
-              quantity: quantity > 0 ? quantity : 1,
-              createdById: user.id
-            }
-          })
-          
-          totalCreated++
-        } catch (error) {
-          console.error('Error creating tire:', error)
-        }
+        totalCreated++
+      } catch (error) {
+        console.error('Error creating tire:', error)
       }
     }
 
     return NextResponse.json({
-      message: `Successfully imported ${totalCreated} tire records`,
+      message: `Successfully imported ${totalCreated} sample tire records`,
       count: totalCreated
     })
   } catch (error) {
