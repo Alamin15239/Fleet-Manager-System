@@ -23,14 +23,15 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url)
     
-    // Parse query parameters directly without strict validation
-    const page = parseInt(searchParams.get('page') || '1')
-    const limit = parseInt(searchParams.get('limit') || '20')
-    const search = searchParams.get('search')
-    const manufacturer = searchParams.get('manufacturer')
-    const origin = searchParams.get('origin')
-    const plateNumber = searchParams.get('plateNumber')
-    const driverName = searchParams.get('driverName')
+    // Parse query parameters with validation
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1') || 1)
+    const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') || '20') || 20))
+    const search = searchParams.get('search')?.trim() || null
+    const manufacturer = searchParams.get('manufacturer')?.trim() || null
+    const origin = searchParams.get('origin')?.trim() || null
+    const plateNumber = searchParams.get('plateNumber')?.trim() || null
+    const driverName = searchParams.get('driverName')?.trim() || null
+    const tireSize = searchParams.get('tireSize')?.trim() || null
     const offset = (page - 1) * limit
 
     let whereClause: any = {}
@@ -61,6 +62,10 @@ export async function GET(request: NextRequest) {
       whereClause.driverName = { contains: driverName, mode: 'insensitive' }
     }
 
+    if (tireSize) {
+      whereClause.tireSize = { contains: tireSize, mode: 'insensitive' }
+    }
+
     const [tires, total] = await Promise.all([
       db.tire.findMany({
         where: whereClause,
@@ -72,8 +77,14 @@ export async function GET(request: NextRequest) {
         orderBy: { createdAt: 'desc' },
         skip: offset,
         take: limit
+      }).catch(err => {
+        console.error('Error fetching tires:', err)
+        return []
       }),
-      db.tire.count({ where: whereClause })
+      db.tire.count({ where: whereClause }).catch(err => {
+        console.error('Error counting tires:', err)
+        return 0
+      })
     ])
 
     return NextResponse.json({
