@@ -25,6 +25,7 @@ import TireReports from '@/components/tire-reports'
 import VehicleManagement from '@/components/vehicle-management'
 import TireReportsSimple from '@/components/tire-reports-simple'
 import TireExcelViewer from '@/components/tire-excel-viewer'
+import TireBulkUpload from '@/components/tire-bulk-upload'
 import { useLanguage } from '@/contexts/language-context'
 
 interface InitializationStatus {
@@ -152,7 +153,7 @@ export default function TireManagementPage() {
       )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-6 h-auto p-1">
+        <TabsList className="grid w-full grid-cols-7 h-auto p-1">
           <TabsTrigger value="form" className="flex flex-col items-center gap-1 text-xs p-1.5 min-h-[60px]">
             <Plus className="h-4 w-4" />
             <span className="leading-tight">Add</span>
@@ -164,6 +165,10 @@ export default function TireManagementPage() {
           <TabsTrigger value="vehicles" className="flex flex-col items-center gap-1 text-xs p-1.5 min-h-[60px]">
             <Truck className="h-4 w-4" />
             <span className="leading-tight">Cars</span>
+          </TabsTrigger>
+          <TabsTrigger value="upload" className="flex flex-col items-center gap-1 text-xs p-1.5 min-h-[60px]">
+            <Upload className="h-4 w-4" />
+            <span className="leading-tight">Upload</span>
           </TabsTrigger>
           <TabsTrigger value="excel" className="flex flex-col items-center gap-1 text-xs p-1.5 min-h-[60px]">
             <FileText className="h-4 w-4" />
@@ -189,6 +194,10 @@ export default function TireManagementPage() {
 
         <TabsContent value="vehicles" className="space-y-4">
           <VehicleManagement />
+        </TabsContent>
+
+        <TabsContent value="upload" className="space-y-4">
+          <TireBulkUpload />
         </TabsContent>
 
         <TabsContent value="excel" className="space-y-4">
