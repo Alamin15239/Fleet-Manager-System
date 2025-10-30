@@ -133,30 +133,29 @@ export async function POST(request: NextRequest) {
       createdAt
     } = validatedData
 
-    // Handle vehicle creation/update if plate number is provided
+    // Validate vehicle exists if plate number is provided
     if (plateNumber) {
-      let vehicle = await db.vehicle.findUnique({
+      const vehicle = await db.vehicle.findUnique({
         where: { plateNumber }
       })
-
       if (!vehicle) {
-        console.log('Creating new vehicle:', plateNumber)
-        vehicle = await db.vehicle.create({
-          data: {
-            plateNumber,
-            trailerNumber: trailerNumber || null,
-            driverName: driverName || null
-          }
-        })
-      } else {
-        console.log('Updating existing vehicle:', plateNumber)
-        await db.vehicle.update({
-          where: { plateNumber },
-          data: {
-            ...(trailerNumber && { trailerNumber }),
-            ...(driverName && { driverName })
-          }
-        })
+        return NextResponse.json(
+          { error: `Truck with plate number '${plateNumber}' not found. Please add the vehicle first.` },
+          { status: 400 }
+        )
+      }
+    }
+
+    // Validate trailer exists if trailer number is provided
+    if (trailerNumber) {
+      const vehicle = await db.vehicle.findFirst({
+        where: { trailerNumber }
+      })
+      if (!vehicle) {
+        return NextResponse.json(
+          { error: `Trailer '${trailerNumber}' not found. Please add the vehicle first.` },
+          { status: 400 }
+        )
       }
     }
 

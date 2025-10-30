@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { apiGet } from '@/lib/api'
+import { useRealTime } from '../real-time-provider'
 
 interface Tire {
   id: string
@@ -48,10 +49,15 @@ export default function TireInventoryGrouped() {
   const [groupedTires, setGroupedTires] = useState<GroupedTires>({})
   const [loading, setLoading] = useState(true)
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set())
+  const { refreshData } = useRealTime()
 
   useEffect(() => {
     fetchAndGroupTires()
   }, [])
+
+  useEffect(() => {
+    fetchAndGroupTires()
+  }, [refreshData])
 
   const fetchAndGroupTires = async () => {
     try {
