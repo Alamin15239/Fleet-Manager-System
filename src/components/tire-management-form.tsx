@@ -59,7 +59,7 @@ export default function TireManagementForm() {
     plateNumber: '',
     trailerNumber: '',
     driverName: '',
-    quantity: 0,
+    quantity: 1,
     serialNumber: '',
     trailerTireSize: '',
     trailerManufacturer: '',
@@ -244,7 +244,7 @@ export default function TireManagementForm() {
           plateNumber: '',
           trailerNumber: '',
           driverName: '',
-          quantity: 0,
+          quantity: 1,
           serialNumber: '',
           trailerTireSize: '',
           trailerManufacturer: '',
@@ -439,10 +439,10 @@ export default function TireManagementForm() {
                     <Input
                       id="quantity"
                       type="number"
-                      min="0"
+                      min="1"
                       max="100"
-                      value={formData.quantity || ''}
-                      onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) || 0 })}
+                      value={formData.quantity || 1}
+                      onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) || 1 })}
                       className="border-blue-300 focus:border-blue-500 bg-white"
                     />
                     <p className="text-xs text-blue-600">Number of tires</p>
