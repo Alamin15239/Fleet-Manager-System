@@ -89,7 +89,7 @@ export default function TireBulkUpload() {
           </div>
 
           <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-            <h4 className="font-medium text-blue-900 mb-2">CSV Format:</h4>
+            <h4 className="font-medium text-blue-900 mb-2">Supported Formats:</h4>
             <div className="text-sm text-blue-800 space-y-2">
               <div className="font-mono text-xs bg-white p-2 rounded border">
                 Date,Truck #,Name Driver,Serial Number,OUT QTY<br/>
@@ -97,10 +97,10 @@ export default function TireBulkUpload() {
                 2024-01-02,XYZ789,Jane Smith,SN002,6
               </div>
               <div className="mt-2 text-xs">
-                • Save your Excel file as CSV format<br/>
+                • <strong>CSV files:</strong> Direct upload<br/>
+                • <strong>Excel files:</strong> Will be parsed automatically<br/>
                 • Column order: Date, Truck #, Driver Name, Serial, Quantity<br/>
-                • Truck # becomes the plate number<br/>
-                • Quantity should be a number
+                • Truck # becomes the plate number
               </div>
             </div>
           </div>

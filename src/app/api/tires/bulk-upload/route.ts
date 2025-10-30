@@ -2,6 +2,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireAuth } from '@/lib/auth'
 
+// Simple Excel parsing without external library
+function parseExcelBuffer(buffer: Buffer) {
+  // Convert buffer to text and try to extract readable data
+  const text = buffer.toString('utf8')
+  const lines = text.split('\n').filter(line => line.includes('\t') || line.includes(','))
+  return lines
+}
+
 export async function POST(request: NextRequest) {
   try {
     const user = await requireAuth(request)
@@ -16,9 +24,17 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Simple CSV parsing instead of XLSX
-    const text = await file.text()
-    const lines = text.split('\n').filter(line => line.trim())
+    let lines: string[]
+    
+    if (file.name.endsWith('.csv')) {
+      // CSV file
+      const text = await file.text()
+      lines = text.split('\n').filter(line => line.trim())
+    } else {
+      // Excel file - simple parsing
+      const buffer = Buffer.from(await file.arrayBuffer())
+      lines = parseExcelBuffer(buffer)
+    }
     
     if (lines.length < 2) {
       return NextResponse.json(
@@ -31,7 +47,8 @@ export async function POST(request: NextRequest) {
     
     // Skip header row, process data rows
     for (let i = 1; i < lines.length; i++) {
-      const columns = lines[i].split(',').map(col => col.trim().replace(/"/g, ''))
+      const separator = lines[i].includes('\t') ? '\t' : ','
+      const columns = lines[i].split(separator).map(col => col.trim().replace(/"/g, ''))
       
       if (columns.length >= 3) {
         const plateNumber = columns[1] || `TRUCK-${i}`
