@@ -131,45 +131,118 @@ export default function TireReports() {
     await fetchAnalytics()
   }
 
-  const handleExport = () => {
+  const handleExport = async () => {
     if (!analytics) return
 
-    const csvContent = [
-      ['Metric', 'Value'].join(','),
-      ['Total Tires', analytics.summary.totalTires].join(','),
-      ['Tires with Serial Numbers', analytics.summary.tiresWithSerial].join(','),
-      ['Serial Number Coverage', `${analytics.summary.serialPercentage}%`].join(','),
-      ['Recent Tires (30 days)', analytics.summary.recentTires].join(','),
-      ['Truck Tires', analytics.summary.truckTires].join(','),
-      ['Trailer Tires', analytics.summary.trailerTires].join(','),
-      ['Total Vehicles', analytics.summary.totalVehicles].join(','),
-      ['Total Drivers', analytics.summary.totalDrivers].join(','),
-      [''],
-      ['Manufacturer', 'Tire Count', 'Total Quantity'].join(','),
-      ...analytics.byManufacturer.map(item => [item.manufacturer, item.count, item.quantity].join(',')),
-      [''],
-      ['Origin', 'Tire Count', 'Total Quantity'].join(','),
-      ...analytics.byOrigin.map(item => [item.origin, item.count, item.quantity].join(',')),
-      [''],
-      ['Top Tire Sizes', 'Quantity'].join(','),
-      ...analytics.tireSizes.slice(0, 10).map(item => [item.tireSize, item.quantity].join(',')),
-      [''],
-      ['Top Vehicles', 'Tire Count'].join(','),
-      ...analytics.topVehicles.map(item => [`${item.plateNumber} (${item.driverName || 'N/A'})`, item.tireCount].join(',')),
-      [''],
-      ['Top Drivers', 'Tire Count', 'Records'].join(','),
-      ...analytics.topDrivers.map(item => [item.driverName, item.tireCount, item.recordCount].join(','))
-    ].join('\n')
+    try {
+      // Fetch detailed tire data for export
+      const tiresResponse = await apiGet('/api/tires?limit=1000')
+      const tiresData = tiresResponse.ok ? await tiresResponse.json() : { tires: [] }
 
-    const blob = new Blob([csvContent], { type: 'text/csv' })
-    const url = window.URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `tire-analytics-${new Date().toISOString().split('T')[0]}.csv`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    window.URL.revokeObjectURL(url)
+      const csvContent = [
+        // Summary Section
+        ['=== TIRE MANAGEMENT ANALYTICS REPORT ==='].join(','),
+        [`Generated on: ${new Date().toLocaleString()}`].join(','),
+        [''],
+        ['SUMMARY METRICS', 'Value', 'Details'].join(','),
+        ['Total Tires', analytics.summary.totalTires, 'All tires in system'].join(','),
+        ['Tires with Serial Numbers', analytics.summary.tiresWithSerial, `${analytics.summary.serialPercentage}% coverage`].join(','),
+        ['Recent Tires (30 days)', analytics.summary.recentTires, 'Newly added tires'].join(','),
+        ['Truck Tires', analytics.summary.truckTires, `${Math.round((analytics.summary.truckTires / analytics.summary.totalTires) * 100)}% of total`].join(','),
+        ['Trailer Tires', analytics.summary.trailerTires, `${Math.round((analytics.summary.trailerTires / analytics.summary.totalTires) * 100)}% of total`].join(','),
+        ['New Tires (<6 months)', analytics.summary.newTires, 'Recently purchased'].join(','),
+        ['Total Vehicles', analytics.summary.totalVehicles, 'Active vehicles with tires'].join(','),
+        ['Total Drivers', analytics.summary.totalDrivers, 'Assigned drivers'].join(','),
+        [''],
+        
+        // Manufacturer Analysis
+        ['MANUFACTURER ANALYSIS', 'Tire Count', 'Total Quantity', 'Market Share %'].join(','),
+        ...analytics.byManufacturer.map(item => [
+          item.manufacturer, 
+          item.count, 
+          item.quantity,
+          `${Math.round((item.quantity / analytics.summary.totalTires) * 100)}%`
+        ].join(',')),
+        [''],
+        
+        // Origin Analysis
+        ['ORIGIN ANALYSIS', 'Tire Count', 'Total Quantity', 'Percentage'].join(','),
+        ...analytics.byOrigin.map(item => [
+          item.origin, 
+          item.count, 
+          item.quantity,
+          `${Math.round((item.quantity / analytics.summary.totalTires) * 100)}%`
+        ].join(',')),
+        [''],
+        
+        // Tire Size Analysis
+        ['TIRE SIZE ANALYSIS', 'Quantity', 'Usage %', 'Vehicle Type'].join(','),
+        ...analytics.tireSizes.map(item => [
+          item.tireSize, 
+          item.quantity,
+          `${Math.round((item.quantity / analytics.summary.totalTires) * 100)}%`,
+          'Mixed'
+        ].join(',')),
+        [''],
+        
+        // Vehicle Analysis
+        ['VEHICLE ANALYSIS', 'Plate/Trailer', 'Driver', 'Tire Count', 'Vehicle Type'].join(','),
+        ...analytics.topVehicles.map(item => [
+          item.plateNumber || 'N/A',
+          item.driverName || 'Unassigned',
+          item.tireCount,
+          item.trailerNumber ? 'Trailer' : 'Truck'
+        ].join(',')),
+        [''],
+        
+        // Driver Analysis
+        ['DRIVER ANALYSIS', 'Driver Name', 'Tire Count', 'Records', 'Avg Tires/Record'].join(','),
+        ...analytics.topDrivers.map(item => [
+          item.driverName,
+          item.tireCount,
+          item.recordCount,
+          (item.tireCount / item.recordCount).toFixed(1)
+        ].join(',')),
+        [''],
+        
+        // Monthly Trends
+        ['MONTHLY TRENDS', 'Month', 'Tires Added', 'Records Created'].join(','),
+        ...analytics.monthlyData.map(item => [
+          '',
+          `${item.month} ${item.year}`,
+          item.quantity,
+          item.count
+        ].join(',')),
+        [''],
+        
+        // Detailed Tire Inventory
+        ['=== DETAILED TIRE INVENTORY ==='].join(','),
+        ['Tire Size', 'Manufacturer', 'Origin', 'Vehicle', 'Driver', 'Quantity', 'Serial Number', 'Date Added', 'Notes'].join(','),
+        ...tiresData.tires.map(tire => [
+          tire.tireSize,
+          tire.manufacturer,
+          tire.origin,
+          tire.plateNumber || tire.trailerNumber || 'Unassigned',
+          tire.driverName || 'N/A',
+          tire.quantity,
+          tire.serialNumber || 'N/A',
+          new Date(tire.createdAt).toLocaleDateString(),
+          tire.notes || 'N/A'
+        ].join(','))
+      ].join('\n')
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8' })
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `tire-analytics-detailed-${new Date().toISOString().split('T')[0]}.csv`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      window.URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error('Export failed:', error)
+    }
   }
 
   if (loading) {
