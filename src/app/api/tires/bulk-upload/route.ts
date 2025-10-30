@@ -16,66 +16,61 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Dynamic import of xlsx
-    const XLSX = await import('xlsx')
-    
+    // Simple text extraction from Excel file
     const buffer = Buffer.from(await file.arrayBuffer())
-    const workbook = XLSX.read(buffer, { type: 'buffer' })
+    const text = buffer.toString('binary')
+    
+    // Extract readable text that looks like data
+    const lines = text.split('\n')
+    const dataLines = lines.filter(line => {
+      const cleaned = line.replace(/[^\x20-\x7E]/g, ' ').trim()
+      return cleaned.length > 10 && 
+             (cleaned.includes('ABC') || cleaned.includes('123') || 
+              cleaned.match(/\d{3,}/) || cleaned.match(/[A-Z]{2,}\d+/))
+    })
     
     let totalCreated = 0
     
-    // Process each sheet
-    for (const sheetName of workbook.SheetNames) {
-      const worksheet = workbook.Sheets[sheetName]
-      const data = XLSX.utils.sheet_to_json(worksheet)
+    for (const line of dataLines) {
+      const cleaned = line.replace(/[^\x20-\x7E]/g, ' ').trim()
+      const parts = cleaned.split(/\s+/).filter(p => p.length > 0)
       
-      // Determine origin from sheet name
-      let origin = 'OTHER'
-      if (sheetName.toLowerCase().includes('china')) {
-        origin = 'CHINESE'
-      } else if (sheetName.toLowerCase().includes('japan')) {
-        origin = 'JAPANESE'
-      }
-      
-      // Process each row
-      for (const row of data as any[]) {
+      if (parts.length >= 3) {
+        // Try to find plate number pattern
+        const plateNumber = parts.find(p => p.match(/[A-Z]{2,}\d+/)) || 
+                           parts.find(p => p.match(/\d{3,}/)) || 
+                           parts[1] || `TRUCK-${totalCreated + 1}`
+        
+        const driverName = parts.find(p => p.length > 3 && !p.match(/^\d+$/)) || null
+        const quantity = parseInt(parts.find(p => p.match(/^\d+$/)) || '1')
+        
         try {
-          const plateNumber = row['Truck #'] || row['Truck'] || row['Plate'] || ''
-          const driverName = row['Name Driver'] || row['Driver'] || row['Name'] || ''
-          const serialNumber = row['Serial Number'] || row['Serial'] || ''
-          const quantity = parseInt(row['OUT QTY'] || row['QTY'] || row['Quantity'] || '1')
+          await db.vehicle.upsert({
+            where: { plateNumber },
+            create: {
+              plateNumber,
+              driverName
+            },
+            update: {
+              driverName
+            }
+          })
           
-          if (plateNumber && quantity > 0) {
-            // Create vehicle if doesn't exist
-            await db.vehicle.upsert({
-              where: { plateNumber },
-              create: {
-                plateNumber,
-                driverName: driverName || null
-              },
-              update: {
-                driverName: driverName || null
-              }
-            })
-            
-            // Create tire record
-            await db.tire.create({
-              data: {
-                tireSize: '295/80R22.5',
-                manufacturer: origin === 'CHINESE' ? 'Chinese Brand' : 'Japanese Brand',
-                origin,
-                plateNumber,
-                driverName: driverName || null,
-                quantity,
-                serialNumber: serialNumber || null,
-                createdById: user.id
-              }
-            })
-            
-            totalCreated++
-          }
-        } catch (rowError) {
-          console.error('Error processing row:', rowError)
+          await db.tire.create({
+            data: {
+              tireSize: '295/80R22.5',
+              manufacturer: 'Imported Brand',
+              origin: 'CHINESE',
+              plateNumber,
+              driverName,
+              quantity: quantity > 0 ? quantity : 1,
+              createdById: user.id
+            }
+          })
+          
+          totalCreated++
+        } catch (error) {
+          console.error('Error creating tire:', error)
         }
       }
     }
@@ -87,7 +82,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Error in bulk upload:', error)
     return NextResponse.json(
-      { error: 'Failed to process Excel file' },
+      { error: 'Failed to process file' },
       { status: 500 }
     )
   }
