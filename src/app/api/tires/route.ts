@@ -149,7 +149,12 @@ export async function POST(request: NextRequest) {
     // Validate trailer exists if trailer number is provided
     if (trailerNumber) {
       const vehicle = await db.vehicle.findFirst({
-        where: { trailerNumber }
+        where: {
+          OR: [
+            { trailerNumber },
+            { plateNumber: trailerNumber }
+          ]
+        }
       })
       if (!vehicle) {
         return NextResponse.json(
