@@ -81,8 +81,8 @@ export default function TireInventoryGrouped() {
   const fetchAndGroupTires = async () => {
     try {
       const params = new URLSearchParams({ limit: '1000' })
-      if (selectedManufacturer) params.append('manufacturer', selectedManufacturer)
-      if (selectedOrigin) params.append('origin', selectedOrigin)
+      if (selectedManufacturer && selectedManufacturer !== 'all') params.append('manufacturer', selectedManufacturer)
+      if (selectedOrigin && selectedOrigin !== 'all') params.append('origin', selectedOrigin)
       if (searchTerm) params.append('search', searchTerm)
       if (dateFrom) params.append('dateFrom', dateFrom)
       if (dateTo) params.append('dateTo', dateTo)
@@ -217,7 +217,7 @@ export default function TireInventoryGrouped() {
                   <SelectValue placeholder="All types" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All types</SelectItem>
+                  <SelectItem value="all">All types</SelectItem>
                   <SelectItem value="truck">Trucks only</SelectItem>
                   <SelectItem value="trailer">Trailers only</SelectItem>
                 </SelectContent>
@@ -231,7 +231,7 @@ export default function TireInventoryGrouped() {
                   <SelectValue placeholder="All manufacturers" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All manufacturers</SelectItem>
+                  <SelectItem value="all">All manufacturers</SelectItem>
                   {manufacturers.map((manufacturer) => (
                     <SelectItem key={manufacturer} value={manufacturer}>
                       {manufacturer}
@@ -248,7 +248,7 @@ export default function TireInventoryGrouped() {
                   <SelectValue placeholder="All origins" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All origins</SelectItem>
+                  <SelectItem value="all">All origins</SelectItem>
                   <SelectItem value="CHINESE">Chinese</SelectItem>
                   <SelectItem value="JAPANESE">Japanese</SelectItem>
                   <SelectItem value="EUROPEAN">European</SelectItem>
