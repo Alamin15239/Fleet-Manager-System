@@ -1,113 +1,85 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireAuth } from '@/lib/auth'
-const XLSX = require('xlsx')
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('Starting bulk upload...')
     const user = await requireAuth(request)
-    console.log('User authenticated:', user.id)
     
     const formData = await request.formData()
     const file = formData.get('file') as File
     
     if (!file) {
-      console.log('No file provided')
       return NextResponse.json(
         { error: 'No file provided' },
         { status: 400 }
       )
     }
 
-    console.log('File received:', file.name, file.size)
-    const buffer = Buffer.from(await file.arrayBuffer())
-    console.log('Buffer created, size:', buffer.length)
+    // Simple CSV parsing instead of XLSX
+    const text = await file.text()
+    const lines = text.split('\n').filter(line => line.trim())
     
-    let workbook
-    try {
-      workbook = XLSX.read(buffer, { type: 'buffer' })
-      console.log('Workbook loaded, sheets:', workbook.SheetNames)
-    } catch (xlsxError) {
-      console.error('XLSX read error:', xlsxError)
+    if (lines.length < 2) {
       return NextResponse.json(
-        { error: 'Invalid Excel file format' },
+        { error: 'File must have at least header and one data row' },
         { status: 400 }
       )
     }
-    
+
     let totalCreated = 0
     
-    // Process each sheet
-    for (const sheetName of workbook.SheetNames) {
-      const worksheet = workbook.Sheets[sheetName]
-      const data = XLSX.utils.sheet_to_json(worksheet)
+    // Skip header row, process data rows
+    for (let i = 1; i < lines.length; i++) {
+      const columns = lines[i].split(',').map(col => col.trim().replace(/"/g, ''))
       
-      // Determine origin from sheet name
-      let origin = 'OTHER'
-      if (sheetName.toLowerCase().includes('china')) {
-        origin = 'CHINESE'
-      } else if (sheetName.toLowerCase().includes('japan')) {
-        origin = 'JAPANESE'
-      }
-      
-      // Process each row
-      for (const row of data as any[]) {
+      if (columns.length >= 3) {
+        const plateNumber = columns[1] || `TRUCK-${i}`
+        const driverName = columns[2] || null
+        const quantity = parseInt(columns[4]) || 1
+        
         try {
-          // Extract data from row (flexible column names)
-          const plateNumber = row['Truck #'] || row['Truck'] || row['Plate'] || ''
-          const driverName = row['Name Driver'] || row['Driver'] || row['Name'] || ''
-          const serialNumber = row['Serial Number'] || row['Serial'] || ''
-          const quantity = parseInt(row['OUT QTY'] || row['QTY'] || row['Quantity'] || '1')
-          const date = row['Date'] || new Date().toISOString()
+          // Create vehicle if doesn't exist
+          await db.vehicle.upsert({
+            where: { plateNumber },
+            create: {
+              plateNumber,
+              driverName
+            },
+            update: {
+              driverName
+            }
+          })
           
-          if (plateNumber && quantity > 0) {
-            // Create vehicle if doesn't exist
-            await db.vehicle.upsert({
-              where: { plateNumber },
-              create: {
-                plateNumber,
-                driverName: driverName || null
-              },
-              update: {
-                driverName: driverName || null
-              }
-            })
-            
-            // Create tire record
-            await db.tire.create({
-              data: {
-                tireSize: '295/80R22.5', // Default size
-                manufacturer: origin === 'CHINESE' ? 'Chinese Brand' : 'Japanese Brand',
-                origin,
-                plateNumber,
-                driverName: driverName || null,
-                quantity,
-                serialNumber: serialNumber || null,
-                createdById: user.id,
-                createdAt: new Date(date)
-              }
-            })
-            
-            totalCreated++
-          }
-        } catch (rowError) {
-          console.error('Error processing row:', rowError)
-          // Continue with next row
+          // Create tire record
+          await db.tire.create({
+            data: {
+              tireSize: '295/80R22.5',
+              manufacturer: 'Imported Brand',
+              origin: 'CHINESE',
+              plateNumber,
+              driverName,
+              quantity,
+              serialNumber: columns[3] || null,
+              createdById: user.id
+            }
+          })
+          
+          totalCreated++
+        } catch (error) {
+          console.error('Error processing row:', error)
         }
       }
     }
 
-    console.log('Total records created:', totalCreated)
     return NextResponse.json({
       message: `Successfully imported ${totalCreated} tire records`,
       count: totalCreated
     })
   } catch (error) {
     console.error('Error in bulk upload:', error)
-    const errorMessage = error instanceof Error ? error.message : 'Failed to process file'
     return NextResponse.json(
-      { error: errorMessage },
+      { error: 'Failed to process file' },
       { status: 500 }
     )
   }

@@ -81,7 +81,7 @@ export default function TireBulkUpload() {
             <h3 className="font-medium mb-2">Upload Excel File</h3>
             <Input
               type="file"
-              accept=".xlsx,.xls"
+              accept=".csv,.xlsx,.xls"
               onChange={handleUpload}
               disabled={uploading}
               className="cursor-pointer"
@@ -89,25 +89,18 @@ export default function TireBulkUpload() {
           </div>
 
           <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-            <h4 className="font-medium text-blue-900 mb-2">Excel Format:</h4>
+            <h4 className="font-medium text-blue-900 mb-2">CSV Format:</h4>
             <div className="text-sm text-blue-800 space-y-2">
-              <div>
-                <strong>China Tires Sheet:</strong>
-                <div className="ml-4 font-mono text-xs">
-                  Date | Truck # | Name Driver | Serial Number | OUT QTY
-                </div>
-              </div>
-              <div>
-                <strong>Japan Tires Sheet:</strong>
-                <div className="ml-4 font-mono text-xs">
-                  Date | Truck # | Name Driver | Serial Number | OUT QTY
-                </div>
+              <div className="font-mono text-xs bg-white p-2 rounded border">
+                Date,Truck #,Name Driver,Serial Number,OUT QTY<br/>
+                2024-01-01,ABC123,John Doe,SN001,4<br/>
+                2024-01-02,XYZ789,Jane Smith,SN002,6
               </div>
               <div className="mt-2 text-xs">
-                • Each sheet will be processed as different tire origins<br/>
-                • Date format: Any standard date format<br/>
-                • Truck #: Plate number<br/>
-                • OUT QTY: Quantity of tires
+                • Save your Excel file as CSV format<br/>
+                • Column order: Date, Truck #, Driver Name, Serial, Quantity<br/>
+                • Truck # becomes the plate number<br/>
+                • Quantity should be a number
               </div>
             </div>
           </div>
