@@ -188,7 +188,7 @@ export default function TireReports() {
         // Vehicle Analysis
         ['VEHICLE ANALYSIS', 'Plate/Trailer', 'Driver', 'Tire Count', 'Vehicle Type'].join(','),
         ...analytics.topVehicles.map(item => [
-          item.plateNumber || 'N/A',
+          item.trailerNumber || item.plateNumber || 'N/A',
           item.driverName || 'Unassigned',
           item.tireCount,
           item.trailerNumber ? 'Trailer' : 'Truck'
@@ -217,12 +217,13 @@ export default function TireReports() {
         
         // Detailed Tire Inventory
         ['=== DETAILED TIRE INVENTORY ==='].join(','),
-        ['Tire Size', 'Manufacturer', 'Origin', 'Vehicle', 'Driver', 'Quantity', 'Serial Number', 'Date Added', 'Notes'].join(','),
+        ['Tire Size', 'Manufacturer', 'Origin', 'Plate Number', 'Trailer Number', 'Driver', 'Quantity', 'Serial Number', 'Date Added', 'Notes'].join(','),
         ...tiresData.tires.map(tire => [
           tire.tireSize,
           tire.manufacturer,
           tire.origin,
-          tire.plateNumber || tire.trailerNumber || 'Unassigned',
+          tire.plateNumber || 'N/A',
+          tire.trailerNumber || 'N/A',
           tire.driverName || 'N/A',
           tire.quantity,
           tire.serialNumber || 'N/A',
