@@ -5,25 +5,36 @@ const XLSX = require('xlsx')
 
 export async function POST(request: NextRequest) {
   try {
+    console.log('Starting bulk upload...')
     const user = await requireAuth(request)
+    console.log('User authenticated:', user.id)
     
     const formData = await request.formData()
     const file = formData.get('file') as File
     
     if (!file) {
+      console.log('No file provided')
       return NextResponse.json(
         { error: 'No file provided' },
         { status: 400 }
       )
     }
 
+    console.log('File received:', file.name, file.size)
     const buffer = Buffer.from(await file.arrayBuffer())
+    console.log('Buffer created, size:', buffer.length)
     
-    if (!XLSX) {
-      throw new Error('XLSX library not available')
+    let workbook
+    try {
+      workbook = XLSX.read(buffer, { type: 'buffer' })
+      console.log('Workbook loaded, sheets:', workbook.SheetNames)
+    } catch (xlsxError) {
+      console.error('XLSX read error:', xlsxError)
+      return NextResponse.json(
+        { error: 'Invalid Excel file format' },
+        { status: 400 }
+      )
     }
-    
-    const workbook = XLSX.read(buffer, { type: 'buffer' })
     
     let totalCreated = 0
     
@@ -87,14 +98,16 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    console.log('Total records created:', totalCreated)
     return NextResponse.json({
       message: `Successfully imported ${totalCreated} tire records`,
       count: totalCreated
     })
   } catch (error) {
     console.error('Error in bulk upload:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Failed to process file'
     return NextResponse.json(
-      { error: 'Failed to process file' },
+      { error: errorMessage },
       { status: 500 }
     )
   }
