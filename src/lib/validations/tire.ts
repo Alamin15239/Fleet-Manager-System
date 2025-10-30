@@ -19,7 +19,7 @@ export const createTireSchema = z.object({
   manufacturer: z.string().optional(),
   origin: z.enum(['CHINESE', 'SAUDI', 'JAPANESE', 'EUROPEAN', 'AMERICAN', 'OTHER']).optional(),
   plateNumber: z.string().optional(),
-  quantity: z.number().int().min(1).max(100).default(1),
+  quantity: z.number().int().min(0).max(100).default(1),
   serialNumber: z.string().optional(),
   
   // Trailer tires
@@ -27,7 +27,7 @@ export const createTireSchema = z.object({
   trailerManufacturer: z.string().optional(),
   trailerOrigin: z.enum(['CHINESE', 'SAUDI', 'JAPANESE', 'EUROPEAN', 'AMERICAN', 'OTHER']).optional(),
   trailerNumber: z.string().optional(),
-  trailerQuantity: z.number().int().min(1).max(100).default(1),
+  trailerQuantity: z.number().int().min(0).max(100).default(1),
   trailerSerialNumber: z.string().optional(),
   
   // Common fields
@@ -36,8 +36,8 @@ export const createTireSchema = z.object({
   createdAt: z.string().datetime().optional()
 }).refine(
   (data) => {
-    const hasTruckData = data.tireSize && data.manufacturer && data.origin
-    const hasTrailerData = data.trailerTireSize && data.trailerManufacturer && data.trailerOrigin
+    const hasTruckData = data.tireSize && data.manufacturer
+    const hasTrailerData = data.trailerTireSize && data.trailerManufacturer
     return hasTruckData || hasTrailerData
   },
   { message: 'Either truck or trailer tire data must be provided' }
