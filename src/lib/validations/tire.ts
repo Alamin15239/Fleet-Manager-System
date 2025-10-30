@@ -17,7 +17,7 @@ export const createTireSchema = z.object({
   // Truck tires
   tireSize: z.string().optional(),
   manufacturer: z.string().optional(),
-  origin: z.string().transform(val => val?.toUpperCase()).pipe(z.enum(['CHINESE', 'SAUDI', 'JAPANESE', 'EUROPEAN', 'AMERICAN', 'OTHER'])).optional(),
+  origin: z.string().optional().transform(val => val?.toUpperCase()).refine(val => !val || ['CHINESE', 'SAUDI', 'JAPANESE', 'EUROPEAN', 'AMERICAN', 'OTHER'].includes(val), { message: 'Invalid origin' }),
   plateNumber: z.string().optional(),
   quantity: z.number().int().min(0).max(100).default(1),
   serialNumber: z.string().optional(),
@@ -25,7 +25,7 @@ export const createTireSchema = z.object({
   // Trailer tires
   trailerTireSize: z.string().optional(),
   trailerManufacturer: z.string().optional(),
-  trailerOrigin: z.string().transform(val => val?.toUpperCase()).pipe(z.enum(['CHINESE', 'SAUDI', 'JAPANESE', 'EUROPEAN', 'AMERICAN', 'OTHER'])).optional(),
+  trailerOrigin: z.string().optional().transform(val => val?.toUpperCase()).refine(val => !val || ['CHINESE', 'SAUDI', 'JAPANESE', 'EUROPEAN', 'AMERICAN', 'OTHER'].includes(val), { message: 'Invalid trailer origin' }),
   trailerNumber: z.string().optional(),
   trailerQuantity: z.number().int().min(0).max(100).default(1),
   trailerSerialNumber: z.string().optional(),
