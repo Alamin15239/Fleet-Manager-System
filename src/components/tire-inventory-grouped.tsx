@@ -58,6 +58,8 @@ export default function TireInventoryGrouped() {
   const [selectedManufacturer, setSelectedManufacturer] = useState('')
   const [selectedOrigin, setSelectedOrigin] = useState('')
   const [vehicleType, setVehicleType] = useState('')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
   const [manufacturers, setManufacturers] = useState<string[]>([])
   const { refreshData } = useRealTime()
 
@@ -74,7 +76,7 @@ export default function TireInventoryGrouped() {
       fetchAndGroupTires()
     }, 500)
     return () => clearTimeout(timeoutId)
-  }, [searchTerm, selectedManufacturer, selectedOrigin])
+  }, [searchTerm, selectedManufacturer, selectedOrigin, dateFrom, dateTo])
 
   const fetchAndGroupTires = async () => {
     try {
@@ -82,6 +84,8 @@ export default function TireInventoryGrouped() {
       if (selectedManufacturer) params.append('manufacturer', selectedManufacturer)
       if (selectedOrigin) params.append('origin', selectedOrigin)
       if (searchTerm) params.append('search', searchTerm)
+      if (dateFrom) params.append('dateFrom', dateFrom)
+      if (dateTo) params.append('dateTo', dateTo)
       
       const response = await apiGet(`/api/tires?${params}`)
       if (response.ok) {
@@ -192,7 +196,7 @@ export default function TireInventoryGrouped() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-4">
             <div className="space-y-2">
               <Label className="text-sm">Search</Label>
               <div className="relative">
@@ -252,6 +256,24 @@ export default function TireInventoryGrouped() {
                   <SelectItem value="OTHER">Other</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+            
+            <div className="space-y-2">
+              <Label className="text-sm">Date From</Label>
+              <Input
+                type="date"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label className="text-sm">Date To</Label>
+              <Input
+                type="date"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+              />
             </div>
             
             <div className="space-y-2">
