@@ -21,7 +21,7 @@ import {
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { apiGet } from '@/lib/api'
-import { useRealTime } from '../real-time-provider'
+import { useRealTime } from '../../components/real-time-provider'
 
 interface Tire {
   id: string
