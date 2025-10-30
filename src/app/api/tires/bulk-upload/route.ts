@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireAuth } from '@/lib/auth'
-import * as XLSX from 'xlsx'
+const XLSX = require('xlsx')
 
 export async function POST(request: NextRequest) {
   try {
@@ -18,6 +18,11 @@ export async function POST(request: NextRequest) {
     }
 
     const buffer = Buffer.from(await file.arrayBuffer())
+    
+    if (!XLSX) {
+      throw new Error('XLSX library not available')
+    }
+    
     const workbook = XLSX.read(buffer, { type: 'buffer' })
     
     let totalCreated = 0
