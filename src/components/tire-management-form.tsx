@@ -12,6 +12,7 @@ import { Loader2, Plus, CheckCircle, AlertCircle, Search, Truck, User, Package, 
 import { apiPost, apiGet } from '@/lib/api'
 import { useDebounce } from '@/hooks/use-debounce'
 import { toast } from 'sonner'
+import { PermissionGuard, usePermissions } from '@/components/permission-guard'
 
 interface Vehicle {
   id: string
@@ -52,6 +53,7 @@ interface TireFormData {
 }
 
 export default function TireManagementForm() {
+  const permissions = usePermissions()
   const [formData, setFormData] = useState<TireFormData>({
     tireSize: '',
     manufacturer: '',
@@ -722,12 +724,13 @@ export default function TireManagementForm() {
               </div>
             </div>
 
-            <div className="flex justify-center pt-4">
-              <Button 
-                type="submit" 
-                disabled={submitting}
-                className="w-full sm:w-auto"
-              >
+            <PermissionGuard resource="tire-management" action="create">
+              <div className="flex justify-center pt-4">
+                <Button 
+                  type="submit" 
+                  disabled={submitting}
+                  className="w-full sm:w-auto"
+                >
                 {submitting ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -744,8 +747,9 @@ export default function TireManagementForm() {
                     })()}
                   </>
                 )}
-              </Button>
-            </div>
+                </Button>
+              </div>
+            </PermissionGuard>
           </form>
         </CardContent>
       </Card>

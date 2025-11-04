@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireAuth } from '@/lib/auth'
+import { requirePermission } from '@/lib/permission-middleware'
 import { createTireSchema, tireQuerySchema } from '@/lib/validations/tire'
 import { ExcelService } from '@/lib/excel-service'
 import { ZodError } from 'zod'
@@ -9,6 +10,9 @@ import fs from 'fs/promises'
 
 // GET /api/tires - Get all tires with filtering and pagination
 export async function GET(request: NextRequest) {
+  const authResult = await requirePermission(request, 'tire-management', 'read')
+  if (authResult instanceof NextResponse) return authResult
+
   try {
     // Test database connection first
     try {
@@ -107,8 +111,12 @@ export async function GET(request: NextRequest) {
 
 // POST /api/tires - Create new tire(s)
 export async function POST(request: NextRequest) {
+  const authResult = await requirePermission(request, 'tire-management', 'create')
+  if (authResult instanceof NextResponse) return authResult
+  
+  const { user } = authResult
+  
   try {
-    const user = await requireAuth(request)
     
     const body = await request.json()
     
