@@ -9,8 +9,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Textarea } from '@/components/ui/textarea'
-import { Search, Droplets, Calendar, Truck, User, BarChart3, Plus, Filter } from 'lucide-react'
+import { Search, Droplets, Calendar, Truck, User, BarChart3, Plus, Filter, Check, ChevronsUpDown } from 'lucide-react'
 import { apiGet, apiPost } from '@/lib/api'
 import { formatCurrency } from '@/lib/currency'
 import { toast } from 'sonner'
@@ -80,6 +82,8 @@ export default function OilChangesPage() {
   const [mechanics, setMechanics] = useState<Mechanic[]>([])
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [selectedTruck, setSelectedTruck] = useState<string>('')
+  const [truckSearchOpen, setTruckSearchOpen] = useState(false)
 
   useEffect(() => {
     fetchOilChanges()
@@ -187,6 +191,8 @@ export default function OilChangesPage() {
       if (response.ok) {
         toast.success('Oil change record added successfully')
         setIsAddDialogOpen(false)
+        setSelectedTruck('')
+        setTruckSearchOpen(false)
         fetchOilChanges()
       } else {
         toast.error('Failed to add oil change record')
@@ -230,7 +236,13 @@ export default function OilChangesPage() {
           </h1>
           <p className="text-muted-foreground">Track and manage all oil change maintenance records</p>
         </div>
-        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+        <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
+          setIsAddDialogOpen(open)
+          if (!open) {
+            setSelectedTruck('')
+            setTruckSearchOpen(false)
+          }
+        }}>
           <DialogTrigger asChild>
             <Button className="flex items-center gap-2">
               <Plus className="h-4 w-4" />
@@ -245,18 +257,57 @@ export default function OilChangesPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="truckId">Vehicle *</Label>
-                  <Select name="truckId" required>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select vehicle" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {trucks.map((truck) => (
-                        <SelectItem key={truck.id} value={truck.id}>
-                          {truck.year} {truck.make} {truck.model} - {truck.licensePlate}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Popover open={truckSearchOpen} onOpenChange={setTruckSearchOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={truckSearchOpen}
+                        className="w-full justify-between"
+                      >
+                        {selectedTruck
+                          ? trucks.find((truck) => truck.id === selectedTruck)?.licensePlate + ' - ' + 
+                            trucks.find((truck) => truck.id === selectedTruck)?.year + ' ' +
+                            trucks.find((truck) => truck.id === selectedTruck)?.make + ' ' +
+                            trucks.find((truck) => truck.id === selectedTruck)?.model
+                          : "Search by plate number..."}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-full p-0">
+                      <Command>
+                        <CommandInput placeholder="Search by plate number..." />
+                        <CommandList>
+                          <CommandEmpty>No vehicle found.</CommandEmpty>
+                          <CommandGroup>
+                            {trucks.map((truck) => (
+                              <CommandItem
+                                key={truck.id}
+                                value={`${truck.licensePlate} ${truck.year} ${truck.make} ${truck.model}`}
+                                onSelect={() => {
+                                  setSelectedTruck(truck.id)
+                                  setTruckSearchOpen(false)
+                                }}
+                              >
+                                <Check
+                                  className={`mr-2 h-4 w-4 ${
+                                    selectedTruck === truck.id ? "opacity-100" : "opacity-0"
+                                  }`}
+                                />
+                                <div className="flex flex-col">
+                                  <span className="font-medium">{truck.licensePlate}</span>
+                                  <span className="text-sm text-gray-500">
+                                    {truck.year} {truck.make} {truck.model}
+                                  </span>
+                                </div>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                  <input type="hidden" name="truckId" value={selectedTruck} required />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="datePerformed">Service Date *</Label>
