@@ -84,6 +84,19 @@ export default function OilChangesPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [selectedTruck, setSelectedTruck] = useState<string>('')
   const [truckSearchOpen, setTruckSearchOpen] = useState(false)
+  const [selectedMechanic, setSelectedMechanic] = useState<string>('none')
+  const [formData, setFormData] = useState({
+    datePerformed: new Date().toISOString().split('T')[0],
+    currentMileage: '',
+    oilQuantityLiters: '',
+    partsCost: '',
+    laborCost: '',
+    driverName: '',
+    oilChangeInterval: '',
+    nextServiceDue: '',
+    description: '',
+    notes: ''
+  })
 
   useEffect(() => {
     fetchOilChanges()
@@ -97,11 +110,28 @@ export default function OilChangesPage() {
 
   const fetchOilChanges = async () => {
     try {
-      const response = await apiGet('/api/oil-changes?limit=1000')
+      const response = await apiGet('/api/maintenance?limit=1000')
       if (response.ok) {
         const data = await response.json()
-        setOilChanges(data.data || [])
-        setSummary(data.summary || {})
+        // Filter only oil change records
+        const oilChangeRecords = (data.records || []).filter((record: any) => 
+          record.serviceType?.toLowerCase().includes('oil') || 
+          record.isOilChange === true
+        )
+        setOilChanges(oilChangeRecords)
+        
+        // Calculate oil change specific summary
+        const oilSummary = {
+          totalRecords: oilChangeRecords.length,
+          totalCost: oilChangeRecords.reduce((sum: number, r: any) => sum + (r.totalCost || 0), 0),
+          totalOilUsed: oilChangeRecords.reduce((sum: number, r: any) => sum + (r.oilQuantityLiters || 0), 0),
+          completedCount: oilChangeRecords.filter((r: any) => r.status === 'COMPLETED').length,
+          inProgressCount: oilChangeRecords.filter((r: any) => r.status === 'IN_PROGRESS').length,
+          recordsWithOilQuantity: oilChangeRecords.filter((r: any) => r.oilQuantityLiters > 0).length,
+          averageCost: oilChangeRecords.length > 0 ? oilChangeRecords.reduce((sum: number, r: any) => sum + (r.totalCost || 0), 0) / oilChangeRecords.length : 0,
+          averageOilPerChange: 0
+        }
+        setSummary(oilSummary)
       }
     } catch (error) {
       console.error('Error fetching oil changes:', error)
@@ -166,33 +196,53 @@ export default function OilChangesPage() {
     }
   }
 
-  const handleAddOilChange = async (formData: FormData) => {
+  const handleAddOilChange = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedTruck) {
+      toast.error('Please select a vehicle')
+      return
+    }
+    
     setIsSubmitting(true)
     try {
-      const data = {
-        truckId: formData.get('truckId'),
-        serviceType: formData.get('serviceType') || 'Oil Change',
-        description: formData.get('description'),
-        datePerformed: formData.get('datePerformed'),
-        partsCost: formData.get('partsCost'),
-        laborCost: formData.get('laborCost'),
-        mechanicId: formData.get('mechanicId'),
-        mechanicName: formData.get('mechanicName'),
-        driverName: formData.get('driverName'),
-        currentMileage: formData.get('currentMileage'),
-        oilQuantityLiters: formData.get('oilQuantityLiters'),
-        oilChangeInterval: formData.get('oilChangeInterval'),
-        nextServiceDue: formData.get('nextServiceDue'),
-        status: formData.get('status') || 'COMPLETED',
-        notes: formData.get('notes')
+      const maintenanceData = {
+        truckId: selectedTruck,
+        serviceType: 'Oil Change',
+        description: formData.description || 'Regular oil change service',
+        datePerformed: formData.datePerformed,
+        partsCost: parseFloat(formData.partsCost) || 0,
+        laborCost: parseFloat(formData.laborCost) || 0,
+        mechanicId: selectedMechanic !== 'none' ? selectedMechanic : null,
+        mechanicName: selectedMechanic !== 'none' ? mechanics.find(m => m.id === selectedMechanic)?.name : null,
+        driverName: formData.driverName,
+        currentMileage: formData.currentMileage ? parseInt(formData.currentMileage) : null,
+        oilQuantityLiters: formData.oilQuantityLiters ? parseFloat(formData.oilQuantityLiters) : null,
+        oilChangeInterval: formData.oilChangeInterval ? parseInt(formData.oilChangeInterval) : null,
+        nextServiceDue: formData.nextServiceDue || null,
+        status: 'COMPLETED',
+        notes: formData.notes,
+        isOilChange: true
       }
-
-      const response = await apiPost('/api/oil-changes', data)
+      
+      const response = await apiPost('/api/maintenance', maintenanceData)
       if (response.ok) {
         toast.success('Oil change record added successfully')
         setIsAddDialogOpen(false)
         setSelectedTruck('')
+        setSelectedMechanic('none')
         setTruckSearchOpen(false)
+        setFormData({
+          datePerformed: new Date().toISOString().split('T')[0],
+          currentMileage: '',
+          oilQuantityLiters: '',
+          partsCost: '',
+          laborCost: '',
+          driverName: '',
+          oilChangeInterval: '',
+          nextServiceDue: '',
+          description: '',
+          notes: ''
+        })
         fetchOilChanges()
       } else {
         toast.error('Failed to add oil change record')
@@ -204,6 +254,8 @@ export default function OilChangesPage() {
       setIsSubmitting(false)
     }
   }
+
+
 
   // Calculate mechanic statistics
   const mechanicStats = oilChanges.reduce((acc, record) => {
@@ -253,7 +305,7 @@ export default function OilChangesPage() {
             <DialogHeader>
               <DialogTitle>Add New Oil Change Record</DialogTitle>
             </DialogHeader>
-            <form action={handleAddOilChange} className="space-y-4">
+            <form onSubmit={handleAddOilChange} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="truckId">Vehicle *</Label>
@@ -307,15 +359,15 @@ export default function OilChangesPage() {
                       </Command>
                     </PopoverContent>
                   </Popover>
-                  <input type="hidden" name="truckId" value={selectedTruck} required />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="datePerformed">Service Date *</Label>
                   <Input
-                    name="datePerformed"
+                    id="datePerformed"
                     type="date"
                     required
-                    defaultValue={new Date().toISOString().split('T')[0]}
+                    value={formData.datePerformed}
+                    onChange={(e) => setFormData({...formData, datePerformed: e.target.value})}
                   />
                 </div>
               </div>
@@ -323,30 +375,57 @@ export default function OilChangesPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="currentMileage">Current Mileage</Label>
-                  <Input name="currentMileage" type="number" placeholder="e.g., 45000" />
+                  <Input 
+                    id="currentMileage"
+                    type="number" 
+                    placeholder="e.g., 45000"
+                    value={formData.currentMileage}
+                    onChange={(e) => setFormData({...formData, currentMileage: e.target.value})}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="oilQuantityLiters">Oil Quantity (Liters)</Label>
-                  <Input name="oilQuantityLiters" type="number" step="0.1" placeholder="e.g., 5.5" />
+                  <Input 
+                    id="oilQuantityLiters"
+                    type="number" 
+                    step="0.1" 
+                    placeholder="e.g., 5.5"
+                    value={formData.oilQuantityLiters}
+                    onChange={(e) => setFormData({...formData, oilQuantityLiters: e.target.value})}
+                  />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="partsCost">Parts Cost</Label>
-                  <Input name="partsCost" type="number" step="0.01" placeholder="0.00" />
+                  <Input 
+                    id="partsCost"
+                    type="number" 
+                    step="0.01" 
+                    placeholder="0.00"
+                    value={formData.partsCost}
+                    onChange={(e) => setFormData({...formData, partsCost: e.target.value})}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="laborCost">Labor Cost</Label>
-                  <Input name="laborCost" type="number" step="0.01" placeholder="0.00" />
+                  <Input 
+                    id="laborCost"
+                    type="number" 
+                    step="0.01" 
+                    placeholder="0.00"
+                    value={formData.laborCost}
+                    onChange={(e) => setFormData({...formData, laborCost: e.target.value})}
+                  />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="mechanicId">Mechanic</Label>
-                  <Select name="mechanicId">
-                    <SelectTrigger>
+                  <Select value={selectedMechanic} onValueChange={setSelectedMechanic}>
+                    <SelectTrigger id="mechanicId">
                       <SelectValue placeholder="Select mechanic" />
                     </SelectTrigger>
                     <SelectContent>
@@ -361,36 +440,83 @@ export default function OilChangesPage() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="driverName">Driver Name</Label>
-                  <Input name="driverName" placeholder="Driver name" />
+                  <Input 
+                    id="driverName"
+                    placeholder="Driver name"
+                    value={formData.driverName}
+                    onChange={(e) => setFormData({...formData, driverName: e.target.value})}
+                  />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="oilChangeInterval">Next Change Interval (km)</Label>
-                  <Input name="oilChangeInterval" type="number" placeholder="e.g., 10000" />
+                  <Input 
+                    id="oilChangeInterval"
+                    type="number" 
+                    placeholder="e.g., 10000"
+                    value={formData.oilChangeInterval}
+                    onChange={(e) => setFormData({...formData, oilChangeInterval: e.target.value})}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="nextServiceDue">Next Service Due</Label>
-                  <Input name="nextServiceDue" type="date" />
+                  <Input 
+                    id="nextServiceDue"
+                    type="date"
+                    value={formData.nextServiceDue}
+                    onChange={(e) => setFormData({...formData, nextServiceDue: e.target.value})}
+                  />
                 </div>
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="description">Description</Label>
-                <Input name="description" placeholder="Regular oil change service" />
+                <Input 
+                  id="description"
+                  placeholder="Regular oil change service"
+                  value={formData.description}
+                  onChange={(e) => setFormData({...formData, description: e.target.value})}
+                />
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="notes">Notes</Label>
-                <Textarea name="notes" placeholder="Additional notes..." rows={3} />
+                <Textarea 
+                  id="notes"
+                  placeholder="Additional notes..." 
+                  rows={3}
+                  value={formData.notes}
+                  onChange={(e) => setFormData({...formData, notes: e.target.value})}
+                />
               </div>
 
               <div className="flex justify-end gap-2 pt-4">
-                <Button type="button" variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => {
+                    setIsAddDialogOpen(false)
+                    setSelectedTruck('')
+                    setSelectedMechanic('none')
+                    setFormData({
+                      datePerformed: new Date().toISOString().split('T')[0],
+                      currentMileage: '',
+                      oilQuantityLiters: '',
+                      partsCost: '',
+                      laborCost: '',
+                      driverName: '',
+                      oilChangeInterval: '',
+                      nextServiceDue: '',
+                      description: '',
+                      notes: ''
+                    })
+                  }}
+                >
                   Cancel
                 </Button>
-                <Button type="submit" disabled={isSubmitting}>
+                <Button type="submit" disabled={isSubmitting || !selectedTruck}>
                   {isSubmitting ? 'Adding...' : 'Add Oil Change'}
                 </Button>
               </div>
