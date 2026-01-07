@@ -99,7 +99,13 @@ export async function POST(request: NextRequest) {
           partsCost: parseFloat(body.partsCost) || 0,
           laborCost: parseFloat(body.laborCost) || 0,
           totalCost: (parseFloat(body.partsCost) || 0) + (parseFloat(body.laborCost) || 0),
-          status: body.status || 'COMPLETED'
+          status: body.status || 'COMPLETED',
+          isOilChange: body.isOilChange || false,
+          oilQuantityLiters: body.oilQuantityLiters ? parseFloat(body.oilQuantityLiters) : null,
+          oilChangeInterval: body.oilChangeInterval ? parseInt(body.oilChangeInterval) : null,
+          currentMileage: body.currentMileage ? parseInt(body.currentMileage) : null,
+          nextServiceDue: body.nextServiceDue ? new Date(body.nextServiceDue) : null,
+          notes: body.notes || null
         }
       })
     }

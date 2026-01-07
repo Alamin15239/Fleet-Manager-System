@@ -124,10 +124,10 @@ export default function OilChangesPage() {
         const oilSummary = {
           totalRecords: oilChangeRecords.length,
           totalCost: oilChangeRecords.reduce((sum: number, r: any) => sum + (r.totalCost || 0), 0),
-          totalOilUsed: oilChangeRecords.reduce((sum: number, r: any) => sum + (r.oilQuantityLiters || 0), 0),
+          totalOilUsed: oilChangeRecords.reduce((sum: number, r: any) => sum + (parseFloat(r.oilQuantityLiters) || 0), 0),
           completedCount: oilChangeRecords.filter((r: any) => r.status === 'COMPLETED').length,
           inProgressCount: oilChangeRecords.filter((r: any) => r.status === 'IN_PROGRESS').length,
-          recordsWithOilQuantity: oilChangeRecords.filter((r: any) => r.oilQuantityLiters > 0).length,
+          recordsWithOilQuantity: oilChangeRecords.filter((r: any) => parseFloat(r.oilQuantityLiters) > 0).length,
           averageCost: oilChangeRecords.length > 0 ? oilChangeRecords.reduce((sum: number, r: any) => sum + (r.totalCost || 0), 0) / oilChangeRecords.length : 0,
           averageOilPerChange: 0
         }

@@ -1047,9 +1047,12 @@ export default function MaintenancePage() {
                     </TableCell>
                     <TableCell>
                       <div className="max-w-48">
-                        <div className="font-medium text-sm truncate">{record.serviceType}</div>
+                        <div className="font-medium text-sm truncate flex items-center gap-2">
+                          {record.isOilChange && <span>🛢️</span>}
+                          {record.serviceType}
+                        </div>
                         {record.isOilChange && (
-                          <span className="text-xs text-blue-600">🛢️ Oil Change</span>
+                          <span className="text-xs text-blue-600">Oil Change</span>
                         )}
                         {record.maintenanceJob && (
                           <div className="text-xs text-gray-500 truncate">{record.maintenanceJob.category}</div>
