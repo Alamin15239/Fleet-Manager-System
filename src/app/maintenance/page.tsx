@@ -753,14 +753,19 @@ export default function MaintenancePage() {
                     />
                     {showMechanicDropdown && (
                       <div className="absolute z-50 w-full mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-auto">
-                        <div className="px-3 py-2 hover:bg-gray-100 cursor-pointer flex items-center gap-2">
+                        <div 
+                          className="px-3 py-2 hover:bg-gray-100 cursor-pointer flex items-center gap-2"
+                          onClick={() => {
+                            setSelectedMechanics([])
+                            setMechanicSearch('')
+                            setFormData({...formData, mechanicId: 'none', mechanicName: ''})
+                            setShowMechanicDropdown(false)
+                          }}
+                        >
                           <input
                             type="checkbox"
                             checked={selectedMechanics.length === 0}
-                            onChange={() => {
-                              setSelectedMechanics([])
-                              setFormData({...formData, mechanicId: 'none'})
-                            }}
+                            onChange={() => {}}
                             className="w-4 h-4"
                           />
                           <span>No mechanic</span>
@@ -779,12 +784,10 @@ export default function MaintenancePage() {
                                 key={mechanic.id}
                                 className="px-3 py-2 hover:bg-gray-100 cursor-pointer flex items-center gap-2"
                                 onClick={() => {
-                                  const newSelection = isSelected
-                                    ? selectedMechanics.filter(m => m.id !== mechanic.id)
-                                    : [...selectedMechanics, mechanic]
-                                  setSelectedMechanics(newSelection)
-                                  const mechanicNames = newSelection.map(m => m.name).join(', ')
-                                  setFormData({...formData, mechanicId: newSelection.length > 0 ? newSelection[0].id : 'none', mechanicName: mechanicNames})
+                                  setSelectedMechanics([mechanic])
+                                  setMechanicSearch(mechanic.name)
+                                  setFormData({...formData, mechanicId: mechanic.id, mechanicName: mechanic.name})
+                                  setShowMechanicDropdown(false)
                                 }}
                               >
                                 <input
@@ -809,10 +812,9 @@ export default function MaintenancePage() {
                           <button
                             type="button"
                             onClick={() => {
-                              const newSelection = selectedMechanics.filter(m => m.id !== mechanic.id)
-                              setSelectedMechanics(newSelection)
-                              const mechanicNames = newSelection.map(m => m.name).join(', ')
-                              setFormData({...formData, mechanicId: newSelection.length > 0 ? newSelection[0].id : 'none', mechanicName: mechanicNames})
+                              setSelectedMechanics([])
+                              setMechanicSearch('')
+                              setFormData({...formData, mechanicId: 'none', mechanicName: ''})
                             }}
                             className="text-green-600 hover:text-green-800"
                           >
