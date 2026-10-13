@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server'
-import { trackUserActivity, ActivityActions, EntityTypes } from '@/lib/activity-tracker'
+import { trackUserActivity as logUserActivity, ActivityActions, EntityTypes } from '@/lib/activity-tracker'
 import { verifyToken } from '@/lib/auth'
 
 export async function trackAPIActivity(
@@ -25,7 +25,7 @@ export async function trackAPIActivity(
       return // Invalid token, skip tracking
     }
 
-    await trackUserActivity({
+    await logUserActivity({
       userId: decoded.id,
       action,
       entityType,

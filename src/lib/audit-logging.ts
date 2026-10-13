@@ -137,7 +137,7 @@ export async function logEntityChange(
       entityType,
       entityId,
       userId,
-      userName: user?.name,
+      userName: user?.name ?? undefined,
       userEmail: user?.email,
       userRole: user?.role,
       changes,

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { Prisma } from '@prisma/client'
 import { defaultPermissions, adminPermissions, managerPermissions } from '@/lib/permissions'
 
 export async function GET(request: NextRequest) {
@@ -47,7 +48,7 @@ export async function GET(request: NextRequest) {
             ADMIN: adminPermissions,
             MANAGER: managerPermissions,
             USER: defaultPermissions
-          },
+          } as unknown as Prisma.InputJsonValue,
           userPermissions: {}
         }
       })

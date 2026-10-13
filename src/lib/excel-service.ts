@@ -1,24 +1,17 @@
-let XLSX: any
-
-try {
-  XLSX = require('xlsx')
-} catch {
-  // Fallback for environments where xlsx is not available
-  XLSX = null
-}
+import * as XLSX from 'xlsx'
 
 export interface TireExcelData {
   id?: string
   tireSize: string
   manufacturer: string
   origin: string
-  plateNumber?: string
-  trailerNumber?: string
-  driverName?: string
+  plateNumber?: string | null
+  trailerNumber?: string | null
+  driverName?: string | null
   quantity: number
-  serialNumber?: string
-  notes?: string
-  createdAt: string
+  serialNumber?: string | null
+  notes?: string | null
+  createdAt: string | Date
 }
 
 export class ExcelService {
@@ -72,8 +65,8 @@ export class ExcelService {
   }
 
   static async appendTireToExcel(filePath: string, tire: TireExcelData): Promise<void> {
-    let workbook: XLSX.WorkBook
-    let worksheet: XLSX.WorkSheet
+    let workbook: any
+    let worksheet: any
 
     try {
       // Try to read existing file

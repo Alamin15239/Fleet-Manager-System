@@ -41,7 +41,7 @@ export class EmailService {
       const resend = this.getResend()
       
       await resend.emails.send({
-        from: `${settings?.companyName || 'Fleet Manager'} <noreply@${process.env.RESEND_DOMAIN || 'yourdomain.com'}>`,
+        from: `${settings?.companyName || 'Fleet Manager'} <noreply@${process.env.RESEND_DOMAIN || 'fleetmaintenance.site'}>`,
         to: notification.to,
         subject: notification.subject,
         text: notification.text,

@@ -62,7 +62,7 @@ export async function generatePDF(documentId: string, content: string, title: st
       }
     });
 
-    return pdf;
+    return Buffer.from(pdf);
   } finally {
     await browser.close();
   }

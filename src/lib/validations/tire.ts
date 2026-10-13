@@ -3,7 +3,7 @@ import { z } from 'zod'
 export const tireSchema = z.object({
   tireSize: z.string().min(1, 'Tire size is required').max(50, 'Tire size too long'),
   manufacturer: z.string().min(1, 'Manufacturer is required').max(100, 'Manufacturer name too long'),
-  origin: z.enum(['CHINESE', 'SAUDI', 'JAPANESE', 'EUROPEAN', 'AMERICAN', 'OTHER'], { required_error: 'Origin is required' }),
+  origin: z.enum(['CHINESE', 'SAUDI', 'JAPANESE', 'EUROPEAN', 'AMERICAN', 'OTHER'], { message: 'Origin is required' }),
   plateNumber: z.string().optional().nullable(),
   trailerNumber: z.string().optional().nullable(),
   driverName: z.string().optional().nullable(),

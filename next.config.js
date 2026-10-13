@@ -1,8 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  experimental: {
-    serverComponentsExternalPackages: ['puppeteer-core']
-  },
+  serverExternalPackages: ['puppeteer-core'],
   typescript: {
     ignoreBuildErrors: true
   },

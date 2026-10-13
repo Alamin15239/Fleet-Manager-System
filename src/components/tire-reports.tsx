@@ -218,7 +218,7 @@ export default function TireReports() {
         // Detailed Tire Inventory
         ['=== DETAILED TIRE INVENTORY ==='].join(','),
         ['Tire Size', 'Manufacturer', 'Origin', 'Plate Number', 'Trailer Number', 'Driver', 'Quantity', 'Serial Number', 'Date Added', 'Notes'].join(','),
-        ...tiresData.tires.map(tire => [
+        ...tiresData.tires.map((tire: any) => [
           tire.tireSize,
           tire.manufacturer,
           tire.origin,

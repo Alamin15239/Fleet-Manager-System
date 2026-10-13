@@ -105,7 +105,7 @@ sudo apt install nginx
 ```nginx
 server {
     listen 80;
-    server_name yourdomain.com;
+    server_name fleetmaintenance.site;
 
     location / {
         proxy_pass http://localhost:3000;
@@ -120,7 +120,7 @@ server {
 
 3. Enable SSL with Let's Encrypt:
 ```bash
-sudo certbot --nginx -d yourdomain.com
+sudo certbot --nginx -d fleetmaintenance.site
 ```
 
 ## Post-Deployment

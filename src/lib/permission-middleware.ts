@@ -39,7 +39,7 @@ export async function requirePermission(
 }
 
 export function withPermission(resource: string, action: string = 'read') {
-  return function (handler: Function) {
+  return function (handler: (...args: any[]) => any) {
     return async function (request: NextRequest, ...args: any[]) {
       const authResult = await requirePermission(request, resource, action)
       

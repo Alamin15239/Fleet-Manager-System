@@ -398,7 +398,7 @@ export default function MaintenanceTracking() {
     }
   }
 
-  const handleInputChange = (field: keyof MaintenanceFormData, value: string | number | boolean) => {
+  const handleInputChange = (field: keyof MaintenanceFormData, value: string | number | boolean | undefined) => {
     setFormData(prev => {
       // Handle numeric fields
       const numericFields = ['partsCost', 'laborCost', 'downtimeHours', 'currentMileage', 'oilChangeInterval'];

@@ -39,6 +39,11 @@ interface MaintenanceRecord {
     currentMileage?: number
     driverName?: string
   }
+  trailer?: {
+    id: string
+    number: string
+    driverName?: string | null
+  }
   mechanic?: {
     id: string
     name: string

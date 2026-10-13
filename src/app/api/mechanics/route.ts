@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
 
       const mechanicsWithCount = mechanics.map(mechanic => ({
         ...mechanic,
-        maintenanceCount: mechanic._count.maintenanceRecords
+        maintenanceCount: (mechanic._count as any).maintenanceRecords
       }))
 
       return NextResponse.json(mechanicsWithCount)

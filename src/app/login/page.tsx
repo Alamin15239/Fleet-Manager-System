@@ -20,7 +20,7 @@ function SearchParamsHandler() {
   
   useEffect(() => {
     // Check for redirect parameter
-    const redirect = searchParams.get('redirect')
+    const redirect = searchParams?.get('redirect')
     if (redirect) {
       localStorage.setItem('redirectAfterLogin', redirect)
     }

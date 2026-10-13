@@ -49,13 +49,13 @@ export function CurrencyInput({
   // Update display value when prop changes
   useEffect(() => {
     if (!isFocused) {
-      setDisplayValue(formatCurrencyForInput(value, currencySettings))
+      setDisplayValue(formatCurrencyForInput(Number(value) || 0, currencySettings))
     }
   }, [value, isFocused, currencySettings])
 
   const handleFocus = useCallback(() => {
     setIsFocused(true)
-    setDisplayValue(formatCurrencyForInput(value, currencySettings))
+    setDisplayValue(formatCurrencyForInput(Number(value) || 0, currencySettings))
   }, [value, currencySettings])
 
   const handleBlur = useCallback(() => {

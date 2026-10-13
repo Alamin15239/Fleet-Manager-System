@@ -25,7 +25,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://www.primeofferonline.shop'),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://fleetmaintenance.site'),
   title: "Fleet Manager Pro | Complete Truck Fleet Management System",
   description: "Professional fleet management solution for truck maintenance, tire tracking, analytics & reporting. Streamline your fleet operations with real-time monitoring and predictive maintenance.",
   keywords: ["fleet management", "truck maintenance", "tire management", "fleet tracking", "vehicle maintenance", "fleet analytics", "truck fleet", "maintenance software", "fleet operations", "vehicle tracking"],
@@ -40,7 +40,7 @@ export const metadata: Metadata = {
     description: "Professional fleet management solution with maintenance tracking, tire management, real-time analytics and comprehensive reporting. Optimize your fleet operations today!",
     siteName: "Fleet Manager Pro",
     type: "website",
-    url: 'https://www.primeofferonline.shop',
+    url: 'https://fleetmaintenance.site',
     images: [{
       url: '/logo.svg',
       width: 1200,

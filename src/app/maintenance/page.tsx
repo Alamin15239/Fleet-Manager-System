@@ -41,6 +41,8 @@ interface Truck {
   model: string
   year: number
   licensePlate: string
+  status?: string
+  driverName?: string
 }
 
 interface Trailer {
@@ -77,7 +79,16 @@ interface MaintenanceRecord {
   notes?: string
   isOilChange?: boolean
   oilChangeInterval?: number
+  oilQuantityLiters?: number
   currentMileage?: number
+  trailerId?: string
+  trailer?: {
+    id?: string
+    number: string
+    driverName?: string | null
+  } | null
+  driverName?: string
+  mechanicName?: string
   maintenanceJobId?: string
   maintenanceJob?: MaintenanceJob
   createdAt: string
@@ -130,7 +141,7 @@ export default function MaintenancePage() {
     laborCost: 0,
     mechanicId: 'none',
     nextServiceDue: '',
-    status: 'SCHEDULED' as const,
+    status: 'SCHEDULED' as 'SCHEDULED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED',
     notes: '',
     isOilChange: false,
     oilChangeInterval: 5000, // Default 5000 km

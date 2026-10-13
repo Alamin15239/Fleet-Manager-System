@@ -103,9 +103,9 @@ export default function TireExcelViewer() {
     tireSize: [...new Set(tires.map(t => t.tireSize))],
     manufacturer: [...new Set(tires.map(t => t.manufacturer))],
     origin: [...new Set(tires.map(t => t.origin))],
-    plateNumber: [...new Set(tires.map(t => t.plateNumber).filter(Boolean))],
-    trailerNumber: [...new Set(tires.map(t => t.trailerNumber).filter(Boolean))],
-    driverName: [...new Set(tires.map(t => t.driverName).filter(Boolean))]
+    plateNumber: [...new Set(tires.map(t => t.plateNumber).filter((v): v is string => Boolean(v)))],
+    trailerNumber: [...new Set(tires.map(t => t.trailerNumber).filter((v): v is string => Boolean(v)))],
+    driverName: [...new Set(tires.map(t => t.driverName).filter((v): v is string => Boolean(v)))]
   }
 
   const updateFilter = (key: string, value: string) => {

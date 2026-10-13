@@ -69,7 +69,7 @@ export default function TrucksPage() {
     year: new Date().getFullYear(),
     licensePlate: '',
     currentMileage: 0,
-    status: 'ACTIVE' as const,
+    status: 'ACTIVE' as 'ACTIVE' | 'MAINTENANCE' | 'INACTIVE',
     driverName: ''
   })
   
@@ -89,7 +89,7 @@ export default function TrucksPage() {
     const hasRequiredFields = formData.vin && formData.make && formData.model && formData.licensePlate
     const hasNoErrors = !validationErrors.vin && !validationErrors.licensePlate
     const isNotChecking = !isCheckingVin && !isCheckingLicensePlate
-    const isValid = hasRequiredFields && hasNoErrors && isNotChecking
+    const isValid = Boolean(hasRequiredFields) && hasNoErrors && isNotChecking
     setIsFormValid(isValid)
     
     console.log('Validation state:', {

@@ -112,6 +112,7 @@ export default function TireInventoryList() {
     trailerNumber: '',
     driverName: '',
     quantity: 1,
+    serialNumber: '',
     notes: ''
   })
   const [submitting, setSubmitting] = useState(false)

@@ -10,7 +10,7 @@ export async function GET(
     const { id } = await params;
     
     // Try to find in truck maintenance records first
-    let maintenanceRecord = await db.maintenanceRecord.findUnique({
+    let maintenanceRecord: any = await db.maintenanceRecord.findUnique({
       where: { 
         id: id,
         isDeleted: false 
@@ -132,7 +132,7 @@ export async function PUT(
     const body = await request.json()
 
     // Check if maintenance record exists in truck records
-    let existingRecord = await db.maintenanceRecord.findUnique({
+    let existingRecord: any = await db.maintenanceRecord.findUnique({
       where: { 
         id: id,
         isDeleted: false 
@@ -300,7 +300,7 @@ export async function DELETE(
     const { id } = await params;
     
     // Check if maintenance record exists in truck records
-    let record = await db.maintenanceRecord.findUnique({
+    let record: any = await db.maintenanceRecord.findUnique({
       where: { 
         id: id,
         isDeleted: false 

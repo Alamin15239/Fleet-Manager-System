@@ -19,6 +19,7 @@ interface Vehicle {
   plateNumber: string
   trailerNumber: string | null
   driverName: string | null
+  isActive?: boolean
 }
 
 interface Tire {
@@ -116,8 +117,8 @@ export default function TireManagementForm() {
         setVehicles(vehicleList)
         
         // Extract unique plate numbers and trailer numbers from vehicles
-        const plates = [...new Set(vehicleList.map(v => v.plateNumber))]
-        const trailers = [...new Set(vehicleList.map(v => v.trailerNumber).filter(Boolean))]
+        const plates = [...new Set(vehicleList.map((v: any) => v.plateNumber))] as string[]
+        const trailers = [...new Set(vehicleList.map((v: any) => v.trailerNumber).filter(Boolean))] as string[]
         
         setPlateNumbers(plates)
         setTrailerNumbers(trailers)
@@ -268,7 +269,7 @@ export default function TireManagementForm() {
       } else {
         const errorData = await response.json()
         const errorMessage = errorData.details ? 
-          `Validation error: ${errorData.details.map(d => d.message).join(', ')}` : 
+          `Validation error: ${errorData.details.map((d: any) => d.message).join(', ')}` : 
           errorData.error || 'Failed to create tires'
         
         setError(errorMessage)

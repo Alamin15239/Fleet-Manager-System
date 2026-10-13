@@ -3,7 +3,7 @@
 const https = require('https');
 const http = require('http');
 
-const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://www.primeofferonline.shop';
+const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://fleetmaintenance.site';
 
 const apiRoutes = [
   '/api/health',

@@ -43,7 +43,7 @@ export default function TrailersPage() {
   
   const [formData, setFormData] = useState({
     number: '',
-    status: 'ACTIVE' as const,
+    status: 'ACTIVE' as 'ACTIVE' | 'MAINTENANCE' | 'INACTIVE',
     driverName: ''
   })
 

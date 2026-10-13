@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { Prisma } from '@prisma/client'
 import { db } from '@/lib/db'
 import { requireAuth } from '@/lib/auth'
 import { requirePermission } from '@/lib/permission-middleware'
@@ -172,7 +173,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const tiresData = []
+    const tiresData: Prisma.TireCreateManyInput[] = []
     let totalTires = 0
 
     // Create truck tires if truck info provided
@@ -198,7 +199,7 @@ export async function POST(request: NextRequest) {
     // Create trailer tires if trailer info provided
     if (trailerTireSize && trailerManufacturer && trailerOrigin && trailerNumber) {
       // Get driver name from vehicle if not provided
-      let finalDriverName = driverName
+      let finalDriverName: string | null = driverName ?? null
       if (!finalDriverName) {
         const vehicle = await db.vehicle.findFirst({
           where: {
@@ -243,8 +244,9 @@ export async function POST(request: NextRequest) {
     // Note: Auto-export removed for serverless compatibility
 
     // Emit real-time update
-    if (global.io) {
-      global.io.emit('tire-created', {
+    const io = (global as any).io
+    if (io) {
+      io.emit('tire-created', {
         count: createdTires.count,
         plateNumber,
         manufacturer,
@@ -259,9 +261,9 @@ export async function POST(request: NextRequest) {
     }, { status: 201 })
   } catch (error) {
     if (error instanceof ZodError) {
-      console.error('Validation errors:', error.errors)
+      console.error('Validation errors:', error.issues)
       return NextResponse.json(
-        { error: 'Validation failed', details: error.errors },
+        { error: 'Validation failed', details: error.issues },
         { status: 400 }
       )
     }

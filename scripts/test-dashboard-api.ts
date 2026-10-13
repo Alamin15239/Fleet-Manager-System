@@ -1,7 +1,7 @@
 async function testDashboardAPI() {
   try {
     console.log('Testing dashboard stats API...')
-    const response = await fetch('https://www.primeofferonline.shop/api/dashboard/stats')
+    const response = await fetch('https://fleetmaintenance.site/api/dashboard/stats')
     
     console.log('Response status:', response.status)
     

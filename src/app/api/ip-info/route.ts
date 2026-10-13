@@ -16,7 +16,6 @@ export async function GET(request: NextRequest) {
       'x-forwarded': request.headers.get('x-forwarded'),
       'forwarded-for': request.headers.get('forwarded-for'),
       'forwarded': request.headers.get('forwarded'),
-      'request-ip': request.ip
     }
     
     return NextResponse.json({

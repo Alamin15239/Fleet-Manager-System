@@ -265,7 +265,7 @@ export default function TruckManagement() {
     }
   }
 
-  const handleInputChange = (field: keyof TruckFormData, value: string | number) => {
+  const handleInputChange = (field: keyof TruckFormData, value: string | number | undefined) => {
     setFormData(prev => ({
       ...prev,
       [field]: value

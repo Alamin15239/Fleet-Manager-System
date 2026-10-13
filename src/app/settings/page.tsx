@@ -1045,7 +1045,6 @@ export default function SettingsPage() {
                                   checked={hasPermission(roleKey, 'trucks')}
                                   onCheckedChange={(checked) => updateRolePermission(roleKey, 'trucks', checked)}
                                   disabled={roleKey === 'ADMIN'}
-                                  size="sm"
                                 />
                               </div>
                               <div className="flex items-center justify-between">
@@ -1054,7 +1053,6 @@ export default function SettingsPage() {
                                   checked={hasPermission(roleKey, 'trucks-delete')}
                                   onCheckedChange={(checked) => updateRolePermission(roleKey, 'trucks-delete', checked)}
                                   disabled={roleKey === 'ADMIN'}
-                                  size="sm"
                                 />
                               </div>
                             </div>
@@ -1092,7 +1090,6 @@ export default function SettingsPage() {
                                   checked={hasPermission(roleKey, 'maintenance')}
                                   onCheckedChange={(checked) => updateRolePermission(roleKey, 'maintenance', checked)}
                                   disabled={roleKey === 'ADMIN'}
-                                  size="sm"
                                 />
                               </div>
                               <div className="flex items-center justify-between">
@@ -1101,7 +1098,6 @@ export default function SettingsPage() {
                                   checked={hasPermission(roleKey, 'maintenance-delete')}
                                   onCheckedChange={(checked) => updateRolePermission(roleKey, 'maintenance-delete', checked)}
                                   disabled={roleKey === 'ADMIN'}
-                                  size="sm"
                                 />
                               </div>
                             </div>
@@ -1169,7 +1165,6 @@ export default function SettingsPage() {
                                   checked={hasPermission(roleKey, 'users')}
                                   onCheckedChange={(checked) => updateRolePermission(roleKey, 'users', checked)}
                                   disabled={roleKey === 'ADMIN'}
-                                  size="sm"
                                 />
                               </div>
                               <div className="flex items-center justify-between">
@@ -1178,7 +1173,6 @@ export default function SettingsPage() {
                                   checked={hasPermission(roleKey, 'users-manage')}
                                   onCheckedChange={(checked) => updateRolePermission(roleKey, 'users-manage', checked)}
                                   disabled={roleKey === 'ADMIN'}
-                                  size="sm"
                                 />
                               </div>
                             </div>
@@ -1216,7 +1210,6 @@ export default function SettingsPage() {
                                   checked={hasPermission(roleKey, 'settings')}
                                   onCheckedChange={(checked) => updateRolePermission(roleKey, 'settings', checked)}
                                   disabled={roleKey === 'ADMIN'}
-                                  size="sm"
                                 />
                               </div>
                               <div className="flex items-center justify-between">
@@ -1225,7 +1218,6 @@ export default function SettingsPage() {
                                   checked={hasPermission(roleKey, 'settings-manage')}
                                   onCheckedChange={(checked) => updateRolePermission(roleKey, 'settings-manage', checked)}
                                   disabled={roleKey === 'ADMIN'}
-                                  size="sm"
                                 />
                               </div>
                             </div>

@@ -77,7 +77,7 @@ export async function PUT(
 
     // Check if VIN is being changed and already exists
     if (body.vin && body.vin !== existingTruck.vin) {
-      const vinExists = await db.truck.findUnique({
+      const vinExists = await db.truck.findFirst({
         where: { 
           vin: body.vin,
           NOT: { id: id }
@@ -94,7 +94,7 @@ export async function PUT(
 
     // Check if license plate is being changed and already exists
     if (body.licensePlate && body.licensePlate !== existingTruck.licensePlate) {
-      const plateExists = await db.truck.findUnique({
+      const plateExists = await db.truck.findFirst({
         where: { 
           licensePlate: body.licensePlate,
           NOT: { id: id }

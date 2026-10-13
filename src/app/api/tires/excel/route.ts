@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
     const excelBuffer = await ExcelService.exportTiresToExcel(tires)
     console.log('Excel buffer created, size:', excelBuffer.length)
 
-    return new NextResponse(excelBuffer, {
+    return new NextResponse(new Uint8Array(excelBuffer), {
       headers: {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         'Content-Disposition': `attachment; filename="tires-${new Date().toISOString().split('T')[0]}.xlsx"`

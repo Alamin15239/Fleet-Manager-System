@@ -28,7 +28,7 @@ export function handleError(error: unknown) {
       {
         success: false,
         error: 'Validation failed',
-        details: error.errors.map(e => ({
+        details: error.issues.map(e => ({
           field: e.path.join('.'),
           message: e.message,
         })),

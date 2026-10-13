@@ -79,7 +79,7 @@ export function useRealtimeSync() {
     } catch (error) {
       setStatus(prev => ({ 
         ...prev, 
-        error: error.message,
+        error: error instanceof Error ? error.message : String(error),
         syncing: false 
       }));
     }

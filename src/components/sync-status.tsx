@@ -3,7 +3,7 @@
 import { useRealtimeSync } from '@/hooks/use-realtime-sync';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { RefreshCw, Zap, Database, Build } from 'lucide-react';
+import { RefreshCw, Zap, Database, Wrench } from 'lucide-react';
 
 export function SyncStatus() {
   const { status, triggerSync } = useRealtimeSync();
@@ -45,7 +45,7 @@ export function SyncStatus() {
           onClick={() => triggerSync('build')}
           disabled={status.syncing}
         >
-          <Build className="h-3 w-3" />
+          <Wrench className="h-3 w-3" />
           Build
         </Button>
       </div>

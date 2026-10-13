@@ -151,8 +151,8 @@ export function getClientIP(request: NextRequest): string {
     }
   }
   
-  // Fallback to request.ip or localhost
-  return request.ip || '127.0.0.1'
+  // Fallback to localhost (NextRequest.ip was removed in Next.js 15)
+  return '127.0.0.1'
 }
 
 function isValidIP(ip: string): boolean {

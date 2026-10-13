@@ -94,7 +94,7 @@ export default function TireInventoryGrouped() {
         setGroupedTires(grouped)
         
         // Extract manufacturers for filter
-        const uniqueManufacturers = [...new Set(data.tires.map(t => t.manufacturer))]
+        const uniqueManufacturers = [...new Set(data.tires.map((t: any) => t.manufacturer))] as string[]
         setManufacturers(uniqueManufacturers)
       }
     } catch (error) {
