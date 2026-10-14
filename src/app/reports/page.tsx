@@ -13,6 +13,7 @@ import { Download, FileText, BarChart3, Filter, Search, Calendar, Truck, User, S
 import { toast } from 'sonner'
 import { formatCurrency } from '@/lib/currency'
 import { apiGet } from '@/lib/api'
+import { createMaintenancePdf, createMaintenanceWorkbook } from '@/lib/maintenance-report-export'
 
 interface MaintenanceRecord {
   id: string
@@ -245,18 +246,26 @@ export default function ReportsPage() {
 
   const generateReport = async () => {
     setGenerating(true)
+    let previewWindow: Window | null = null
     try {
       const filteredMaintenance = getFilteredMaintenance()
       
       if (format === 'pdf') {
-        generatePDF(filteredMaintenance)
+        previewWindow = window.open('', '_blank')
+        if (!previewWindow) throw new Error('Allow pop-ups to preview the PDF report.')
+        previewWindow.document.write('<title>Preparing report</title><p style="font-family:Arial;padding:24px">Preparing your report…</p>')
+        const blob = await createMaintenancePdf(filteredMaintenance, `${startDate || 'All time'} to ${endDate || 'Current'}`)
+        const url = URL.createObjectURL(blob)
+        previewWindow.location.href = url
+        window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
       } else {
-        generateExcel(filteredMaintenance)
+        await exportMaintenanceExcel(filteredMaintenance)
       }
       
       toast.success('Report generated successfully')
     } catch (error) {
-      toast.error('Failed to generate report')
+      previewWindow?.close()
+      toast.error(error instanceof Error ? error.message : 'Failed to generate report')
     } finally {
       setGenerating(false)
     }
@@ -268,263 +277,34 @@ export default function ReportsPage() {
       const filteredMaintenance = getFilteredMaintenance()
       
       if (format === 'pdf') {
-        downloadPDF(filteredMaintenance)
+        const blob = await createMaintenancePdf(filteredMaintenance, `${startDate || 'All time'} to ${endDate || 'Current'}`)
+        downloadBlob(blob, `maintenance-report-${new Date().toISOString().slice(0, 10)}.pdf`)
       } else {
-        generateExcel(filteredMaintenance)
+        await exportMaintenanceExcel(filteredMaintenance)
       }
       
       toast.success('Report downloaded successfully')
     } catch (error) {
-      toast.error('Failed to download report')
+      toast.error(error instanceof Error ? error.message : 'Failed to download report')
     } finally {
       setGenerating(false)
     }
   }
 
-  const downloadPDF = (data: MaintenanceRecord[]) => {
-    const totalCost = data.reduce((sum, record) => sum + record.totalCost, 0)
-    const totalParts = data.reduce((sum, record) => sum + record.partsCost, 0)
-    const totalLabor = data.reduce((sum, record) => sum + record.laborCost, 0)
-
-    const html = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Fleet Maintenance Report</title>
-          <style>
-            body { font-family: Arial, sans-serif; margin: 20px; }
-            .header { text-align: center; margin-bottom: 30px; }
-            .summary { background-color: #f9f9f9; padding: 15px; margin-bottom: 20px; }
-            table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-            th, td { border: 1px solid #333; padding: 8px; text-align: left; font-size: 12px; }
-            th { background-color: #e8e8e8; font-weight: bold; }
-            .total-row { background-color: #f0f0f0; font-weight: bold; }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <h1>Fleet Maintenance Report</h1>
-            <p>Generated: ${new Date().toLocaleDateString()}</p>
-            <p>Period: ${startDate || 'All Time'} to ${endDate || 'Current'}</p>
-          </div>
-
-          <div class="summary">
-            <h2>Maintenance Summary</h2>
-            <p><strong>Total Records:</strong> ${data.length}</p>
-            <p><strong>Total Cost:</strong> ${formatCurrency(totalCost)}</p>
-            <p><strong>Average Cost:</strong> ${data.length > 0 ? formatCurrency(totalCost / data.length) : formatCurrency(0)}</p>
-          </div>
-
-          <h2>Maintenance Records</h2>
-          <table>
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Vehicle</th>
-                <th>Driver</th>
-                <th>Service Type</th>
-                <th>Description</th>
-                <th>Mechanic</th>
-                <th>Creator</th>
-                <th>Parts Cost</th>
-                <th>Labor Cost</th>
-                <th>Total Cost</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${data.map(record => `
-                <tr>
-                  <td>${new Date(record.datePerformed).toLocaleDateString()}</td>
-                  <td>${getVehicleDisplay(record)}</td>
-                  <td>${getDriverName(record)}</td>
-                  <td>${record.serviceType}</td>
-                  <td>${record.description || 'N/A'}</td>
-                  <td>${record.mechanic?.name || 'N/A'}</td>
-                  <td>${record.createdBy?.name || 'N/A'}</td>
-                  <td>${formatCurrency(record.partsCost)}</td>
-                  <td>${formatCurrency(record.laborCost)}</td>
-                  <td>${formatCurrency(record.totalCost)}</td>
-                  <td>${record.status}</td>
-                </tr>
-              `).join('')}
-              <tr class="total-row">
-                <td colspan="7"><strong>TOTAL</strong></td>
-                <td><strong>${formatCurrency(totalParts)}</strong></td>
-                <td><strong>${formatCurrency(totalLabor)}</strong></td>
-                <td><strong>${formatCurrency(totalCost)}</strong></td>
-                <td></td>
-              </tr>
-            </tbody>
-          </table>
-        </body>
-      </html>
-    `
-
-    const blob = new Blob([html], { type: 'text/html' })
+  const downloadBlob = (blob: Blob, filename: string) => {
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.download = `maintenance-report-${new Date().toISOString().split('T')[0]}.html`
+    link.download = filename
+    document.body.appendChild(link)
     link.click()
-    URL.revokeObjectURL(url)
+    link.remove()
+    window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
   }
 
-  const generatePDF = (data: MaintenanceRecord[]) => {
-    const html = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Fleet Maintenance Report</title>
-          <style>
-            body { font-family: Arial, sans-serif; margin: 20px; color: #333; }
-            .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 20px; }
-            .summary { background-color: #f8f9fa; padding: 20px; margin-bottom: 30px; border-radius: 8px; }
-            .summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
-            .summary-item { text-align: center; }
-            .summary-value { font-size: 24px; font-weight: bold; color: #2563eb; }
-            .summary-label { font-size: 14px; color: #6b7280; margin-top: 5px; }
-            table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-            th, td { border: 1px solid #d1d5db; padding: 10px; text-align: left; font-size: 11px; }
-            th { background-color: #f3f4f6; font-weight: bold; }
-            .total-row { background-color: #e5e7eb; font-weight: bold; }
-            .status-completed { color: #059669; font-weight: bold; }
-            .status-progress { color: #2563eb; font-weight: bold; }
-            .status-scheduled { color: #d97706; font-weight: bold; }
-            .breakdown-section { margin-top: 30px; }
-            .breakdown-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
-            .breakdown-card { background-color: #f8f9fa; padding: 15px; border-radius: 8px; }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <h1>Fleet Maintenance Report</h1>
-            <p><strong>Generated:</strong> ${new Date().toLocaleDateString()}</p>
-            <p><strong>Period:</strong> ${startDate || 'All Time'} to ${endDate || 'Current'}</p>
-            ${searchTerm ? `<p><strong>Search:</strong> "${searchTerm}"</p>` : ''}
-          </div>
-
-          <div class="summary">
-            <h2>Executive Summary</h2>
-            <div class="summary-grid">
-              <div class="summary-item">
-                <div class="summary-value">${summary.totalRecords}</div>
-                <div class="summary-label">Total Records</div>
-              </div>
-              <div class="summary-item">
-                <div class="summary-value">${formatCurrency(summary.totalCost)}</div>
-                <div class="summary-label">Total Cost</div>
-              </div>
-              <div class="summary-item">
-                <div class="summary-value">${formatCurrency(summary.averageCost)}</div>
-                <div class="summary-label">Average Cost</div>
-              </div>
-            </div>
-          </div>
-
-          <h2>Maintenance Records</h2>
-          <table>
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Vehicle</th>
-                <th>Driver</th>
-                <th>Service Type</th>
-                <th>Description</th>
-                <th>Mechanic</th>
-                <th>Mileage</th>
-                <th>Parts Cost</th>
-                <th>Labor Cost</th>
-                <th>Total Cost</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${data.map(record => `
-                <tr>
-                  <td>${new Date(record.datePerformed).toLocaleDateString()}</td>
-                  <td>${getVehicleDisplay(record)}</td>
-                  <td>${getDriverName(record)}</td>
-                  <td>${record.serviceType}</td>
-                  <td>${record.description || 'N/A'}</td>
-                  <td>${record.mechanic?.name || record.mechanicName || 'N/A'}</td>
-                  <td>${record.currentMileage ? record.currentMileage.toLocaleString() + ' km' : 'N/A'}</td>
-                  <td>${formatCurrency(record.partsCost)}</td>
-                  <td>${formatCurrency(record.laborCost)}</td>
-                  <td>${formatCurrency(record.totalCost)}</td>
-                  <td class="status-${record.status.toLowerCase()}">${record.status}</td>
-                </tr>
-              `).join('')}
-              <tr class="total-row">
-                <td colspan="7"><strong>TOTAL</strong></td>
-                <td><strong>${formatCurrency(summary.totalPartsCost)}</strong></td>
-                <td><strong>${formatCurrency(summary.totalLaborCost)}</strong></td>
-                <td><strong>${formatCurrency(summary.totalCost)}</strong></td>
-                <td></td>
-              </tr>
-            </tbody>
-          </table>
-
-          <div class="breakdown-section">
-            <h2>Analysis Breakdown</h2>
-            <div class="breakdown-grid">
-              <div class="breakdown-card">
-                <h3>Service Types</h3>
-                ${Object.entries(summary.serviceTypeBreakdown).map(([type, count]) => 
-                  `<p><strong>${type}:</strong> ${count} records</p>`
-                ).join('')}
-              </div>
-              <div class="breakdown-card">
-                <h3>Status Distribution</h3>
-                ${Object.entries(summary.statusBreakdown).map(([status, count]) => 
-                  `<p><strong>${status}:</strong> ${count} records</p>`
-                ).join('')}
-              </div>
-            </div>
-          </div>
-        </body>
-      </html>
-    `
-
-    const printWindow = window.open('', '_blank')
-    if (printWindow) {
-      printWindow.document.write(html)
-      printWindow.document.close()
-      printWindow.print()
-    }
-  }
-
-  const generateExcel = (data: MaintenanceRecord[]) => {
-    const totalCost = data.reduce((sum, record) => sum + record.totalCost, 0)
-    
-    let csv = "Fleet Maintenance Report\n"
-    csv += `Generated: ${new Date().toLocaleDateString()}\n`
-    csv += `Period: ${startDate || 'All Time'} to ${endDate || 'Current'}\n\n`
-    csv += `Total Records: ${data.length}\n`
-    csv += `Total Cost: ${formatCurrency(totalCost)}\n\n`
-    csv += "Date,Vehicle,Driver,Service Type,Description,Mechanic,Creator,Parts Cost,Labor Cost,Total Cost,Status\n"
-    
-    data.forEach(record => {
-      csv += `${new Date(record.datePerformed).toLocaleDateString()},`
-      csv += `"${getVehicleDisplay(record)}",`
-      csv += `"${getDriverName(record)}",`
-      csv += `"${record.serviceType}",`
-      csv += `"${record.description || 'N/A'}",`
-      csv += `"${record.mechanic?.name || 'N/A'}",`
-      csv += `"${record.createdBy?.name || 'N/A'}",`
-      csv += `${record.partsCost.toFixed(2)},`
-      csv += `${record.laborCost.toFixed(2)},`
-      csv += `${record.totalCost.toFixed(2)},`
-      csv += `${record.status}\n`
-    })
-
-    const blob = new Blob([csv], { type: 'text/csv' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `maintenance-report-${new Date().toISOString().split('T')[0]}.csv`
-    link.click()
-    URL.revokeObjectURL(url)
+  const exportMaintenanceExcel = async (data: MaintenanceRecord[]) => {
+    const workbook = await createMaintenanceWorkbook(data)
+    downloadBlob(workbook, `maintenance-report-${new Date().toISOString().slice(0, 10)}.xlsx`)
   }
 
   if (loading) {
@@ -539,22 +319,26 @@ export default function ReportsPage() {
 
   return (
     <div className="container mx-auto p-6 space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
-            <FileText className="h-8 w-8 text-blue-600" />
+          <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight sm:text-3xl">
+            <FileText className="h-7 w-7 text-blue-600 sm:h-8 sm:w-8" />
             Maintenance Reports
           </h1>
           <p className="text-muted-foreground">Generate comprehensive maintenance reports with analytics</p>
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+            <Badge variant="secondary">{filteredMaintenance.length} matching records</Badge>
+            <span>{selectedRecords.length > 0 ? `${filteredMaintenance.length} selected for export` : 'All matching records included'}</span>
+          </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button onClick={generateReport} disabled={generating || maintenance.length === 0}>
             <FileText className="h-4 w-4 mr-2" />
-            {generating ? 'Generating...' : 'Generate Report'}
+            {generating ? 'Preparing...' : format === 'pdf' ? 'Preview PDF' : 'Generate Excel'}
           </Button>
           <Button onClick={downloadReport} disabled={generating || maintenance.length === 0} variant="outline">
             <Download className="h-4 w-4 mr-2" />
-            Download
+            {format === 'pdf' ? 'Download PDF' : 'Download Excel'}
           </Button>
         </div>
       </div>

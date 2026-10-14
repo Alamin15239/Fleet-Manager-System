@@ -339,24 +339,22 @@ export default function ProfessionalReportGenerator() {
         
       sortedTires.forEach((tire: any) => {
         const vehicleType = tire.trailerNumber ? 'TRAILER UNIT' : 'TRUCK UNIT'
-        const plateDisplay = tire.plateNumber ? `"${tire.plateNumber}"` : 'N/A'
-        const trailerDisplay = tire.trailerNumber ? `"${tire.trailerNumber}"` : 'N/A'
-        const driverDisplay = tire.driverName ? `"${tire.driverName}"` : 'Unassigned'
         const createdBy = tire.createdBy?.name || tire.createdBy?.email || 'Unknown User'
+        const csvCell = (value: unknown) => `"${String(value ?? '').replace(/"/g, '""')}"`
         
         rows.push([
-          `"${tire.tireSize}"`,
-          `"${tire.manufacturer}"`,
-          tire.origin.charAt(0) + tire.origin.slice(1).toLowerCase(),
-          tire.serialNumber ? `"${tire.serialNumber}"` : 'N/A',
-          plateDisplay,
-          trailerDisplay,
-          driverDisplay,
+          csvCell(tire.tireSize),
+          csvCell(tire.manufacturer),
+          csvCell(tire.origin ? tire.origin.charAt(0) + tire.origin.slice(1).toLowerCase() : 'N/A'),
+          csvCell(tire.serialNumber || 'N/A'),
+          csvCell(tire.plateNumber || 'N/A'),
+          csvCell(tire.trailerNumber || 'N/A'),
+          csvCell(tire.driverName || 'Unassigned'),
           tire.quantity || 1,
-          vehicleType,
-          tire.notes || 'Standard Installation',
-          format(new Date(tire.createdAt), 'MMM dd, yyyy HH:mm'),
-          `"${createdBy}"`
+          csvCell(vehicleType),
+          csvCell(tire.notes || 'Standard Installation'),
+          csvCell(format(new Date(tire.createdAt), 'MMM dd, yyyy HH:mm')),
+          csvCell(createdBy)
         ].join(','))
       })
       
@@ -403,6 +401,29 @@ export default function ProfessionalReportGenerator() {
     try {
       const ExcelJS = await import('exceljs')
       const workbook = new ExcelJS.Workbook()
+      workbook.creator = 'Fleet Manager'
+      workbook.created = new Date()
+
+      const summarySheet = workbook.addWorksheet('Executive Summary')
+      summarySheet.columns = [{ width: 32 }, { width: 24 }]
+      summarySheet.mergeCells('A1:B1')
+      summarySheet.getCell('A1').value = 'FLEET TIRE INVENTORY REPORT'
+      summarySheet.getCell('A1').font = { bold: true, size: 16, color: { argb: 'FFFFFFFF' } }
+      summarySheet.getCell('A1').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F223B' } }
+      summarySheet.getRow(1).height = 30
+      summarySheet.addRow(['Template', reportTemplates.find(t => t.id === reportConfig.template)?.name || reportConfig.template])
+      summarySheet.addRow(['Generated', new Date()])
+      summarySheet.addRow(['Report period', `${reportConfig.dateRange.start} to ${reportConfig.dateRange.end}`])
+      summarySheet.addRow(['Total tires', reportData.summary?.totalTires || 0])
+      summarySheet.addRow(['Vehicles', reportData.summary?.totalVehicles || 0])
+      summarySheet.addRow(['Drivers', reportData.summary?.totalDrivers || 0])
+      summarySheet.getCell('B3').numFmt = 'dd mmm yyyy hh:mm'
+      for (let row = 2; row <= 7; row += 1) {
+        summarySheet.getCell(`A${row}`).font = { bold: true, color: { argb: 'FF334155' } }
+      }
+      for (const row of [5, 6, 7]) summarySheet.getCell(`B${row}`).numFmt = '#,##0'
+      summarySheet.views = [{ state: 'frozen', ySplit: 1 }]
+
       const worksheet = workbook.addWorksheet('Tire Report')
 
       // Add headers with clearer descriptions
@@ -436,130 +457,218 @@ export default function ProfessionalReportGenerator() {
             quantity: tire.quantity || 1,
             vehicleType: vehicleType,
             createdBy: createdBy,
-            createdAt: format(new Date(tire.createdAt), 'MMM dd, yyyy')
+            createdAt: new Date(tire.createdAt)
           })
         })
       }
 
       // Style the header row
-      worksheet.getRow(1).font = { bold: true }
+      worksheet.getRow(1).height = 26
+      worksheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } }
       worksheet.getRow(1).fill = {
         type: 'pattern',
         pattern: 'solid',
-        fgColor: { argb: 'FFE0E0E0' }
+        fgColor: { argb: 'FF1D4E89' }
       }
+      worksheet.getRow(1).alignment = { vertical: 'middle', wrapText: true }
+      worksheet.views = [{ state: 'frozen', ySplit: 1 }]
+      worksheet.autoFilter = { from: 'A1', to: `K${Math.max(1, worksheet.rowCount)}` }
+      worksheet.getColumn('createdAt').numFmt = 'dd mmm yyyy'
+      worksheet.getColumn('quantity').numFmt = '#,##0'
+      worksheet.eachRow((row, rowNumber) => {
+        if (rowNumber > 1 && rowNumber % 2 === 0) {
+          row.eachCell(cell => {
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF5F8FC' } }
+          })
+        }
+      })
 
       // Generate buffer
       const buffer = await workbook.xlsx.writeBuffer()
       return new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
     } catch (error) {
       console.error('Error generating Excel file:', error)
-      // Fallback to CSV
-      return generateCSVContent()
+      throw error
     }
   }
 
   const generatePDFContent = async () => {
     try {
       const { jsPDF } = await import('jspdf')
-      const doc = new jsPDF()
-      
-      // Title
-      doc.setFontSize(20)
-      doc.setFont('helvetica', 'bold')
-      doc.text('TIRE MANAGEMENT REPORT', 20, 30)
-      
-      // Template
-      doc.setFontSize(14)
-      doc.text(reportTemplates.find(t => t.id === reportConfig.template)?.name || '', 20, 45)
-      
-      // Date info
-      doc.setFontSize(10)
-      doc.setFont('helvetica', 'normal')
-      doc.text(`Date Range: ${reportConfig.dateRange.start} to ${reportConfig.dateRange.end}`, 20, 55)
-      doc.text(`Generated: ${format(new Date(), 'yyyy-MM-dd HH:mm')}`, 20, 65)
-      
-      // Summary
-      doc.setFontSize(16)
-      doc.setFont('helvetica', 'bold')
-      doc.text('EXECUTIVE SUMMARY', 20, 85)
-      
-      let yPos = 100
-      if (reportData.summary) {
-        doc.setFontSize(11)
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
+      const pageWidth = doc.internal.pageSize.getWidth()
+      const pageHeight = doc.internal.pageSize.getHeight()
+      const margin = 12
+      const tires = reportData.tires || []
+      const columns = [
+        { title: 'TIRE', width: 49 },
+        { title: 'VEHICLE', width: 43 },
+        { title: 'DRIVER', width: 36 },
+        { title: 'SERIAL NUMBER', width: 43 },
+        { title: 'ORIGIN', width: 31 },
+        { title: 'QTY', width: 17 },
+        { title: 'DATE ADDED', width: 45 },
+      ]
+      const tableWidth = columns.reduce((sum, column) => sum + column.width, 0)
+      const drawHeader = () => {
+        doc.setFillColor(15, 34, 59)
+        doc.rect(0, 0, pageWidth, 31, 'F')
+        doc.setTextColor(255, 255, 255)
+        doc.setFont('helvetica', 'bold')
+        doc.setFontSize(16)
+        doc.text('FLEET TIRE INVENTORY REPORT', margin, 13)
         doc.setFont('helvetica', 'normal')
-        doc.text(`Total Tires: ${reportData.summary.totalTires || 0}`, 20, yPos)
-        doc.text(`Total Vehicles: ${reportData.summary.totalVehicles || 0}`, 20, yPos + 10)
-        doc.text(`Total Drivers: ${reportData.summary.totalDrivers || 0}`, 20, yPos + 20)
-        yPos += 40
-      }
-      
-      // Tire data
-      doc.setFontSize(16)
-      doc.setFont('helvetica', 'bold')
-      doc.text('TIRE INVENTORY', 20, yPos)
-      yPos += 20
-      
-      if (reportData.tires && reportData.tires.length > 0) {
-        doc.setFontSize(9)
-        doc.setFont('helvetica', 'normal')
-        
-        reportData.tires.slice(0, 15).forEach((tire: any, index: number) => {
-          if (yPos > 250) {
-            doc.addPage()
-            yPos = 20
-          }
-          
-          doc.text(`${index + 1}. ${tire.manufacturer} ${tire.tireSize}`, 20, yPos)
-          const vehicleInfo = tire.trailerNumber ? `Trailer: ${tire.trailerNumber}` : `Truck: ${tire.plateNumber || 'N/A'}`
-          doc.text(`${vehicleInfo} | Driver: ${tire.driverName || 'N/A'}`, 25, yPos + 8)
-          doc.text(`Serial: ${tire.serialNumber || 'N/A'} | Origin: ${tire.origin} | Qty: ${tire.quantity}`, 25, yPos + 16)
-          yPos += 25
+        doc.setFontSize(8)
+        doc.text(reportTemplates.find(t => t.id === reportConfig.template)?.name || '', margin, 21)
+        doc.text(`Generated ${format(new Date(), 'dd MMM yyyy, HH:mm')}`, pageWidth - margin, 13, { align: 'right' })
+        doc.text(`${reportConfig.dateRange.start} to ${reportConfig.dateRange.end}`, pageWidth - margin, 21, { align: 'right' })
+
+        const metrics = [
+          ['TOTAL TIRES', String(reportData.summary?.totalTires || 0)],
+          ['VEHICLES', String(reportData.summary?.totalVehicles || 0)],
+          ['DRIVERS', String(reportData.summary?.totalDrivers || 0)],
+          ['RECORDS', String(tires.length)],
+        ]
+        const gap = 4
+        const cardWidth = (tableWidth - gap * 3) / 4
+        metrics.forEach(([label, value], index) => {
+          const x = margin + index * (cardWidth + gap)
+          doc.setFillColor(245, 248, 252)
+          doc.setDrawColor(226, 232, 240)
+          doc.roundedRect(x, 36, cardWidth, 17, 2, 2, 'FD')
+          doc.setTextColor(100, 116, 139)
+          doc.setFont('helvetica', 'bold')
+          doc.setFontSize(6.5)
+          doc.text(label, x + 3, 42)
+          doc.setTextColor(15, 34, 59)
+          doc.setFontSize(9)
+          doc.text(value, x + 3, 49)
         })
+
+        doc.setFillColor(29, 78, 137)
+        doc.rect(margin, 60, tableWidth, 8, 'F')
+        doc.setTextColor(255, 255, 255)
+        doc.setFont('helvetica', 'bold')
+        doc.setFontSize(6.5)
+        let x = margin
+        columns.forEach(column => {
+          doc.text(column.title, x + 2, 65.3)
+          x += column.width
+        })
+        doc.setTextColor(30, 41, 59)
+        return 68
       }
-      
+
+      let y = drawHeader()
+      if (tires.length === 0) {
+        doc.setFont('helvetica', 'normal')
+        doc.setFontSize(10)
+        doc.setTextColor(100, 116, 139)
+        doc.text('No tire records match the selected criteria.', margin, y + 12)
+      }
+      tires.forEach((tire: any, index: number) => {
+        const vehicle = tire.trailerNumber ? `Trailer ${tire.trailerNumber}` : tire.plateNumber || 'Unassigned'
+        const values = [
+          `${tire.manufacturer || 'Unknown'} · ${tire.tireSize || '—'}`,
+          vehicle,
+          tire.driverName || 'Unassigned',
+          tire.serialNumber || '—',
+          tire.origin || '—',
+          String(tire.quantity || 1),
+          format(new Date(tire.createdAt), 'dd MMM yyyy'),
+        ]
+        const wrapped = values.map((value: string, columnIndex: number) =>
+          doc.splitTextToSize(value, columns[columnIndex].width - 4) as string[]
+        )
+        const rowHeight = Math.max(8, ...wrapped.map(lines => lines.length * 3.2 + 3))
+        if (y + rowHeight > pageHeight - 15) {
+          doc.addPage()
+          y = drawHeader()
+        }
+        if (index % 2 === 1) {
+          doc.setFillColor(248, 250, 252)
+          doc.rect(margin, y, tableWidth, rowHeight, 'F')
+        }
+        doc.setDrawColor(226, 232, 240)
+        doc.line(margin, y + rowHeight, margin + tableWidth, y + rowHeight)
+        doc.setFont('helvetica', 'normal')
+        doc.setFontSize(6.5)
+        doc.setTextColor(51, 65, 85)
+        let x = margin
+        wrapped.forEach((lines: string[], columnIndex: number) => {
+          doc.text(lines.slice(0, 3), x + 2, y + 4.6)
+          x += columns[columnIndex].width
+        })
+        y += rowHeight
+      })
+
+      if (reportConfig.includeCharts && tires.length > 0) {
+        doc.addPage()
+        doc.setFillColor(15, 34, 59)
+        doc.rect(0, 0, pageWidth, 27, 'F')
+        doc.setTextColor(255, 255, 255)
+        doc.setFont('helvetica', 'bold')
+        doc.setFontSize(15)
+        doc.text('INVENTORY ANALYSIS', margin, 17)
+
+        const groupCount = (key: 'manufacturer' | 'origin') => {
+          const counts = new Map<string, number>()
+          tires.forEach((tire: any) => {
+            const name = String(tire[key] || 'Unspecified')
+            counts.set(name, (counts.get(name) || 0) + Number(tire.quantity || 1))
+          })
+          return Array.from(counts, ([name, quantity]) => ({ name, quantity }))
+            .sort((a, b) => b.quantity - a.quantity)
+            .slice(0, 8)
+        }
+
+        const drawChart = (title: string, items: Array<{ name: string; quantity: number }>, x: number, width: number, color: [number, number, number]) => {
+          doc.setFont('helvetica', 'bold')
+          doc.setFontSize(10)
+          doc.setTextColor(15, 34, 59)
+          doc.text(title, x, 39)
+          const maximum = Math.max(1, ...items.map(item => item.quantity))
+          items.forEach((item, index) => {
+            const rowY = 49 + index * 19
+            doc.setFont('helvetica', 'normal')
+            doc.setFontSize(7.5)
+            doc.setTextColor(51, 65, 85)
+            doc.text(doc.splitTextToSize(item.name, 42).slice(0, 1), x, rowY)
+            doc.setFillColor(235, 240, 246)
+            doc.roundedRect(x + 45, rowY - 4, width - 61, 6, 2, 2, 'F')
+            doc.setFillColor(...color)
+            doc.roundedRect(x + 45, rowY - 4, Math.max(2, (width - 61) * item.quantity / maximum), 6, 2, 2, 'F')
+            doc.setFont('helvetica', 'bold')
+            doc.text(String(item.quantity), x + width - 12, rowY, { align: 'right' })
+          })
+          if (items.length === 0) {
+            doc.setFont('helvetica', 'normal')
+            doc.setFontSize(8)
+            doc.setTextColor(100, 116, 139)
+            doc.text('No data available', x, 51)
+          }
+        }
+
+        drawChart('TIRES BY MANUFACTURER', groupCount('manufacturer'), margin, 132, [29, 78, 137])
+        drawChart('TIRES BY ORIGIN', groupCount('origin'), margin + 140, 132, [14, 116, 100])
+      }
+
+      for (let page = 1; page <= doc.getNumberOfPages(); page += 1) {
+        doc.setPage(page)
+        doc.setDrawColor(226, 232, 240)
+        doc.line(margin, pageHeight - 10, pageWidth - margin, pageHeight - 10)
+        doc.setFont('helvetica', 'normal')
+        doc.setFontSize(7)
+        doc.setTextColor(100, 116, 139)
+        doc.text('Fleet Manager · Tire Inventory', margin, pageHeight - 5)
+        doc.text(`Page ${page} of ${doc.getNumberOfPages()}`, pageWidth - margin, pageHeight - 5, { align: 'right' })
+      }
+
       return doc.output('blob')
     } catch (error) {
       console.error('PDF generation failed:', error)
-      return generateTextContent()
+      throw error
     }
-  }
-
-  const generateTextContent = () => {
-    // Fallback text content
-    return `
-TIRE MANAGEMENT REPORT
-========================
-
-Generated: ${format(new Date(), 'yyyy-MM-dd HH:mm')}
-Template: ${reportConfig.template}
-Date Range: ${reportConfig.dateRange.start} to ${reportConfig.dateRange.end}
-
-EXECUTIVE SUMMARY
-================
-Total Tires: ${reportData.summary?.totalTires || 0}
-Total Vehicles: ${reportData.summary?.totalVehicles || 0}
-Total Drivers: ${reportData.summary?.totalDrivers || 0}
-
-DETAILED INVENTORY
-==================
-${reportData.tires ? reportData.tires.map((tire: any, index: number) => `
-${index + 1}. ${tire.manufacturer} ${tire.tireSize}
-   Vehicle: ${tire.plateNumber}
-   Driver: ${tire.driverName || 'N/A'}
-   Serial: ${tire.serialNumber || 'N/A'}
-   Origin: ${tire.origin}
-   Quantity: ${tire.quantity}
-   Created: ${format(new Date(tire.createdAt), 'yyyy-MM-dd')}
-`).join('') : 'No tire data available'}
-
-RECOMMENDATIONS
-==============
-1. Regular tire maintenance schedule should be followed
-2. Monitor tire wear and replace as needed
-3. Keep detailed records for warranty claims
-4. Consider bulk purchasing for cost savings
-    `
   }
 
   const getTemplateIcon = (type: string) => {
@@ -664,10 +773,21 @@ RECOMMENDATIONS
               {reportTemplates.map((template) => (
                 <div
                   key={template.id}
-                  className={`p-3 sm:p-4 border rounded-lg cursor-pointer transition-all duration-200 hover:scale-105 ${
+                  role="button"
+                  tabIndex={0}
+                  aria-pressed={reportConfig.template === template.id}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault()
+                      setReportConfig({ ...reportConfig, template: template.id })
+                      setError(null)
+                      setSuccess(`Selected: ${template.name}`)
+                    }
+                  }}
+                  className={`p-3 sm:p-4 border rounded-lg cursor-pointer transition-[border-color,box-shadow,background-color] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${
                     reportConfig.template === template.id
                       ? 'border-primary bg-primary/10 shadow-md ring-2 ring-primary/20'
-                      : 'border-gray-200 hover:border-gray-300 hover:shadow-md'
+                      : 'border-border hover:border-primary/40 hover:shadow-sm'
                   }`}
                   onClick={() => {
                     console.log('Template clicked:', template.id)

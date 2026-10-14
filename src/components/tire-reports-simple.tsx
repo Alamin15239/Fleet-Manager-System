@@ -21,6 +21,7 @@ import {
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { apiGet } from '@/lib/api'
+import { rowsToCsv } from '@/lib/csv-export'
 
 interface ReportData {
   totalTires: number
@@ -119,26 +120,27 @@ export default function TireReportsSimple() {
   const downloadCSV = () => {
     if (!reportData) return
 
-    const csvContent = [
-      'TIRE FLEET SUMMARY REPORT',
-      `Generated: ${format(new Date(), 'yyyy-MM-dd HH:mm')}`,
-      `Date Range: ${dateRange.start} to ${dateRange.end}`,
-      '',
-      'OVERVIEW',
-      `Total Tires,${reportData.totalTires}`,
-      `Total Vehicles,${reportData.totalVehicles}`,
-      `Total Drivers,${reportData.totalDrivers}`,
-      `Truck Tires,${reportData.vehicleTypeStats.trucks}`,
-      `Trailer Tires,${reportData.vehicleTypeStats.trailers}`,
-      '',
-      'TOP MANUFACTURERS',
-      'Manufacturer,Count,Percentage',
-      ...reportData.manufacturerStats.map(m => `${m.name},${m.count},${m.percentage}%`),
-      '',
-      'ORIGIN BREAKDOWN',
-      'Origin,Count,Percentage',
-      ...reportData.originStats.map(o => `${o.name},${o.count},${o.percentage}%`)
-    ].join('\n')
+    const csvContent = rowsToCsv([
+      ['TIRE FLEET SUMMARY REPORT'],
+      ['Generated', format(new Date(), 'yyyy-MM-dd HH:mm')],
+      ['Date Range', `${dateRange.start} to ${dateRange.end}`],
+      [],
+      ['OVERVIEW'],
+      ['Metric', 'Value'],
+      ['Total Tires', reportData.totalTires],
+      ['Total Vehicles', reportData.totalVehicles],
+      ['Total Drivers', reportData.totalDrivers],
+      ['Truck Tires', reportData.vehicleTypeStats.trucks],
+      ['Trailer Tires', reportData.vehicleTypeStats.trailers],
+      [],
+      ['TOP MANUFACTURERS'],
+      ['Manufacturer', 'Count', 'Percentage'],
+      ...reportData.manufacturerStats.map(item => [item.name, item.count, `${item.percentage}%`]),
+      [],
+      ['ORIGIN BREAKDOWN'],
+      ['Origin', 'Count', 'Percentage'],
+      ...reportData.originStats.map(item => [item.name, item.count, `${item.percentage}%`]),
+    ])
 
     const blob = new Blob([csvContent], { type: 'text/csv' })
     const url = window.URL.createObjectURL(blob)
