@@ -46,16 +46,9 @@ const getNavigation = (t: (key: string) => string, language: string) => [
     action: 'read'
   },
   { 
-    name: t('nav.maintenance'), 
-    href: '/maintenance', 
-    icon: Wrench,
-    resource: 'maintenance',
-    action: 'read'
-  },
-  {
     name: language === 'ar' ? 'بطاقات أوامر العمل' : 'Workshop Job Cards',
     href: '/job-cards',
-    icon: FileText,
+    icon: Wrench,
     resource: 'maintenance',
     action: 'read'
   },

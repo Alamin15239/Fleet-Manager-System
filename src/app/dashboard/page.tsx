@@ -192,7 +192,7 @@ export default function DashboardPage() {
             <Plus className="h-4 w-4 mr-2" />
             Add Truck
           </Button>
-          <Button variant="outline" onClick={() => router.push('/maintenance')}>
+          <Button variant="outline" onClick={() => router.push('/job-cards')}>
             <Wrench className="h-4 w-4 mr-2" />
             Schedule Maintenance
           </Button>
@@ -225,7 +225,7 @@ export default function DashboardPage() {
             label: 'vs last month',
             direction: 'up'
           } : undefined}
-          onClick={() => router.push('/maintenance')}
+          onClick={() => router.push('/job-cards')}
         />
 
         <QuickStats
@@ -239,7 +239,7 @@ export default function DashboardPage() {
             label: 'vs last week',
             direction: stats.overdueRepairs > 0 ? 'up' : 'down'
           } : undefined}
-          onClick={() => router.push('/maintenance?filter=overdue')}
+          onClick={() => router.push('/job-cards')}
         />
 
         <QuickStats
@@ -414,7 +414,7 @@ export default function DashboardPage() {
                         </TableCell>
                         <TableCell>{new Date(alert.dueDate).toLocaleDateString()}</TableCell>
                         <TableCell>
-                          <Button variant="outline" size="sm" onClick={() => router.push('/maintenance')}>
+                          <Button variant="outline" size="sm" onClick={() => router.push('/job-cards')}>
                             <Eye className="h-4 w-4" />
                           </Button>
                         </TableCell>

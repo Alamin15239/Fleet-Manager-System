@@ -377,11 +377,11 @@ export default function AdminDashboard() {
           </CardContent>
         </Card>
 
-        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => router.push('/maintenance')}>
+        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => router.push('/job-cards')}>
           <CardContent className="p-6 text-center">
             <Plus className="h-12 w-12 mx-auto mb-2 text-orange-600" />
-            <h3 className="font-semibold">Schedule Maintenance</h3>
-            <p className="text-sm text-muted-foreground">Create maintenance record</p>
+            <h3 className="font-semibold">Create Job Card</h3>
+            <p className="text-sm text-muted-foreground">Open a workshop maintenance order</p>
           </CardContent>
         </Card>
 

@@ -281,6 +281,9 @@ model WorkshopJobCard {
   status               String   @default("OPEN")
   nextServiceOdometer  Int?
   nextServiceDate      DateTime?
+  partsCost            Float    @default(0)
+  laborCost            Float    @default(0)
+  totalCost            Float    @default(0)
   notes                String?
   items                Json     @default("[]")
   checklist            Json     @default("{}")

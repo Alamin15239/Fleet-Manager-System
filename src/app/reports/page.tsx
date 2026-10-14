@@ -604,7 +604,7 @@ export default function ReportsPage() {
                 <p className="text-xs text-muted-foreground">
                   Parts: {formatCurrency(summary.totalPartsCost)} | Labor: {formatCurrency(summary.totalLaborCost)}
                 </p>
-                <p className="mt-1 text-xs text-muted-foreground">Job card costs are not entered in the system yet.</p>
+                <p className="mt-1 text-xs text-muted-foreground">Includes maintenance history and recorded job card costs.</p>
               </CardContent>
             </Card>
             <Card>

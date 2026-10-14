@@ -30,6 +30,13 @@ export function cleanJobCardPayload(body: any) {
     const parsed = Number(value)
     return Number.isFinite(parsed) ? Math.max(0, Math.trunc(parsed)) : null
   }
+  const moneyOrZero = (value: any) => {
+    const parsed = Number(value)
+    if (!Number.isFinite(parsed) || parsed < 0) return 0
+    return Math.round(parsed * 100) / 100
+  }
+  const partsCost = moneyOrZero(body.partsCost)
+  const laborCost = moneyOrZero(body.laborCost)
   const odometerKm = integerOrNull(body.odometerKm)
   const requestedNextServiceOdometer = integerOrNull(body.nextServiceOdometer)
 
@@ -46,6 +53,9 @@ export function cleanJobCardPayload(body: any) {
     status,
     nextServiceOdometer: requestedNextServiceOdometer ?? (odometerKm == null ? null : odometerKm + 5000),
     nextServiceDate: optionalDate,
+    partsCost,
+    laborCost,
+    totalCost: Math.round((partsCost + laborCost) * 100) / 100,
     notes: String(body.notes || '').trim().slice(0, 5000) || null,
     items,
     checklist,
