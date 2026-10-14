@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
     
     // Parse query parameters with validation
     const page = Math.max(1, parseInt(searchParams.get('page') || '1') || 1)
-    const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') || '20') || 20))
+    const limit = Math.min(1000, Math.max(1, parseInt(searchParams.get('limit') || '20') || 20))
     const search = searchParams.get('search')?.trim() || null
     const manufacturer = searchParams.get('manufacturer')?.trim() || null
     const origin = searchParams.get('origin')?.trim() || null
