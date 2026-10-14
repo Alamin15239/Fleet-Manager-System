@@ -152,10 +152,10 @@ export default function WorkshopJobCards() {
       .card-frame{width:100%;border:2px solid #101510;padding:0}
       .sheet{width:100%;border-collapse:collapse;table-layout:fixed;font-size:10px;line-height:1.12}
       .sheet col:nth-child(1){width:15.83%}.sheet col:nth-child(2){width:38.45%}.sheet col:nth-child(3){width:14.07%}.sheet col:nth-child(4){width:31.65%}
-      .sheet td,.sheet th{border:1px solid #bfd2c6;padding:3px 5px;vertical-align:middle;overflow-wrap:anywhere;background:#eaf4ee}
+      .sheet td,.sheet th{border:1px solid #bfd2c6;padding:3px 5px;vertical-align:middle;overflow-wrap:anywhere;background:#eaf4ee;text-align:left}
       .sheet .logo{padding:2px;text-align:center;background:#fff;border-right:2px solid #b4c9bc}
       .logo img{width:100%;height:80px;object-fit:contain}
-      .brand-title{font-size:18px;font-weight:700;color:#006c35;text-align:right;background:#fff!important;border:0!important;padding:3px 8px!important}
+      .brand-title{font-size:18px;font-weight:700;color:#006c35;text-align:center;direction:rtl;background:#fff!important;border:0!important;padding:3px 8px!important}
       .brand-name{font-size:13px;font-weight:700;background:#fff!important;border:0!important;padding:2px 8px!important}
       .brand-contact{font-size:9px;color:#849188;background:#fff!important;border:0!important;padding:3px 4px!important;white-space:normal;overflow-wrap:anywhere}
       .banner,.section{background:#0f3d2a!important;color:#fff;font-weight:700;-webkit-print-color-adjust:exact;print-color-adjust:exact}
@@ -163,11 +163,11 @@ export default function WorkshopJobCards() {
       .section{font-size:10px;padding:4px 6px!important}
       .label{font-weight:700;color:#718078}
       .value{min-height:19px;white-space:pre-wrap;overflow-wrap:anywhere;font-size:11px;font-weight:700;color:#202820}
-      .meta td{height:21px}
+      .meta td{height:21px}.meta td.label{text-align:left;direction:ltr}.meta td.value{text-align:left;direction:ltr}
       .issue{height:48px;vertical-align:top!important;white-space:pre-wrap;font-size:11px}
-      .thead th{background:#304f42!important;color:#fff;font-weight:700;text-align:left;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+      .thead th{height:24px;background:#304f42!important;color:#fff;font-weight:700;text-align:left;vertical-align:middle;-webkit-print-color-adjust:exact;print-color-adjust:exact}
       .thead th:nth-child(3),.itemrow td:nth-child(3),.checkrow td:nth-child(3),.checkrow td:nth-child(4){text-align:center}
-      .itemrow td{height:20px;font-size:10px}.checkrow td{height:18px}.checkrow td:first-child{font-size:9px}
+      .itemrow td{height:20px;font-size:10px;text-align:left}.checkrow td{height:18px}.checkrow td:first-child{font-size:9px;text-align:left;direction:ltr}
       .check-box{font-size:14px;line-height:1;color:#173e2c}
       .note{height:23px;white-space:pre-wrap;color:#849188;background:#fff!important}
       .approval td{height:23px}.complete{text-align:left;font-weight:500;height:22px;color:#75847b;background:#fff!important}
@@ -177,6 +177,7 @@ export default function WorkshopJobCards() {
       .qr-footer{width:100%;border-collapse:collapse;table-layout:fixed;margin-top:0;font-size:9px;font-weight:700}
       .qr-footer col:first-child{width:54.3%}.qr-footer col:last-child{width:45.7%}
       .qr-footer td{height:50px;text-align:center;vertical-align:middle;border:1px solid #b4c9bc;padding:4px}.qr-footer img{width:66px;height:66px;object-fit:contain}
+      .qr-footer td:first-child{direction:ltr}.qr-footer td:first-child br+span{direction:rtl}
       .work-complete{display:flex;justify-content:space-between;align-items:center;gap:10px}
       @media screen{html,body{width:100%;min-width:0}.print-page{width:100%;max-width:100%;margin:0 auto}}
       @media print{html,body{width:210mm;min-height:297mm;margin:0!important;padding:0!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}.print-page{width:197.3mm;max-width:197.3mm;margin:0 auto;padding:0;zoom:1}.card-frame{break-inside:avoid}tr{break-inside:avoid}}
@@ -257,9 +258,13 @@ export default function WorkshopJobCards() {
       await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))
       const canvas = await html2canvas(page, { scale: 2, backgroundColor: '#ffffff', useCORS: true, windowWidth: renderWidth, windowHeight: renderHeight })
       const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true })
-      const imageWidth = 197.3
-      const imageHeight = canvas.height * imageWidth / canvas.width
-      pdf.addImage(canvas.toDataURL('image/png'), 'PNG', (210 - imageWidth) / 2, 0, imageWidth, Math.min(imageHeight, 297))
+      const pageWidth = 210
+      const pageHeight = 297
+      const pageMargin = 5
+      const scaleToFit = Math.min((pageWidth - pageMargin * 2) / canvas.width, (pageHeight - pageMargin * 2) / canvas.height)
+      const imageWidth = canvas.width * scaleToFit
+      const imageHeight = canvas.height * scaleToFit
+      pdf.addImage(canvas.toDataURL('image/png'), 'PNG', (pageWidth - imageWidth) / 2, (pageHeight - imageHeight) / 2, imageWidth, imageHeight)
       pdf.save(`${String(card.jobNumber || 'job-card').replace(/[^a-z0-9-_]/gi, '_')}.pdf`)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Unable to download the job card PDF')
