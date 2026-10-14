@@ -86,6 +86,8 @@ interface Truck {
   licensePlate: string
 }
 
+interface Trailer { id: string; number: string; driverName?: string | null }
+
 interface Mechanic {
   id: string
   name: string
@@ -110,6 +112,7 @@ export default function ReportsPage() {
     vehicleBreakdown: {}
   })
   const [trucks, setTrucks] = useState<Truck[]>([])
+  const [trailers, setTrailers] = useState<Trailer[]>([])
   const [mechanics, setMechanics] = useState<Mechanic[]>([])
   const [loading, setLoading] = useState(true)
   const [generating, setGenerating] = useState(false)
@@ -117,21 +120,24 @@ export default function ReportsPage() {
   const [endDate, setEndDate] = useState('')
   const [format, setFormat] = useState<'pdf' | 'excel'>('pdf')
   const [selectedRecords, setSelectedRecords] = useState<string[]>([])
+  const [selectionActive, setSelectionActive] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [serviceTypeFilter, setServiceTypeFilter] = useState('all')
-  const [truckFilter, setTruckFilter] = useState('all')
+  const [truckFilter, setTruckFilter] = useState<string[]>([])
+  const [trailerFilter, setTrailerFilter] = useState<string[]>([])
   const [mechanicFilter, setMechanicFilter] = useState('all')
 
   useEffect(() => {
     fetchMaintenance()
     fetchTrucks()
+    fetchTrailers()
     fetchMechanics()
   }, [])
 
   useEffect(() => {
     fetchMaintenance()
-  }, [startDate, endDate, searchTerm, statusFilter, serviceTypeFilter, truckFilter, mechanicFilter])
+  }, [startDate, endDate, searchTerm, statusFilter, serviceTypeFilter, truckFilter, trailerFilter, mechanicFilter])
 
   const fetchMaintenance = async () => {
     try {
@@ -141,7 +147,8 @@ export default function ReportsPage() {
       if (searchTerm) params.append('search', searchTerm)
       if (statusFilter !== 'all') params.append('status', statusFilter)
       if (serviceTypeFilter !== 'all') params.append('serviceType', serviceTypeFilter)
-      if (truckFilter !== 'all') params.append('truckId', truckFilter)
+      truckFilter.forEach(id => params.append('truckIds', id))
+      trailerFilter.forEach(id => params.append('trailerIds', id))
       if (mechanicFilter !== 'all') params.append('mechanicId', mechanicFilter)
 
       const response = await apiGet(`/api/maintenance/reports?${params.toString()}`)
@@ -149,6 +156,8 @@ export default function ReportsPage() {
         const data = await response.json()
         setMaintenance(data.data || [])
         setSummary(data.summary || {})
+        setSelectedRecords([])
+        setSelectionActive(false)
       }
     } catch (error) {
       console.error('Error fetching maintenance:', error)
@@ -180,6 +189,16 @@ export default function ReportsPage() {
     } catch (error) {
       console.error('Error fetching mechanics:', error)
     }
+  }
+
+  const fetchTrailers = async () => {
+    try {
+      const response = await apiGet('/api/trailers?limit=1000')
+      if (response.ok) {
+        const data = await response.json()
+        setTrailers(data.data || [])
+      }
+    } catch (error) { console.error('Error fetching trailers:', error) }
   }
 
   const getVehicleDisplay = (record: MaintenanceRecord) => {
@@ -214,7 +233,7 @@ export default function ReportsPage() {
   const getFilteredMaintenance = () => {
     const searched = getSearchedMaintenance()
     
-    if (selectedRecords.length > 0) {
+    if (selectionActive) {
       return searched.filter(record => selectedRecords.includes(record.id))
     }
     
@@ -222,26 +241,29 @@ export default function ReportsPage() {
   }
 
   const toggleRecord = (recordId: string) => {
-    setSelectedRecords(prev => 
-      prev.includes(recordId) 
-        ? prev.filter(id => id !== recordId)
-        : [...prev, recordId]
-    )
+    const currentSelection = selectionActive ? selectedRecords : getSearchedMaintenance().map(record => record.id)
+    setSelectionActive(true)
+    setSelectedRecords(currentSelection.includes(recordId)
+      ? currentSelection.filter(id => id !== recordId)
+      : [...currentSelection, recordId])
   }
 
   const selectAll = () => {
     const searched = getSearchedMaintenance()
     setSelectedRecords(searched.map(r => r.id))
+    setSelectionActive(true)
   }
 
   const selectSearched = () => {
     const searched = getSearchedMaintenance()
     const newSelected = [...selectedRecords, ...searched.map(r => r.id).filter(id => !selectedRecords.includes(id))]
     setSelectedRecords(newSelected)
+    setSelectionActive(true)
   }
 
   const clearSelection = () => {
     setSelectedRecords([])
+    setSelectionActive(true)
   }
 
   const generateReport = async () => {
@@ -318,7 +340,7 @@ export default function ReportsPage() {
   const filteredMaintenance = getFilteredMaintenance()
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
+      <div className="container mx-auto p-4 sm:p-6 space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight sm:text-3xl">
@@ -328,15 +350,15 @@ export default function ReportsPage() {
           <p className="text-muted-foreground">Generate comprehensive maintenance reports with analytics</p>
           <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
             <Badge variant="secondary">{filteredMaintenance.length} matching records</Badge>
-            <span>{selectedRecords.length > 0 ? `${filteredMaintenance.length} selected for export` : 'All matching records included'}</span>
+            <span>{selectionActive ? `${filteredMaintenance.length} selected for export` : 'All matching records included'}</span>
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button onClick={generateReport} disabled={generating || maintenance.length === 0}>
+          <Button onClick={generateReport} disabled={generating || filteredMaintenance.length === 0}>
             <FileText className="h-4 w-4 mr-2" />
             {generating ? 'Preparing...' : format === 'pdf' ? 'Preview PDF' : 'Generate Excel'}
           </Button>
-          <Button onClick={downloadReport} disabled={generating || maintenance.length === 0} variant="outline">
+          <Button onClick={downloadReport} disabled={generating || filteredMaintenance.length === 0} variant="outline">
             <Download className="h-4 w-4 mr-2" />
             {format === 'pdf' ? 'Download PDF' : 'Download Excel'}
           </Button>
@@ -409,7 +431,7 @@ export default function ReportsPage() {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Select Records ({selectedRecords.length} selected)</Label>
+                  <Label>Select Records ({selectionActive ? selectedRecords.length : 'all'} selected)</Label>
                   <div className="flex gap-2 flex-wrap">
                     <Button variant="outline" size="sm" onClick={selectAll}>
                       Select All
@@ -477,20 +499,22 @@ export default function ReportsPage() {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Vehicle</Label>
-                  <Select value={truckFilter} onValueChange={setTruckFilter}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Vehicles</SelectItem>
-                      {trucks.map((truck) => (
-                        <SelectItem key={truck.id} value={truck.id}>
-                          {truck.licensePlate} - {truck.year} {truck.make} {truck.model}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Label>Trucks (select any number)</Label>
+                  <div className="max-h-40 space-y-2 overflow-y-auto rounded-md border p-2">
+                    {trucks.map(truck => <label key={truck.id} className="flex items-center gap-2 text-sm">
+                      <Checkbox checked={truckFilter.includes(truck.id)} onCheckedChange={checked => setTruckFilter(prev => checked ? [...prev, truck.id] : prev.filter(id => id !== truck.id))} />
+                      <span>{truck.licensePlate} - {truck.year} {truck.make} {truck.model}</span>
+                    </label>)}
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Trailers (select any number)</Label>
+                  <div className="max-h-40 space-y-2 overflow-y-auto rounded-md border p-2">
+                    {trailers.map(trailer => <label key={trailer.id} className="flex items-center gap-2 text-sm">
+                      <Checkbox checked={trailerFilter.includes(trailer.id)} onCheckedChange={checked => setTrailerFilter(prev => checked ? [...prev, trailer.id] : prev.filter(id => id !== trailer.id))} />
+                      <span>Trailer {trailer.number}</span>
+                    </label>)}
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <Label>Mechanic</Label>
@@ -609,11 +633,11 @@ export default function ReportsPage() {
               <CardTitle>Maintenance Records Preview</CardTitle>
               <CardDescription>
                 {filteredMaintenance.length} records found
-                {selectedRecords.length > 0 && ` (${selectedRecords.length} selected for report)`}
+                {selectionActive && ` (${selectedRecords.length} selected for report)`}
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="overflow-x-auto">
+              <div className="max-h-[65vh] overflow-auto">
                 <table className="w-full border-collapse border border-gray-300">
                   <thead>
                     <tr className="bg-gray-100">
@@ -628,13 +652,13 @@ export default function ReportsPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {getSearchedMaintenance().slice(0, 20).map((record) => {
+                    {getSearchedMaintenance().map((record) => {
                       const isSelected = selectedRecords.includes(record.id)
                       return (
                         <tr key={record.id} className={isSelected ? 'bg-blue-50' : ''}>
                           <td className="border border-gray-300 p-2">
                             <Checkbox
-                              checked={isSelected}
+                              checked={selectionActive ? isSelected : true}
                               onCheckedChange={() => toggleRecord(record.id)}
                             />
                           </td>
@@ -675,7 +699,7 @@ export default function ReportsPage() {
                   </tbody>
                 </table>
                 <p className="text-sm text-gray-500 mt-2">
-                  Showing {Math.min(getSearchedMaintenance().length, 20)} of {getSearchedMaintenance().length} records
+                  Showing all {getSearchedMaintenance().length} records
                   {searchTerm && ` (filtered from ${maintenance.length} total)`}
                 </p>
               </div>

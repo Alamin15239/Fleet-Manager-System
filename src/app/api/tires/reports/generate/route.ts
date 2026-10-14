@@ -26,7 +26,9 @@ export async function GET(request: NextRequest) {
     const manufacturer = searchParams.get('manufacturer')
     const origin = searchParams.get('origin')
     const plateNumber = searchParams.get('plateNumber')
+    const plateNumbers = [...new Set([...searchParams.getAll('plateNumbers'), ...(plateNumber ? [plateNumber] : [])].flatMap(value => value.split(',')).filter(Boolean))]
     const trailerNumber = searchParams.get('trailerNumber')
+    const trailerNumbers = [...new Set([...searchParams.getAll('trailerNumbers'), ...(trailerNumber ? [trailerNumber] : [])].flatMap(value => value.split(',')).filter(Boolean))]
     const driverName = searchParams.get('driverName')
 
     if (!template || !startDate || !endDate) {
@@ -39,8 +41,8 @@ export async function GET(request: NextRequest) {
       endDate,
       manufacturer,
       origin,
-      plateNumber,
-      trailerNumber,
+      plateNumbers,
+      trailerNumbers,
       driverName
     })
 
@@ -60,6 +62,10 @@ export async function GET(request: NextRequest) {
       lte: end
     }
 
+    if (template === 'trailer-report') {
+      where.trailerNumber = { not: null }
+    }
+
     if (manufacturer) {
       where.manufacturer = manufacturer
     }
@@ -68,12 +74,16 @@ export async function GET(request: NextRequest) {
       where.origin = origin
     }
 
-    if (plateNumber) {
-      where.plateNumber = plateNumber
+    if (plateNumbers.length === 1) {
+      where.plateNumber = plateNumbers[0]
+    } else if (plateNumbers.length > 1) {
+      where.plateNumber = { in: plateNumbers }
     }
 
-    if (trailerNumber) {
-      where.trailerNumber = trailerNumber
+    if (trailerNumbers.length === 1) {
+      where.trailerNumber = trailerNumbers[0]
+    } else if (trailerNumbers.length > 1) {
+      where.trailerNumber = { in: trailerNumbers }
     }
 
     if (driverName) {
@@ -81,7 +91,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch tire data
-    let tires = await db.tire.findMany({
+    const tires = await db.tire.findMany({
       where,
       orderBy: {
         createdAt: 'desc'
@@ -97,31 +107,6 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    // If no data found with strict date filter, try with broader date range
-    if (tires.length === 0 && where.createdAt) {
-      console.log('No data found with date filter, trying without date filter')
-      const whereWithoutDate = { ...where }
-      delete whereWithoutDate.createdAt
-      
-      tires = await db.tire.findMany({
-        where: whereWithoutDate,
-        orderBy: {
-          createdAt: 'desc'
-        },
-        include: {
-          createdBy: {
-            select: {
-              id: true,
-              name: true,
-              email: true
-            }
-          }
-        }
-      })
-      
-      console.log(`Found ${tires.length} records without date filter`)
-    }
-    
     console.log(`Final tire count: ${tires.length}`)
 
     // Calculate summary statistics
@@ -217,8 +202,8 @@ export async function GET(request: NextRequest) {
       filters: {
         manufacturer,
         origin,
-        plateNumber,
-        trailerNumber,
+        plateNumbers,
+        trailerNumbers,
         driverName
       },
       isEmpty: tires.length === 0

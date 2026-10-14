@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { 
   FileText, 
@@ -51,8 +52,8 @@ interface ReportConfig {
   filters: {
     manufacturer?: string
     origin?: string
-    plateNumber?: string
-    trailerNumber?: string
+    plateNumbers?: string[]
+    trailerNumbers?: string[]
     driverName?: string
   }
   includeCharts: boolean
@@ -120,6 +121,8 @@ export default function ProfessionalReportGenerator() {
   })
   const [showPreview, setShowPreview] = useState(false)
   const [reportData, setReportData] = useState<any>(null)
+  const [selectedTireIds, setSelectedTireIds] = useState<string[]>([])
+  const [tireSelectionActive, setTireSelectionActive] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
 
@@ -127,6 +130,7 @@ export default function ProfessionalReportGenerator() {
   const [manufacturers, setManufacturers] = useState<string[]>([])
   const [origins] = useState(['CHINESE', 'JAPANESE', 'EUROPEAN', 'AMERICAN', 'OTHER'])
   const [plates, setPlates] = useState<string[]>([])
+  const [trailerNumbers, setTrailerNumbers] = useState<string[]>([])
   const [drivers, setDrivers] = useState<string[]>([])
 
   useEffect(() => {
@@ -156,6 +160,7 @@ export default function ProfessionalReportGenerator() {
 
         const uniqueManufacturers = [...new Set(allTires.map((t: any) => t.manufacturer))] as string[]
         const uniquePlates = [...new Set(allTires.map((t: any) => t.plateNumber))] as string[]
+        const uniqueTrailerNumbers = [...new Set(allTires.map((t: any) => t.trailerNumber).filter(Boolean))] as string[]
         const uniqueDrivers = [...new Set(allTires.map((t: any) => t.driverName).filter(Boolean))] as string[]
 
         console.log('Unique manufacturers:', uniqueManufacturers)
@@ -164,6 +169,7 @@ export default function ProfessionalReportGenerator() {
 
         setManufacturers(uniqueManufacturers.sort())
         setPlates(uniquePlates.sort())
+        setTrailerNumbers(uniqueTrailerNumbers.sort())
         setDrivers(uniqueDrivers.sort())
       } else {
         console.error('Failed to fetch filter options:', response.status, response.statusText)
@@ -182,6 +188,9 @@ export default function ProfessionalReportGenerator() {
     setGenerating(true)
     setError(null)
     setSuccess(null)
+    setReportData(null)
+    setSelectedTireIds([])
+    setTireSelectionActive(false)
 
     try {
       console.log('Starting report generation...')
@@ -198,9 +207,8 @@ export default function ProfessionalReportGenerator() {
 
       // Add filters only if they have values
       Object.entries(reportConfig.filters).forEach(([key, value]) => {
-        if (value && value !== 'all' && value.trim() !== '') {
-          params.append(key, value)
-        }
+        if (Array.isArray(value)) value.forEach(item => params.append(key, item))
+        else if (value && value !== 'all' && value.trim() !== '') params.append(key, value)
       })
 
       const apiUrl = `/api/tires/reports/generate?${params}`
@@ -219,6 +227,8 @@ export default function ProfessionalReportGenerator() {
         })
         
         setReportData(data)
+        setSelectedTireIds([])
+        setTireSelectionActive(false)
         
         if (data.isEmpty || !data.tires || data.tires.length === 0) {
           setSuccess('Report generated - no data found for selected criteria. Try adjusting your date range or filters.')
@@ -240,12 +250,35 @@ export default function ProfessionalReportGenerator() {
     }
   }
 
+  const selectedTires = reportData?.tires
+    ? (tireSelectionActive ? reportData.tires.filter((tire: any) => selectedTireIds.includes(tire.id)) : reportData.tires)
+    : []
+  const selectedSummary = (() => {
+    const totalTires = selectedTires.reduce((sum: number, tire: any) => sum + (tire.quantity || 1), 0)
+    const vehicles = new Set([...selectedTires.map((t: any) => t.plateNumber).filter(Boolean), ...selectedTires.map((t: any) => t.trailerNumber).filter(Boolean)])
+    const drivers = new Set(selectedTires.map((t: any) => t.driverName).filter(Boolean))
+    return { totalTires, totalVehicles: vehicles.size, totalDrivers: drivers.size, averageTiresPerVehicle: vehicles.size ? (totalTires / vehicles.size).toFixed(1) : 0 }
+  })()
+  const toggleTireSelection = (id: string) => {
+    const currentSelection = tireSelectionActive ? selectedTireIds : (reportData?.tires || []).map((tire: any) => tire.id)
+    setTireSelectionActive(true)
+    setSelectedTireIds(currentSelection.includes(id) ? currentSelection.filter((item: string) => item !== id) : [...currentSelection, id])
+  }
+  const selectAllTires = () => {
+    setTireSelectionActive(true)
+    setSelectedTireIds((reportData?.tires || []).map((tire: any) => tire.id))
+  }
+
   const downloadReport = async () => {
     if (!reportData) return
 
     // Check if data is empty
     if (reportData.isEmpty) {
       setError('Cannot download report - no data available')
+      return
+    }
+    if (selectedTires.length === 0) {
+      setError('Select at least one tire record before downloading the report')
       return
     }
 
@@ -301,10 +334,10 @@ export default function ProfessionalReportGenerator() {
       `Date Range: ${format(new Date(reportConfig.dateRange.start), 'MMM dd, yyyy')} to ${format(new Date(reportConfig.dateRange.end), 'MMM dd, yyyy')}`,
       '',
       'EXECUTIVE SUMMARY',
-      `Total Tires in Fleet: ${reportData.summary?.totalTires || 0}`,
-      `Total Vehicles: ${reportData.summary?.totalVehicles || 0}`,
-      `Total Drivers: ${reportData.summary?.totalDrivers || 0}`,
-      `Average Tires per Vehicle: ${reportData.summary?.averageTiresPerVehicle || 0}`,
+      `Total Tires in Fleet: ${selectedSummary?.totalTires || 0}`,
+      `Total Vehicles: ${selectedSummary?.totalVehicles || 0}`,
+      `Total Drivers: ${selectedSummary?.totalDrivers || 0}`,
+      `Average Tires per Vehicle: ${selectedSummary?.averageTiresPerVehicle || 0}`,
       '',
       'DETAILED TIRE INVENTORY'
     ]
@@ -327,15 +360,15 @@ export default function ProfessionalReportGenerator() {
 
     const rows = [...reportHeader, detailHeaders.join(',')]
 
-    if (reportData.tires && reportData.tires.length > 0) {
+    if (selectedTires && selectedTires.length > 0) {
       // Sort tires: trailers first if this is a trailer report
       const sortedTires = reportConfig.template === 'trailer-report' 
-        ? [...reportData.tires].sort((a, b) => {
+        ? [...selectedTires].sort((a, b) => {
             if (a.trailerNumber && !b.trailerNumber) return -1
             if (!a.trailerNumber && b.trailerNumber) return 1
             return 0
           })
-        : reportData.tires
+        : selectedTires
         
       sortedTires.forEach((tire: any) => {
         const vehicleType = tire.trailerNumber ? 'TRAILER UNIT' : 'TRUCK UNIT'
@@ -361,8 +394,8 @@ export default function ProfessionalReportGenerator() {
       // Add summary footer with exact quantities
       rows.push('')
       rows.push('SUMMARY BY VEHICLE TYPE')
-      const truckTires = reportData.tires.filter((t: any) => !t.trailerNumber)
-      const trailerTires = reportData.tires.filter((t: any) => t.trailerNumber)
+      const truckTires = selectedTires.filter((t: any) => !t.trailerNumber)
+      const trailerTires = selectedTires.filter((t: any) => t.trailerNumber)
       
       const totalTruckTires = truckTires.reduce((sum: number, t: any) => sum + (t.quantity || 1), 0)
       const totalTrailerTires = trailerTires.reduce((sum: number, t: any) => sum + (t.quantity || 1), 0)
@@ -372,7 +405,7 @@ export default function ProfessionalReportGenerator() {
       rows.push(`TOTAL FLEET TIRES: ${totalTruckTires + totalTrailerTires} tires`)
       
       // Add trailer-specific summary if this is a trailer report
-      if (reportConfig.template === 'trailer-report' || reportConfig.filters.trailerNumber) {
+      if (reportConfig.template === 'trailer-report' || reportConfig.filters.trailerNumbers?.length) {
         rows.push('')
         rows.push('TRAILER-SPECIFIC ANALYSIS')
         const uniqueTrailers = new Set(trailerTires.map((t: any) => t.trailerNumber))
@@ -414,9 +447,9 @@ export default function ProfessionalReportGenerator() {
       summarySheet.addRow(['Template', reportTemplates.find(t => t.id === reportConfig.template)?.name || reportConfig.template])
       summarySheet.addRow(['Generated', new Date()])
       summarySheet.addRow(['Report period', `${reportConfig.dateRange.start} to ${reportConfig.dateRange.end}`])
-      summarySheet.addRow(['Total tires', reportData.summary?.totalTires || 0])
-      summarySheet.addRow(['Vehicles', reportData.summary?.totalVehicles || 0])
-      summarySheet.addRow(['Drivers', reportData.summary?.totalDrivers || 0])
+      summarySheet.addRow(['Total tires', selectedSummary?.totalTires || 0])
+      summarySheet.addRow(['Vehicles', selectedSummary?.totalVehicles || 0])
+      summarySheet.addRow(['Drivers', selectedSummary?.totalDrivers || 0])
       summarySheet.getCell('B3').numFmt = 'dd mmm yyyy hh:mm'
       for (let row = 2; row <= 7; row += 1) {
         summarySheet.getCell(`A${row}`).font = { bold: true, color: { argb: 'FF334155' } }
@@ -442,8 +475,8 @@ export default function ProfessionalReportGenerator() {
       ]
 
       // Add data
-      if (reportData.tires) {
-        reportData.tires.forEach((tire: any) => {
+      if (selectedTires) {
+        selectedTires.forEach((tire: any) => {
           const vehicleType = tire.trailerNumber ? 'TRAILER UNIT' : 'TRUCK UNIT'
           const createdBy = tire.createdBy?.name || tire.createdBy?.email || 'Unknown User'
           worksheet.addRow({
@@ -499,7 +532,7 @@ export default function ProfessionalReportGenerator() {
       const pageWidth = doc.internal.pageSize.getWidth()
       const pageHeight = doc.internal.pageSize.getHeight()
       const margin = 12
-      const tires = reportData.tires || []
+      const tires = selectedTires || []
       const columns = [
         { title: 'TIRE', width: 49 },
         { title: 'VEHICLE', width: 43 },
@@ -524,9 +557,9 @@ export default function ProfessionalReportGenerator() {
         doc.text(`${reportConfig.dateRange.start} to ${reportConfig.dateRange.end}`, pageWidth - margin, 21, { align: 'right' })
 
         const metrics = [
-          ['TOTAL TIRES', String(reportData.summary?.totalTires || 0)],
-          ['VEHICLES', String(reportData.summary?.totalVehicles || 0)],
-          ['DRIVERS', String(reportData.summary?.totalDrivers || 0)],
+          ['TOTAL TIRES', String(selectedSummary?.totalTires || 0)],
+          ['VEHICLES', String(selectedSummary?.totalVehicles || 0)],
+          ['DRIVERS', String(selectedSummary?.totalDrivers || 0)],
           ['RECORDS', String(tires.length)],
         ]
         const gap = 4
@@ -695,6 +728,8 @@ export default function ProfessionalReportGenerator() {
     setError(null)
     setSuccess(null)
     setReportData(null)
+    setSelectedTireIds([])
+    setTireSelectionActive(false)
   }
 
   if (loading || isLoading) {
@@ -891,35 +926,23 @@ export default function ProfessionalReportGenerator() {
               </div>
 
               <div className="space-y-2">
-                <Label className="text-sm">Plate Number</Label>
-                <Select value={reportConfig.filters.plateNumber || ''} onValueChange={(value) => 
-                  setReportConfig({
-                    ...reportConfig,
-                    filters: { ...reportConfig.filters, plateNumber: value === 'all' ? undefined : value }
-                  })
-                }>
-                  <SelectTrigger>
-                    <SelectValue placeholder="All vehicles" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All vehicles</SelectItem>
-                    {plates.map((p) => (
-                      <SelectItem key={p} value={p}>{p}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label className="text-sm">Truck Plates (select any number)</Label>
+                <div className="max-h-36 space-y-2 overflow-y-auto rounded-md border p-2">
+                  {plates.map(plate => <label key={plate} className="flex items-center gap-2 text-sm">
+                    <Checkbox checked={reportConfig.filters.plateNumbers?.includes(plate) || false} onCheckedChange={checked => setReportConfig(current => ({ ...current, filters: { ...current.filters, plateNumbers: checked ? [...(current.filters.plateNumbers || []), plate] : (current.filters.plateNumbers || []).filter(item => item !== plate) } }))} />
+                    <span>{plate}</span>
+                  </label>)}
+                </div>
               </div>
 
               <div className="space-y-2">
-                <Label className="text-sm">Trailer Number</Label>
-                <Input
-                  placeholder="Enter trailer number"
-                  value={reportConfig.filters.trailerNumber || ''}
-                  onChange={(e) => setReportConfig({
-                    ...reportConfig,
-                    filters: { ...reportConfig.filters, trailerNumber: e.target.value || undefined }
-                  })}
-                />
+                <Label className="text-sm">Trailer Numbers (select any number)</Label>
+                <div className="max-h-36 space-y-2 overflow-y-auto rounded-md border p-2">
+                  {trailerNumbers.map(number => <label key={number} className="flex items-center gap-2 text-sm">
+                    <Checkbox checked={reportConfig.filters.trailerNumbers?.includes(number) || false} onCheckedChange={checked => setReportConfig(current => ({ ...current, filters: { ...current.filters, trailerNumbers: checked ? [...(current.filters.trailerNumbers || []), number] : (current.filters.trailerNumbers || []).filter(item => item !== number) } }))} />
+                    <span>{number}</span>
+                  </label>)}
+                </div>
               </div>
 
               <div className="space-y-2">
@@ -1051,9 +1074,9 @@ export default function ProfessionalReportGenerator() {
                     <p className="text-gray-600 text-sm sm:text-base">
                       {reportTemplates.find(t => t.id === reportConfig.template)?.name}
                     </p>
-                    {reportConfig.filters.trailerNumber && (
+                    {reportConfig.filters.trailerNumbers?.length && (
                       <p className="text-orange-600 text-sm font-medium">
-                        Filtered for Trailer: {reportConfig.filters.trailerNumber}
+                        Filtered for Trailers: {reportConfig.filters.trailerNumbers?.join(', ')}
                       </p>
                     )}
                     <p className="text-xs sm:text-sm text-gray-500">
@@ -1062,31 +1085,31 @@ export default function ProfessionalReportGenerator() {
                   </div>
 
                   {/* Executive Summary */}
-                  {reportData.summary && (
+                  {selectedSummary && (
                     <div className="space-y-4">
                       <h2 className="text-lg sm:text-xl font-semibold">Executive Summary</h2>
                       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                         <div className="text-center p-3 sm:p-4 bg-gray-50 rounded-lg">
                           <div className="text-lg sm:text-2xl font-bold text-blue-600">
-                            {reportData.summary.totalTires || 0}
+                            {selectedSummary.totalTires || 0}
                           </div>
                           <div className="text-xs sm:text-sm text-gray-600">Total Tires</div>
                         </div>
                         <div className="text-center p-3 sm:p-4 bg-gray-50 rounded-lg">
                           <div className="text-lg sm:text-2xl font-bold text-green-600">
-                            {reportData.summary.totalVehicles || 0}
+                            {selectedSummary.totalVehicles || 0}
                           </div>
                           <div className="text-xs sm:text-sm text-gray-600">Vehicles</div>
                         </div>
                         <div className="text-center p-3 sm:p-4 bg-gray-50 rounded-lg">
                           <div className="text-lg sm:text-2xl font-bold text-purple-600">
-                            {reportData.summary.totalDrivers || 0}
+                            {selectedSummary.totalDrivers || 0}
                           </div>
                           <div className="text-xs sm:text-sm text-gray-600">Drivers</div>
                         </div>
                         <div className="text-center p-3 sm:p-4 bg-gray-50 rounded-lg">
                           <div className="text-lg sm:text-2xl font-bold text-orange-600">
-                            {reportData.summary.averageTiresPerVehicle || 0}
+                            {selectedSummary.averageTiresPerVehicle || 0}
                           </div>
                           <div className="text-xs sm:text-sm text-gray-600">Avg Tires/Vehicle</div>
                         </div>
@@ -1097,28 +1120,33 @@ export default function ProfessionalReportGenerator() {
                   {/* Detailed Data */}
                   {reportData.tires && reportData.tires.length > 0 && (
                     <div className="space-y-4">
+                      <div className="flex flex-wrap items-center gap-2 text-sm">
+                        <span>{tireSelectionActive ? `${selectedTireIds.length} of ${reportData.tires.length} tires selected for this report` : `All ${reportData.tires.length} matching tires included`}</span>
+                        <Button variant="outline" size="sm" onClick={selectAllTires}>Select all</Button>
+                        <Button variant="outline" size="sm" onClick={() => { setTireSelectionActive(true); setSelectedTireIds([]) }}>Clear selection</Button>
+                      </div>
                       <h2 className="text-lg sm:text-xl font-semibold">
                         {reportConfig.template === 'trailer-report' ? 'Trailer Tire Inventory' : 'Detailed Tire Inventory'}
                       </h2>
                       
                       {/* Show trailer-specific summary if applicable */}
-                      {(reportConfig.template === 'trailer-report' || reportConfig.filters.trailerNumber) && (
+                      {(reportConfig.template === 'trailer-report' || reportConfig.filters.trailerNumbers?.length) && (
                         <div className="bg-orange-50 p-4 rounded-lg">
                           <h3 className="font-semibold text-orange-800 mb-2">Trailer Analysis</h3>
                           <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 text-sm">
                             <div>
                               <span className="text-orange-600 font-medium">Trailer Tires:</span>
-                              <span className="ml-2">{reportData.tires.filter((t: any) => t.trailerNumber).reduce((sum: number, t: any) => sum + (t.quantity || 1), 0)}</span>
+                              <span className="ml-2">{selectedTires.filter((t: any) => t.trailerNumber).reduce((sum: number, t: any) => sum + (t.quantity || 1), 0)}</span>
                             </div>
                             <div>
                               <span className="text-orange-600 font-medium">Unique Trailers:</span>
-                              <span className="ml-2">{new Set(reportData.tires.filter((t: any) => t.trailerNumber).map((t: any) => t.trailerNumber)).size}</span>
+                              <span className="ml-2">{new Set(selectedTires.filter((t: any) => t.trailerNumber).map((t: any) => t.trailerNumber)).size}</span>
                             </div>
                             <div>
                               <span className="text-orange-600 font-medium">Avg per Trailer:</span>
                               <span className="ml-2">
                                 {(() => {
-                                  const trailerTires = reportData.tires.filter((t: any) => t.trailerNumber)
+                                  const trailerTires = selectedTires.filter((t: any) => t.trailerNumber)
                                   const uniqueTrailers = new Set(trailerTires.map((t: any) => t.trailerNumber)).size
                                   const totalTires = trailerTires.reduce((sum: number, t: any) => sum + (t.quantity || 1), 0)
                                   return uniqueTrailers > 0 ? (totalTires / uniqueTrailers).toFixed(1) : '0'
@@ -1128,17 +1156,18 @@ export default function ProfessionalReportGenerator() {
                             <div>
                               <span className="text-orange-600 font-medium">Coverage:</span>
                               <span className="ml-2">
-                                {Math.round((reportData.tires.filter((t: any) => t.trailerNumber).length / reportData.tires.length) * 100)}%
+                                {Math.round((selectedTires.filter((t: any) => t.trailerNumber).length / selectedTires.length) * 100)}%
                               </span>
                             </div>
                           </div>
                         </div>
                       )}
                       
-                      <div className="border rounded-lg overflow-x-auto">
+                      <div className="max-h-[60vh] overflow-auto rounded-lg border">
                         <Table>
                           <TableHeader>
                             <TableRow>
+                              <TableHead>Select</TableHead>
                               <TableHead>Tire Details</TableHead>
                               <TableHead>Vehicle/Trailer</TableHead>
                               <TableHead>Driver</TableHead>
@@ -1158,8 +1187,9 @@ export default function ProfessionalReportGenerator() {
                                   })
                                 : reportData.tires
                               
-                              return sortedTires.slice(0, 10).map((tire: any, index: number) => (
-                                <TableRow key={index} className={tire.trailerNumber ? 'bg-orange-50' : ''}>
+                              return sortedTires.map((tire: any) => (
+                                <TableRow key={tire.id} className={tire.trailerNumber ? 'bg-orange-50' : ''}>
+                                  <TableCell><Checkbox checked={tireSelectionActive ? selectedTireIds.includes(tire.id) : true} onCheckedChange={() => toggleTireSelection(tire.id)} /></TableCell>
                                   <TableCell>
                                     <div>
                                       <div className="font-medium">{tire.manufacturer}</div>
@@ -1213,11 +1243,7 @@ export default function ProfessionalReportGenerator() {
                           </TableBody>
                         </Table>
                       </div>
-                      {reportData.tires.length > 10 && (
-                        <p className="text-sm text-gray-500 text-center">
-                          Showing first 10 of {reportData.tires.length} records
-                        </p>
-                      )}
+                      {tireSelectionActive && selectedTireIds.length === 0 && <p className="text-sm text-amber-700">No tire records are selected. Choose one or more rows before downloading.</p>}
                     </div>
                   )}
 
@@ -1259,7 +1285,7 @@ export default function ProfessionalReportGenerator() {
             </Button>
             <Button 
               onClick={downloadReport} 
-              disabled={!reportData || reportData?.isEmpty || !reportData?.tires || reportData.tires.length === 0}
+              disabled={!reportData || reportData?.isEmpty || !reportData?.tires || selectedTires.length === 0}
               className="w-full sm:w-auto"
             >
               <Download className="mr-2 h-4 w-4" />
