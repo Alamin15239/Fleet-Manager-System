@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -94,23 +94,26 @@ interface Mechanic {
   specialty?: string
 }
 
+const emptyReportSummary: ReportSummary = {
+  totalRecords: 0,
+  totalCost: 0,
+  totalPartsCost: 0,
+  totalLaborCost: 0,
+  averageCost: 0,
+  completedCount: 0,
+  inProgressCount: 0,
+  scheduledCount: 0,
+  serviceTypeBreakdown: {},
+  statusBreakdown: {},
+  monthlyBreakdown: {},
+  mechanicBreakdown: {},
+  vehicleBreakdown: {}
+}
+
 export default function ReportsPage() {
+  const maintenanceRequestId = useRef(0)
   const [maintenance, setMaintenance] = useState<MaintenanceRecord[]>([])
-  const [summary, setSummary] = useState<ReportSummary>({
-    totalRecords: 0,
-    totalCost: 0,
-    totalPartsCost: 0,
-    totalLaborCost: 0,
-    averageCost: 0,
-    completedCount: 0,
-    inProgressCount: 0,
-    scheduledCount: 0,
-    serviceTypeBreakdown: {},
-    statusBreakdown: {},
-    monthlyBreakdown: {},
-    mechanicBreakdown: {},
-    vehicleBreakdown: {}
-  })
+  const [summary, setSummary] = useState<ReportSummary>(emptyReportSummary)
   const [trucks, setTrucks] = useState<Truck[]>([])
   const [trailers, setTrailers] = useState<Trailer[]>([])
   const [mechanics, setMechanics] = useState<Mechanic[]>([])
@@ -127,19 +130,24 @@ export default function ReportsPage() {
   const [truckFilter, setTruckFilter] = useState<string[]>([])
   const [trailerFilter, setTrailerFilter] = useState<string[]>([])
   const [mechanicFilter, setMechanicFilter] = useState('all')
+  const [reportError, setReportError] = useState<string | null>(null)
 
   useEffect(() => {
-    fetchMaintenance()
     fetchTrucks()
     fetchTrailers()
     fetchMechanics()
   }, [])
 
   useEffect(() => {
-    fetchMaintenance()
+    const requestId = ++maintenanceRequestId.current
+    const timer = window.setTimeout(() => { void fetchMaintenance(requestId) }, searchTerm ? 250 : 0)
+    return () => {
+      window.clearTimeout(timer)
+      if (maintenanceRequestId.current === requestId) maintenanceRequestId.current += 1
+    }
   }, [startDate, endDate, searchTerm, statusFilter, serviceTypeFilter, truckFilter, trailerFilter, mechanicFilter])
 
-  const fetchMaintenance = async () => {
+  const fetchMaintenance = async (requestId: number) => {
     try {
       const params = new URLSearchParams()
       if (startDate) params.append('startDate', startDate)
@@ -152,18 +160,24 @@ export default function ReportsPage() {
       if (mechanicFilter !== 'all') params.append('mechanicId', mechanicFilter)
 
       const response = await apiGet(`/api/maintenance/reports?${params.toString()}`)
-      if (response.ok) {
-        const data = await response.json()
-        setMaintenance(data.data || [])
-        setSummary(data.summary || {})
-        setSelectedRecords([])
-        setSelectionActive(false)
-      }
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok || !data.success) throw new Error(data.error || `Failed to load report data (${response.status})`)
+      if (requestId !== maintenanceRequestId.current) return
+      setMaintenance(Array.isArray(data.data) ? data.data : [])
+      setSummary({ ...emptyReportSummary, ...(data.summary || {}) })
+      setSelectedRecords([])
+      setSelectionActive(false)
+      setReportError(null)
     } catch (error) {
       console.error('Error fetching maintenance:', error)
-      toast.error('Failed to fetch maintenance data')
+      if (requestId === maintenanceRequestId.current) {
+        setReportError(error instanceof Error ? error.message : 'Failed to fetch maintenance data')
+        setMaintenance([])
+        setSummary(emptyReportSummary)
+        toast.error(error instanceof Error ? error.message : 'Failed to fetch maintenance data')
+      }
     } finally {
-      setLoading(false)
+      if (requestId === maintenanceRequestId.current) setLoading(false)
     }
   }
 
@@ -341,6 +355,7 @@ export default function ReportsPage() {
 
   return (
       <div className="container mx-auto p-4 sm:p-6 space-y-6">
+      {reportError && <Card className="border-destructive"><CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"><p className="text-sm text-destructive">{reportError}</p><Button size="sm" variant="outline" onClick={() => { setReportError(null); const requestId = ++maintenanceRequestId.current; void fetchMaintenance(requestId) }}>Retry</Button></CardContent></Card>}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight sm:text-3xl">

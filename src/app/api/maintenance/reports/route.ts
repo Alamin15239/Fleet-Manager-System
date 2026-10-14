@@ -14,16 +14,25 @@ export async function GET(request: NextRequest) {
     const trailerIds = [...new Set([...searchParams.getAll('trailerIds')].flatMap(value => value.split(',')).filter(Boolean))]
     const mechanicId = searchParams.get('mechanicId')
 
+    const parsedStartDate = startDate ? new Date(startDate) : null
+    const parsedEndDate = endDate ? new Date(endDate) : null
+    if ((parsedStartDate && Number.isNaN(parsedStartDate.getTime())) || (parsedEndDate && Number.isNaN(parsedEndDate.getTime()))) {
+      return NextResponse.json({ success: false, error: 'Start and end dates must be valid dates.' }, { status: 400 })
+    }
+    if (parsedStartDate && parsedEndDate && parsedStartDate > parsedEndDate) {
+      return NextResponse.json({ success: false, error: 'Start date must be on or before the end date.' }, { status: 400 })
+    }
+
     const whereClause: any = {
       isDeleted: false
     }
 
     if (startDate) {
-      whereClause.datePerformed = { gte: new Date(startDate) }
+      whereClause.datePerformed = { gte: parsedStartDate! }
     }
 
     if (endDate) {
-      const inclusiveEndDate = new Date(endDate)
+      const inclusiveEndDate = parsedEndDate!
       inclusiveEndDate.setHours(23, 59, 59, 999)
       whereClause.datePerformed = {
         ...(whereClause.datePerformed || {}),
@@ -206,7 +215,8 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('Error fetching maintenance reports:', error)
     return NextResponse.json({
-      success: true,
+      success: false,
+      error: 'Unable to load maintenance report data. Please try again.',
       data: [],
       summary: {
         totalRecords: 0,
@@ -223,6 +233,6 @@ export async function GET(request: NextRequest) {
         mechanicBreakdown: {},
         vehicleBreakdown: {}
       }
-    })
+    }, { status: 500 })
   }
 }
