@@ -12,7 +12,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { toast } from 'sonner'
-import { FileText, Plus, Printer, Pencil, Trash2 } from 'lucide-react'
+import { FileText, Plus, Printer, Download, Pencil, Trash2 } from 'lucide-react'
 import QRCode from 'qrcode'
 
 type VehicleType = 'truck' | 'trailer'
@@ -53,6 +53,7 @@ export default function WorkshopJobCards() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [open, setOpen] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [downloadingId, setDownloadingId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const vehicles = form.vehicleType === 'truck' ? trucks : trailers
 
@@ -112,9 +113,7 @@ export default function WorkshopJobCards() {
     finally { setSaving(false) }
   }
 
-  const printCard = async (card: JobCard) => {
-    const printWindow = window.open('', '_blank', 'width=1000,height=900')
-    if (!printWindow) { toast.error('Allow pop-ups to print the job card'); return }
+  const renderCardDocument = async (card: JobCard) => {
     const items = Array.isArray(card.items) ? card.items : []
     const checks = card.checklist || {}
     const checkedRows = checklistItems.map(([key, en, ar]) => {
@@ -144,12 +143,13 @@ export default function WorkshopJobCards() {
     const qrValue = `JOB CARD | ${card.jobNumber} | ${plate} | ${dateText(card.serviceDate)}`
     let qrDataUrl = ''
     try { qrDataUrl = await QRCode.toDataURL(qrValue, { width: 220, margin: 1, errorCorrectionLevel: 'M' }) }
-    catch { toast.error('Unable to generate the job card QR code'); printWindow.close(); return }
-    printWindow.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(card.jobNumber)} · Job Card</title><style>
+    catch { throw new Error('Unable to generate the job card QR code') }
+    return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(card.jobNumber)} · Job Card</title><style>
       @page{size:A4 portrait;margin:7.62mm 6.35mm}
       *{box-sizing:border-box}
       html,body{margin:0;padding:0;color:#202820;font-family:"Segoe UI",Arial,sans-serif}
       .print-page{width:114.95%;zoom:.87}
+      @media screen{body{width:794px}.print-page{width:100%;zoom:1}}
       .card-frame{width:100%;border:2px solid #101510}
       .sheet{width:100%;border-collapse:collapse;table-layout:fixed;font-size:10px;line-height:1.12}
       .sheet col:nth-child(1){width:15.83%}.sheet col:nth-child(2){width:38.45%}.sheet col:nth-child(3){width:14.07%}.sheet col:nth-child(4){width:31.65%}
@@ -205,8 +205,56 @@ export default function WorkshopJobCards() {
       <tr><td class="sig" colspan="2"><div class="sigline">${esc(card.technicianSignature || '_____________')} &nbsp; Technician Signature / توقيع الفني</div></td><td class="sig" colspan="2"><div class="sigline">${esc(card.supervisorSignature || '_____________')} &nbsp; Supervisor Signature / توقيع المشرف</div></td></tr>
       <tr><td class="driver-sig" colspan="4">${esc(card.driverSignature || '____________________________________')} &nbsp; Driver / Customer signature / توقيع السائق</td></tr>
       <tr><td class="form-footer" colspan="4">JC-01 · Form JC-01 · Rev 6 · Saadfreeh Transport Est. — Workshop Job Card System · نموذج</td></tr>
-    </tbody></table></div><table class="qr-footer"><colgroup><col><col></colgroup><tbody><tr><td>Scan to view vehicle &amp; job date<br>امسح لعرض بيانات المركبة وتاريخ العمل</td><td><img src="${qrDataUrl}" alt="Job card QR code"></td></tr></tbody></table></div><script>window.onload=()=>setTimeout(()=>window.print(),150)</script></body></html>`)
-    printWindow.document.close()
+    </tbody></table></div><table class="qr-footer"><colgroup><col><col></colgroup><tbody><tr><td>Scan to view vehicle &amp; job date<br>امسح لعرض بيانات المركبة وتاريخ العمل</td><td><img src="${qrDataUrl}" alt="Job card QR code"></td></tr></tbody></table></div></body></html>`
+  }
+
+  const printCard = async (card: JobCard) => {
+    const printWindow = window.open('', '_blank', 'width=1000,height=900')
+    if (!printWindow) { toast.error('Allow pop-ups to print the job card'); return }
+    try {
+      printWindow.document.write(await renderCardDocument(card))
+      printWindow.document.close()
+      printWindow.onload = () => setTimeout(() => printWindow.print(), 150)
+    } catch (error) {
+      printWindow.close()
+      toast.error(error instanceof Error ? error.message : 'Unable to prepare the job card')
+    }
+  }
+
+  const downloadCard = async (card: JobCard) => {
+    setDownloadingId(card.id)
+    let frame: HTMLIFrameElement | null = null
+    try {
+      const [{ default: html2canvas }, { jsPDF }] = await Promise.all([import('html2canvas'), import('jspdf')])
+      frame = document.createElement('iframe')
+      frame.style.cssText = 'position:fixed;left:-10000px;top:0;width:794px;height:1123px;border:0;background:#fff'
+      document.body.appendChild(frame)
+      const frameDocument = frame.contentDocument
+      if (!frameDocument) throw new Error('Unable to prepare the PDF document')
+      frameDocument.open()
+      frameDocument.write(await renderCardDocument(card))
+      frameDocument.close()
+      await new Promise<void>((resolve, reject) => {
+        const timer = window.setTimeout(() => reject(new Error('Timed out loading the job card for PDF')), 10000)
+        frame!.onload = () => { window.clearTimeout(timer); resolve() }
+      })
+      const logo = frameDocument.querySelector<HTMLImageElement>('.logo img')
+      if (logo && !logo.complete) await new Promise<void>((resolve, reject) => {
+        logo.onload = () => resolve()
+        logo.onerror = () => reject(new Error('Unable to load the company logo for PDF'))
+      })
+      const page = frameDocument.querySelector<HTMLElement>('.print-page')
+      if (!page) throw new Error('Unable to render the job card')
+      const canvas = await html2canvas(page, { scale: 2, backgroundColor: '#ffffff', useCORS: true, windowWidth: 794 })
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true })
+      pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, 210, 297)
+      pdf.save(`${String(card.jobNumber || 'job-card').replace(/[^a-z0-9-_]/gi, '_')}.pdf`)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Unable to download the job card PDF')
+    } finally {
+      frame?.remove()
+      setDownloadingId(null)
+    }
   }
 
   const addItem = () => setForm(current => ({ ...current, items: [...current.items, { type: 'PART', description: '', quantity: 1, remarks: '' }] }))
@@ -218,7 +266,7 @@ export default function WorkshopJobCards() {
     <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between"><div><h2 className="text-xl font-semibold">Workshop Job Cards</h2><p className="text-sm text-muted-foreground">Create, track, and print the bilingual workshop form.</p></div><Button onClick={startNew}><Plus className="mr-2 h-4 w-4"/>New Job Card</Button></div>
     <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">{[['Total Job Cards', summary.total], ['Open', summary.open], ['In Progress', summary.inProgress], ['Completed', summary.completed]].map(([label, value]) => <Card key={label}><CardContent className="p-4"><p className="text-xs text-muted-foreground">{label}</p><p className="mt-1 text-2xl font-semibold">{value}</p></CardContent></Card>)}</div>
     <Card><CardHeader><CardTitle>Job Card Register</CardTitle><CardDescription>{cards.length} saved job cards</CardDescription></CardHeader><CardContent>
-      {loading ? <p className="py-8 text-center text-muted-foreground">Loading job cards…</p> : cards.length === 0 ? <div className="py-10 text-center"><FileText className="mx-auto mb-3 h-10 w-10 text-muted-foreground"/><p className="font-medium">No job cards yet</p><p className="text-sm text-muted-foreground">Create the first workshop job card when a vehicle arrives for service.</p></div> : <div className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead>Job No.</TableHead><TableHead>Date</TableHead><TableHead>Vehicle</TableHead><TableHead>Service</TableHead><TableHead>Technician</TableHead><TableHead>Status</TableHead><TableHead>Actions</TableHead></TableRow></TableHeader><TableBody>{cards.map(card => <TableRow key={card.id}><TableCell className="font-medium">{card.jobNumber}</TableCell><TableCell>{dateText(card.serviceDate)}</TableCell><TableCell>{vehicleLabel(card)}</TableCell><TableCell>{card.serviceType}</TableCell><TableCell>{card.technicianName || '—'}</TableCell><TableCell><Badge variant={card.status === 'COMPLETED' ? 'default' : 'secondary'}>{statusLabel(card.status)}</Badge></TableCell><TableCell><div className="flex gap-1"><Button size="sm" variant="ghost" title="Print / save as PDF" onClick={() => printCard(card)}><Printer className="h-4 w-4"/></Button><Button size="sm" variant="ghost" title="Edit job card" onClick={() => startEdit(card)}><Pencil className="h-4 w-4"/></Button></div></TableCell></TableRow>)}</TableBody></Table></div>}
+       {loading ? <p className="py-8 text-center text-muted-foreground">Loading job cards…</p> : cards.length === 0 ? <div className="py-10 text-center"><FileText className="mx-auto mb-3 h-10 w-10 text-muted-foreground"/><p className="font-medium">No job cards yet</p><p className="text-sm text-muted-foreground">Create the first workshop job card when a vehicle arrives for service.</p></div> : <div className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead>Job No.</TableHead><TableHead>Date</TableHead><TableHead>Vehicle</TableHead><TableHead>Service</TableHead><TableHead>Technician</TableHead><TableHead>Status</TableHead><TableHead>Actions</TableHead></TableRow></TableHeader><TableBody>{cards.map(card => <TableRow key={card.id}><TableCell className="font-medium">{card.jobNumber}</TableCell><TableCell>{dateText(card.serviceDate)}</TableCell><TableCell>{vehicleLabel(card)}</TableCell><TableCell>{card.serviceType}</TableCell><TableCell>{card.technicianName || '—'}</TableCell><TableCell><Badge variant={card.status === 'COMPLETED' ? 'default' : 'secondary'}>{statusLabel(card.status)}</Badge></TableCell><TableCell><div className="flex gap-1"><Button size="sm" variant="ghost" title="Print job card" aria-label={`Print job card ${card.jobNumber}`} onClick={() => printCard(card)}><Printer className="h-4 w-4"/></Button><Button size="sm" variant="ghost" title="Download PDF" aria-label={`Download PDF for ${card.jobNumber}`} disabled={downloadingId === card.id} onClick={() => downloadCard(card)}><Download className="h-4 w-4"/></Button><Button size="sm" variant="ghost" title="Edit job card" aria-label={`Edit job card ${card.jobNumber}`} onClick={() => startEdit(card)}><Pencil className="h-4 w-4"/></Button></div></TableCell></TableRow>)}</TableBody></Table></div>}
     </CardContent></Card>
 
     <Dialog open={open} onOpenChange={setOpen}><DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-4xl"><DialogHeader><DialogTitle>{editingId ? 'Edit Workshop Job Card' : 'New Workshop Job Card'}</DialogTitle><DialogDescription>Bilingual A4 form · بيانات أمر الشغل</DialogDescription></DialogHeader>
