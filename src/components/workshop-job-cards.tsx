@@ -145,7 +145,7 @@ export default function WorkshopJobCards() {
     try { qrDataUrl = await QRCode.toDataURL(qrValue, { width: 220, margin: 1, errorCorrectionLevel: 'M' }) }
     catch { throw new Error('Unable to generate the job card QR code') }
     return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(card.jobNumber)} · Job Card</title><style>
-      @page{size:A4 portrait;margin:7.62mm 6.35mm}
+      @page{size:A4 portrait;margin:0}
       *{box-sizing:border-box}
       html,body{margin:0;padding:0;color:#202820;font-family:"Segoe UI",Arial,sans-serif}
       .print-page{width:100%;max-width:100%;zoom:1}
@@ -178,7 +178,7 @@ export default function WorkshopJobCards() {
       .qr-footer col:first-child{width:54.3%}.qr-footer col:last-child{width:45.7%}
       .qr-footer td{height:50px;text-align:center;vertical-align:middle;border:1px solid #b4c9bc;padding:4px}.qr-footer img{width:66px;height:66px;object-fit:contain}
       .work-complete{display:flex;justify-content:space-between;align-items:center;gap:10px}
-      @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}.print-page{width:100%;zoom:.87}.card-frame,.qr-footer{break-inside:avoid}tr{break-inside:avoid}}
+      @media print{html,body{width:210mm;min-height:297mm;margin:0!important;padding:0!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}.print-page{width:197.3mm;max-width:197.3mm;margin:0 auto;padding:0;zoom:1}.card-frame,.qr-footer{break-inside:avoid}tr{break-inside:avoid}}
       @media screen and (max-width:600px){.sheet{font-size:clamp(6px,1.4vw,10px)}.sheet td,.sheet th{padding:clamp(1px,.7vw,5px)}.brand-title{font-size:clamp(10px,3vw,18px)}.brand-name{font-size:clamp(8px,2.2vw,13px)}.brand-contact{font-size:clamp(6px,1.5vw,9px);white-space:normal}.logo img{height:auto;max-height:80px}.value,.issue{font-size:clamp(7px,1.6vw,11px)}.checkrow td:first-child{font-size:clamp(6px,1.3vw,9px)}.check-box{font-size:clamp(8px,2vw,14px)}.qr-footer{font-size:clamp(6px,1.4vw,9px)}.qr-footer img{width:clamp(38px,12vw,66px);height:clamp(38px,12vw,66px)}.sigline,.driver-sig{white-space:normal;font-size:clamp(6px,1.4vw,10px)}}
     </style></head><body><div class="print-page"><div class="card-frame"><table class="sheet"><colgroup><col><col><col><col></colgroup><tbody>
       <tr><td class="logo" rowspan="3"><img src="${window.location.origin}/saadfreeh-transport-logo.png" alt="Saadfreeh Transportation"></td><td class="brand-title" colspan="3" dir="rtl"></td></tr>
