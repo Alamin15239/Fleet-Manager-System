@@ -6,6 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Camera, Upload, X } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
 import { apiPost, apiDelete } from '@/lib/api'
+import { prepareProfileImage } from '@/lib/prepare-profile-image'
 
 interface ProfilePictureProps {
   size?: 'sm' | 'md' | 'lg' | 'xl'
@@ -29,23 +30,12 @@ export function ProfilePicture({ size = 'md', editable = false, className = '' }
     const file = event.target.files?.[0]
     if (!file) return
 
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-      alert('Please select an image file')
-      return
-    }
-
-    // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      alert('File size must be less than 5MB')
-      return
-    }
-
     setUploading(true)
 
     try {
+      const preparedFile = await prepareProfileImage(file)
       const formData = new FormData()
-      formData.append('profilePicture', file)
+      formData.append('profilePicture', preparedFile)
 
       const response = await fetch('/api/profile/picture', {
         method: 'POST',
@@ -59,12 +49,12 @@ export function ProfilePicture({ size = 'md', editable = false, className = '' }
         const data = await response.json()
         updateUser({ profileImage: data.user.profileImage })
       } else {
-        const errorData = await response.json()
+        const errorData = await response.json().catch(() => ({}))
         alert(errorData.error || 'Failed to upload profile picture')
       }
     } catch (error) {
       console.error('Error uploading profile picture:', error)
-      alert('Failed to upload profile picture')
+      alert(error instanceof Error ? error.message : 'Failed to upload profile picture')
     } finally {
       setUploading(false)
       if (fileInputRef.current) {

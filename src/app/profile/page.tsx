@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge'
 import { useAuth } from '@/contexts/auth-context'
 import { useToast } from '@/hooks/use-toast'
 import { ProfilePicture } from '@/components/profile-picture'
+import { prepareProfileImage } from '@/lib/prepare-profile-image'
 import { Loader2, Save, User, Mail, Phone, Building, Briefcase, Edit } from 'lucide-react'
 
 interface UserProfile {
@@ -114,8 +115,9 @@ export default function ProfilePage() {
 
     setUploading(true)
     try {
+      const preparedFile = await prepareProfileImage(file)
       const formData = new FormData()
-      formData.append('file', file)
+      formData.append('file', preparedFile)
 
       const response = await fetch('/api/upload/profile', {
         method: 'POST',
