@@ -226,9 +226,9 @@ export default function WorkshopJobCards() {
     setDownloadingId(card.id)
     let frame: HTMLIFrameElement | null = null
     try {
-      const puppeteerModule = await import('puppeteer')
+      const [{ default: html2canvas }, { jsPDF }] = await Promise.all([import('html2canvas'), import('jspdf')])
       frame = document.createElement('iframe')
-      frame.style.cssText = 'position:fixed;left:-10000px;top:0;width:794px;height:1123px;border:0;background:#fff'
+      frame.style.cssText = 'position:fixed;left:-10000px;top:0;width:744px;height:1052px;border:0;background:#fff'
       document.body.appendChild(frame)
       const frameDocument = frame.contentDocument
       if (!frameDocument) throw new Error('Unable to prepare the PDF document')
@@ -246,23 +246,21 @@ export default function WorkshopJobCards() {
       })
       const page = frameDocument.querySelector<HTMLElement>('.print-page')
       if (!page) throw new Error('Unable to render the job card')
-      if (!page) throw new Error('Unable to render the job card')
-      const puppeteer = 'default' in puppeteerModule ? puppeteerModule.default : puppeteerModule
-      const browser = await puppeteer.launch({ headless: true })
-      try {
-        const pdfPage = await browser.newPage()
-        await pdfPage.setContent(await renderCardDocument(card), { waitUntil: 'networkidle0' })
-        await pdfPage.emulateMediaType('print')
-        const pdfData = await pdfPage.pdf({ format: 'A4', preferCSSPageSize: true, printBackground: true, margin: { top: 0, right: 0, bottom: 0, left: 0 } })
-        const pdfUrl = URL.createObjectURL(new Blob([pdfData], { type: 'application/pdf' }))
-        const link = document.createElement('a')
-        link.href = pdfUrl
-        link.download = `${String(card.jobNumber || 'job-card').replace(/[^a-z0-9-_]/gi, '_')}.pdf`
-        link.click()
-        URL.revokeObjectURL(pdfUrl)
-      } finally {
-        await browser.close()
-      }
+      const renderWidth = 744
+      const renderHeight = 1052
+      page.style.width = `${renderWidth}px`
+      page.style.maxWidth = `${renderWidth}px`
+      page.style.margin = '0 auto'
+      frameDocument.documentElement.style.width = `${renderWidth}px`
+      frameDocument.body.style.width = `${renderWidth}px`
+      frameDocument.body.style.minHeight = `${renderHeight}px`
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+      const canvas = await html2canvas(page, { scale: 2, backgroundColor: '#ffffff', useCORS: true, windowWidth: renderWidth, windowHeight: renderHeight })
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true })
+      const imageWidth = 197.3
+      const imageHeight = canvas.height * imageWidth / canvas.width
+      pdf.addImage(canvas.toDataURL('image/png'), 'PNG', (210 - imageWidth) / 2, 0, imageWidth, Math.min(imageHeight, 297))
+      pdf.save(`${String(card.jobNumber || 'job-card').replace(/[^a-z0-9-_]/gi, '_')}.pdf`)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Unable to download the job card PDF')
     } finally {
