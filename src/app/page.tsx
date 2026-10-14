@@ -38,12 +38,11 @@ interface Truck {
 
 interface MaintenanceRecord {
   id: string
-  truckId: string
   serviceType: string
   datePerformed: string
   totalCost: number
   status: string
-  truck: Truck
+  vehicleName?: string | null
 }
 
 export default function Dashboard() {
@@ -424,7 +423,7 @@ export default function Dashboard() {
                           <div>
                             <h3 className="font-semibold">{record.serviceType}</h3>
                             <p className="text-sm text-muted-foreground">
-                              {record.truck.year} {record.truck.make} {record.truck.model} • {record.truck.licensePlate}
+                              {record.vehicleName || 'Unknown vehicle'}
                             </p>
                             <p className="text-sm text-muted-foreground">
                               {new Date(record.datePerformed).toLocaleDateString()} • {typeof record.totalCost === 'number' ? (record.totalCost || 0).toLocaleString() : '0'}
