@@ -1,5 +1,8 @@
 # Deployment Guide
 
+> Live domain: https://fleetmaintenance.site (Vercel + Neon Postgres + Resend)
+> Production database setup: `npx prisma db push` against `DATABASE_URL`, then `npm run db:setup-vercel`
+
 ## Prerequisites
 
 - Node.js 20+
