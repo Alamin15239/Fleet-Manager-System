@@ -180,7 +180,7 @@ export default function WorkshopJobCards() {
       .qr-footer td:first-child{direction:ltr}.qr-footer td:first-child br+span{direction:rtl}
       .work-complete{display:flex;justify-content:space-between;align-items:center;gap:10px}
       @media screen{html,body{width:100%;min-width:0}.print-page{width:100%;max-width:100%;margin:0 auto}}
-      @media print{html,body{width:210mm;min-height:297mm;margin:0!important;padding:0!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}.print-page{width:197.3mm;max-width:197.3mm;margin:0 auto;padding:0;zoom:1}.card-frame{break-inside:avoid}tr{break-inside:avoid}}
+      @media print{html,body{width:210mm;height:297mm;max-height:297mm;overflow:hidden;margin:0!important;padding:0!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}.print-page{width:197.3mm;max-width:197.3mm;margin:0 auto;padding:0;break-inside:avoid;page-break-inside:avoid}.card-frame{break-inside:avoid;page-break-inside:avoid}tr{break-inside:avoid;page-break-inside:avoid}}
       @media screen and (max-width:600px){.sheet{font-size:clamp(6px,1.4vw,10px)}.sheet td,.sheet th{padding:clamp(1px,.7vw,5px)}.brand-title{font-size:clamp(10px,3vw,18px)}.brand-name{font-size:clamp(8px,2.2vw,13px)}.brand-contact{font-size:clamp(6px,1.5vw,9px);white-space:normal}.logo img{height:auto;max-height:80px}.value,.issue{font-size:clamp(7px,1.6vw,11px)}.checkrow td:first-child{font-size:clamp(6px,1.3vw,9px)}.check-box{font-size:clamp(8px,2vw,14px)}.qr-footer{font-size:clamp(6px,1.4vw,9px)}.qr-footer img{width:clamp(38px,12vw,66px);height:clamp(38px,12vw,66px)}.sigline,.driver-sig{white-space:normal;font-size:clamp(6px,1.4vw,10px)}}
     </style></head><body><div class="print-page"><div class="card-frame"><table class="sheet"><colgroup><col><col><col><col></colgroup><tbody>
       <tr><td class="logo" rowspan="3"><img src="${window.location.origin}/saadfreeh-transport-logo.png" alt="Saadfreeh Transportation"></td><td class="brand-title" colspan="3" dir="rtl"></td></tr>
@@ -210,12 +210,24 @@ export default function WorkshopJobCards() {
     </tbody></table><table class="qr-footer"><colgroup><col><col></colgroup><tbody><tr><td>Scan to view vehicle &amp; job date<br>امسح لعرض بيانات المركبة وتاريخ العمل</td><td><img src="${qrDataUrl}" alt="Job card QR code"></td></tr></tbody></table></div></div></body></html>`
   }
 
+  const fitCardToPage = (targetDocument: Document, targetWidth: string, maxHeightPx: number) => {
+    const page = targetDocument.querySelector<HTMLElement>('.print-page')
+    if (!page) throw new Error('Unable to render the job card')
+    page.style.zoom = '1'
+    page.style.width = targetWidth
+    page.style.maxWidth = targetWidth
+    page.style.height = 'auto'
+    const contentHeight = page.scrollHeight
+    page.style.zoom = String(Math.min(1, maxHeightPx / contentHeight))
+  }
+
   const printCard = async (card: JobCard) => {
     const printWindow = window.open('', '_blank', 'width=1000,height=900')
     if (!printWindow) { toast.error('Allow pop-ups to print the job card'); return }
     try {
       printWindow.document.write(await renderCardDocument(card))
       printWindow.document.close()
+      printWindow.onbeforeprint = () => fitCardToPage(printWindow.document, '197.3mm', 1080)
       printWindow.onload = () => setTimeout(() => printWindow.print(), 150)
     } catch (error) {
       printWindow.close()
@@ -248,10 +260,8 @@ export default function WorkshopJobCards() {
       const page = frameDocument.querySelector<HTMLElement>('.print-page')
       if (!page) throw new Error('Unable to render the job card')
       const renderWidth = 744
-      const renderHeight = 1052
-      page.style.width = `${renderWidth}px`
-      page.style.maxWidth = `${renderWidth}px`
-      page.style.margin = '0 auto'
+      const renderHeight = 1080
+      fitCardToPage(frameDocument, `${renderWidth}px`, renderHeight)
       frameDocument.documentElement.style.width = `${renderWidth}px`
       frameDocument.body.style.width = `${renderWidth}px`
       frameDocument.body.style.minHeight = `${renderHeight}px`
