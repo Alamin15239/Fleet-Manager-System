@@ -158,8 +158,11 @@ export default function ProfessionalReportGenerator() {
         console.log('Filter options data received:', data)
         const allTires = data.tires || []
 
-        const uniqueManufacturers = [...new Set(allTires.map((t: any) => t.manufacturer))] as string[]
-        const uniquePlates = [...new Set(allTires.map((t: any) => t.plateNumber))] as string[]
+        const nonEmptyUniqueValues = (values: unknown[]): string[] => [...new Set(
+          values.filter((value): value is string => typeof value === 'string' && value.trim().length > 0).map(value => value.trim())
+        )]
+        const uniqueManufacturers = nonEmptyUniqueValues(allTires.map((t: any) => t.manufacturer))
+        const uniquePlates = nonEmptyUniqueValues(allTires.map((t: any) => t.plateNumber))
         const uniqueTrailerNumbers = [...new Set(allTires.map((t: any) => t.trailerNumber).filter(Boolean))] as string[]
         const uniqueDrivers = [...new Set(allTires.map((t: any) => t.driverName).filter(Boolean))] as string[]
 

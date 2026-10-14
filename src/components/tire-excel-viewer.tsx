@@ -100,9 +100,9 @@ export default function TireExcelViewer() {
   }, [tires, filters])
 
   const uniqueValues = {
-    tireSize: [...new Set(tires.map(t => t.tireSize))],
-    manufacturer: [...new Set(tires.map(t => t.manufacturer))],
-    origin: [...new Set(tires.map(t => t.origin))],
+    tireSize: [...new Set(tires.map(t => t.tireSize).filter(value => value?.trim()))],
+    manufacturer: [...new Set(tires.map(t => t.manufacturer).filter(value => value?.trim()))],
+    origin: [...new Set(tires.map(t => t.origin).filter(value => value?.trim()))],
     plateNumber: [...new Set(tires.map(t => t.plateNumber).filter((v): v is string => Boolean(v)))],
     trailerNumber: [...new Set(tires.map(t => t.trailerNumber).filter((v): v is string => Boolean(v)))],
     driverName: [...new Set(tires.map(t => t.driverName).filter((v): v is string => Boolean(v)))]

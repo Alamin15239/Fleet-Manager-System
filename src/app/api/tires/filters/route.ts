@@ -40,9 +40,9 @@ export async function GET(request: NextRequest) {
     ])
 
     return NextResponse.json({
-      manufacturers: manufacturers.map(m => m.manufacturer),
-      origins: origins.map(o => o.origin),
-      plates: plates.map(p => p.plateNumber),
+      manufacturers: manufacturers.map(m => m.manufacturer).filter(value => value.trim().length > 0),
+      origins: origins.map(o => o.origin).filter(value => value.trim().length > 0),
+      plates: plates.map(p => p.plateNumber).filter((value): value is string => typeof value === 'string' && value.trim().length > 0),
       trailers: trailers.map(t => t.trailerNumber).filter(Boolean),
       drivers: drivers.map(d => d.driverName).filter(Boolean)
     })

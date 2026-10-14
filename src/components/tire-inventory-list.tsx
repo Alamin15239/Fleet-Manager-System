@@ -173,9 +173,12 @@ export default function TireInventoryList() {
       const response = await apiGet('/api/tires/filters')
       if (response.ok) {
         const data = await response.json()
-        setManufacturers(data.manufacturers)
-        setPlates(data.plates)
-        setDrivers(data.drivers)
+        const cleanOptions = (values: unknown): string[] => Array.isArray(values)
+          ? [...new Set(values.filter((value): value is string => typeof value === 'string' && value.trim().length > 0).map(value => value.trim()))]
+          : []
+        setManufacturers(cleanOptions(data.manufacturers))
+        setPlates(cleanOptions(data.plates))
+        setDrivers(cleanOptions(data.drivers))
       }
     } catch (error) {
       console.error('Error fetching filter options:', error)
