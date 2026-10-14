@@ -134,38 +134,78 @@ export default function WorkshopJobCards() {
     ].join('  ·  ')
     const truck = card.truck
     const plate = truck?.licensePlate || card.trailer?.number || ''
+    const printDateText = (value?: string | Date | null) => value
+      ? new Date(value).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).replace(/ /g, '-')
+      : ''
+    const printNumber = (value?: number | string | null) => value == null || value === ''
+      ? ''
+      : Number.isFinite(Number(value)) ? Number(value).toLocaleString('en-US') : String(value)
+    const printStatus = String(card.status || '').replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, letter => letter.toUpperCase())
     const qrValue = `JOB CARD | ${card.jobNumber} | ${plate} | ${dateText(card.serviceDate)}`
     let qrDataUrl = ''
     try { qrDataUrl = await QRCode.toDataURL(qrValue, { width: 220, margin: 1, errorCorrectionLevel: 'M' }) }
     catch { toast.error('Unable to generate the job card QR code'); printWindow.close(); return }
     printWindow.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(card.jobNumber)} · Job Card</title><style>
-      @page{size:A4 portrait;margin:9mm}*{box-sizing:border-box}html,body{margin:0;padding:0;color:#202820;font-family:"Segoe UI",Arial,sans-serif}.print-page{width:114.95%;zoom:.87}.card-frame{border:2px solid #101510;width:100%}.sheet{width:100%;border-collapse:collapse;table-layout:fixed;font-size:10px;line-height:1.12}.sheet col:nth-child(1){width:15.83%}.sheet col:nth-child(2){width:38.45%}.sheet col:nth-child(3){width:14.07%}.sheet col:nth-child(4){width:31.65%}.sheet td,.sheet th{border:1px solid #bfd2c6;padding:3px 5px;vertical-align:middle;overflow-wrap:anywhere;background:#eaf4ee}.sheet .logo{padding:2px;text-align:center;background:#fff;border-right:2px solid #b4c9bc}.logo img{width:100%;height:65px;object-fit:contain}.brand-title{font-size:18px;font-weight:700;color:#006c35;text-align:right;background:#fff!important;border:0!important;padding:3px 8px!important}.brand-name{font-size:13px;font-weight:700;background:#fff!important;border:0!important;padding:2px 8px!important}.brand-contact{font-size:9px;color:#849188;background:#fff!important;border:0!important;padding:3px 4px!important;white-space:nowrap}.banner,.section{background:#0f3d2a!important;color:#fff;font-weight:700;-webkit-print-color-adjust:exact;print-color-adjust:exact}.banner{text-align:center;font-size:14px;letter-spacing:.2px;padding:5px!important}.section{font-size:10px;padding:4px 6px!important}.label{font-weight:700;color:#718078}.value{min-height:19px;white-space:pre-wrap;font-size:11px;font-weight:700;color:#202820}.meta td{height:21px}.issue{height:48px;vertical-align:top!important;white-space:pre-wrap;font-size:11px}.thead th{background:#304f42!important;color:#fff;font-weight:700;text-align:left;-webkit-print-color-adjust:exact;print-color-adjust:exact}.thead th:nth-child(3),.itemrow td:nth-child(3),.checkrow td:nth-child(3),.checkrow td:nth-child(4){text-align:center}.itemrow td{height:20px;font-size:10px}.checkrow td{height:18px}.checkrow td:first-child{font-size:9px}.check-box{font-size:14px;line-height:1;color:#173e2c}.note{height:23px;white-space:pre-wrap;color:#849188;background:#fff!important}.approval td{height:23px}.complete{text-align:left;font-weight:500;height:22px;color:#75847b;background:#fff!important}.sig{height:38px;vertical-align:bottom!important;text-align:left;padding:4px 8px!important;background:#fff!important}.sigline{border:0;padding-top:3px;white-space:nowrap}.driver-sig{height:35px;text-align:left;padding-left:8px!important;vertical-align:bottom!important;background:#fff!important}.form-footer{text-align:center;font-size:8px;color:#718078;border-top:1px solid #b4c9bc!important;height:22px;background:#fff!important}.qr-footer{width:100%;border-collapse:collapse;table-layout:fixed;margin-top:0;font-size:9px;font-weight:700}.qr-footer td{width:50%;height:68px;text-align:center;vertical-align:middle;border:1px solid #b4c9bc;padding:4px}.qr-footer img{width:66px;height:66px;object-fit:contain}@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}.card-frame,.qr-footer{break-inside:avoid}tr{break-inside:avoid}}
+      @page{size:A4 portrait;margin:7.62mm 6.35mm}
+      *{box-sizing:border-box}
+      html,body{margin:0;padding:0;color:#202820;font-family:"Segoe UI",Arial,sans-serif}
+      .print-page{width:114.95%;zoom:.87}
+      .card-frame{width:100%;border:2px solid #101510}
+      .sheet{width:100%;border-collapse:collapse;table-layout:fixed;font-size:10px;line-height:1.12}
+      .sheet col:nth-child(1){width:15.83%}.sheet col:nth-child(2){width:38.45%}.sheet col:nth-child(3){width:14.07%}.sheet col:nth-child(4){width:31.65%}
+      .sheet td,.sheet th{border:1px solid #bfd2c6;padding:3px 5px;vertical-align:middle;overflow-wrap:anywhere;background:#eaf4ee}
+      .sheet .logo{padding:2px;text-align:center;background:#fff;border-right:2px solid #b4c9bc}
+      .logo img{width:100%;height:80px;object-fit:contain}
+      .brand-title{font-size:18px;font-weight:700;color:#006c35;text-align:right;background:#fff!important;border:0!important;padding:3px 8px!important}
+      .brand-name{font-size:13px;font-weight:700;background:#fff!important;border:0!important;padding:2px 8px!important}
+      .brand-contact{font-size:9px;color:#849188;background:#fff!important;border:0!important;padding:3px 4px!important;white-space:nowrap}
+      .banner,.section{background:#0f3d2a!important;color:#fff;font-weight:700;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+      .banner{text-align:center;font-size:14px;letter-spacing:.2px;padding:5px!important}
+      .section{font-size:10px;padding:4px 6px!important}
+      .label{font-weight:700;color:#718078}
+      .value{min-height:19px;white-space:pre-wrap;font-size:11px;font-weight:700;color:#202820}
+      .meta td{height:21px}
+      .issue{height:48px;vertical-align:top!important;white-space:pre-wrap;font-size:11px}
+      .thead th{background:#304f42!important;color:#fff;font-weight:700;text-align:left;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+      .thead th:nth-child(3),.itemrow td:nth-child(3),.checkrow td:nth-child(3),.checkrow td:nth-child(4){text-align:center}
+      .itemrow td{height:20px;font-size:10px}.checkrow td{height:18px}.checkrow td:first-child{font-size:9px}
+      .check-box{font-size:14px;line-height:1;color:#173e2c}
+      .note{height:23px;white-space:pre-wrap;color:#849188;background:#fff!important}
+      .approval td{height:23px}.complete{text-align:left;font-weight:500;height:22px;color:#75847b;background:#fff!important}
+      .sig{height:31px;vertical-align:middle!important;text-align:left;padding:4px 8px!important;background:#fff!important}.sigline{border:0;padding-top:3px;white-space:nowrap}
+      .driver-sig{height:28px;text-align:left;padding-left:8px!important;vertical-align:middle!important;background:#fff!important}
+      .form-footer{text-align:center;font-size:8px;color:#718078;border-top:1px solid #b4c9bc!important;height:20px;background:#fff!important}
+      .qr-footer{width:100%;border-collapse:collapse;table-layout:fixed;margin-top:0;font-size:9px;font-weight:700}
+      .qr-footer col:first-child{width:54.3%}.qr-footer col:last-child{width:45.7%}
+      .qr-footer td{height:50px;text-align:center;vertical-align:middle;border:1px solid #b4c9bc;padding:4px}.qr-footer img{width:66px;height:66px;object-fit:contain}
+      .work-complete{display:flex;justify-content:space-between;align-items:center;gap:10px}
+      @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}.card-frame,.qr-footer{break-inside:avoid}tr{break-inside:avoid}}
     </style></head><body><div class="print-page"><div class="card-frame"><table class="sheet"><colgroup><col><col><col><col></colgroup><tbody>
       <tr><td class="logo" rowspan="3"><img src="${window.location.origin}/saadfreeh-transport-logo.png" alt="Saadfreeh Transportation"></td><td class="brand-title" colspan="3" dir="rtl">سعد فريح معروف ال منيف الزعبي</td></tr>
       <tr><td class="brand-name" colspan="3">${esc(companyName)}</td></tr><tr><td class="brand-contact" colspan="3">${esc(companyContact || 'Workshop Job Card System')}</td></tr>
-      <tr><td class="banner" colspan="4">أمر شغل&nbsp; | &nbsp;JOB CARD</td></tr>
-      <tr class="meta"><td class="label">Job No. / رقم الأمر</td><td class="value"><b>${esc(card.jobNumber)}</b></td><td class="label">Date / التاريخ</td><td class="value">${dateText(card.serviceDate)}</td></tr>
-      <tr class="meta"><td class="label">Status / الحالة</td><td class="value">${esc(String(card.status || '').replace(/_/g,' '))}</td><td class="label">Lines on file</td><td class="value">${items.length}</td></tr>
-      <tr><td class="section" colspan="4">بيانات المركبة&nbsp; | &nbsp;VEHICLE INFORMATION</td></tr>
-      <tr class="meta"><td class="label">Truck No. / رقم الشاحنة</td><td class="value">${esc(plate)}</td><td class="label">Make / Model&nbsp; الماركة</td><td class="value">${esc(truck ? `${truck.make} ${truck.model}` : 'Trailer')}</td></tr>
+      <tr><td class="banner" colspan="4">JOB CARD&nbsp; | &nbsp;أمر شغل</td></tr>
+      <tr class="meta"><td class="label">Job No. / رقم الأمر</td><td class="value"><b>${esc(card.jobNumber)}</b></td><td class="label">Date / التاريخ</td><td class="value">${printDateText(card.serviceDate)}</td></tr>
+      <tr class="meta"><td class="label">Status / الحالة</td><td class="value">${esc(printStatus)}</td><td class="label">Lines on file</td><td class="value">${items.length}</td></tr>
+      <tr><td class="section" colspan="4">VEHICLE INFORMATION&nbsp; | &nbsp;بيانات المركبة</td></tr>
+      <tr class="meta"><td class="label">Truck No. / رقم الشاحنة</td><td class="value">${esc(plate)}</td><td class="label">Make / Model<br>الماركة</td><td class="value">${esc(truck ? `${truck.make} ${truck.model}` : 'Trailer')}</td></tr>
       <tr class="meta"><td class="label">Year / سنة الصنع</td><td class="value">${esc(truck?.year ?? '')}</td><td class="label">Type / النوع</td><td class="value">${truck ? 'Truck' : 'Trailer'}</td></tr>
-      <tr class="meta"><td class="label">VIN / chassis&nbsp; رقم الهيكل</td><td class="value">${esc(truck?.vin || '')}</td><td class="label">Odometer (km) / العداد</td><td class="value">${esc(card.odometerKm ?? '')}</td></tr>
+      <tr class="meta"><td class="label">VIN / chassis&nbsp; رقم الهيكل</td><td class="value">${esc(truck?.vin || '')}</td><td class="label">Odometer (km) /<br>العداد</td><td class="value">${esc(printNumber(card.odometerKm))}</td></tr>
       <tr class="meta"><td class="label">Service type / نوع الصيانة</td><td class="value">${esc(card.serviceType || '')}</td><td class="label">Technician / الفني</td><td class="value">${esc(card.technicianName || '')}</td></tr>
-      <tr class="meta"><td class="label">Next service (km) / القادم</td><td class="value">${esc(card.nextServiceOdometer ?? '')}</td><td class="label">Next service date / التاريخ</td><td class="value">${card.nextServiceDate ? dateText(card.nextServiceDate) : ''}</td></tr>
+      <tr class="meta"><td class="label">Next service (km) / القادم</td><td class="value">${esc(printNumber(card.nextServiceOdometer) || 'NA')}</td><td class="label">Next service date /<br>التاريخ</td><td class="value">${printDateText(card.nextServiceDate)}</td></tr>
       <tr class="meta"><td class="label">Priority / الأولوية</td><td class="value">${esc(card.priority || '')}</td><td class="label">Driver / السائق</td><td class="value">${esc(card.driverName || '')}</td></tr>
-      <tr><td class="section" colspan="4">الشكوى / الملاحظات&nbsp; | &nbsp;REPORTED ISSUE</td></tr><tr><td class="issue" colspan="4">${esc(card.reportedIssue || '')}</td></tr>
-      <tr><td class="section" colspan="4">الأعمال المنجزة والقطع&nbsp; | &nbsp;WORK PERFORMED &amp; SPARE PARTS</td></tr>
+      <tr><td class="section" colspan="4">REPORTED ISSUE&nbsp; | &nbsp;الشكوى / الملاحظات</td></tr><tr><td class="issue" colspan="4">${esc(card.reportedIssue || '')}</td></tr>
+      <tr><td class="section" colspan="4">WORK PERFORMED &amp; SPARE PARTS&nbsp; | &nbsp;الأعمال المنجزة والقطع</td></tr>
       <tr class="thead"><th>Item Type / النوع</th><th>Description / الوصف</th><th>Qty</th><th>Remarks / ملاحظات</th></tr>${itemRows}
-      <tr><td class="section" colspan="4">قائمة الفحص الدوري&nbsp; | &nbsp;MAINTENANCE CHECKLIST</td></tr>
+      <tr><td class="section" colspan="4">MAINTENANCE CHECKLIST&nbsp; | &nbsp;قائمة الفحص الدوري</td></tr>
       <tr class="thead"><th colspan="2">Checklist item / بند الفحص</th><th>OK / Repair / إصلاح</th><th>N/A</th></tr>${checkedRows}
       <tr><td class="note" colspan="4">Notes / ملاحظات: ${esc(card.notes || '')}</td></tr>
-      <tr><td class="section" colspan="4">الصيانة القادمة والاعتماد&nbsp; | &nbsp;NEXT SERVICE &amp; APPROVAL</td></tr>
-      <tr class="approval"><td class="label" colspan="2">Next service (km): &nbsp;${esc(card.nextServiceOdometer ?? '')}</td><td class="label" colspan="2">Next service date: &nbsp;${card.nextServiceDate ? dateText(card.nextServiceDate) : ''}</td></tr>
-      <tr><td class="complete" colspan="4">تم إنجاز الأعمال المذكورة أعلاه&nbsp; | &nbsp;Work listed above has been completed.</td></tr>
-      <tr><td class="sig" colspan="2"><div class="sigline">${esc(card.technicianSignature || '_____________')}<br>Technician Signature / توقيع الفني</div></td><td class="sig" colspan="2"><div class="sigline">${esc(card.supervisorSignature || '_____________')}<br>Supervisor Signature / توقيع المشرف</div></td></tr>
+      <tr><td class="section" colspan="4">NEXT SERVICE &amp; APPROVAL&nbsp; | &nbsp;الصيانة القادمة والاعتماد</td></tr>
+      <tr class="approval"><td class="label">Next service (km)</td><td class="value">${esc(printNumber(card.nextServiceOdometer) || 'NA')}</td><td class="label">Next service date</td><td class="value">${printDateText(card.nextServiceDate)}</td></tr>
+      <tr><td class="complete" colspan="4"><div class="work-complete"><span>Work listed above has been completed.</span><span dir="rtl">تم إنجاز الأعمال المذكورة أعلاه</span></div></td></tr>
+      <tr><td class="sig" colspan="2"><div class="sigline">${esc(card.technicianSignature || '_____________')} &nbsp; Technician Signature / توقيع الفني</div></td><td class="sig" colspan="2"><div class="sigline">${esc(card.supervisorSignature || '_____________')} &nbsp; Supervisor Signature / توقيع المشرف</div></td></tr>
       <tr><td class="driver-sig" colspan="4">${esc(card.driverSignature || '____________________________________')} &nbsp; Driver / Customer signature / توقيع السائق</td></tr>
-      <tr><td class="form-footer" colspan="4">JC-01 · Form JC-01 · Rev 6 · Saadfreeh Transport Est. — Workshop Job Card System</td></tr>
-    </tbody></table></div><table class="qr-footer"><tbody><tr><td>Scan to view vehicle &amp; job date<br>امسح لعرض بيانات المركبة وتاريخ العمل</td><td><img src="${qrDataUrl}" alt="Job card QR code"></td></tr></tbody></table></div><script>window.onload=()=>setTimeout(()=>window.print(),150)</script></body></html>`)
+      <tr><td class="form-footer" colspan="4">JC-01 · Form JC-01 · Rev 6 · Saadfreeh Transport Est. — Workshop Job Card System · نموذج</td></tr>
+    </tbody></table></div><table class="qr-footer"><colgroup><col><col></colgroup><tbody><tr><td>Scan to view vehicle &amp; job date<br>امسح لعرض بيانات المركبة وتاريخ العمل</td><td><img src="${qrDataUrl}" alt="Job card QR code"></td></tr></tbody></table></div><script>window.onload=()=>setTimeout(()=>window.print(),150)</script></body></html>`)
     printWindow.document.close()
   }
 
