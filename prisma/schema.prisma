@@ -41,6 +41,7 @@ model User {
   createdTires              Tire[]
   trailerMaintenanceRecords TrailerMaintenanceRecord[]
   userActivities            UserActivity[]
+  workshopJobCards          WorkshopJobCard[]
 
   @@map("users")
 }
@@ -89,6 +90,7 @@ model Truck {
   nextInspection     DateTime?
   driverName         String?
   maintenanceRecords MaintenanceRecord[]
+  workshopJobCards   WorkshopJobCard[]
   notifications      Notification[]
   predictiveAlerts   PredictiveAlert[]
 
@@ -110,6 +112,7 @@ model Trailer {
   nextInspection            DateTime?
   driverName                String?
   trailerMaintenanceRecords TrailerMaintenanceRecord[]
+  workshopJobCards          WorkshopJobCard[]
   trailerNotifications      TrailerNotification[]
   trailerPredictiveAlerts   TrailerPredictiveAlert[]
 
@@ -261,6 +264,40 @@ model TrailerMaintenanceRecord {
   trailer           Trailer           @relation(fields: [trailerId], references: [id], onDelete: Cascade)
 
   @@map("trailer_maintenance_records")
+}
+
+model WorkshopJobCard {
+  id                   String   @id @default(cuid())
+  jobNumber            String   @unique
+  truckId              String?
+  trailerId            String?
+  serviceDate          DateTime
+  odometerKm           Int?
+  serviceType          String
+  priority             String   @default("NORMAL")
+  reportedIssue        String?
+  technicianName       String?
+  driverName           String?
+  status               String   @default("OPEN")
+  nextServiceOdometer  Int?
+  nextServiceDate      DateTime?
+  notes                String?
+  items                Json     @default("[]")
+  checklist            Json     @default("{}")
+  technicianSignature  String?
+  supervisorSignature  String?
+  driverSignature      String?
+  createdById          String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  truck                Truck?   @relation(fields: [truckId], references: [id], onDelete: Restrict)
+  trailer              Trailer? @relation(fields: [trailerId], references: [id], onDelete: Restrict)
+  createdBy            User?    @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([serviceDate])
+  @@index([truckId])
+  @@index([trailerId])
+  @@map("workshop_job_cards")
 }
 
 model Settings {

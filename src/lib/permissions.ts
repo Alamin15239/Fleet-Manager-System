@@ -369,6 +369,8 @@ export function canAccessPage(permissions: Permission, page: string): boolean {
       return permissions.canViewTrucks
     case '/maintenance':
       return permissions.canViewMaintenance
+    case '/job-cards':
+      return permissions.canViewMaintenance
     case '/mechanics':
       return permissions.canViewMechanics
     case '/tire-management':
