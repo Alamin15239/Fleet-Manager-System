@@ -14,6 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { toast } from 'sonner'
 import { FileText, Plus, Printer, Download, Pencil, Trash2 } from 'lucide-react'
 import { renderJobCardDocument } from '@/lib/job-card-document'
+import { downloadJobCardPdf } from '@/lib/job-card-pdf'
 
 type VehicleType = 'truck' | 'trailer'
 type LineItem = { type: string; description: string; quantity: number; remarks: string }
@@ -146,53 +147,11 @@ export default function WorkshopJobCards() {
 
   const downloadCard = async (card: JobCard) => {
     setDownloadingId(card.id)
-    let frame: HTMLIFrameElement | null = null
     try {
-      const [{ default: html2canvas }, { jsPDF }] = await Promise.all([import('html2canvas'), import('jspdf')])
-      frame = document.createElement('iframe')
-      frame.style.cssText = 'position:fixed;left:-10000px;top:0;width:744px;height:1052px;border:0;background:#fff'
-      document.body.appendChild(frame)
-      const frameDocument = frame.contentDocument
-      if (!frameDocument) throw new Error('Unable to prepare the PDF document')
-      frameDocument.open()
-      frameDocument.write(await renderCardDocument(card))
-      frameDocument.close()
-      await new Promise<void>((resolve, reject) => {
-        const timer = window.setTimeout(() => reject(new Error('Timed out loading the job card for PDF')), 10000)
-        frame!.onload = () => { window.clearTimeout(timer); resolve() }
-      })
-      const logo = frameDocument.querySelector<HTMLImageElement>('.logo-wrap img')
-      if (logo && !logo.complete) await new Promise<void>((resolve, reject) => {
-        logo.onload = () => resolve()
-        logo.onerror = () => reject(new Error('Unable to load the company logo for PDF'))
-      })
-      const page = frameDocument.querySelector<HTMLElement>('.print-page')
-      if (!page) throw new Error('Unable to render the job card')
-      const renderWidth = 744
-      const renderHeight = 1080
-      page.style.zoom = '1'
-      page.style.width = `${renderWidth}px`
-      page.style.maxWidth = `${renderWidth}px`
-      page.style.margin = '0 auto'
-      frameDocument.documentElement.style.width = `${renderWidth}px`
-      frameDocument.body.style.width = `${renderWidth}px`
-      frameDocument.body.style.minHeight = `${renderHeight}px`
-      fitCardToPage(frameDocument, renderWidth + 'px', renderHeight)
-      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))
-      const canvas = await html2canvas(page, { scale: 2, backgroundColor: '#ffffff', useCORS: true, windowWidth: renderWidth, windowHeight: Math.max(renderHeight, page.scrollHeight) })
-      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true })
-      const pageWidth = 210
-      const pageHeight = 297
-      const pageMargin = 5
-      const scaleToFit = Math.min((pageWidth - pageMargin * 2) / canvas.width, (pageHeight - pageMargin * 2) / canvas.height)
-      const imageWidth = canvas.width * scaleToFit
-      const imageHeight = canvas.height * scaleToFit
-      pdf.addImage(canvas.toDataURL('image/png'), 'PNG', (pageWidth - imageWidth) / 2, (pageHeight - imageHeight) / 2, imageWidth, imageHeight)
-      pdf.save(`${String(card.jobNumber || 'job-card').replace(/[^a-z0-9-_]/gi, '_')}.pdf`)
+      await downloadJobCardPdf(await renderCardDocument(card), `${String(card.jobNumber || 'job-card').replace(/[^a-z0-9-_]/gi, '_')}.pdf`)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Unable to download the job card PDF')
     } finally {
-      frame?.remove()
       setDownloadingId(null)
     }
   }
