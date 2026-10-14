@@ -163,3 +163,54 @@
 .page-enter {
   animation: fadeInUp 0.3s ease-out;
 }
+
+@media (max-width: 639px) {
+  .container.mx-auto.p-6 {
+    padding: 1rem;
+  }
+
+  [role="dialog"] {
+    max-height: calc(100dvh - 2rem);
+    overflow-y: auto;
+  }
+
+  input,
+  select,
+  textarea {
+    max-width: 100%;
+  }
+
+  .grid.grid-cols-2,
+  .grid.grid-cols-3,
+  .grid.grid-cols-4 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  [role="tablist"] {
+    display: flex;
+    max-width: 100%;
+    justify-content: flex-start;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+  }
+
+  [role="tablist"] > * {
+    flex: 0 0 auto;
+  }
+}
+
+@media (max-width: 767px) {
+  html,
+  body {
+    min-height: 100%;
+    overflow-x: clip;
+  }
+
+  main {
+    width: 100%;
+  }
+
+  table {
+    min-width: 40rem;
+  }
+}

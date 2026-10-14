@@ -131,14 +131,14 @@ export function Header() {
   }
 
   return (
-    <header className="bg-background border-b border-border px-4 py-3 flex items-center justify-between">
-      <div className="flex items-center space-x-4">
+    <header className="sticky top-0 z-30 flex shrink-0 items-center justify-between gap-2 border-b border-border bg-background px-3 py-2.5 sm:px-4 sm:py-3">
+      <div className="flex items-center gap-1 sm:gap-3">
         {/* Sidebar Toggle Button */}
         <Button
           variant="ghost"
           size="sm"
           onClick={toggleSidebar}
-          className="p-2 h-9 w-9"
+          className="h-11 w-11 p-2 sm:h-9 sm:w-9"
         >
           <Menu className="h-4 w-4" />
         </Button>
@@ -153,7 +153,7 @@ export function Header() {
         {/* Notifications */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="sm" className="relative p-2 h-9 w-9">
+            <Button variant="ghost" size="sm" className="relative h-11 w-11 p-2 sm:h-9 sm:w-9">
               <Bell className="h-4 w-4" />
               {unreadCount > 0 && (
                 <Badge 
@@ -231,7 +231,7 @@ export function Header() {
         {/* User Profile */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="relative h-9 w-9 rounded-full p-0">
+            <Button variant="ghost" className="relative h-11 w-11 rounded-full p-0 sm:h-9 sm:w-9">
               <ProfilePicture size="md" />
             </Button>
           </DropdownMenuTrigger>

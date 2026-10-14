@@ -17,7 +17,7 @@ interface LayoutProps {
 
 export function Layout({ children, userRole = 'MECHANIC', isAuthenticated: forceAuthenticated = false }: LayoutProps) {
   const { user, isAuthenticated, logout } = useAuth()
-  const { isSidebarOpen } = useSidebar()
+  const { isSidebarOpen, closeSidebar } = useSidebar()
 
   // If forceAuthenticated is true, bypass authentication check
   const effectiveIsAuthenticated = forceAuthenticated || isAuthenticated
@@ -37,11 +37,19 @@ export function Layout({ children, userRole = 'MECHANIC', isAuthenticated: force
   }
 
   return (
-    <div className="flex h-screen bg-background">
+    <div className="flex min-h-dvh bg-background">
       <Navigation userRole={effectiveUserRole} />
-      <div className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ${isSidebarOpen ? 'ml-0' : 'ml-0'}`}>
+      {isSidebarOpen && (
+        <button
+          type="button"
+          aria-label="Close navigation menu"
+          className="fixed inset-0 z-40 bg-black/40 md:hidden"
+          onClick={closeSidebar}
+        />
+      )}
+      <div className="flex min-h-dvh min-w-0 flex-1 flex-col overflow-hidden">
         <Header />
-        <main className="flex-1 overflow-auto bg-background">
+        <main className="min-h-0 min-w-0 flex-1 overflow-auto bg-background">
           <PageTransition>
             {children}
           </PageTransition>

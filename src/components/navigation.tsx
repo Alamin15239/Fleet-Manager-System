@@ -134,7 +134,7 @@ export function Navigation({ userRole = 'USER' }: NavigationProps) {
   const pathname = usePathname()
   const { user, logout } = useAuth()
   const { hasPermission, isLoading } = usePermissions()
-  const { isSidebarOpen, toggleSidebar } = useSidebar()
+  const { isSidebarOpen, toggleSidebar, closeSidebar } = useSidebar()
   const { t, language } = useLanguage()
   
   const navigation = getNavigation(t, language)
@@ -146,8 +146,8 @@ export function Navigation({ userRole = 'USER' }: NavigationProps) {
   if (isLoading) {
     return (
       <nav className={cn(
-        'flex flex-col bg-sidebar border-r border-sidebar-border min-h-screen transition-all duration-300',
-        isSidebarOpen ? 'w-64' : 'w-16'
+        'fixed inset-y-0 left-0 z-50 flex w-72 flex-col overflow-y-auto bg-sidebar border-r border-sidebar-border transition-transform duration-300 md:sticky md:inset-x-auto md:top-0 md:bottom-auto md:z-auto md:h-dvh md:shrink-0 md:translate-x-0 md:transition-[width] md:duration-300',
+        isSidebarOpen ? 'translate-x-0 md:w-64' : '-translate-x-full md:w-16'
       )}>
         <div className="flex-1 flex items-center justify-center">
           <TruckLoader size="sm" />
@@ -158,8 +158,8 @@ export function Navigation({ userRole = 'USER' }: NavigationProps) {
 
   return (
     <nav className={cn(
-      'flex flex-col bg-sidebar border-r border-sidebar-border min-h-screen transition-all duration-300',
-      isSidebarOpen ? 'w-64' : 'w-16'
+      'fixed inset-y-0 left-0 z-50 flex w-72 flex-col overflow-y-auto bg-sidebar border-r border-sidebar-border transition-transform duration-300 md:sticky md:inset-x-auto md:top-0 md:bottom-auto md:z-auto md:h-dvh md:shrink-0 md:translate-x-0 md:transition-[width] md:duration-300',
+      isSidebarOpen ? 'translate-x-0 md:w-64' : '-translate-x-full md:w-16'
     )}>
       <div className={cn(
         'flex items-center border-b border-sidebar-border',
@@ -202,7 +202,7 @@ export function Navigation({ userRole = 'USER' }: NavigationProps) {
                 <div
                   key={item.name}
                   className={cn(
-                    'flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors cursor-not-allowed',
+                    'flex items-center px-3 py-3 text-sm font-medium rounded-md transition-colors cursor-not-allowed md:py-2',
                     'text-muted-foreground bg-muted/50',
                     !isSidebarOpen && 'justify-center'
                   )}
@@ -226,8 +226,11 @@ export function Navigation({ userRole = 'USER' }: NavigationProps) {
               <Link
                 key={item.name}
                 href={item.href}
+                onClick={() => {
+                  if (window.matchMedia('(max-width: 767px)').matches) closeSidebar()
+                }}
                 className={cn(
-                  'flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors',
+                  'flex items-center px-3 py-3 text-sm font-medium rounded-md transition-colors md:py-2',
                   isActive
                     ? 'bg-sidebar-accent text-sidebar-accent-foreground'
                     : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground',

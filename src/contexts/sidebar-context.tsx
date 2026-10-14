@@ -1,6 +1,6 @@
 'use client'
 
-import React, { createContext, useContext, useState, ReactNode } from 'react'
+import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react'
 
 interface SidebarContextType {
   isSidebarOpen: boolean
@@ -13,6 +13,17 @@ const SidebarContext = createContext<SidebarContextType | undefined>(undefined)
 
 export function SidebarProvider({ children }: { children: ReactNode }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
+
+  useEffect(() => {
+    const mobileViewport = window.matchMedia('(max-width: 767px)')
+    const closeForMobile = () => {
+      if (mobileViewport.matches) setIsSidebarOpen(false)
+    }
+
+    closeForMobile()
+    mobileViewport.addEventListener('change', closeForMobile)
+    return () => mobileViewport.removeEventListener('change', closeForMobile)
+  }, [])
 
   const toggleSidebar = () => setIsSidebarOpen(prev => !prev)
   const closeSidebar = () => setIsSidebarOpen(false)
