@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -80,7 +80,6 @@ export default function TireManagementForm() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
-  const [searchTerm, setSearchTerm] = useState('')
   const [showPlateDropdown, setShowPlateDropdown] = useState(false)
   const [showTrailerDropdown, setShowTrailerDropdown] = useState(false)
   const [autoFilled, setAutoFilled] = useState({
@@ -288,15 +287,6 @@ export default function TireManagementForm() {
       setSubmitting(false)
     }
   }
-
-  // Memoize filtered vehicles to prevent unnecessary re-renders
-  const filteredVehicles = useMemo(() => 
-    vehicles.filter(vehicle =>
-      vehicle.plateNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      vehicle.trailerNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      vehicle.driverName?.toLowerCase().includes(searchTerm.toLowerCase())
-    ), [vehicles, searchTerm]
-  )
 
   if (loading) {
     return (
@@ -839,87 +829,6 @@ export default function TireManagementForm() {
         </Card>
       )}
 
-      {/* Enhanced Vehicle Reference Card */}
-      <Card className="border-blue-200 shadow-sm">
-        <CardHeader className="bg-blue-50 border-b border-blue-200">
-          <CardTitle className="flex items-center gap-2 text-blue-800">
-            <Truck className="h-5 w-5" />
-            Vehicle & Driver Reference
-          </CardTitle>
-          <p className="text-blue-600 text-sm">
-            Quick reference for available vehicles and their assigned drivers
-          </p>
-        </CardHeader>
-        <CardContent className="pt-6">
-          <div className="space-y-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <Input
-                placeholder="Search vehicles by plate, trailer, or driver..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 border-blue-200 focus:border-blue-400"
-              />
-            </div>
-            
-            <div className="max-h-96 overflow-y-auto space-y-3">
-              {filteredVehicles.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
-                  <Truck className="h-12 w-12 mx-auto text-gray-300 mb-3" />
-                  <p className="font-medium">No vehicles found</p>
-                  <p className="text-sm">Try adjusting your search criteria</p>
-                </div>
-              ) : (
-                filteredVehicles.map((vehicle) => (
-                  <div key={vehicle.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 sm:p-4 border border-blue-100 rounded-lg hover:bg-blue-50 transition-colors gap-3 sm:gap-0">
-                    <div className="flex items-center space-x-3 sm:space-x-4">
-                      <div className="flex-shrink-0">
-                        <Truck className="h-5 w-5 sm:h-6 sm:w-6 text-blue-500" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
-                          <span className="font-semibold text-blue-900 text-sm sm:text-base">{vehicle.plateNumber}</span>
-                          <Badge variant="outline" className="text-xs w-fit">
-                            {vehicle.isActive ? 'Active' : 'Inactive'}
-                          </Badge>
-                        </div>
-                        <div className="text-xs sm:text-sm text-blue-700 mt-1">
-                          {vehicle.trailerNumber && (
-                            <span className="inline-flex items-center gap-1">
-                              <span className="font-medium">Trailer:</span> {vehicle.trailerNumber}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-end sm:justify-start">
-                      {vehicle.driverName ? (
-                        <Badge variant="secondary" className="flex items-center gap-1 bg-green-100 text-green-800 border-green-200 text-xs">
-                          <User className="h-3 w-3" />
-                          <span className="truncate max-w-24 sm:max-w-none">{vehicle.driverName}</span>
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline" className="text-gray-500 border-gray-300 text-xs">
-                          <User className="h-3 w-3 mr-1" />
-                          Unassigned
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-            
-            {filteredVehicles.length > 0 && (
-              <div className="text-center pt-3 border-t border-gray-200">
-                <p className="text-sm text-gray-600">
-                  Showing {filteredVehicles.length} vehicle{filteredVehicles.length !== 1 ? 's' : ''}
-                </p>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
     </div>
   )
 }
