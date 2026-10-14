@@ -119,6 +119,7 @@ export async function authenticateUser(email: string, password: string, request?
         isActive: user.isActive,
         isApproved: user.isApproved,
         isEmailVerified: user.isEmailVerified,
+        profileImage: user.profileImage,
         permissions: user.permissions
       },
       token
