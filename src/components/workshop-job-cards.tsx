@@ -157,12 +157,12 @@ export default function WorkshopJobCards() {
       .logo img{width:100%;height:80px;object-fit:contain}
       .brand-title{font-size:18px;font-weight:700;color:#006c35;text-align:right;background:#fff!important;border:0!important;padding:3px 8px!important}
       .brand-name{font-size:13px;font-weight:700;background:#fff!important;border:0!important;padding:2px 8px!important}
-      .brand-contact{font-size:9px;color:#849188;background:#fff!important;border:0!important;padding:3px 4px!important;white-space:nowrap}
+      .brand-contact{font-size:9px;color:#849188;background:#fff!important;border:0!important;padding:3px 4px!important;white-space:normal;overflow-wrap:anywhere}
       .banner,.section{background:#0f3d2a!important;color:#fff;font-weight:700;-webkit-print-color-adjust:exact;print-color-adjust:exact}
       .banner{text-align:center;font-size:14px;letter-spacing:.2px;padding:5px!important}
       .section{font-size:10px;padding:4px 6px!important}
       .label{font-weight:700;color:#718078}
-      .value{min-height:19px;white-space:pre-wrap;font-size:11px;font-weight:700;color:#202820}
+      .value{min-height:19px;white-space:pre-wrap;overflow-wrap:anywhere;font-size:11px;font-weight:700;color:#202820}
       .meta td{height:21px}
       .issue{height:48px;vertical-align:top!important;white-space:pre-wrap;font-size:11px}
       .thead th{background:#304f42!important;color:#fff;font-weight:700;text-align:left;-webkit-print-color-adjust:exact;print-color-adjust:exact}
@@ -171,13 +171,14 @@ export default function WorkshopJobCards() {
       .check-box{font-size:14px;line-height:1;color:#173e2c}
       .note{height:23px;white-space:pre-wrap;color:#849188;background:#fff!important}
       .approval td{height:23px}.complete{text-align:left;font-weight:500;height:22px;color:#75847b;background:#fff!important}
-      .sig{height:31px;vertical-align:middle!important;text-align:left;padding:4px 8px!important;background:#fff!important}.sigline{border:0;padding-top:3px;white-space:nowrap}
-      .driver-sig{height:28px;text-align:left;padding-left:8px!important;vertical-align:middle!important;background:#fff!important}
+      .sig{height:31px;vertical-align:middle!important;text-align:left;padding:4px 8px!important;background:#fff!important}.sigline{border:0;padding-top:3px;white-space:normal;overflow-wrap:anywhere}
+      .driver-sig{height:28px;text-align:left;padding-left:8px!important;vertical-align:middle!important;background:#fff!important;overflow-wrap:anywhere}
       .form-footer{text-align:center;font-size:8px;color:#718078;border-top:1px solid #b4c9bc!important;height:20px;background:#fff!important}
       .qr-footer{width:100%;border-collapse:collapse;table-layout:fixed;margin-top:0;font-size:9px;font-weight:700}
       .qr-footer col:first-child{width:54.3%}.qr-footer col:last-child{width:45.7%}
       .qr-footer td{height:50px;text-align:center;vertical-align:middle;border:1px solid #b4c9bc;padding:4px}.qr-footer img{width:66px;height:66px;object-fit:contain}
       .work-complete{display:flex;justify-content:space-between;align-items:center;gap:10px}
+      @media screen{html,body{width:100%;min-width:0}.print-page{width:100%;max-width:100%;margin:0 auto}}
       @media print{html,body{width:210mm;min-height:297mm;margin:0!important;padding:0!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}.print-page{width:197.3mm;max-width:197.3mm;margin:0 auto;padding:0;zoom:1}.card-frame,.qr-footer{break-inside:avoid}tr{break-inside:avoid}}
       @media screen and (max-width:600px){.sheet{font-size:clamp(6px,1.4vw,10px)}.sheet td,.sheet th{padding:clamp(1px,.7vw,5px)}.brand-title{font-size:clamp(10px,3vw,18px)}.brand-name{font-size:clamp(8px,2.2vw,13px)}.brand-contact{font-size:clamp(6px,1.5vw,9px);white-space:normal}.logo img{height:auto;max-height:80px}.value,.issue{font-size:clamp(7px,1.6vw,11px)}.checkrow td:first-child{font-size:clamp(6px,1.3vw,9px)}.check-box{font-size:clamp(8px,2vw,14px)}.qr-footer{font-size:clamp(6px,1.4vw,9px)}.qr-footer img{width:clamp(38px,12vw,66px);height:clamp(38px,12vw,66px)}.sigline,.driver-sig{white-space:normal;font-size:clamp(6px,1.4vw,10px)}}
     </style></head><body><div class="print-page"><div class="card-frame"><table class="sheet"><colgroup><col><col><col><col></colgroup><tbody>
@@ -227,7 +228,7 @@ export default function WorkshopJobCards() {
     try {
       const [{ default: html2canvas }, { jsPDF }] = await Promise.all([import('html2canvas'), import('jspdf')])
       frame = document.createElement('iframe')
-      frame.style.cssText = 'position:fixed;left:-10000px;top:0;width:794px;height:1123px;border:0;background:#fff'
+      frame.style.cssText = 'position:fixed;left:-10000px;top:0;width:744px;height:1052px;border:0;background:#fff'
       document.body.appendChild(frame)
       const frameDocument = frame.contentDocument
       if (!frameDocument) throw new Error('Unable to prepare the PDF document')
@@ -245,9 +246,21 @@ export default function WorkshopJobCards() {
       })
       const page = frameDocument.querySelector<HTMLElement>('.print-page')
       if (!page) throw new Error('Unable to render the job card')
-      const canvas = await html2canvas(page, { scale: 2, backgroundColor: '#ffffff', useCORS: true, windowWidth: 794 })
+      const renderWidth = 744
+      const renderHeight = 1052
+      page.style.width = `${renderWidth}px`
+      page.style.maxWidth = `${renderWidth}px`
+      page.style.margin = '0 auto'
+      frameDocument.documentElement.style.width = `${renderWidth}px`
+      frameDocument.body.style.width = `${renderWidth}px`
+      frameDocument.body.style.minHeight = `${renderHeight}px`
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+      const canvas = await html2canvas(page, { scale: 2, backgroundColor: '#ffffff', useCORS: true, windowWidth: renderWidth, windowHeight: renderHeight })
       const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true })
-      pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, 210, 297)
+      const imageData = canvas.toDataURL('image/png')
+      const imageWidth = 197.3
+      const imageHeight = canvas.height * imageWidth / canvas.width
+      pdf.addImage(imageData, 'PNG', (210 - imageWidth) / 2, 0, imageWidth, Math.min(imageHeight, 297))
       pdf.save(`${String(card.jobNumber || 'job-card').replace(/[^a-z0-9-_]/gi, '_')}.pdf`)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Unable to download the job card PDF')
