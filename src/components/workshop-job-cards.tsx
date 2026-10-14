@@ -149,7 +149,7 @@ export default function WorkshopJobCards() {
       *{box-sizing:border-box}
       html,body{margin:0;padding:0;color:#202820;font-family:"Segoe UI",Arial,sans-serif}
       .print-page{width:100%;max-width:100%;zoom:1}
-      .card-frame{width:100%;border:2px solid #101510}
+      .card-frame{width:100%;border:2px solid #101510;padding:0}
       .sheet{width:100%;border-collapse:collapse;table-layout:fixed;font-size:10px;line-height:1.12}
       .sheet col:nth-child(1){width:15.83%}.sheet col:nth-child(2){width:38.45%}.sheet col:nth-child(3){width:14.07%}.sheet col:nth-child(4){width:31.65%}
       .sheet td,.sheet th{border:1px solid #bfd2c6;padding:3px 5px;vertical-align:middle;overflow-wrap:anywhere;background:#eaf4ee}
@@ -179,7 +179,7 @@ export default function WorkshopJobCards() {
       .qr-footer td{height:50px;text-align:center;vertical-align:middle;border:1px solid #b4c9bc;padding:4px}.qr-footer img{width:66px;height:66px;object-fit:contain}
       .work-complete{display:flex;justify-content:space-between;align-items:center;gap:10px}
       @media screen{html,body{width:100%;min-width:0}.print-page{width:100%;max-width:100%;margin:0 auto}}
-      @media print{html,body{width:210mm;min-height:297mm;margin:0!important;padding:0!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}.print-page{width:197.3mm;max-width:197.3mm;margin:0 auto;padding:0;zoom:1}.card-frame,.qr-footer{break-inside:avoid}tr{break-inside:avoid}}
+      @media print{html,body{width:210mm;min-height:297mm;margin:0!important;padding:0!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}.print-page{width:197.3mm;max-width:197.3mm;margin:0 auto;padding:0;zoom:1}.card-frame{break-inside:avoid}tr{break-inside:avoid}}
       @media screen and (max-width:600px){.sheet{font-size:clamp(6px,1.4vw,10px)}.sheet td,.sheet th{padding:clamp(1px,.7vw,5px)}.brand-title{font-size:clamp(10px,3vw,18px)}.brand-name{font-size:clamp(8px,2.2vw,13px)}.brand-contact{font-size:clamp(6px,1.5vw,9px);white-space:normal}.logo img{height:auto;max-height:80px}.value,.issue{font-size:clamp(7px,1.6vw,11px)}.checkrow td:first-child{font-size:clamp(6px,1.3vw,9px)}.check-box{font-size:clamp(8px,2vw,14px)}.qr-footer{font-size:clamp(6px,1.4vw,9px)}.qr-footer img{width:clamp(38px,12vw,66px);height:clamp(38px,12vw,66px)}.sigline,.driver-sig{white-space:normal;font-size:clamp(6px,1.4vw,10px)}}
     </style></head><body><div class="print-page"><div class="card-frame"><table class="sheet"><colgroup><col><col><col><col></colgroup><tbody>
       <tr><td class="logo" rowspan="3"><img src="${window.location.origin}/saadfreeh-transport-logo.png" alt="Saadfreeh Transportation"></td><td class="brand-title" colspan="3" dir="rtl"></td></tr>
@@ -206,7 +206,7 @@ export default function WorkshopJobCards() {
       <tr><td class="sig" colspan="2"><div class="sigline">${esc(card.technicianSignature || '_____________')} &nbsp; Technician Signature / توقيع الفني</div></td><td class="sig" colspan="2"><div class="sigline">${esc(card.supervisorSignature || '_____________')} &nbsp; Supervisor Signature / توقيع المشرف</div></td></tr>
       <tr><td class="driver-sig" colspan="4">${esc(card.driverSignature || '____________________________________')} &nbsp; Driver / Customer signature / توقيع السائق</td></tr>
       <tr><td class="form-footer" colspan="4">JC-01 · Form JC-01 · Rev 6 · Saadfreeh Transport Est. — Workshop Job Card System · نموذج</td></tr>
-    </tbody></table></div><table class="qr-footer"><colgroup><col><col></colgroup><tbody><tr><td>Scan to view vehicle &amp; job date<br>امسح لعرض بيانات المركبة وتاريخ العمل</td><td><img src="${qrDataUrl}" alt="Job card QR code"></td></tr></tbody></table></div></body></html>`
+    </tbody></table><table class="qr-footer"><colgroup><col><col></colgroup><tbody><tr><td>Scan to view vehicle &amp; job date<br>امسح لعرض بيانات المركبة وتاريخ العمل</td><td><img src="${qrDataUrl}" alt="Job card QR code"></td></tr></tbody></table></div></div></body></html>`
   }
 
   const printCard = async (card: JobCard) => {
@@ -226,9 +226,9 @@ export default function WorkshopJobCards() {
     setDownloadingId(card.id)
     let frame: HTMLIFrameElement | null = null
     try {
-      const [{ default: html2canvas }, { jsPDF }] = await Promise.all([import('html2canvas'), import('jspdf')])
+      const puppeteerModule = await import('puppeteer')
       frame = document.createElement('iframe')
-      frame.style.cssText = 'position:fixed;left:-10000px;top:0;width:744px;height:1052px;border:0;background:#fff'
+      frame.style.cssText = 'position:fixed;left:-10000px;top:0;width:794px;height:1123px;border:0;background:#fff'
       document.body.appendChild(frame)
       const frameDocument = frame.contentDocument
       if (!frameDocument) throw new Error('Unable to prepare the PDF document')
@@ -246,22 +246,23 @@ export default function WorkshopJobCards() {
       })
       const page = frameDocument.querySelector<HTMLElement>('.print-page')
       if (!page) throw new Error('Unable to render the job card')
-      const renderWidth = 744
-      const renderHeight = 1052
-      page.style.width = `${renderWidth}px`
-      page.style.maxWidth = `${renderWidth}px`
-      page.style.margin = '0 auto'
-      frameDocument.documentElement.style.width = `${renderWidth}px`
-      frameDocument.body.style.width = `${renderWidth}px`
-      frameDocument.body.style.minHeight = `${renderHeight}px`
-      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))
-      const canvas = await html2canvas(page, { scale: 2, backgroundColor: '#ffffff', useCORS: true, windowWidth: renderWidth, windowHeight: renderHeight })
-      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true })
-      const imageData = canvas.toDataURL('image/png')
-      const imageWidth = 197.3
-      const imageHeight = canvas.height * imageWidth / canvas.width
-      pdf.addImage(imageData, 'PNG', (210 - imageWidth) / 2, 0, imageWidth, Math.min(imageHeight, 297))
-      pdf.save(`${String(card.jobNumber || 'job-card').replace(/[^a-z0-9-_]/gi, '_')}.pdf`)
+      if (!page) throw new Error('Unable to render the job card')
+      const puppeteer = 'default' in puppeteerModule ? puppeteerModule.default : puppeteerModule
+      const browser = await puppeteer.launch({ headless: true })
+      try {
+        const pdfPage = await browser.newPage()
+        await pdfPage.setContent(await renderCardDocument(card), { waitUntil: 'networkidle0' })
+        await pdfPage.emulateMediaType('print')
+        const pdfData = await pdfPage.pdf({ format: 'A4', preferCSSPageSize: true, printBackground: true, margin: { top: 0, right: 0, bottom: 0, left: 0 } })
+        const pdfUrl = URL.createObjectURL(new Blob([pdfData], { type: 'application/pdf' }))
+        const link = document.createElement('a')
+        link.href = pdfUrl
+        link.download = `${String(card.jobNumber || 'job-card').replace(/[^a-z0-9-_]/gi, '_')}.pdf`
+        link.click()
+        URL.revokeObjectURL(pdfUrl)
+      } finally {
+        await browser.close()
+      }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Unable to download the job card PDF')
     } finally {
