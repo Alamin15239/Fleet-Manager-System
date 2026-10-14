@@ -116,100 +116,172 @@ export default function WorkshopJobCards() {
   const renderCardDocument = async (card: JobCard) => {
     const items = Array.isArray(card.items) ? card.items : []
     const checks = card.checklist || {}
-    const checkedRows = checklistItems.map(([key, en, ar]) => {
-      const value = checks[key]
-      return `<tr class="checkrow"><td colspan="2">${en} <span dir="rtl">/ ${ar}</span></td><td class="center check-box">${value === 'OK' || value === 'REPAIR' ? '✓' : '□'}</td><td class="center check-box">${value === 'NA' ? '✓' : '□'}</td></tr>`
-    }).join('')
-    const itemRows = Array.from({ length: Math.max(10, items.length) }, (_, index) => {
-      const item = items[index]
-      return `<tr class="itemrow"><td>${esc(item?.type || '')}</td><td>${esc(item?.description || '')}</td><td class="center">${item ? esc(item.quantity) : ''}</td><td>${esc(item?.remarks || '')}</td></tr>`
-    }).join('')
-    const companyName = company?.companyName || 'Saadfreeh Transport Est.'
-    const companyContact = [
-      'Workshop & Fleet Maintenance',
-      company?.companyAddress || 'Second Industrial Area, Kingdom of Saudi Arabia',
-      company?.companyPhone || '+966 5 766 24440',
-      company?.companyEmail || 'saad@saadfreeh.com'
-    ].join('  ·  ')
     const truck = card.truck
     const plate = truck?.licensePlate || card.trailer?.number || ''
+    const companyName = company?.companyName || 'Saadfreeh Transport Est.'
+    const companyAddress = company?.companyAddress || 'Second Industrial Area, Kingdom of Saudi Arabia'
+    const companyPhone = company?.companyPhone || '+966 5 766 24440'
+    const companyEmail = company?.companyEmail || 'saad@saadfreeh.com'
     const printDateText = (value?: string | Date | null) => value
       ? new Date(value).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).replace(/ /g, '-')
-      : ''
+      : '—'
     const printNumber = (value?: number | string | null) => value == null || value === ''
       ? ''
       : Number.isFinite(Number(value)) ? Number(value).toLocaleString('en-US') : String(value)
     const printStatus = String(card.status || '').replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, letter => letter.toUpperCase())
-    const qrValue = `JOB CARD | ${card.jobNumber} | ${plate} | ${dateText(card.serviceDate)}`
+    const statusClass = String(card.status || 'open').toLowerCase().replace(/[^a-z0-9]+/g, '-')
+    const completionEnglish = card.status === 'COMPLETED' ? 'Work listed above has been completed.' : card.status === 'IN_PROGRESS' ? 'Work is currently in progress.' : card.status === 'CANCELLED' ? 'This job card has been cancelled.' : 'Work is waiting to begin.'
+    const completionArabic = card.status === 'COMPLETED' ? 'تم إنجاز الأعمال المذكورة أعلاه' : card.status === 'IN_PROGRESS' ? 'الأعمال قيد التنفيذ' : card.status === 'CANCELLED' ? 'تم إلغاء بطاقة العمل' : 'بانتظار بدء العمل'
+    const qrValue = 'JOB CARD | ' + String(card.jobNumber || '') + ' | ' + plate + ' | ' + dateText(card.serviceDate)
     let qrDataUrl = ''
-    try { qrDataUrl = await QRCode.toDataURL(qrValue, { width: 220, margin: 1, errorCorrectionLevel: 'M' }) }
+    try { qrDataUrl = await QRCode.toDataURL(qrValue, { width: 180, margin: 1, errorCorrectionLevel: 'M' }) }
     catch { throw new Error('Unable to generate the job card QR code') }
-    return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(card.jobNumber)} · Job Card</title><style>
-      @page{size:A4 portrait;margin:0}
-      *{box-sizing:border-box}
-      html,body{margin:0;padding:0;color:#202820;font-family:"Segoe UI",Arial,sans-serif}
-      .print-page{width:100%;max-width:100%;zoom:1}
-      .card-frame{width:100%;border:2px solid #101510;padding:0}
-      .sheet{width:100%;border-collapse:collapse;table-layout:fixed;font-size:10px;line-height:1.12}
-      .sheet col:nth-child(1){width:15.83%}.sheet col:nth-child(2){width:38.45%}.sheet col:nth-child(3){width:14.07%}.sheet col:nth-child(4){width:31.65%}
-      .sheet td,.sheet th{border:1px solid #bfd2c6;padding:3px 5px!important;vertical-align:middle!important;line-height:1.2;overflow-wrap:anywhere;background:#eaf4ee;text-align:left}
-      .sheet .logo{padding:2px;text-align:center;background:#fff;border-right:2px solid #b4c9bc}
-      .logo img{width:100%;height:80px;object-fit:contain}
-      .brand-title{font-size:18px;font-weight:700;color:#006c35;text-align:center;direction:rtl;background:#fff!important;border:0!important;padding:3px 8px!important}
-      .brand-name{font-size:13px;font-weight:700;background:#fff!important;border:0!important;padding:2px 8px!important}
-      .brand-contact{font-size:9px;color:#849188;background:#fff!important;border:0!important;padding:3px 4px!important;white-space:normal;overflow-wrap:anywhere}
-      .banner,.section{background:#0f3d2a!important;color:#fff;font-weight:700;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-      .banner{text-align:center;font-size:14px;letter-spacing:.2px;padding:5px!important}
-      .section{font-size:10px;padding:4px 6px!important}
-      .label{font-weight:700;color:#718078}
-      .value{min-height:19px;white-space:pre-wrap;overflow-wrap:anywhere;font-size:11px;font-weight:700;color:#202820}
-      .meta td{height:21px}.meta td.label{text-align:left;direction:ltr}.meta td.value{text-align:left;direction:ltr}
-      .issue{height:48px;vertical-align:top!important;white-space:pre-wrap;font-size:11px}
-      .thead th{height:24px;background:#304f42!important;color:#fff;font-weight:700;text-align:left;vertical-align:middle;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-      .thead th:nth-child(3),.itemrow td:nth-child(3),.checkrow td:nth-child(3),.checkrow td:nth-child(4){text-align:center}
-      .itemrow td{height:20px;font-size:10px;text-align:left}.checkrow td{height:18px}.checkrow td:first-child{font-size:9px;text-align:left;direction:ltr}
-      .check-box{font-size:14px;line-height:1;color:#173e2c}
-      .note{height:23px;white-space:pre-wrap;color:#849188;background:#fff!important}
-      .approval td{height:23px}.complete{text-align:left;font-weight:500;height:22px;color:#75847b;background:#fff!important}
-      .sig{height:31px;vertical-align:middle!important;text-align:left;padding:4px 8px!important;background:#fff!important}.sigline{border:0;padding-top:3px;white-space:normal;overflow-wrap:anywhere}
-      .driver-sig{height:28px;text-align:left;padding-left:8px!important;vertical-align:middle!important;background:#fff!important;overflow-wrap:anywhere}
-      .form-footer{text-align:center;font-size:8px;color:#718078;border-top:1px solid #b4c9bc!important;height:20px;background:#fff!important}
-      .qr-footer{width:100%;border-collapse:collapse;table-layout:fixed;margin-top:0;font-size:9px;font-weight:700}
-      .qr-footer col:first-child{width:54.3%}.qr-footer col:last-child{width:45.7%}
-      .qr-footer td{height:50px;text-align:center;vertical-align:middle;border:1px solid #b4c9bc;padding:4px}.qr-footer img{width:66px;height:66px;object-fit:contain}
-      .qr-footer td:first-child{direction:ltr}.qr-footer td:first-child br+span{direction:rtl}
-      .work-complete{display:flex;justify-content:space-between;align-items:center;gap:10px}
-      @media screen{html,body{width:100%;min-width:0}.print-page{width:100%;max-width:100%;margin:0 auto}}
-      @media print{html,body{width:210mm;height:297mm;max-height:297mm;overflow:hidden;margin:0!important;padding:0!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}.print-page{width:197.3mm;max-width:197.3mm;margin:0 auto;padding:0;break-inside:avoid;page-break-inside:avoid}.card-frame{break-inside:avoid;page-break-inside:avoid}tr{break-inside:avoid;page-break-inside:avoid}}
-      @media screen and (max-width:600px){.sheet{font-size:clamp(6px,1.4vw,10px)}.sheet td,.sheet th{padding:clamp(1px,.7vw,5px)}.brand-title{font-size:clamp(10px,3vw,18px)}.brand-name{font-size:clamp(8px,2.2vw,13px)}.brand-contact{font-size:clamp(6px,1.5vw,9px);white-space:normal}.logo img{height:auto;max-height:80px}.value,.issue{font-size:clamp(7px,1.6vw,11px)}.checkrow td:first-child{font-size:clamp(6px,1.3vw,9px)}.check-box{font-size:clamp(8px,2vw,14px)}.qr-footer{font-size:clamp(6px,1.4vw,9px)}.qr-footer img{width:clamp(38px,12vw,66px);height:clamp(38px,12vw,66px)}.sigline,.driver-sig{white-space:normal;font-size:clamp(6px,1.4vw,10px)}}
-    </style></head><body><div class="print-page"><div class="card-frame"><table class="sheet"><colgroup><col><col><col><col></colgroup><tbody>
-      <tr><td class="logo" rowspan="3"><img src="${window.location.origin}/saadfreeh-transport-logo.png" alt="Saadfreeh Transportation"></td><td class="brand-title" colspan="3" dir="rtl"></td></tr>
-      <tr><td class="brand-name" colspan="3">${esc(companyName)}</td></tr><tr><td class="brand-contact" colspan="3">${esc(companyContact || 'Workshop Job Card System')}</td></tr>
-      <tr><td class="banner" colspan="4">JOB CARD&nbsp; | &nbsp;أمر شغل</td></tr>
-      <tr class="meta"><td class="label">Job No. / رقم الأمر</td><td class="value"><b>${esc(card.jobNumber)}</b></td><td class="label">Date / التاريخ</td><td class="value">${printDateText(card.serviceDate)}</td></tr>
-      <tr class="meta"><td class="label">Status / الحالة</td><td class="value">${esc(printStatus)}</td><td class="label">Lines on file</td><td class="value">${items.length}</td></tr>
-      <tr><td class="section" colspan="4">VEHICLE INFORMATION&nbsp; | &nbsp;بيانات المركبة</td></tr>
-      <tr class="meta"><td class="label">Truck No. / رقم الشاحنة</td><td class="value">${esc(plate)}</td><td class="label">Make / Model<br>الماركة</td><td class="value">${esc(truck ? `${truck.make} ${truck.model}` : 'Trailer')}</td></tr>
-      <tr class="meta"><td class="label">Year / سنة الصنع</td><td class="value">${esc(truck?.year ?? '')}</td><td class="label">Type / النوع</td><td class="value">${truck ? 'Truck' : 'Trailer'}</td></tr>
-      <tr class="meta"><td class="label">VIN / chassis&nbsp; رقم الهيكل</td><td class="value">${esc(truck?.vin || '')}</td><td class="label">Odometer (km) /<br>العداد</td><td class="value">${esc(printNumber(card.odometerKm))}</td></tr>
-      <tr class="meta"><td class="label">Service type / نوع الصيانة</td><td class="value">${esc(card.serviceType || '')}</td><td class="label">Technician / الفني</td><td class="value">${esc(card.technicianName || '')}</td></tr>
-      <tr class="meta"><td class="label">Next service (km) / القادم</td><td class="value">${esc(printNumber(card.nextServiceOdometer) || 'NA')}</td><td class="label">Next service date /<br>التاريخ</td><td class="value">${printDateText(card.nextServiceDate)}</td></tr>
-      <tr class="meta"><td class="label">Priority / الأولوية</td><td class="value">${esc(card.priority || '')}</td><td class="label">Driver / السائق</td><td class="value">${esc(card.driverName || '')}</td></tr>
-      <tr><td class="section" colspan="4">REPORTED ISSUE&nbsp; | &nbsp;الشكوى / الملاحظات</td></tr><tr><td class="issue" colspan="4">${esc(card.reportedIssue || '')}</td></tr>
-      <tr><td class="section" colspan="4">WORK PERFORMED &amp; SPARE PARTS&nbsp; | &nbsp;الأعمال المنجزة والقطع</td></tr>
-      <tr class="thead"><th>Item Type / النوع</th><th>Description / الوصف</th><th>Qty</th><th>Remarks / ملاحظات</th></tr>${itemRows}
-      <tr><td class="section" colspan="4">MAINTENANCE CHECKLIST&nbsp; | &nbsp;قائمة الفحص الدوري</td></tr>
-      <tr class="thead"><th colspan="2">Checklist item / بند الفحص</th><th>OK / Repair / إصلاح</th><th>N/A</th></tr>${checkedRows}
-      <tr><td class="note" colspan="4">Notes / ملاحظات: ${esc(card.notes || '')}</td></tr>
-      <tr><td class="section" colspan="4">NEXT SERVICE &amp; APPROVAL&nbsp; | &nbsp;الصيانة القادمة والاعتماد</td></tr>
-      <tr class="approval"><td class="label">Next service (km)</td><td class="value">${esc(printNumber(card.nextServiceOdometer) || 'NA')}</td><td class="label">Next service date</td><td class="value">${printDateText(card.nextServiceDate)}</td></tr>
-      <tr><td class="complete" colspan="4"><div class="work-complete"><span>Work listed above has been completed.</span><span dir="rtl">تم إنجاز الأعمال المذكورة أعلاه</span></div></td></tr>
-      <tr><td class="sig" colspan="2"><div class="sigline">${esc(card.technicianSignature || '_____________')} &nbsp; Technician Signature / توقيع الفني</div></td><td class="sig" colspan="2"><div class="sigline">${esc(card.supervisorSignature || '_____________')} &nbsp; Supervisor Signature / توقيع المشرف</div></td></tr>
-      <tr><td class="driver-sig" colspan="4">${esc(card.driverSignature || '____________________________________')} &nbsp; Driver / Customer signature / توقيع السائق</td></tr>
-      <tr><td class="form-footer" colspan="4">JC-01 · Form JC-01 · Rev 6 · Saadfreeh Transport Est. — Workshop Job Card System · نموذج</td></tr>
-    </tbody></table><table class="qr-footer"><colgroup><col><col></colgroup><tbody><tr><td>Scan to view vehicle &amp; job date<br>امسح لعرض بيانات المركبة وتاريخ العمل</td><td><img src="${qrDataUrl}" alt="Job card QR code"></td></tr></tbody></table></div></div></body></html>`
-  }
 
+    const field = (label: string, arabic: string, value: unknown) => {
+      const text = String(value ?? '').trim()
+      return '<div class="field"><div class="field-label"><span>' + esc(label) + '</span><span dir="rtl">' + esc(arabic) + '</span></div><div class="field-value">' + (text ? esc(text) : '<span class="empty-value">—</span>') + '</div></div>'
+    }
+
+    const itemRows = Array.from({ length: Math.max(3, items.length) }, (_, index) => {
+      const item = items[index]
+      const itemType = String(item?.type || '').replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, letter => letter.toUpperCase())
+      return '<tr><td>' + esc(itemType) + '</td><td>' + esc(item?.description || '') + '</td><td class="qty-cell">' + (item ? esc(item.quantity) : '') + '</td><td>' + esc(item?.remarks || '') + '</td></tr>'
+    }).join('')
+
+    const checklistTable = (rows: string[][]) => rows.map(row => {
+      const value = checks[row[0]]
+      const isChecked = value === 'OK' || value === 'REPAIR'
+      const isNa = value === 'NA'
+      const repairText = value === 'REPAIR' ? '<small>Repair</small>' : ''
+      return '<tr><td class="check-name"><span>' + esc(row[1]) + '</span><small dir="rtl">' + esc(row[2]) + '</small></td><td class="check-cell"><span class="check-box' + (isChecked ? ' is-checked' : '') + '">' + (isChecked ? '✓' : '') + '</span>' + repairText + '</td><td class="check-cell"><span class="check-box' + (isNa ? ' is-checked' : '') + '">' + (isNa ? '✓' : '') + '</span></td></tr>'
+    }).join('')
+
+    const fields = [
+      field('Truck / Trailer No.', 'رقم المركبة', plate),
+      field('Vehicle type', 'نوع المركبة', truck ? 'Truck' : 'Trailer'),
+      field('Make / Model', 'الماركة والطراز', truck ? [truck.make, truck.model].filter(Boolean).join(' ') : 'Trailer'),
+      field('Year', 'سنة الصنع', truck?.year ?? ''),
+      field('VIN / Chassis', 'رقم الهيكل', truck?.vin || ''),
+      field('Odometer (km)', 'العداد', printNumber(card.odometerKm)),
+      field('Service type', 'نوع الصيانة', card.serviceType || ''),
+      field('Technician', 'الفني', card.technicianName || ''),
+      field('Driver', 'السائق', card.driverName || ''),
+      field('Next service (km)', 'العداد القادم', printNumber(card.nextServiceOdometer) || '—'),
+      field('Next service date', 'تاريخ الصيانة القادمة', printDateText(card.nextServiceDate))
+    ].join('')
+
+    return [
+      '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>',
+      esc(card.jobNumber), ' · Job Card</title><style>',
+      '@page{size:A4 portrait;margin:0}',
+      '*{box-sizing:border-box}',
+      'html,body{margin:0;padding:0;color:#1b2e28;font-family:Arial,"Noto Sans Arabic",sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}',
+      'body{background:#eef2ef}',
+      '.print-page{width:100%;max-width:210mm;aspect-ratio:210/297;margin:0 auto;padding:5mm;display:flex;background:#fff}',
+      '.card-frame{width:100%;flex:1;border:1.7px solid #244b3d;padding:4mm;display:flex;flex-direction:column;gap:2.6mm;background:#fff}',
+      '.masthead{display:grid;grid-template-columns:100px minmax(0,1fr) 145px;align-items:center;gap:12px;padding:1px 2px 9px;border-bottom:2px solid #d8e4dd}',
+      '.logo-wrap{display:flex;align-items:center;justify-content:center;min-height:62px}',
+      '.logo-wrap img{display:block;width:94px;height:60px;object-fit:contain}',
+      '.eyebrow{margin-bottom:3px;color:#648073;font-size:8px;font-weight:700;letter-spacing:1.25px;text-transform:uppercase}',
+      '.company-name{color:#315b4a;font-size:11px;font-weight:700}',
+      '.main-title{margin:3px 0 0;color:#172c24;font-size:24px;font-weight:800;line-height:1.05;letter-spacing:-.45px}',
+      '.main-title span{margin-left:5px;color:#537265;font-size:15px;font-weight:600;letter-spacing:0}',
+      '.doc-code{display:flex;flex-direction:column;align-items:flex-end;gap:3px;border-left:2px solid #c6944e;padding-left:10px;text-align:right}',
+      '.doc-code span{color:#728279;font-size:7px;font-weight:700;letter-spacing:.65px;text-transform:uppercase}',
+      '.doc-code strong{color:#244b3d;font-size:11px}',
+      '.contact-line{display:grid;grid-template-columns:1.15fr 1fr 1fr;gap:6px;padding:0 2px 1px;color:#607168;font-size:7.5px}',
+      '.contact-line span{overflow-wrap:anywhere}',
+      '.summary-grid{display:grid;grid-template-columns:1.2fr 1fr 1fr 1fr;gap:6px}',
+      '.summary-card{min-height:42px;border:1px solid #dce6e0;border-radius:3px;background:#f6f9f7;padding:6px 8px}',
+      '.summary-label{display:block;margin-bottom:3px;color:#718178;font-size:7px;font-weight:700;letter-spacing:.55px;text-transform:uppercase}',
+      '.summary-value{display:block;color:#1e352c;font-size:10px;font-weight:700;overflow-wrap:anywhere}',
+      '.status-pill{display:inline-flex;align-items:center;border-radius:99px;background:#e5eee9;padding:2px 7px;color:#315a47;font-size:8px;font-weight:700}',
+      '.status-pill.in-progress{background:#fff1d9;color:#805717}.status-pill.completed{background:#e5f4eb;color:#206341}.status-pill.cancelled{background:#fce9e9;color:#913f3f}',
+      '.section-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:25px;border-left:3px solid #c6944e;background:#214a3b;padding:5px 8px;color:#fff}',
+      '.section-title{display:flex;align-items:center;gap:7px;margin:0;font-size:9px;font-weight:700;letter-spacing:.45px;text-transform:uppercase}',
+      '.section-index{color:#e9c88c;font-size:8px}',
+      '.section-ar{font-size:9px;font-weight:600}',
+      '.vehicle-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-top:1px solid #dbe4df;border-left:1px solid #dbe4df}',
+      '.field{min-height:39px;border-right:1px solid #dbe4df;border-bottom:1px solid #dbe4df;background:#fff;padding:5px 7px}',
+      '.field-label{display:flex;align-items:center;justify-content:space-between;gap:5px;margin-bottom:4px;color:#738279;font-size:6.8px;font-weight:700;letter-spacing:.35px;text-transform:uppercase}',
+      '.field-label [dir=rtl]{font-size:7.5px;letter-spacing:0;text-transform:none}',
+      '.field-value{min-height:12px;color:#20382e;font-size:9.5px;font-weight:700;line-height:1.2;overflow-wrap:anywhere}',
+      '.empty-value{color:#aab5af;font-weight:400}',
+      '.issue-panel{min-height:39px;border:1px solid #dbe4df;border-radius:2px;background:#fbfcfb;padding:7px 9px;color:#263a31;font-size:9px;line-height:1.4;white-space:pre-wrap;overflow-wrap:anywhere}',
+      '.items-table,.check-table{width:100%;border-collapse:collapse;table-layout:fixed}',
+      '.items-table th,.items-table td{border:1px solid #dbe4df;padding:5px 6px;text-align:left;vertical-align:middle;overflow-wrap:anywhere}',
+      '.items-table th{background:#edf3ef;color:#455d50;font-size:7px;font-weight:700;letter-spacing:.4px;text-transform:uppercase}',
+      '.items-table td{height:22px;color:#263a31;font-size:8px;line-height:1.25}',
+      '.items-table tr:nth-child(even) td{background:#fafcfb}',
+      '.items-table .qty-cell{text-align:center;font-weight:700}',
+      '.check-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px}',
+      '.check-table th,.check-table td{border:1px solid #dbe4df;padding:4px 5px;vertical-align:middle}',
+      '.check-table th{background:#edf3ef;color:#455d50;font-size:6.7px;font-weight:700;text-align:center}',
+      '.check-table th:first-child{text-align:left}',
+      '.check-table td{height:24px;background:#fff}',
+      '.check-name span,.check-name small{display:block}',
+      '.check-name span{color:#263a31;font-size:7.2px;font-weight:600}',
+      '.check-name small{margin-top:1px;color:#74847b;font-size:7px}',
+      '.check-cell{width:16%;text-align:center;white-space:nowrap}',
+      '.check-box{display:inline-flex;width:12px;height:12px;align-items:center;justify-content:center;border:1px solid #9aaba1;border-radius:2px;color:#fff;font-size:9px;font-weight:800;vertical-align:middle}',
+      '.check-box.is-checked{border-color:#2f684d;background:#2f684d}',
+      '.check-cell small{display:inline-block;margin-left:2px;color:#8a5e21;font-size:6px;vertical-align:middle}',
+      '.notes-panel{min-height:27px;border:1px solid #dbe4df;border-left:3px solid #c6944e;background:#fafcfb;padding:6px 8px;color:#33483d;font-size:8px;white-space:pre-wrap;overflow-wrap:anywhere}',
+      '.notes-panel strong{margin-right:4px;color:#62746a;font-size:7px;text-transform:uppercase}',
+      '.service-strip{display:grid;grid-template-columns:1fr 1fr;border:1px solid #dbe4df}',
+      '.service-cell{min-height:34px;padding:6px 8px}.service-cell+ .service-cell{border-left:1px solid #dbe4df}',
+      '.service-label{display:block;margin-bottom:3px;color:#738279;font-size:7px;font-weight:700;letter-spacing:.4px;text-transform:uppercase}',
+      '.service-value{color:#233a30;font-size:9px;font-weight:700}',
+      '.completion-note{display:flex;justify-content:space-between;gap:8px;border:1px solid #dbe4df;background:#f4f8f5;padding:6px 8px;color:#456052;font-size:8px;font-weight:600}',
+      '.signatures-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}',
+      '.signature-box{min-height:45px;border:1px solid #dbe4df;padding:5px 7px}',
+      '.signature-value{min-height:17px;border-bottom:1px dotted #8c9b92;color:#2c4939;font-size:8px;font-style:italic;overflow-wrap:anywhere}',
+      '.signature-label{display:flex;justify-content:space-between;gap:5px;margin-top:4px;color:#687a70;font-size:6.7px;font-weight:700}',
+      '.doc-footer{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:auto;border-top:1px solid #dbe4df;padding-top:6px}',
+      '.scan-block{display:flex;align-items:center;gap:7px}',
+      '.scan-block img{width:42px;height:42px;object-fit:contain}',
+      '.scan-copy strong,.scan-copy span{display:block}',
+      '.scan-copy strong{color:#315544;font-size:7.5px}',
+      '.scan-copy span{margin-top:2px;color:#718178;font-size:6.5px}',
+      '.form-ref{text-align:right;color:#75847b;font-size:6.5px}',
+      '.form-ref strong,.form-ref span{display:block}',
+      '.form-ref strong{margin-top:3px;color:#335644;font-size:8px}',
+      '@media screen and (max-width:720px){body{background:#eef2ef}.print-page{width:100%;aspect-ratio:auto;min-height:100vh;padding:10px}.card-frame{gap:9px;padding:12px}.masthead{grid-template-columns:72px minmax(0,1fr);gap:8px}.logo-wrap{min-height:54px}.logo-wrap img{width:68px;height:48px}.main-title{font-size:20px}.main-title span{font-size:13px}.doc-code{grid-column:1/-1;flex-direction:row;align-items:center;justify-content:space-between;border-left:0;border-top:1px solid #dbe4df;padding:6px 0 0;text-align:left}.contact-line{grid-template-columns:1fr;gap:4px}.summary-grid{grid-template-columns:1fr 1fr}.vehicle-grid{grid-template-columns:1fr 1fr}.check-grid{grid-template-columns:1fr}.doc-footer{align-items:flex-start}}',
+      '@media screen and (max-width:420px){.print-page{padding:6px}.card-frame{padding:9px}.main-title{font-size:18px}.summary-card{padding:5px}.vehicle-grid{grid-template-columns:1fr}.section-heading{align-items:flex-start}.section-title{font-size:8px}.section-ar{font-size:8px}.signatures-grid{grid-template-columns:1fr}.completion-note{flex-direction:column;gap:3px}.items-table th,.items-table td{padding:4px 3px;font-size:7px}}',
+      '@media print{html,body{width:210mm;height:297mm;min-height:297mm;overflow:hidden;margin:0!important;padding:0!important;background:#fff!important}.print-page{width:210mm;max-width:210mm;height:297mm;min-height:297mm;margin:0;padding:5mm;break-inside:avoid;page-break-inside:avoid}.card-frame{min-height:0;height:100%;padding:4mm;gap:2.3mm;break-inside:avoid;page-break-inside:avoid}.masthead{grid-template-columns:100px minmax(0,1fr) 145px}.contact-line{grid-template-columns:1.15fr 1fr 1fr}.summary-grid{grid-template-columns:1.2fr 1fr 1fr 1fr}.vehicle-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.check-grid{grid-template-columns:1fr 1fr}.signatures-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.completion-note{flex-direction:row}.doc-footer{margin-top:auto}tr,section,.masthead,.summary-grid,.doc-footer{break-inside:avoid;page-break-inside:avoid}}',
+      '</style></head><body><main class="print-page"><article class="card-frame">',
+      '<header class="masthead"><div class="logo-wrap"><img src="', window.location.origin, '/saadfreeh-transport-logo.png" alt="Saadfreeh Transportation"></div>',
+      '<div class="company-lockup"><div class="eyebrow">Workshop &amp; Fleet Maintenance</div><div class="company-name">', esc(companyName), '</div><h1 class="main-title">Job Card <span dir="rtl">أمر شغل</span></h1></div>',
+      '<div class="doc-code"><span>Workshop service document</span><strong>FORM · JC-01</strong><span>Revision 6 · A4 Portrait</span></div></header>',
+      '<div class="contact-line"><span>', esc(companyAddress), '</span><span>', esc(companyPhone), '</span><span>', esc(companyEmail), '</span></div>',
+      '<section class="summary-grid">',
+      '<div class="summary-card"><span class="summary-label">Job number · رقم الأمر</span><strong class="summary-value">', esc(card.jobNumber), '</strong></div>',
+      '<div class="summary-card"><span class="summary-label">Service date · التاريخ</span><strong class="summary-value">', printDateText(card.serviceDate), '</strong></div>',
+      '<div class="summary-card"><span class="summary-label">Status · الحالة</span><span class="status-pill ', statusClass, '">', esc(printStatus || 'Open'), '</span></div>',
+      '<div class="summary-card"><span class="summary-label">Priority · الأولوية</span><strong class="summary-value">', esc(card.priority || 'NORMAL'), '</strong></div>',
+      '</section>',
+      '<section><div class="section-heading"><h2 class="section-title"><span class="section-index">01</span> Vehicle &amp; Service Details</h2><span class="section-ar" dir="rtl">بيانات المركبة والصيانة</span></div><div class="vehicle-grid">', fields, '</div></section>',
+      '<section><div class="section-heading"><h2 class="section-title"><span class="section-index">02</span> Reported Issue</h2><span class="section-ar" dir="rtl">الشكوى والملاحظات</span></div><div class="issue-panel">', esc(card.reportedIssue || ''), '</div></section>',
+      '<section><div class="section-heading"><h2 class="section-title"><span class="section-index">03</span> Work Performed &amp; Spare Parts</h2><span class="section-ar" dir="rtl">الأعمال المنجزة وقطع الغيار</span></div>',
+      '<table class="items-table"><colgroup><col style="width:17%"><col style="width:45%"><col style="width:10%"><col style="width:28%"></colgroup><thead><tr><th>Item type · النوع</th><th>Description · الوصف</th><th>Qty</th><th>Remarks · ملاحظات</th></tr></thead><tbody>', itemRows, '</tbody></table></section>',
+      '<section><div class="section-heading"><h2 class="section-title"><span class="section-index">04</span> Maintenance Checklist</h2><span class="section-ar" dir="rtl">قائمة الفحص الدوري</span></div>',
+      '<div class="check-grid"><table class="check-table"><colgroup><col style="width:68%"><col style="width:18%"><col style="width:14%"></colgroup><thead><tr><th>Inspection point · بند الفحص</th><th>OK / Repair</th><th>N/A</th></tr></thead><tbody>',
+      checklistTable(checklistItems.slice(0, 5)), '</tbody></table>',
+      '<table class="check-table"><colgroup><col style="width:68%"><col style="width:18%"><col style="width:14%"></colgroup><thead><tr><th>Inspection point · بند الفحص</th><th>OK / Repair</th><th>N/A</th></tr></thead><tbody>',
+      checklistTable(checklistItems.slice(5)), '</tbody></table></div></section>',
+      '<div class="notes-panel"><strong>Notes · ملاحظات</strong>', esc(card.notes || '—'), '</div>',
+      '<section><div class="section-heading"><h2 class="section-title"><span class="section-index">05</span> Next Service &amp; Approval</h2><span class="section-ar" dir="rtl">الصيانة القادمة والاعتماد</span></div>',
+      '<div class="service-strip"><div class="service-cell"><span class="service-label">Next service odometer · العداد القادم</span><strong class="service-value">', esc(printNumber(card.nextServiceOdometer) || '—'), '</strong></div><div class="service-cell"><span class="service-label">Next service date · تاريخ الصيانة القادمة</span><strong class="service-value">', printDateText(card.nextServiceDate), '</strong></div></div></section>',
+      '<div class="completion-note"><span>', completionEnglish, '</span><span dir="rtl">', completionArabic, '</span></div>',
+      '<section class="signatures-grid">',
+      '<div class="signature-box"><div class="signature-value">', esc(card.technicianSignature || ''), '</div><div class="signature-label"><span>Technician signature</span><span dir="rtl">توقيع الفني</span></div></div>',
+      '<div class="signature-box"><div class="signature-value">', esc(card.supervisorSignature || ''), '</div><div class="signature-label"><span>Supervisor signature</span><span dir="rtl">توقيع المشرف</span></div></div>',
+      '<div class="signature-box"><div class="signature-value">', esc(card.driverSignature || ''), '</div><div class="signature-label"><span>Driver / customer</span><span dir="rtl">توقيع السائق</span></div></div>',
+      '</section>',
+      '<footer class="doc-footer"><div class="scan-block"><img src="', qrDataUrl, '" alt="Job card verification QR code"><div class="scan-copy"><strong>Job card verification</strong><span>Scan to identify this job card</span><span dir="rtl">امسح للتعرف على بطاقة العمل</span></div></div><div class="form-ref"><span>Saadfreeh Transport Est.</span><span>Workshop Job Card System</span><strong>JC-01 · REV 6</strong></div></footer>',
+      '</article></main></body></html>'
+    ].join('')
+  }
   const fitCardToPage = (targetDocument: Document, targetWidth: string, maxHeightPx: number) => {
     const page = targetDocument.querySelector<HTMLElement>('.print-page')
     if (!page) throw new Error('Unable to render the job card')
@@ -252,7 +324,7 @@ export default function WorkshopJobCards() {
         const timer = window.setTimeout(() => reject(new Error('Timed out loading the job card for PDF')), 10000)
         frame!.onload = () => { window.clearTimeout(timer); resolve() }
       })
-      const logo = frameDocument.querySelector<HTMLImageElement>('.logo img')
+      const logo = frameDocument.querySelector<HTMLImageElement>('.logo-wrap img')
       if (logo && !logo.complete) await new Promise<void>((resolve, reject) => {
         logo.onload = () => resolve()
         logo.onerror = () => reject(new Error('Unable to load the company logo for PDF'))
@@ -268,6 +340,7 @@ export default function WorkshopJobCards() {
       frameDocument.documentElement.style.width = `${renderWidth}px`
       frameDocument.body.style.width = `${renderWidth}px`
       frameDocument.body.style.minHeight = `${renderHeight}px`
+      fitCardToPage(frameDocument, renderWidth + 'px', renderHeight)
       await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))
       const canvas = await html2canvas(page, { scale: 2, backgroundColor: '#ffffff', useCORS: true, windowWidth: renderWidth, windowHeight: Math.max(renderHeight, page.scrollHeight) })
       const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true })
