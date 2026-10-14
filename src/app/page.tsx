@@ -67,11 +67,13 @@ export default function Dashboard() {
   useEffect(() => {
     if (isLoading) return
     
-    if (isAuthenticated) {
-      fetchDashboardData()
+    if (!isAuthenticated) {
+      router.replace('/login')
+      return
     }
-    // Remove automatic redirect - let middleware handle authentication
-  }, [isAuthenticated, isLoading])
+
+    fetchDashboardData()
+  }, [isAuthenticated, isLoading, router])
 
   const fetchDashboardData = async () => {
     try {
@@ -208,7 +210,7 @@ export default function Dashboard() {
     }
   }
 
-  if (isLoading || loading) {
+  if (isLoading || (isAuthenticated && loading)) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <TruckLoader size="lg" className="mx-auto" />
