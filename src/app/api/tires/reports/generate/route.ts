@@ -46,15 +46,23 @@ export async function GET(request: NextRequest) {
       driverName
     })
 
-    // Build where clause for filters
-    const where: any = {}
+    // Reports represent real tire units, so ignore zero-quantity import rows.
+    const where: any = { quantity: { gt: 0 } }
     
     // Parse dates
-    const start = new Date(startDate)
-    const end = new Date(endDate)
-    
-    // Set end date to end of day to include all records from that day
-    end.setHours(23, 59, 59, 999)
+    const parseDateBoundary = (value: string, endOfDay: boolean) => {
+      const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(value)
+      const date = new Date(dateOnly
+        ? `${value}T${endOfDay ? '23:59:59.999' : '00:00:00.000'}Z`
+        : value)
+      return Number.isNaN(date.getTime()) ? null : date
+    }
+    const start = parseDateBoundary(startDate, false)
+    const end = parseDateBoundary(endDate, true)
+
+    if (!start || !end || start > end) {
+      return NextResponse.json({ error: 'Invalid report date range' }, { status: 400 })
+    }
     
     // Always apply date filter, but be more lenient with future dates
     where.createdAt = {

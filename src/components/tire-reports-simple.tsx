@@ -55,10 +55,13 @@ export default function TireReportsSimple() {
       
       if (response.ok) {
         const data = await response.json()
-        const tires = data.tires || []
+        // Zero-quantity rows can exist in the imported worksheet where OUT QTY was blank.
+        // Keep those source rows in the inventory, but do not count them as tires in reports.
+        const tires = (data.tires || []).filter((tire: any) => Number(tire.quantity) > 0)
+        const quantityOf = (tire: any) => Number(tire.quantity ?? 0)
 
         // Calculate statistics
-        const totalTires = tires.reduce((sum: number, tire: any) => sum + (tire.quantity || 1), 0)
+        const totalTires = tires.reduce((sum: number, tire: any) => sum + quantityOf(tire), 0)
         const uniqueVehicles = new Set([
           ...tires.map((t: any) => t.plateNumber).filter(Boolean),
           ...tires.map((t: any) => t.trailerNumber).filter(Boolean)
@@ -67,7 +70,7 @@ export default function TireReportsSimple() {
 
         // Manufacturer stats
         const manufacturerCounts = tires.reduce((acc: any, tire: any) => {
-          acc[tire.manufacturer] = (acc[tire.manufacturer] || 0) + (tire.quantity || 1)
+          acc[tire.manufacturer] = (acc[tire.manufacturer] || 0) + quantityOf(tire)
           return acc
         }, {})
         const manufacturerStats = Object.entries(manufacturerCounts)
@@ -81,7 +84,7 @@ export default function TireReportsSimple() {
 
         // Origin stats
         const originCounts = tires.reduce((acc: any, tire: any) => {
-          acc[tire.origin] = (acc[tire.origin] || 0) + (tire.quantity || 1)
+          acc[tire.origin] = (acc[tire.origin] || 0) + quantityOf(tire)
           return acc
         }, {})
         const originStats = Object.entries(originCounts)
@@ -94,9 +97,9 @@ export default function TireReportsSimple() {
 
         // Vehicle type stats
         const truckTires = tires.filter((t: any) => t.plateNumber && !t.trailerNumber)
-          .reduce((sum: number, t: any) => sum + (t.quantity || 1), 0)
+          .reduce((sum: number, t: any) => sum + quantityOf(t), 0)
         const trailerTires = tires.filter((t: any) => t.trailerNumber)
-          .reduce((sum: number, t: any) => sum + (t.quantity || 1), 0)
+          .reduce((sum: number, t: any) => sum + quantityOf(t), 0)
 
         setReportData({
           totalTires,

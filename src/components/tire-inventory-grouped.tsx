@@ -111,11 +111,13 @@ export default function TireInventoryGrouped() {
   const groupTiresByVehicle = (tires: Tire[]): GroupedTires => {
     const grouped: GroupedTires = {}
 
-    let filteredTires = tires
+    // Rows with no OUT QTY are preserved in storage for source traceability,
+    // but should not appear as physical tires in inventory totals or cards.
+    let filteredTires = tires.filter(tire => Number(tire.quantity) > 0)
     if (vehicleType === 'truck') {
-      filteredTires = tires.filter(t => t.plateNumber && !t.trailerNumber)
+      filteredTires = filteredTires.filter(t => t.plateNumber && !t.trailerNumber)
     } else if (vehicleType === 'trailer') {
-      filteredTires = tires.filter(t => t.trailerNumber)
+      filteredTires = filteredTires.filter(t => t.trailerNumber)
     }
 
     filteredTires.forEach(tire => {
@@ -348,10 +350,10 @@ export default function TireInventoryGrouped() {
                       
                       <div className="flex items-center gap-2">
                         <Badge variant="secondary">
-                          {group.tires.length} tire{group.tires.length !== 1 ? 's' : ''}
+                          {group.totalQuantity} tire{group.totalQuantity !== 1 ? 's' : ''}
                         </Badge>
                         <Badge variant="outline">
-                          Total Qty: {group.totalQuantity}
+                          {group.tires.length} record{group.tires.length !== 1 ? 's' : ''}
                         </Badge>
                       </div>
                     </div>

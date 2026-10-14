@@ -29,6 +29,8 @@ export async function GET(request: NextRequest) {
     const plateNumber = searchParams.get('plateNumber')?.trim() || null
     const driverName = searchParams.get('driverName')?.trim() || null
     const tireSize = searchParams.get('tireSize')?.trim() || null
+    const dateFrom = searchParams.get('dateFrom')?.trim() || searchParams.get('startDate')?.trim() || null
+    const dateTo = searchParams.get('dateTo')?.trim() || searchParams.get('endDate')?.trim() || null
     const offset = (page - 1) * limit
 
     let whereClause: any = {}
@@ -61,6 +63,33 @@ export async function GET(request: NextRequest) {
 
     if (tireSize) {
       whereClause.tireSize = { contains: tireSize, mode: 'insensitive' }
+    }
+
+    if (dateFrom || dateTo) {
+      const dateFilter: Prisma.DateTimeFilter = {}
+      const parseDate = (value: string, endOfDay: boolean) => {
+        const isDateOnly = /^\d{4}-\d{2}-\d{2}$/.test(value)
+        const parsed = new Date(isDateOnly ? `${value}T${endOfDay ? '23:59:59.999' : '00:00:00.000'}Z` : value)
+        return Number.isNaN(parsed.getTime()) ? null : parsed
+      }
+
+      if (dateFrom) {
+        const from = parseDate(dateFrom, false)
+        if (!from) return NextResponse.json({ error: 'Invalid start date' }, { status: 400 })
+        dateFilter.gte = from
+      }
+
+      if (dateTo) {
+        const to = parseDate(dateTo, true)
+        if (!to) return NextResponse.json({ error: 'Invalid end date' }, { status: 400 })
+        dateFilter.lte = to
+      }
+
+      if (dateFilter.gte && dateFilter.lte && dateFilter.gte > dateFilter.lte) {
+        return NextResponse.json({ error: 'Start date must be on or before end date' }, { status: 400 })
+      }
+
+      whereClause.createdAt = dateFilter
     }
 
     const [tires, total] = await Promise.all([

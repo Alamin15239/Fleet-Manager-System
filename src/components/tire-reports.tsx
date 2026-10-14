@@ -79,7 +79,7 @@ interface AnalyticsData {
     quantity: number
   }>
   topVehicles: Array<{
-    plateNumber: string
+    plateNumber: string | null
     trailerNumber: string | null
     driverName: string | null
     tireCount: number
@@ -139,6 +139,7 @@ export default function TireReports() {
       // Fetch detailed tire data for export
       const tiresResponse = await apiGet('/api/tires?limit=1000')
       const tiresData = tiresResponse.ok ? await tiresResponse.json() : { tires: [] }
+      const reportTires = (tiresData.tires || []).filter((tire: any) => Number(tire.quantity) > 0)
 
       const totalTires = analytics.summary.totalTires
       const share = (quantity: number) => totalTires > 0 ? `${Math.round((quantity / totalTires) * 100)}%` : '0%'
@@ -156,19 +157,19 @@ export default function TireReports() {
         ['Total Vehicles', analytics.summary.totalVehicles, 'Active vehicles with tires'],
         ['Total Drivers', analytics.summary.totalDrivers, 'Assigned drivers'],
         [],
-        ['MANUFACTURER ANALYSIS', 'Tire Count', 'Total Quantity', 'Market Share %'],
+        ['MANUFACTURER ANALYSIS', 'Record Count', 'Tire Units', 'Market Share %'],
         ...analytics.byManufacturer.map(item => [item.manufacturer, item.count, item.quantity, share(item.quantity)]),
         [],
-        ['ORIGIN ANALYSIS', 'Tire Count', 'Total Quantity', 'Percentage'],
+        ['ORIGIN ANALYSIS', 'Record Count', 'Tire Units', 'Percentage'],
         ...analytics.byOrigin.map(item => [item.origin, item.count, item.quantity, share(item.quantity)]),
         [],
         ['TIRE SIZE ANALYSIS', 'Quantity', 'Usage %', 'Vehicle Type'],
         ...analytics.tireSizes.map(item => [item.tireSize, item.quantity, share(item.quantity), 'Mixed']),
         [],
-        ['VEHICLE ANALYSIS', 'Plate/Trailer', 'Driver', 'Tire Count', 'Vehicle Type'],
+        ['VEHICLE ANALYSIS', 'Plate/Trailer', 'Driver', 'Tire Units', 'Vehicle Type'],
         ...analytics.topVehicles.map(item => [item.trailerNumber || item.plateNumber || 'N/A', item.driverName || 'Unassigned', item.tireCount, item.trailerNumber ? 'Trailer' : 'Truck']),
         [],
-        ['DRIVER ANALYSIS', 'Driver Name', 'Tire Count', 'Records', 'Avg Tires/Record'],
+        ['DRIVER ANALYSIS', 'Driver Name', 'Tire Units', 'Records', 'Avg Tires/Record'],
         ...analytics.topDrivers.map(item => [item.driverName, item.tireCount, item.recordCount, item.recordCount > 0 ? (item.tireCount / item.recordCount).toFixed(1) : '0.0']),
         [],
         ['MONTHLY TRENDS', 'Month', 'Tires Added', 'Records Created'],
@@ -176,7 +177,7 @@ export default function TireReports() {
         [],
         ['DETAILED TIRE INVENTORY'],
         ['Tire Size', 'Manufacturer', 'Origin', 'Plate Number', 'Trailer Number', 'Driver', 'Quantity', 'Serial Number', 'Date Added', 'Notes'],
-        ...(tiresData.tires || []).map((tire: any) => [tire.tireSize, tire.manufacturer, tire.origin, tire.plateNumber || 'N/A', tire.trailerNumber || 'N/A', tire.driverName || 'N/A', tire.quantity, tire.serialNumber || 'N/A', new Date(tire.createdAt).toLocaleDateString(), tire.notes || 'N/A']),
+        ...reportTires.map((tire: any) => [tire.tireSize, tire.manufacturer, tire.origin, tire.plateNumber || 'N/A', tire.trailerNumber || 'N/A', tire.driverName || 'N/A', tire.quantity, tire.serialNumber || 'N/A', new Date(tire.createdAt).toLocaleDateString(), tire.notes || 'N/A']),
       ]
       const csvContent = rowsToCsv(rows)
 
@@ -488,15 +489,17 @@ export default function TireReports() {
           <CardContent>
             <div className="space-y-3">
               {analytics.topVehicles.slice(0, 8).map((vehicle, index) => (
-                <div key={vehicle.plateNumber} className="flex items-center justify-between">
+                <div key={vehicle.trailerNumber ? `trailer-${vehicle.trailerNumber}` : `truck-${vehicle.plateNumber || index}`} className="flex items-center justify-between">
                   <div className="flex items-center space-x-2 sm:space-x-3 min-w-0 flex-1">
                     <div className="flex items-center justify-center w-6 h-6 sm:w-8 sm:h-8 bg-primary/10 rounded-full flex-shrink-0">
                       <span className="text-xs sm:text-sm font-medium">{index + 1}</span>
                     </div>
                     <div className="min-w-0 flex-1">
-                      <div className="font-medium text-sm truncate">{vehicle.plateNumber}</div>
+                      <div className="font-medium text-sm truncate">
+                        {vehicle.trailerNumber ? `Trailer ${vehicle.trailerNumber}` : `Truck ${vehicle.plateNumber || ''}`}
+                      </div>
                       <div className="text-xs text-muted-foreground truncate">
-                        {vehicle.driverName || 'N/A'} {vehicle.trailerNumber ? `• ${vehicle.trailerNumber}` : ''}
+                        {vehicle.driverName || (vehicle.trailerNumber ? 'Trailer tire records' : 'Truck tire records')}
                       </div>
                     </div>
                   </div>
