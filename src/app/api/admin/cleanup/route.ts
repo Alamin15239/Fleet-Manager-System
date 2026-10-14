@@ -4,19 +4,16 @@ import { requireAdmin } from '@/lib/auth'
 export async function POST(request: NextRequest) {
   try {
     await requireAdmin(request)
-    
-    // Mock cleanup process
-    await new Promise(resolve => setTimeout(resolve, 800))
-    
-    return NextResponse.json({ 
-      success: true, 
-      message: 'System cleanup completed',
-      freedSpace: '125 MB'
-    })
-  } catch (error) {
     return NextResponse.json(
-      { error: 'Cleanup failed' },
-      { status: 500 }
+      { success: false, error: 'System cleanup is not implemented. No data was changed.' },
+      { status: 501 }
+    )
+  } catch (error) {
+    const unauthorized = error instanceof Error && ['No token provided', 'Invalid token'].includes(error.message)
+    const forbidden = error instanceof Error && error.message === 'Insufficient permissions'
+    return NextResponse.json(
+      { error: unauthorized ? 'Authentication required' : forbidden ? 'Administrator access required' : 'Cleanup request failed' },
+      { status: unauthorized ? 401 : forbidden ? 403 : 500 }
     )
   }
 }

@@ -5,7 +5,7 @@ import { requireManager } from '@/lib/auth'
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params
-    requireManager(request)
+    await requireManager(request)
     const body = await request.json()
     const { name, email, phone, specialty, isActive } = body
 
@@ -65,7 +65,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params
-    requireManager(request)
+    await requireManager(request)
     // Check if mechanic exists
     const mechanic = await db.mechanic.findUnique({
       where: { id, isDeleted: false }

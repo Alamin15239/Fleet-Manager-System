@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { requireAdmin } from '@/lib/auth';
 
 export async function GET(request: NextRequest) {
   try {
+    await requireAdmin(request)
     // Test database connection
     await db.$connect();
     
@@ -45,7 +47,5 @@ export async function GET(request: NextRequest) {
       error: error instanceof Error ? error.message : 'Unknown error',
       timestamp: new Date().toISOString()
     }, { status: 503 });
-  } finally {
-    await db.$disconnect();
   }
 }

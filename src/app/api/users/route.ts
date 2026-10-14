@@ -6,14 +6,6 @@ import { createUser, updateUser } from '@/lib/auth'
 // GET all users (admin only)
 export async function GET(request: NextRequest) {
   try {
-    // Test database connection first
-    try {
-      await db.$queryRaw`SELECT 1`
-    } catch (dbError) {
-      console.error('Database connection failed:', dbError)
-      return NextResponse.json([])
-    }
-
     await requireAdmin(request)
 
     const users = await db.user.findMany({
@@ -48,8 +40,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Return empty array as fallback
-    return NextResponse.json([])
+    return NextResponse.json({ error: 'Unable to load users' }, { status: 503 })
   }
 }
 
@@ -130,6 +121,9 @@ export async function POST(request: NextRequest) {
         { error: 'Insufficient permissions' },
         { status: 403 }
       )
+    }
+    if (error instanceof Error && ['No token provided', 'Invalid token'].includes(error.message)) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
     }
 
     let errorMessage = 'Failed to create user'

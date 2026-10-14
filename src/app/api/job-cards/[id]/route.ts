@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { requireAuth } from '@/lib/auth'
+import { requireManager } from '@/lib/auth'
 import { cleanJobCardPayload } from '@/lib/job-card-validation'
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    await requireAuth(request)
+    await requireManager(request)
     const { id } = await params
     const data = cleanJobCardPayload(await request.json())
     const vehicleExists = data.truckId
@@ -23,7 +23,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     return NextResponse.json({ jobCard })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to update job card'
-    const status = ['No token provided', 'Invalid token'].includes(message) ? 401 : message.startsWith('Select ') || message.startsWith('Enter ') || message.startsWith('Service ') ? 400 : 500
+    const status = ['No token provided', 'Invalid token'].includes(message) ? 401 : message === 'Insufficient permissions' ? 403 : message.startsWith('Select ') || message.startsWith('Enter ') || message.startsWith('Service ') ? 400 : 500
     console.error('Job card update error:', error)
     return NextResponse.json({ error: status === 500 ? 'Failed to update job card' : message }, { status })
   }

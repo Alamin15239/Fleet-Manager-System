@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { requireAuth } from '@/lib/auth'
+import { requireAuth, requireManager } from '@/lib/auth'
 import { cleanJobCardPayload } from '@/lib/job-card-validation'
 
 export async function GET(request: NextRequest) {
@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const user = await requireAuth(request)
+    const user = await requireManager(request)
     const data = cleanJobCardPayload(await request.json())
     const vehicleExists = data.truckId
       ? await db.truck.findFirst({ where: { id: data.truckId, isDeleted: false, status: { not: 'INACTIVE' } }, select: { id: true } })
@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ jobCard }, { status: 201 })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to create job card'
-    const status = ['No token provided', 'Invalid token'].includes(message) ? 401 : message.startsWith('Select ') || message.startsWith('Enter ') || message.startsWith('Service ') ? 400 : 500
+    const status = ['No token provided', 'Invalid token'].includes(message) ? 401 : message === 'Insufficient permissions' ? 403 : message.startsWith('Select ') || message.startsWith('Enter ') || message.startsWith('Service ') ? 400 : 500
     console.error('Job card create error:', error)
     return NextResponse.json({ error: status === 500 ? 'Failed to create job card' : message }, { status })
   }

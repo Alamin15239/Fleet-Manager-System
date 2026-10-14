@@ -2,11 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { Prisma } from '@prisma/client'
 import { defaultPermissions, adminPermissions, managerPermissions } from '@/lib/permissions'
+import { requireAdmin, requireAuth } from '@/lib/auth'
 
 export async function GET(request: NextRequest) {
   try {
-    // For development purposes, skip authentication check
-    // TODO: Add proper authentication in production
+    const user = await requireAuth(request)
     
     const timeoutPromise = new Promise((_, reject) => 
       setTimeout(() => reject(new Error('Database timeout')), 5000)
@@ -54,21 +54,18 @@ export async function GET(request: NextRequest) {
       })
     }
 
+    if (user.role !== 'ADMIN') {
+      const { bankName, bankAccountName, bankAccountNumber, bankIBAN, ...safeSettings } = settings
+      return NextResponse.json(safeSettings)
+    }
+
     return NextResponse.json(settings)
   } catch (error) {
     console.error('Error fetching settings:', error)
-    
-    if (error instanceof Error && error.message === 'Unauthorized') {
+    if (error instanceof Error && ['No token provided', 'Invalid token'].includes(error.message)) {
       return NextResponse.json(
-        { error: 'Unauthorized access' },
+        { error: 'Authentication required' },
         { status: 401 }
-      )
-    }
-    
-    if (error instanceof Error && error.message === 'Insufficient permissions') {
-      return NextResponse.json(
-        { error: 'Insufficient permissions' },
-        { status: 403 }
       )
     }
 
@@ -81,8 +78,7 @@ export async function GET(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    // For development purposes, skip authentication check
-    // TODO: Add proper authentication in production
+    await requireAdmin(request)
 
     const body = await request.json()
     const {
@@ -175,17 +171,15 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json(settings)
   } catch (error) {
     console.error('Error updating settings:', error)
-    
-    if (error instanceof Error && error.message === 'Unauthorized') {
+    if (error instanceof Error && ['No token provided', 'Invalid token'].includes(error.message)) {
       return NextResponse.json(
-        { error: 'Unauthorized access' },
+        { error: 'Authentication required' },
         { status: 401 }
       )
     }
-    
     if (error instanceof Error && error.message === 'Insufficient permissions') {
       return NextResponse.json(
-        { error: 'Insufficient permissions' },
+        { error: 'Administrator access required' },
         { status: 403 }
       )
     }

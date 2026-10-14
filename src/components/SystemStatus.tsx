@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { CheckCircle, AlertTriangle, XCircle, Clock } from 'lucide-react';
+import { useAuth } from '@/contexts/auth-context';
 
 interface SystemCheck {
   status: 'operational' | 'warning' | 'error';
@@ -29,22 +30,23 @@ interface Activity {
 }
 
 export default function SystemStatus() {
+  const { token } = useAuth();
   const [systemStatus, setSystemStatus] = useState<SystemStatus | null>(null);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchSystemStatus();
-    fetchRecentActivity();
+    if (token) fetchRecentActivity();
     
     // Refresh every 30 seconds
     const interval = setInterval(() => {
       fetchSystemStatus();
-      fetchRecentActivity();
+      if (token) fetchRecentActivity();
     }, 30000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [token]);
 
   const fetchSystemStatus = async () => {
     try {
@@ -61,8 +63,13 @@ export default function SystemStatus() {
   };
 
   const fetchRecentActivity = async () => {
+    if (!token) {
+      setActivities([]);
+      return;
+    }
     try {
       const response = await fetch(`/api/system/activity?t=${Date.now()}`, {
+        headers: { Authorization: `Bearer ${token}` },
         cache: 'no-store'
       });
       if (response.ok) {

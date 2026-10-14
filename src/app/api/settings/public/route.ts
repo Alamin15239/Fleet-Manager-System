@@ -18,32 +18,19 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    // If no settings exist, create default settings and return them
+    // Public reads should not create duplicate settings rows.
     if (!settings) {
-      settings = await db.settings.create({
-        data: {
-          currencySymbol: '﷼',
-          currencyCode: 'SAR',
-          currencyName: 'Saudi Riyal',
-          decimalPlaces: 2,
-          thousandsSeparator: ',',
-          decimalSeparator: '.',
-          symbolPosition: 'before',
-          timezone: 'Asia/Riyadh',
-          dateFormat: 'DD/MM/YYYY'
-        },
-        select: {
-          currencySymbol: true,
-          currencyCode: true,
-          currencyName: true,
-          decimalPlaces: true,
-          thousandsSeparator: true,
-          decimalSeparator: true,
-          symbolPosition: true,
-          dateFormat: true,
-          timezone: true
-        }
-      })
+      settings = {
+        currencySymbol: '﷼',
+        currencyCode: 'SAR',
+        currencyName: 'Saudi Riyal',
+        decimalPlaces: 2,
+        thousandsSeparator: ',',
+        decimalSeparator: '.',
+        symbolPosition: 'before',
+        dateFormat: 'DD/MM/YYYY',
+        timezone: 'Asia/Riyadh'
+      }
     }
 
     return NextResponse.json(settings)

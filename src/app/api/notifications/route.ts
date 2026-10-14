@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { requireAuth } from '@/lib/auth'
 
 // Helper function to map notification types to frontend types
 function getNotificationType(type: string): 'success' | 'warning' | 'info' {
@@ -38,17 +39,18 @@ function formatTimeAgo(date: Date): string {
 
 export async function GET(request: NextRequest) {
   try {
+    const user = await requireAuth(request)
     const { searchParams } = new URL(request.url)
     const type = searchParams.get('type') // 'oil_change', 'upcoming_maintenance', 'overdue'
     const userId = searchParams.get('userId')
 
-    let whereClause: any = {}
+    let whereClause: any = user.role === 'ADMIN' ? {} : { userId: user.id }
     
     if (type) {
       whereClause.type = type
     }
     
-    if (userId) {
+    if (user.role === 'ADMIN' && userId) {
       whereClause.userId = userId
     }
 
@@ -100,6 +102,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await requireAuth(request)
     const body = await request.json()
     const { type, title, message, truckId, userId, metadata } = body
 
@@ -109,7 +112,7 @@ export async function POST(request: NextRequest) {
         title,
         message,
         truckId,
-        userId,
+        userId: user.role === 'ADMIN' && userId ? userId : user.id,
         metadata: metadata || {},
         isRead: false
       },
@@ -138,21 +141,23 @@ export async function POST(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
+    const user = await requireAuth(request)
     const { searchParams } = new URL(request.url)
     const notificationId = searchParams.get('id')
     const action = searchParams.get('action')
 
     if (action === 'markAsRead' && notificationId) {
-      await db.notification.update({
-        where: { id: notificationId },
+      const result = await db.notification.updateMany({
+        where: { id: notificationId, ...(user.role === 'ADMIN' ? {} : { userId: user.id }) },
         data: { isRead: true }
       })
+      if (result.count === 0) return NextResponse.json({ error: 'Notification not found' }, { status: 404 })
       return NextResponse.json({ success: true })
     }
 
     if (action === 'markAllAsRead') {
       await db.notification.updateMany({
-        where: { isRead: false },
+        where: { isRead: false, ...(user.role === 'ADMIN' ? {} : { userId: user.id }) },
         data: { isRead: true }
       })
       return NextResponse.json({ success: true })

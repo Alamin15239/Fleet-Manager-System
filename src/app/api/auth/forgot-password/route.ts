@@ -5,6 +5,13 @@ import crypto from 'crypto'
 
 export async function POST(request: NextRequest) {
   try {
+    if (!process.env.RESEND_API_KEY) {
+      return NextResponse.json(
+        { error: 'Password reset email is not configured. Please contact the administrator.' },
+        { status: 503 }
+      )
+    }
+
     const { email } = await request.json()
 
     if (!email) {
@@ -34,7 +41,7 @@ export async function POST(request: NextRequest) {
     if (user && (!user.isActive || user.isDeleted)) {
       return NextResponse.json({
         success: true,
-        message: 'If your email address is in our database, you will receive a password reset link shortly.'
+        message: 'If an account exists, a reset request has been received.'
       })
     }
 
@@ -42,7 +49,7 @@ export async function POST(request: NextRequest) {
     if (!user) {
       return NextResponse.json({
         success: true,
-        message: 'If your email address is in our database, you will receive a password reset link shortly.'
+        message: 'If an account exists, a reset request has been received.'
       })
     }
 
@@ -93,19 +100,13 @@ export async function POST(request: NextRequest) {
           `
         })
       } catch (emailError) {
-        console.log('📧 Email sending failed, logging reset link:')
-        console.log(`Reset link for ${email}: ${resetLink}`)
+        console.error('Failed to send password reset email')
       }
-    } else {
-      console.log('📧 No email service configured, logging reset link:')
-      console.log(`Reset link for ${email}: ${resetLink}`)
     }
 
     return NextResponse.json({
       success: true,
-      message: 'If your email address is in our database, you will receive a password reset link shortly.',
-      resetToken,
-      resetLink
+      message: 'If an account exists, a reset request has been received.'
     })
 
   } catch (error) {

@@ -1,288 +1,190 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { requireAuth } from '@/lib/auth'
+
+type AnalyticsRecord = {
+  serviceType: string
+  date: Date
+  status: string
+  partsCost: number
+  laborCost: number
+  totalCost: number
+  downtimeHours: number | null
+  mechanicName: string | null
+  vehicleName: string
+  vehicleId: string
+}
 
 export async function GET(request: NextRequest) {
   try {
+    await requireAuth(request)
     const { searchParams } = new URL(request.url)
     const period = searchParams.get('period') || '6months'
     const truckId = searchParams.get('truckId') || 'all'
+    const monthsByPeriod: Record<string, number> = { '1month': 1, '3months': 3, '6months': 6, '1year': 12 }
+    const months = monthsByPeriod[period] || 6
+    const endDate = new Date()
+    const startDate = new Date(endDate)
+    startDate.setMonth(startDate.getMonth() - months)
+    const truckFilter = truckId === 'all' ? {} : { truckId }
 
-    // Calculate date range based on period
-    const now = new Date()
-    let startDate = new Date()
-    
-    switch (period) {
-      case '1month':
-        startDate.setMonth(now.getMonth() - 1)
-        break
-      case '3months':
-        startDate.setMonth(now.getMonth() - 3)
-        break
-      case '6months':
-        startDate.setMonth(now.getMonth() - 6)
-        break
-      case '1year':
-        startDate.setFullYear(now.getFullYear() - 1)
-        break
-      default:
-        startDate.setMonth(now.getMonth() - 6)
+    const [truckRecords, trailerRecords, jobCards, truckAlerts, trailerAlerts] = await Promise.all([
+      db.maintenanceRecord.findMany({
+        where: { isDeleted: false, datePerformed: { gte: startDate, lte: endDate }, ...truckFilter },
+        select: {
+          serviceType: true, datePerformed: true, status: true, partsCost: true, laborCost: true,
+          totalCost: true, downtimeHours: true, mechanicName: true, truckId: true,
+          mechanic: { select: { name: true } }, truck: { select: { licensePlate: true } }
+        },
+        orderBy: { datePerformed: 'asc' }
+      }),
+      truckId === 'all' ? db.trailerMaintenanceRecord.findMany({
+        where: { isDeleted: false, datePerformed: { gte: startDate, lte: endDate } },
+        select: {
+          serviceType: true, datePerformed: true, status: true, partsCost: true, laborCost: true,
+          totalCost: true, downtimeHours: true, mechanicName: true, trailerId: true,
+          mechanic: { select: { name: true } }, trailer: { select: { number: true } }
+        },
+        orderBy: { datePerformed: 'asc' }
+      }) : Promise.resolve([]),
+      db.workshopJobCard.findMany({
+        where: {
+          serviceDate: { gte: startDate, lte: endDate },
+          ...(truckId !== 'all' ? { truckId } : {})
+        },
+        select: {
+          serviceType: true, serviceDate: true, status: true, partsCost: true, laborCost: true,
+          totalCost: true, technicianName: true, truckId: true, trailerId: true,
+          truck: { select: { licensePlate: true } }, trailer: { select: { number: true } }
+        },
+        orderBy: { serviceDate: 'asc' }
+      }),
+      db.predictiveAlert.findMany({
+        where: { isResolved: false, ...(truckId !== 'all' ? { truckId } : {}) },
+        select: { id: true, title: true, description: true, severity: true, predictedFailureDate: true, truck: { select: { licensePlate: true } } },
+        orderBy: { createdAt: 'desc' },
+        take: 20
+      }),
+      truckId === 'all' ? db.trailerPredictiveAlert.findMany({
+        where: { isResolved: false },
+        select: { id: true, title: true, description: true, severity: true, predictedFailureDate: true, trailer: { select: { number: true } } },
+        orderBy: { createdAt: 'desc' },
+        take: 20
+      }) : Promise.resolve([])
+    ])
+
+    const records: AnalyticsRecord[] = [
+      ...truckRecords.map(record => ({
+        serviceType: record.serviceType,
+        date: record.datePerformed,
+        status: record.status,
+        partsCost: record.partsCost || 0,
+        laborCost: record.laborCost || 0,
+        totalCost: record.totalCost || 0,
+        downtimeHours: record.downtimeHours,
+        mechanicName: record.mechanic?.name || record.mechanicName || null,
+        vehicleName: record.truck?.licensePlate || 'Unknown truck',
+        vehicleId: record.truckId
+      })),
+      ...trailerRecords.map(record => ({
+        serviceType: record.serviceType,
+        date: record.datePerformed,
+        status: record.status,
+        partsCost: record.partsCost || 0,
+        laborCost: record.laborCost || 0,
+        totalCost: record.totalCost || 0,
+        downtimeHours: record.downtimeHours,
+        mechanicName: record.mechanic?.name || record.mechanicName || null,
+        vehicleName: `Trailer ${record.trailer?.number || ''}`,
+        vehicleId: record.trailerId
+      })),
+      ...jobCards.map(card => ({
+        serviceType: card.serviceType,
+        date: card.serviceDate,
+        status: card.status,
+        partsCost: card.partsCost || 0,
+        laborCost: card.laborCost || 0,
+        totalCost: card.totalCost || 0,
+        downtimeHours: null,
+        mechanicName: card.technicianName || null,
+        vehicleName: card.truck?.licensePlate || (card.trailer ? `Trailer ${card.trailer.number}` : 'Unknown vehicle'),
+        vehicleId: card.truckId || card.trailerId || ''
+      }))
+    ].sort((a, b) => a.date.getTime() - b.date.getTime())
+
+    const maintenanceTrends = []
+    const monthCursor = new Date(startDate.getFullYear(), startDate.getMonth(), 1)
+    const lastMonth = new Date(endDate.getFullYear(), endDate.getMonth(), 1)
+    while (monthCursor <= lastMonth) {
+      const monthStart = new Date(monthCursor)
+      const nextMonth = new Date(monthCursor.getFullYear(), monthCursor.getMonth() + 1, 1)
+      const monthRecords = records.filter(record => record.date >= monthStart && record.date < nextMonth)
+      maintenanceTrends.push({
+        month: monthCursor.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+        scheduled: monthRecords.filter(record => record.status.toUpperCase() === 'SCHEDULED').length,
+        completed: monthRecords.filter(record => record.status.toUpperCase() === 'COMPLETED').length,
+        inProgress: monthRecords.filter(record => record.status.toUpperCase() === 'IN_PROGRESS').length,
+        overdue: monthRecords.filter(record => record.status.toUpperCase() === 'SCHEDULED' && record.date < endDate).length
+      })
+      monthCursor.setMonth(monthCursor.getMonth() + 1)
     }
 
-    // Get maintenance trends data
-    const maintenanceTrends = await getMaintenanceTrends(startDate, now, truckId)
-    
-    // Get cost analysis data
-    const costAnalysis = await getCostAnalysis(startDate, now, truckId)
-    
-    // Get truck performance data
-    const truckPerformance = await getTruckPerformance(truckId)
-    
-    // Get mechanic productivity data
-    const mechanicProductivity = await getMechanicProductivity(startDate, now)
-    
-    // Get predictive insights
-    const predictiveInsights = await getPredictiveInsights(truckId)
+    const totalPartsCost = records.reduce((sum, record) => sum + record.partsCost, 0)
+    const totalLaborCost = records.reduce((sum, record) => sum + record.laborCost, 0)
+    const totalCost = records.reduce((sum, record) => sum + record.totalCost, 0)
+    const costAnalysis = [
+      { category: 'Parts', cost: totalPartsCost, percentage: totalCost > 0 ? Math.round((totalPartsCost / totalCost) * 100) : 0 },
+      { category: 'Labor', cost: totalLaborCost, percentage: totalCost > 0 ? Math.round((totalLaborCost / totalCost) * 100) : 0 }
+    ]
+
+    const vehicles = new Map<string, { name: string; maintenanceCost: number; downtime: number }>()
+    const mechanics = new Map<string, { name: string; completedJobs: number; totalCost: number }>()
+    for (const record of records) {
+      const vehicle = vehicles.get(record.vehicleId) || { name: record.vehicleName, maintenanceCost: 0, downtime: 0 }
+      vehicle.maintenanceCost += record.totalCost
+      vehicle.downtime += record.downtimeHours || 0
+      vehicles.set(record.vehicleId, vehicle)
+
+      if (record.mechanicName && record.status.toUpperCase() === 'COMPLETED') {
+        const mechanic = mechanics.get(record.mechanicName) || { name: record.mechanicName, completedJobs: 0, totalCost: 0 }
+        mechanic.completedJobs += 1
+        mechanic.totalCost += record.totalCost
+        mechanics.set(record.mechanicName, mechanic)
+      }
+    }
+
+    const predictiveInsights = [
+      ...truckAlerts.map(alert => ({
+        type: alert.severity === 'CRITICAL' || alert.severity === 'HIGH' ? 'warning' : 'info',
+        title: alert.title,
+        description: `${alert.truck.licensePlate}: ${alert.description}`,
+        impact: alert.severity.toLowerCase()
+      })),
+      ...trailerAlerts.map(alert => ({
+        type: alert.severity === 'CRITICAL' || alert.severity === 'HIGH' ? 'warning' : 'info',
+        title: alert.title,
+        description: `Trailer ${alert.trailer.number}: ${alert.description}`,
+        impact: alert.severity.toLowerCase()
+      }))
+    ]
 
     return NextResponse.json({
       maintenanceTrends,
       costAnalysis,
-      truckPerformance,
-      mechanicProductivity,
+      truckPerformance: Array.from(vehicles.values()).map(vehicle => ({ ...vehicle, uptime: null })),
+      mechanicProductivity: Array.from(mechanics.values()).map(mechanic => ({
+        ...mechanic,
+        avgRepairTime: null,
+        efficiency: null
+      })),
       predictiveInsights
     })
-
   } catch (error) {
     console.error('Error fetching analytics data:', error)
+    const unauthorized = error instanceof Error && ['No token provided', 'Invalid token'].includes(error.message)
     return NextResponse.json(
-      { error: 'Failed to fetch analytics data' },
-      { status: 500 }
+      { error: unauthorized ? 'Authentication required' : 'Failed to fetch analytics data' },
+      { status: unauthorized ? 401 : 500 }
     )
   }
-}
-
-async function getMaintenanceTrends(startDate: Date, endDate: Date, truckId: string) {
-  // Get maintenance records grouped by month and status
-  const maintenanceRecords = await db.maintenanceRecord.findMany({
-    where: {
-      datePerformed: {
-        gte: startDate,
-        lte: endDate
-      },
-      ...(truckId !== 'all' && { truckId })
-    },
-    select: {
-      datePerformed: true,
-      status: true
-    }
-  })
-
-  // Group by month
-  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-  const trends = []
-
-  for (let i = 0; i < 6; i++) {
-    const currentDate = new Date(endDate)
-    currentDate.setMonth(currentDate.getMonth() - i)
-    
-    const monthStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1)
-    const monthEnd = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0)
-    
-    const monthRecords = maintenanceRecords.filter(record => {
-      const recordDate = new Date(record.datePerformed)
-      return recordDate >= monthStart && recordDate <= monthEnd
-    })
-
-    const monthName = monthNames[currentDate.getMonth()]
-    
-    trends.unshift({
-      month: monthName,
-      scheduled: monthRecords.filter(r => r.status === 'SCHEDULED').length,
-      completed: monthRecords.filter(r => r.status === 'COMPLETED').length,
-      inProgress: monthRecords.filter(r => r.status === 'IN_PROGRESS').length,
-      overdue: monthRecords.filter(r => r.status === 'SCHEDULED' && new Date(r.datePerformed) < new Date()).length
-    })
-  }
-
-  return trends
-}
-
-async function getCostAnalysis(startDate: Date, endDate: Date, truckId: string) {
-  const maintenanceRecords = await db.maintenanceRecord.findMany({
-    where: {
-      datePerformed: {
-        gte: startDate,
-        lte: endDate
-      },
-      ...(truckId !== 'all' && { truckId })
-    },
-    select: {
-      partsCost: true,
-      laborCost: true,
-      totalCost: true
-    }
-  })
-
-  const totalPartsCost = maintenanceRecords.reduce((sum, record) => sum + (record.partsCost || 0), 0)
-  const totalLaborCost = maintenanceRecords.reduce((sum, record) => sum + (record.laborCost || 0), 0)
-  const totalCost = maintenanceRecords.reduce((sum, record) => sum + (record.totalCost || 0), 0)
-  
-  // Calculate external services and other costs (simplified)
-  const externalServicesCost = totalCost * 0.11
-  const otherCost = totalCost * 0.05
-
-  return [
-    { category: 'Parts', cost: Math.round(totalPartsCost), percentage: Math.round((totalPartsCost / totalCost) * 100) || 0 },
-    { category: 'Labor', cost: Math.round(totalLaborCost), percentage: Math.round((totalLaborCost / totalCost) * 100) || 0 },
-    { category: 'External Services', cost: Math.round(externalServicesCost), percentage: 11 },
-    { category: 'Other', cost: Math.round(otherCost), percentage: 5 }
-  ]
-}
-
-async function getTruckPerformance(truckId: string) {
-  const trucks = await db.truck.findMany({
-    where: {
-      ...(truckId !== 'all' && { id: truckId }),
-      isDeleted: false
-    },
-    include: {
-      maintenanceRecords: {
-        where: {
-          datePerformed: {
-            gte: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000) // Last 90 days
-          }
-        }
-      }
-    }
-  })
-
-  return trucks.map(truck => {
-    const totalMaintenanceCost = truck.maintenanceRecords.reduce((sum, record) => sum + (record.totalCost || 0), 0)
-    const downtimeDays = truck.maintenanceRecords.filter(r => r.status === 'IN_PROGRESS').length * 2 // Estimate 2 days per maintenance
-    
-    return {
-      name: truck.licensePlate || 'Unknown',
-      uptime: truck.status === 'ACTIVE' ? Math.max(95 - downtimeDays, 70) : 0,
-      maintenanceCost: totalMaintenanceCost,
-      downtime: downtimeDays
-    }
-  })
-}
-
-async function getMechanicProductivity(startDate: Date, endDate: Date) {
-  // Get mechanics from maintenance records using historical data
-  const maintenanceRecords = await db.maintenanceRecord.findMany({
-    where: {
-      datePerformed: {
-        gte: startDate,
-        lte: endDate
-      },
-      status: 'COMPLETED'
-    },
-    select: {
-      mechanicName: true,
-      totalCost: true
-    }
-  })
-
-  // Group by mechanic using historical names
-  const mechanicStats = new Map()
-  
-  maintenanceRecords.forEach(record => {
-    const mechanicName = record.mechanicName || 'Unknown'
-    if (!mechanicStats.has(mechanicName)) {
-      mechanicStats.set(mechanicName, {
-        completedJobs: 0,
-        totalCost: 0,
-        estimatedHours: 0
-      })
-    }
-    
-    const stats = mechanicStats.get(mechanicName)
-    stats.completedJobs++
-    stats.totalCost += record.totalCost || 0
-    // Estimate hours based on cost (rough estimate)
-    stats.estimatedHours += (record.totalCost || 0) / 100 // Assume $100 per hour
-  })
-
-  return Array.from(mechanicStats.entries()).map(([name, stats]) => ({
-    name,
-    completedJobs: stats.completedJobs,
-    avgRepairTime: stats.completedJobs > 0 ? Math.round(stats.estimatedHours / stats.completedJobs) : 0,
-    efficiency: Math.min(Math.round((stats.completedJobs / Math.max(stats.estimatedHours / 8, 1)) * 100), 100)
-  }))
-}
-
-async function getPredictiveInsights(truckId: string) {
-  const insights = []
-  
-  // Get current stats
-  const totalTrucks = await db.truck.count({ where: { isDeleted: false } })
-  const activeTrucks = await db.truck.count({ where: { status: 'ACTIVE', isDeleted: false } })
-  
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  const thirtyDaysFromNow = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000)
-  
-  const overdueRepairs = await db.maintenanceRecord.count({
-    where: {
-      status: 'SCHEDULED',
-      datePerformed: { lt: today },
-      ...(truckId !== 'all' && { truckId })
-    }
-  })
-  
-  const upcomingMaintenance = await db.maintenanceRecord.count({
-    where: {
-      status: 'SCHEDULED',
-      datePerformed: { gte: today, lte: thirtyDaysFromNow },
-      ...(truckId !== 'all' && { truckId })
-    }
-  })
-
-  // Generate insights based on data
-  if (overdueRepairs > 0) {
-    insights.push({
-      type: 'warning',
-      title: 'Overdue Maintenance',
-      description: `${overdueRepairs} maintenance task${overdueRepairs > 1 ? 's are' : ' is'} overdue and require${overdueRepairs > 1 ? '' : 's'} immediate attention`,
-      impact: 'high'
-    })
-  }
-  
-  if (upcomingMaintenance > 5) {
-    insights.push({
-      type: 'info',
-      title: 'High Maintenance Volume',
-      description: `${upcomingMaintenance} maintenance task${upcomingMaintenance > 1 ? 's are' : ' is'} scheduled in the next 30 days`,
-      impact: 'medium'
-    })
-  }
-  
-  if (activeTrucks / totalTrucks < 0.8) {
-    insights.push({
-      type: 'warning',
-      title: 'Low Fleet Availability',
-      description: `Fleet availability is ${Math.round((activeTrucks / totalTrucks) * 100)}%, consider optimizing maintenance schedules`,
-      impact: 'medium'
-    })
-  }
-  
-  // Add positive insights
-  if (overdueRepairs === 0) {
-    insights.push({
-      type: 'success',
-      title: 'Maintenance On Track',
-      description: 'All maintenance tasks are up to date',
-      impact: 'low'
-    })
-  }
-  
-  insights.push({
-    type: 'success',
-    title: 'Fleet Performance',
-    description: 'Overall fleet efficiency is within acceptable parameters',
-    impact: 'low'
-  })
-  
-  return insights
 }

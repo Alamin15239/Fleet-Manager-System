@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { hashPassword } from '@/lib/auth'
+import { requireAdmin } from '@/lib/auth'
 
 export async function POST(request: NextRequest) {
   try {
+    await requireAdmin(request)
     // Test database connection
     await db.$queryRaw`SELECT 1`
     
@@ -13,21 +14,7 @@ export async function POST(request: NextRequest) {
     })
     
     if (!adminExists) {
-      // Create default admin user
-      const hashedPassword = await hashPassword('admin123')
-      
-      await db.user.create({
-        data: {
-          email: 'admin@fleetmanager.com',
-          password: hashedPassword,
-          name: 'System Administrator',
-          role: 'ADMIN',
-          isActive: true,
-          isApproved: true,
-          isEmailVerified: true,
-          permissions: {}
-        }
-      })
+      return NextResponse.json({ error: 'No administrator exists. Run the trusted database setup process.' }, { status: 409 })
     }
     
     // Initialize settings if not exists

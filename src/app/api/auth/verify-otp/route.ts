@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { resendEmailService } from '@/lib/resend-email';
 import { db } from '@/lib/db';
 import jwt from 'jsonwebtoken';
+import { logUserLogin } from '@/lib/activity-tracking';
 
 export async function POST(request: NextRequest) {
   try {
@@ -60,6 +61,12 @@ export async function POST(request: NextRequest) {
           { error: 'Your account is pending admin approval' },
           { status: 403 }
         );
+      }
+
+      try {
+        await logUserLogin(updatedUser.id, request)
+      } catch (error) {
+        console.warn('Failed to log OTP login activity')
       }
 
       // Generate JWT token

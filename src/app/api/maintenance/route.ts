@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { requireAuth, requireManager } from '@/lib/auth'
 
 export async function GET(request: NextRequest) {
   try {
+    await requireAuth(request)
     // Get both truck and trailer maintenance records
     const [truckRecords, trailerRecords] = await Promise.all([
       db.maintenanceRecord.findMany({
@@ -50,17 +52,14 @@ export async function GET(request: NextRequest) {
     })
   } catch (error) {
     console.error('Maintenance error:', error)
-    return NextResponse.json({
-      success: true,
-      records: [],
-      pagination: { page: 1, limit: 100, total: 0, pages: 0 },
-      summary: { totalCost: 0, completedCount: 0, inProgressCount: 0, scheduledCount: 0 }
-    })
+    const unauthorized = error instanceof Error && ['No token provided', 'Invalid token'].includes(error.message)
+    return NextResponse.json({ success: false, error: unauthorized ? 'Authentication required' : 'Failed to fetch maintenance records' }, { status: unauthorized ? 401 : 503 })
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
+    await requireManager(request)
     const body = await request.json()
 
     // Check if the selected vehicle is a trailer by checking if it exists in trailer table
@@ -113,6 +112,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(record)
   } catch (error) {
     console.error('Maintenance POST error:', error)
-    return NextResponse.json({ error: 'Failed to create record' }, { status: 500 })
+    const unauthorized = error instanceof Error && ['No token provided', 'Invalid token'].includes(error.message)
+    const forbidden = error instanceof Error && error.message === 'Insufficient permissions'
+    return NextResponse.json({ error: unauthorized ? 'Authentication required' : forbidden ? 'Manager access required' : 'Failed to create record' }, { status: unauthorized ? 401 : forbidden ? 403 : 500 })
   }
 }

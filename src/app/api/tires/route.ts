@@ -16,15 +16,7 @@ export async function GET(request: NextRequest) {
 
   try {
     // Test database connection first
-    try {
-      await db.$queryRaw`SELECT 1`
-    } catch (dbError) {
-      console.error('Database connection failed:', dbError)
-      return NextResponse.json({
-        tires: [],
-        pagination: { page: 1, limit: 20, total: 0, pages: 0 }
-      })
-    }
+    await db.$queryRaw`SELECT 1`
 
     const { searchParams } = new URL(request.url)
     
@@ -82,14 +74,8 @@ export async function GET(request: NextRequest) {
         orderBy: { createdAt: 'desc' },
         skip: offset,
         take: limit
-      }).catch(err => {
-        console.error('Error fetching tires:', err)
-        return []
       }),
-      db.tire.count({ where: whereClause }).catch(err => {
-        console.error('Error counting tires:', err)
-        return 0
-      })
+      db.tire.count({ where: whereClause })
     ])
 
     return NextResponse.json({
@@ -142,35 +128,16 @@ export async function POST(request: NextRequest) {
       createdAt
     } = validatedData
 
-    // Validate vehicle exists if plate number is provided
+    // Build or refresh the tire page's vehicle suggestion source from the tire-entry form.
     if (plateNumber) {
-      const vehicle = await db.vehicle.findUnique({
-        where: { plateNumber }
-      })
-      if (!vehicle) {
-        return NextResponse.json(
-          { error: `Truck with plate number '${plateNumber}' not found. Please add the vehicle first.` },
-          { status: 400 }
-        )
-      }
-    }
-
-    // Validate trailer exists if trailer number is provided
-    if (trailerNumber) {
-      const vehicle = await db.vehicle.findFirst({
-        where: {
-          OR: [
-            { trailerNumber },
-            { plateNumber: trailerNumber }
-          ]
+      await db.vehicle.upsert({
+        where: { plateNumber },
+        create: { plateNumber, trailerNumber: trailerNumber || null, driverName: driverName || null },
+        update: {
+          ...(trailerNumber ? { trailerNumber } : {}),
+          ...(driverName ? { driverName } : {})
         }
       })
-      if (!vehicle) {
-        return NextResponse.json(
-          { error: `Trailer '${trailerNumber}' not found. Please add the vehicle first.` },
-          { status: 400 }
-        )
-      }
     }
 
     const tiresData: Prisma.TireCreateManyInput[] = []

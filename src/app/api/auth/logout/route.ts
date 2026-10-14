@@ -7,19 +7,23 @@ export async function POST(request: NextRequest) {
     // Verify user is authenticated
     const user = await requireAuth(request)
 
-    // Update login history
+    // Close active sessions and calculate their actual duration.
     try {
-      await db.loginHistory.updateMany({
+      const activeSessions = await db.loginHistory.findMany({
         where: {
           userId: user.id,
           isActive: true
-        },
-        data: {
-          logoutTime: new Date(),
-          isActive: false,
-          sessionDuration: Math.floor((Date.now() - new Date().getTime()) / 1000) // This would need actual login time
         }
       })
+      const logoutTime = new Date()
+      await Promise.all(activeSessions.map(session => db.loginHistory.update({
+        where: { id: session.id },
+        data: {
+          logoutTime,
+          isActive: false,
+          sessionDuration: Math.max(0, Math.floor((logoutTime.getTime() - session.loginTime.getTime()) / 1000))
+        }
+      })))
     } catch (error) {
       console.error('Error updating login history:', error)
       // Don't fail the logout if this fails

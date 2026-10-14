@@ -26,7 +26,6 @@ interface SystemMetrics {
   activeSessions: number
   totalActions: number
   criticalAlerts: number
-  systemHealth: number
   responseTime: number
 }
 
@@ -100,13 +99,6 @@ export function EnhancedMonitoringDashboard() {
     }
   }
 
-  const getHealthStatus = (health: number) => {
-    if (health >= 90) return { label: 'Excellent', color: 'text-green-600', bgColor: 'bg-green-100' }
-    if (health >= 70) return { label: 'Good', color: 'text-blue-600', bgColor: 'bg-blue-100' }
-    if (health >= 50) return { label: 'Fair', color: 'text-yellow-600', bgColor: 'bg-yellow-100' }
-    return { label: 'Poor', color: 'text-red-600', bgColor: 'bg-red-100' }
-  }
-
   const getResponseTimeStatus = (time: number) => {
     if (time < 200) return { label: 'Excellent', color: 'text-green-600' }
     if (time < 500) return { label: 'Good', color: 'text-blue-600' }
@@ -152,7 +144,6 @@ export function EnhancedMonitoringDashboard() {
     )
   }
 
-  const healthStatus = getHealthStatus(metrics.systemHealth)
   const responseStatus = getResponseTimeStatus(metrics.responseTime)
 
   return (
@@ -165,11 +156,8 @@ export function EnhancedMonitoringDashboard() {
             <Shield className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{metrics.systemHealth}%</div>
-            <Progress value={metrics.systemHealth} className="mt-2" />
-            <div className={`text-xs mt-2 px-2 py-1 rounded-full inline-block ${healthStatus.bgColor} ${healthStatus.color}`}>
-              {healthStatus.label}
-            </div>
+            <div className="text-2xl font-bold">—</div>
+            <div className="text-xs mt-2 text-muted-foreground">Health score is not measured by this app.</div>
           </CardContent>
         </Card>
 

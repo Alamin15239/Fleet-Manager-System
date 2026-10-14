@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/auth';
 
 export async function POST(request: NextRequest) {
   try {
+    await requireAuth(request)
     const formData = await request.formData();
     const imageFile = formData.get('image_file') as File;
     

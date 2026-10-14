@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { requireAuth } from '@/lib/auth'
+import { requirePermission } from '@/lib/permission-middleware'
 
 // GET /api/tires/[id] - Get single tire
 export async function GET(
@@ -8,6 +8,8 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const authResult = await requirePermission(request, 'tire-management', 'read')
+    if (authResult instanceof NextResponse) return authResult
     const { id } = await params;
     const tire = await db.tire.findUnique({
       where: { id: id },
@@ -42,7 +44,8 @@ export async function PUT(
 ) {
   try {
     const { id } = await params;
-    const user = await requireAuth(request)
+    const authResult = await requirePermission(request, 'tire-management', 'update')
+    if (authResult instanceof NextResponse) return authResult
     const body = await request.json()
     const { 
       tireSize, 
@@ -124,13 +127,6 @@ export async function PUT(
   } catch (error) {
     console.error('Error updating tire:', error)
     
-    if (error instanceof Error && error.message === 'No token provided') {
-      return NextResponse.json(
-        { error: 'Authentication required' },
-        { status: 401 }
-      )
-    }
-    
     return NextResponse.json(
       { error: 'Failed to update tire' },
       { status: 500 }
@@ -145,7 +141,8 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    const user = await requireAuth(request)
+    const authResult = await requirePermission(request, 'tire-management', 'delete')
+    if (authResult instanceof NextResponse) return authResult
 
     // Check if tire exists
     const existingTire = await db.tire.findUnique({
@@ -169,13 +166,6 @@ export async function DELETE(
     })
   } catch (error) {
     console.error('Error deleting tire:', error)
-    
-    if (error instanceof Error && error.message === 'No token provided') {
-      return NextResponse.json(
-        { error: 'Authentication required' },
-        { status: 401 }
-      )
-    }
     
     return NextResponse.json(
       { error: 'Failed to delete tire' },

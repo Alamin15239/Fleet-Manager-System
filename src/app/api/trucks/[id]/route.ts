@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { requireAuth, requireManager } from '@/lib/auth'
 
 // GET single truck by ID
 export async function GET(
@@ -7,6 +8,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await requireAuth(request)
     const { id } = await params;
     const truck = await db.truck.findUnique({
       where: { 
@@ -44,9 +46,10 @@ export async function GET(
 
   } catch (error) {
     console.error('Error fetching truck:', error)
+    const unauthorized = error instanceof Error && ['No token provided', 'Invalid token'].includes(error.message)
     return NextResponse.json(
-      { error: 'Failed to fetch truck' },
-      { status: 500 }
+      { error: unauthorized ? 'Authentication required' : 'Failed to fetch truck' },
+      { status: unauthorized ? 401 : 500 }
     )
   }
 }
@@ -57,6 +60,7 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await requireManager(request)
     const { id } = await params;
     const body = await request.json()
 
@@ -157,9 +161,11 @@ export async function PUT(
 
   } catch (error) {
     console.error('Error updating truck:', error)
+    const unauthorized = error instanceof Error && ['No token provided', 'Invalid token'].includes(error.message)
+    const forbidden = error instanceof Error && error.message === 'Insufficient permissions'
     return NextResponse.json(
-      { error: 'Failed to update truck' },
-      { status: 500 }
+      { error: unauthorized ? 'Authentication required' : forbidden ? 'Manager access required' : 'Failed to update truck' },
+      { status: unauthorized ? 401 : forbidden ? 403 : 500 }
     )
   }
 }
@@ -170,6 +176,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await requireManager(request)
     const { id } = await params;
     // Check if truck exists
     const truck = await db.truck.findUnique({
@@ -203,9 +210,11 @@ export async function DELETE(
 
   } catch (error) {
     console.error('Error deleting truck:', error)
+    const unauthorized = error instanceof Error && ['No token provided', 'Invalid token'].includes(error.message)
+    const forbidden = error instanceof Error && error.message === 'Insufficient permissions'
     return NextResponse.json(
-      { error: 'Failed to delete truck' },
-      { status: 500 }
+      { error: unauthorized ? 'Authentication required' : forbidden ? 'Manager access required' : 'Failed to delete truck' },
+      { status: unauthorized ? 401 : forbidden ? 403 : 500 }
     )
   }
 }

@@ -2,9 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { existsSync } from 'fs';
 import { join } from 'path';
+import { requireAdmin } from '@/lib/auth';
 
 export async function GET(request: NextRequest) {
   try {
+    await requireAdmin(request)
     const checks = {
       authentication: { status: 'error', message: 'Not checked' },
       database: { status: 'error', message: 'Not checked' },

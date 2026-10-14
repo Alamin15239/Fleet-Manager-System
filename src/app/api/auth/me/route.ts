@@ -47,22 +47,13 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('Get user error:', error)
     
-    if (error instanceof Error && error.message === 'No token provided') {
+    if (error instanceof Error && ['No token provided', 'Invalid token'].includes(error.message)) {
       return NextResponse.json(
         { error: 'Not authenticated' },
         { status: 401 }
       )
     }
 
-    // Return a mock user for now to prevent blocking
-    return NextResponse.json({
-      success: true,
-      user: {
-        id: 'temp-user',
-        email: 'user@example.com',
-        name: 'System User',
-        role: 'USER'
-      }
-    })
+    return NextResponse.json({ error: 'Unable to load user profile' }, { status: 503 })
   }
 }

@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { requireAdmin } from '@/lib/auth'
 
 export async function GET(request: NextRequest) {
   try {
+    await requireAdmin(request)
     console.log('Database health check started...')
     
     // Test basic database connection

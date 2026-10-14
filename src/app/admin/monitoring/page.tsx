@@ -8,7 +8,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Progress } from '@/components/ui/progress'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { 
   Shield, 
@@ -112,7 +111,6 @@ interface SystemStats {
   activeSessions: number
   totalActions: number
   criticalAlerts: number
-  systemHealth: number
   responseTime: number
 }
 
@@ -523,13 +521,8 @@ export default function AdminMonitoring() {
               <Zap className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{systemStats.systemHealth}%</div>
-              <Progress value={systemStats.systemHealth} className="mt-2" />
-              <p className="text-xs text-muted-foreground mt-2">
-                {systemStats.systemHealth >= 90 ? 'Excellent' : 
-                 systemStats.systemHealth >= 70 ? 'Good' : 
-                 systemStats.systemHealth >= 50 ? 'Fair' : 'Poor'}
-              </p>
+              <div className="text-2xl font-bold">—</div>
+              <p className="text-xs text-muted-foreground mt-2">Health score is not measured by this app.</p>
             </CardContent>
           </Card>
 

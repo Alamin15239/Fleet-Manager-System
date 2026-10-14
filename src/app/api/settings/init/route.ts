@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/auth'
+import { requireAdmin } from '@/lib/auth'
 import { db } from '@/lib/db'
 
 // POST /api/settings/init - Initialize default settings
 export async function POST(request: NextRequest) {
   try {
-    await requireAuth(request)
+    await requireAdmin(request)
     
     // Check if settings already exist
     const existingSettings = await db.settings.findFirst()

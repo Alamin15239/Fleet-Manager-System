@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { requireAuth } from '@/lib/auth'
+import { requireAuth, requireManager } from '@/lib/auth'
 import { vehicleSchema, vehicleQuerySchema } from '@/lib/validations/vehicle'
 import { ZodError } from 'zod'
 
 // GET /api/vehicles - Get all vehicles
 export async function GET(request: NextRequest) {
   try {
+    await requireAuth(request)
     const { searchParams } = new URL(request.url)
     
     // Parse query parameters directly
@@ -66,9 +67,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ vehicles })
   } catch (error) {
     console.error('Error fetching vehicles:', error)
+    const unauthorized = error instanceof Error && ['No token provided', 'Invalid token'].includes(error.message)
     return NextResponse.json(
-      { error: 'Failed to fetch vehicles' },
-      { status: 500 }
+      { error: unauthorized ? 'Authentication required' : 'Failed to fetch vehicles' },
+      { status: unauthorized ? 401 : 500 }
     )
   }
 }
@@ -76,7 +78,7 @@ export async function GET(request: NextRequest) {
 // POST /api/vehicles - Create new vehicle
 export async function POST(request: NextRequest) {
   try {
-    const user = await requireAuth(request)
+    await requireManager(request)
     const body = await request.json()
     
     // Validate input data
@@ -113,11 +115,14 @@ export async function POST(request: NextRequest) {
       )
     }
     
-    if (error instanceof Error && error.message === 'No token provided') {
+    if (error instanceof Error && ['No token provided', 'Invalid token'].includes(error.message)) {
       return NextResponse.json(
         { error: 'Authentication required' },
         { status: 401 }
       )
+    }
+    if (error instanceof Error && error.message === 'Insufficient permissions') {
+      return NextResponse.json({ error: 'Manager access required' }, { status: 403 })
     }
     
     console.error('Error creating vehicle:', error)

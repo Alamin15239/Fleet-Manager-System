@@ -36,15 +36,15 @@ interface AnalyticsData {
   mechanicProductivity: any[]
   predictiveInsights: any[]
   fleetMetrics: {
-    uptime: number
+    uptime: number | null
     totalCost: number
-    efficiency: number
-    utilization: number
+    efficiency: number | null
+    utilization: number | null
   }
   kpiTrends: {
-    uptimeChange: number
-    costChange: number
-    efficiencyChange: number
+    uptimeChange: number | null
+    costChange: number | null
+    efficiencyChange: number | null
   }
 }
 
@@ -56,15 +56,15 @@ export default function AdvancedAnalytics() {
     mechanicProductivity: [],
     predictiveInsights: [],
     fleetMetrics: {
-      uptime: 0,
+      uptime: null,
       totalCost: 0,
-      efficiency: 0,
-      utilization: 0
+      efficiency: null,
+      utilization: null
     },
     kpiTrends: {
-      uptimeChange: 0,
-      costChange: 0,
-      efficiencyChange: 0
+      uptimeChange: null,
+      costChange: null,
+      efficiencyChange: null
     }
   })
   const [loading, setLoading] = useState(true)
@@ -98,22 +98,16 @@ export default function AdvancedAnalytics() {
       if (response.ok) {
         const data = await response.json()
         
-        // Calculate fleet metrics
         const fleetMetrics = {
-          uptime: data.truckPerformance.length > 0 
-            ? Math.round(data.truckPerformance.reduce((sum: number, truck: any) => sum + truck.uptime, 0) / data.truckPerformance.length)
-            : 93,
+          uptime: null,
           totalCost: data.costAnalysis.reduce((sum: number, cost: any) => sum + cost.cost, 0),
-          efficiency: data.mechanicProductivity.length > 0
-            ? Math.round(data.mechanicProductivity.reduce((sum: number, mech: any) => sum + mech.efficiency, 0) / data.mechanicProductivity.length)
-            : 100,
-          utilization: 85
+          efficiency: null,
+          utilization: null
         }
-        
         const kpiTrends = {
-          uptimeChange: 2.1,
-          costChange: -5.3,
-          efficiencyChange: 4.2
+          uptimeChange: null,
+          costChange: null,
+          efficiencyChange: null
         }
         
         setAnalyticsData({
@@ -126,53 +120,24 @@ export default function AdvancedAnalytics() {
           toast.success('Analytics data refreshed successfully')
         }
       } else {
-        // Enhanced fallback data
         setAnalyticsData({
-          maintenanceTrends: [
-            { month: 'Apr', scheduled: 5, completed: 12, inProgress: 2, overdue: 1 },
-            { month: 'May', scheduled: 8, completed: 15, inProgress: 3, overdue: 0 },
-            { month: 'Jun', scheduled: 6, completed: 18, inProgress: 1, overdue: 2 },
-            { month: 'Jul', scheduled: 10, completed: 14, inProgress: 4, overdue: 1 },
-            { month: 'Aug', scheduled: 7, completed: 16, inProgress: 2, overdue: 0 },
-            { month: 'Sep', scheduled: 9, completed: 13, inProgress: 3, overdue: 1 }
-          ],
-          costAnalysis: [
-            { category: 'Parts', cost: 15000, percentage: 45 },
-            { category: 'Labor', cost: 12000, percentage: 36 },
-            { category: 'External Services', cost: 4000, percentage: 12 },
-            { category: 'Other', cost: 2000, percentage: 7 }
-          ],
-          truckPerformance: [
-            { name: 'ABC-123', uptime: 95, maintenanceCost: 2500, downtime: 2 },
-            { name: 'XYZ-456', uptime: 88, maintenanceCost: 3200, downtime: 5 },
-            { name: 'DEF-789', uptime: 92, maintenanceCost: 1800, downtime: 3 },
-            { name: 'GHI-012', uptime: 97, maintenanceCost: 1200, downtime: 1 }
-          ],
-          mechanicProductivity: [
-            { name: 'Ahmed Al-Rashid', completedJobs: 25, avgRepairTime: 3.2, efficiency: 92 },
-            { name: 'Mohammed Hassan', completedJobs: 18, avgRepairTime: 4.1, efficiency: 85 },
-            { name: 'Omar Khalil', completedJobs: 22, avgRepairTime: 2.8, efficiency: 95 }
-          ],
-          predictiveInsights: [
-            { type: 'warning', title: 'Upcoming Oil Changes', description: '5 vehicles due for oil change within 2 weeks', impact: 'medium' },
-            { type: 'info', title: 'Seasonal Maintenance', description: 'Consider scheduling winter preparation maintenance', impact: 'low' },
-            { type: 'success', title: 'Fleet Efficiency', description: 'Fleet performance is above industry average', impact: 'low' }
-          ],
-          fleetMetrics: {
-            uptime: 93,
-            totalCost: 33000,
-            efficiency: 91,
-            utilization: 85
-          },
-          kpiTrends: {
-            uptimeChange: 2.1,
-            costChange: -5.3,
-            efficiencyChange: 4.2
-          }
+          maintenanceTrends: [],
+          costAnalysis: [],
+          truckPerformance: [],
+          mechanicProductivity: [],
+          predictiveInsights: [],
+          fleetMetrics: { uptime: null, totalCost: 0, efficiency: null, utilization: null },
+          kpiTrends: { uptimeChange: null, costChange: null, efficiencyChange: null }
         })
+        toast.error('Failed to fetch analytics data')
       }
     } catch (error) {
       console.error('Error fetching analytics data:', error)
+      setAnalyticsData({
+        maintenanceTrends: [], costAnalysis: [], truckPerformance: [], mechanicProductivity: [], predictiveInsights: [],
+        fleetMetrics: { uptime: null, totalCost: 0, efficiency: null, utilization: null },
+        kpiTrends: { uptimeChange: null, costChange: null, efficiencyChange: null }
+      })
       toast.error('Failed to fetch analytics data')
     } finally {
       setLoading(false)
@@ -187,9 +152,9 @@ export default function AdvancedAnalytics() {
   const exportData = () => {
     const csvData = [
       ['Metric', 'Value', 'Change'],
-      ['Fleet Uptime', `${analyticsData.fleetMetrics.uptime}%`, `${analyticsData.kpiTrends.uptimeChange > 0 ? '+' : ''}${analyticsData.kpiTrends.uptimeChange}%`],
-      ['Maintenance Costs', formatCurrency(analyticsData.fleetMetrics.totalCost), `${analyticsData.kpiTrends.costChange}%`],
-      ['Mechanic Efficiency', `${analyticsData.fleetMetrics.efficiency}%`, `+${analyticsData.kpiTrends.efficiencyChange}%`]
+      ['Fleet Uptime', 'Not collected', 'Not available'],
+      ['Maintenance Costs', formatCurrency(analyticsData.fleetMetrics.totalCost), 'No comparison data'],
+      ['Mechanic Efficiency', 'Not measured', 'No labor-hour data']
     ]
     
     const csvContent = csvData.map(row => row.join(',')).join('\n')
@@ -285,14 +250,8 @@ export default function AdvancedAnalytics() {
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{analyticsData.fleetMetrics.uptime}%</div>
-            <p className="text-xs text-muted-foreground flex items-center gap-1">
-              <TrendingUp className="h-3 w-3 text-green-600" />
-              +{analyticsData.kpiTrends.uptimeChange}% from last month
-            </p>
-            <div className="mt-2">
-              <Progress value={analyticsData.fleetMetrics.uptime} className="h-2" />
-            </div>
+            <div className="text-2xl font-bold">—</div>
+            <p className="text-xs text-muted-foreground">Uptime telemetry is not collected.</p>
           </CardContent>
         </Card>
 
@@ -303,10 +262,7 @@ export default function AdvancedAnalytics() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatCurrency(analyticsData.fleetMetrics.totalCost)}</div>
-            <p className="text-xs text-muted-foreground flex items-center gap-1">
-              <TrendingUp className="h-3 w-3 text-green-600 rotate-180" />
-              {analyticsData.kpiTrends.costChange}% from last month
-            </p>
+            <p className="text-xs text-muted-foreground">Selected period · no prior-period comparison</p>
           </CardContent>
         </Card>
 
@@ -316,14 +272,8 @@ export default function AdvancedAnalytics() {
             <Target className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{analyticsData.fleetMetrics.efficiency}%</div>
-            <p className="text-xs text-muted-foreground flex items-center gap-1">
-              <TrendingUp className="h-3 w-3 text-green-600" />
-              +{analyticsData.kpiTrends.efficiencyChange}% improvement
-            </p>
-            <div className="mt-2">
-              <Progress value={analyticsData.fleetMetrics.efficiency} className="h-2" />
-            </div>
+            <div className="text-2xl font-bold">—</div>
+            <p className="text-xs text-muted-foreground">Labor hours are not recorded for efficiency analysis.</p>
           </CardContent>
         </Card>
 
@@ -333,11 +283,8 @@ export default function AdvancedAnalytics() {
             <Activity className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{analyticsData.fleetMetrics.utilization}%</div>
-            <p className="text-xs text-muted-foreground">Optimal range: 80-90%</p>
-            <div className="mt-2">
-              <Progress value={analyticsData.fleetMetrics.utilization} className="h-2" />
-            </div>
+            <div className="text-2xl font-bold">—</div>
+            <p className="text-xs text-muted-foreground">Vehicle usage data is not collected.</p>
           </CardContent>
         </Card>
       </div>
@@ -348,9 +295,9 @@ export default function AdvancedAnalytics() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Zap className="h-5 w-5 text-yellow-600" />
-              Predictive Insights
+              Recorded Vehicle Alerts
             </CardTitle>
-            <CardDescription>AI-powered recommendations and alerts</CardDescription>
+            <CardDescription>Alerts saved for vehicles in the selected fleet.</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -492,31 +439,16 @@ export default function AdvancedAnalytics() {
                     <TableHead>Vehicle</TableHead>
                     <TableHead>Uptime</TableHead>
                     <TableHead>Maintenance Cost</TableHead>
-                    <TableHead>Downtime (Days)</TableHead>
-                    <TableHead>Status</TableHead>
+                    <TableHead>Downtime (Hours)</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {analyticsData.truckPerformance.map((truck, index) => (
+                  {analyticsData.truckPerformance.length === 0 ? <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground">No vehicle maintenance data for this period.</TableCell></TableRow> : analyticsData.truckPerformance.map((truck, index) => (
                     <TableRow key={index}>
                       <TableCell className="font-medium">{truck.name}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Progress value={truck.uptime} className="w-16 h-2" />
-                          <span className="text-sm font-medium">{truck.uptime}%</span>
-                        </div>
-                      </TableCell>
+                      <TableCell>Not tracked</TableCell>
                       <TableCell>{formatCurrency(truck.maintenanceCost)}</TableCell>
-                      <TableCell>
-                        <Badge variant={truck.downtime > 3 ? 'destructive' : truck.downtime > 1 ? 'secondary' : 'default'}>
-                          {truck.downtime} days
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={truck.uptime > 90 ? 'default' : truck.uptime > 80 ? 'secondary' : 'destructive'}>
-                          {truck.uptime > 90 ? 'Excellent' : truck.uptime > 80 ? 'Good' : 'Needs Attention'}
-                        </Badge>
-                      </TableCell>
+                      <TableCell>{truck.downtime} h</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -530,7 +462,7 @@ export default function AdvancedAnalytics() {
             <Card>
               <CardHeader>
                 <CardTitle>Mechanic Productivity</CardTitle>
-                <CardDescription>Performance metrics by mechanic</CardDescription>
+                <CardDescription>Completed job counts from maintenance records.</CardDescription>
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
@@ -541,7 +473,6 @@ export default function AdvancedAnalytics() {
                     <ChartTooltip />
                     <Legend />
                     <Bar dataKey="completedJobs" fill="#3b82f6" name="Completed Jobs" />
-                    <Bar dataKey="efficiency" fill="#22c55e" name="Efficiency %" />
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -554,8 +485,8 @@ export default function AdvancedAnalytics() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {analyticsData.mechanicProductivity
-                    .sort((a, b) => b.efficiency - a.efficiency)
+                  {analyticsData.mechanicProductivity.length === 0 ? <p className="text-sm text-muted-foreground">No completed job data for this period.</p> : [...analyticsData.mechanicProductivity]
+                    .sort((a, b) => b.completedJobs - a.completedJobs)
                     .map((mechanic, index) => (
                     <div key={index} className="flex items-center justify-between p-3 rounded-lg border">
                       <div className="flex items-center gap-3">
@@ -567,13 +498,13 @@ export default function AdvancedAnalytics() {
                         <div>
                           <div className="font-medium">{mechanic.name}</div>
                           <div className="text-sm text-muted-foreground">
-                            {mechanic.completedJobs} jobs • {mechanic.avgRepairTime}h avg
+                            {mechanic.completedJobs} completed jobs
                           </div>
                         </div>
                       </div>
                       <div className="text-right">
-                        <div className="font-bold text-lg">{mechanic.efficiency}%</div>
-                        <div className="text-sm text-muted-foreground">Efficiency</div>
+                        <div className="font-bold text-lg">{formatCurrency(mechanic.totalCost)}</div>
+                        <div className="text-sm text-muted-foreground">Recorded cost</div>
                       </div>
                     </div>
                   ))}

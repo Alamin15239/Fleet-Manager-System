@@ -1,5 +1,6 @@
 import { Resend } from 'resend'
 import { SHA256 } from 'crypto-js'
+import { randomBytes, randomInt } from 'crypto'
 import { db } from '@/lib/db'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
@@ -27,14 +28,12 @@ class ResendEmailService {
 
   // Generate a secure 6-digit OTP
   generateOTP(): string {
-    return Math.floor(100000 + Math.random() * 900000).toString()
+    return randomInt(100000, 1000000).toString()
   }
 
   // Generate email verification token
   generateEmailToken(): string {
-    const randomBytes = new Uint8Array(32)
-    crypto.getRandomValues(randomBytes)
-    return Array.from(randomBytes, byte => byte.toString(16).padStart(2, '0')).join('')
+    return randomBytes(32).toString('hex')
   }
 
   // Hash OTP for storage
@@ -67,23 +66,9 @@ class ResendEmailService {
   async sendOTPEmail(email: string, otp: string, name?: string): Promise<void> {
     try {
       if (!this.config.apiKey) {
-        // Development mode - log OTP to console
-        console.log('\n\n=== 📧 DEVELOPMENT MODE - RESEND_API_KEY MISSING ===')
-        console.log(`🔑 OTP for ${email}: ${otp}`)
-        console.log(`👤 Name: ${name || 'N/A'}`)
-        console.log(`⚙️  To enable email sending, add RESEND_API_KEY to .env file`)
-        console.log(`========================================================\n\n`)
-        return
+        throw new Error('Email delivery is not configured')
       }
 
-      console.log('🔧 Sending OTP email with config:', {
-        from: this.config.from,
-        to: email,
-        apiKeyPresent: !!this.config.apiKey,
-        domain: process.env.RESEND_DOMAIN,
-        appUrl: process.env.NEXT_PUBLIC_APP_URL
-      })
-      
       const { data, error } = await resend.emails.send({
         from: this.config.from,
         to: email,
@@ -155,36 +140,13 @@ class ResendEmailService {
       })
 
       if (error) {
-        console.error('❌ Resend API error:', {
-          error,
-          message: error.message,
-          name: error.name,
-          details: error,
-          from: this.config.from,
-          to: email,
-          domain: process.env.RESEND_DOMAIN
-        })
-        
-        // Check for domain verification issues
-        if (error.message?.includes('domain') || error.message?.includes('verify')) {
-          console.error('🚨 DOMAIN VERIFICATION ISSUE: Domain may not be verified in Resend')
-          console.error('💡 Try using onboarding@resend.dev temporarily')
-        }
-        
-        throw new Error(`Failed to send OTP email: ${error.message}`)
+        console.error('OTP provider rejected email delivery')
+        throw new Error('Failed to send OTP email')
       }
 
-      console.log(`✅ OTP email sent successfully to ${email}`)
-      
     } catch (error) {
-      console.error('❌ Error sending OTP email:', error)
-      
-      // Fallback to development mode if email fails
-      console.log('\n\n=== 📧 FALLBACK - DEVELOPMENT MODE ===')
-      console.log(`🔑 OTP for ${email}: ${otp}`)
-      console.log(`👤 Name: ${name || 'N/A'}`)
-      console.log(`❌ Email sending failed, showing OTP in console`)
-      console.log(`=========================================\n\n`)
+      console.error('OTP email delivery failed')
+      throw new Error('OTP email delivery failed')
     }
   }
 
@@ -194,14 +156,7 @@ class ResendEmailService {
       const verificationLink = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/verify-email?token=${verificationToken}`
 
       if (!this.config.apiKey) {
-        // Development mode - log verification link to console
-        console.log('\n\n=== 📧 DEVELOPMENT MODE - RESEND_API_KEY MISSING ===')
-        console.log(`📧 Email Verification for ${email}`)
-        console.log(`👤 Name: ${name || 'N/A'}`)
-        console.log(`🔗 Verification Link: ${verificationLink}`)
-        console.log(`⚙️  To enable email sending, add RESEND_API_KEY to .env file`)
-        console.log(`========================================================\n\n`)
-        return
+        throw new Error('Verification email service is not configured')
       }
 
       const { data, error } = await resend.emails.send({
@@ -277,16 +232,8 @@ class ResendEmailService {
       console.log(`✅ Verification email sent successfully to ${email}`)
       
     } catch (error) {
-      console.error('❌ Error sending verification email:', error)
-      
-      // Fallback to development mode if email fails
-      const fallbackLink = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/verify-email?token=${verificationToken}`
-      console.log('\n\n=== 📧 FALLBACK - DEVELOPMENT MODE ===')
-      console.log(`📧 Email Verification for ${email}`)
-      console.log(`👤 Name: ${name || 'N/A'}`)
-      console.log(`🔗 Verification Link: ${fallbackLink}`)
-      console.log(`❌ Email sending failed, showing link in console`)
-      console.log(`=========================================\n\n`)
+      console.error('Failed to send verification email')
+      throw new Error('Verification email could not be delivered')
     }
   }
 
@@ -294,14 +241,7 @@ class ResendEmailService {
   async sendPasswordResetEmail(email: string, resetLink: string, name?: string): Promise<void> {
     try {
       if (!this.config.apiKey) {
-        // Development mode - log reset link to console
-        console.log('\n\n=== 📧 DEVELOPMENT MODE - RESEND_API_KEY MISSING ===')
-        console.log(`🔑 Password Reset for ${email}`)
-        console.log(`👤 Name: ${name || 'N/A'}`)
-        console.log(`🔗 Reset Link: ${resetLink}`)
-        console.log(`⚙️  To enable email sending, add RESEND_API_KEY to .env file`)
-        console.log(`========================================================\n\n`)
-        return
+        throw new Error('Password reset email service is not configured')
       }
 
       const { data, error } = await resend.emails.send({
@@ -389,15 +329,8 @@ class ResendEmailService {
       console.log(`✅ Password reset email sent successfully to ${email}`)
       
     } catch (error) {
-      console.error('❌ Error sending password reset email:', error)
-      
-      // Fallback to development mode if email fails
-      console.log('\n\n=== 📧 FALLBACK - DEVELOPMENT MODE ===')
-      console.log(`🔑 Password Reset for ${email}`)
-      console.log(`👤 Name: ${name || 'N/A'}`)
-      console.log(`🔗 Reset Link: ${resetLink}`)
-      console.log(`❌ Email sending failed, showing link in console`)
-      console.log(`=========================================\n\n`)
+      console.error('Failed to send password reset email')
+      throw new Error('Password reset email could not be delivered')
     }
   }
 
@@ -487,40 +420,25 @@ class ResendEmailService {
   // Send OTP for login
   async sendLoginOTP(email: string): Promise<{ success: boolean; message: string }> {
     try {
-      // Try to restart database connection
-      try {
-        await db.$disconnect()
-        await new Promise(resolve => setTimeout(resolve, 1000))
-        await db.$connect()
-        console.log('Database reconnected successfully')
-      } catch (e) {
-        console.log('Database reconnection failed:', e.message)
-      }
-
-      const user = await Promise.race([
-        db.user.findUnique({
-          where: { 
-            email,
-            isActive: true,
-            isDeleted: false
-          }
-        }),
-        new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Database timeout')), 5000)
-        )
-      ]) as any
+      const user = await db.user.findUnique({
+        where: {
+          email: email.toLowerCase(),
+          isActive: true,
+          isDeleted: false
+        }
+      })
 
       if (!user) {
-        return { success: false, message: 'User not found' }
+        return { success: false, message: 'Unable to send OTP. Check the account details or try again shortly.' }
       }
 
       if (!user.isEmailVerified) {
-        return { success: false, message: 'Email not verified' }
+        return { success: false, message: 'Unable to send OTP. Check the account details or try again shortly.' }
       }
 
       // Check rate limiting
       if (!this.canRequestOTP(user.lastOtpRequest)) {
-        return { success: false, message: 'Please wait 60 seconds before requesting another OTP' }
+        return { success: false, message: 'Unable to send OTP. Check the account details or try again shortly.' }
       }
 
       // Generate and send OTP
@@ -530,7 +448,7 @@ class ResendEmailService {
 
       return { success: true, message: 'OTP sent successfully' }
     } catch (error) {
-      console.error('Error sending login OTP:', error)
+      console.error('Unable to complete login OTP request')
       return { success: false, message: 'Failed to send OTP' }
     }
   }

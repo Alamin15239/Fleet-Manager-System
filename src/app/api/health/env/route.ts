@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { requireAdmin } from '@/lib/auth'
 
 export async function GET(request: NextRequest) {
   try {
+    await requireAdmin(request)
     const envCheck = {
       databaseUrl: process.env.DATABASE_URL ? '✅ Set' : '❌ Missing',
       jwtSecret: process.env.JWT_SECRET ? '✅ Set' : '❌ Missing',

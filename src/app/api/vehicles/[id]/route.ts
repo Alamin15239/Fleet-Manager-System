@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { requireAuth } from '@/lib/auth'
+import { requireAuth, requireManager } from '@/lib/auth'
 
 // GET /api/vehicles/[id] - Get single vehicle
 export async function GET(
@@ -9,6 +9,7 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
+    await requireAuth(request)
     const vehicle = await db.vehicle.findUnique({
       where: { id: id }
     })
@@ -23,9 +24,10 @@ export async function GET(
     return NextResponse.json({ vehicle })
   } catch (error) {
     console.error('Error fetching vehicle:', error)
+    const unauthorized = error instanceof Error && ['No token provided', 'Invalid token'].includes(error.message)
     return NextResponse.json(
-      { error: 'Failed to fetch vehicle' },
-      { status: 500 }
+      { error: unauthorized ? 'Authentication required' : 'Failed to fetch vehicle' },
+      { status: unauthorized ? 401 : 500 }
     )
   }
 }
@@ -37,7 +39,7 @@ export async function PUT(
 ) {
   try {
     const { id } = await params;
-    const user = await requireAuth(request)
+    await requireManager(request)
     const body = await request.json()
     const { plateNumber, trailerNumber, driverName, isActive } = body
 
@@ -81,11 +83,14 @@ export async function PUT(
   } catch (error) {
     console.error('Error updating vehicle:', error)
     
-    if (error instanceof Error && error.message === 'No token provided') {
+    if (error instanceof Error && ['No token provided', 'Invalid token'].includes(error.message)) {
       return NextResponse.json(
         { error: 'Authentication required' },
         { status: 401 }
       )
+    }
+    if (error instanceof Error && error.message === 'Insufficient permissions') {
+      return NextResponse.json({ error: 'Manager access required' }, { status: 403 })
     }
     
     return NextResponse.json(
@@ -102,7 +107,7 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    const user = await requireAuth(request)
+    await requireManager(request)
 
     // Check if vehicle exists
     const existingVehicle = await db.vehicle.findUnique({
@@ -138,11 +143,14 @@ export async function DELETE(
   } catch (error) {
     console.error('Error deleting vehicle:', error)
     
-    if (error instanceof Error && error.message === 'No token provided') {
+    if (error instanceof Error && ['No token provided', 'Invalid token'].includes(error.message)) {
       return NextResponse.json(
         { error: 'Authentication required' },
         { status: 401 }
       )
+    }
+    if (error instanceof Error && error.message === 'Insufficient permissions') {
+      return NextResponse.json({ error: 'Manager access required' }, { status: 403 })
     }
     
     return NextResponse.json(

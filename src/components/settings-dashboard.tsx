@@ -27,7 +27,7 @@ interface SystemStats {
   activeTrucks: number
   totalMaintenance: number
   pendingMaintenance: number
-  systemHealth: 'healthy' | 'warning' | 'critical'
+  systemHealth: 'healthy' | 'warning' | 'critical' | 'unknown'
   databaseSize: string
   uptime: string
   lastBackup: string
@@ -41,12 +41,13 @@ export default function SettingsDashboard() {
     activeTrucks: 0,
     totalMaintenance: 0,
     pendingMaintenance: 0,
-    systemHealth: 'healthy',
-    databaseSize: '0 MB',
-    uptime: '0 days',
-    lastBackup: 'Never'
+    systemHealth: 'unknown',
+    databaseSize: 'Not available',
+    uptime: 'Not available',
+    lastBackup: 'Not recorded'
   })
   const [loading, setLoading] = useState(true)
+  const [statsAvailable, setStatsAvailable] = useState(false)
 
   useEffect(() => {
     fetchSystemStats()
@@ -64,39 +65,30 @@ export default function SettingsDashboard() {
         headers: { 'Authorization': `Bearer ${token}` }
       })
 
-      if (response.ok) {
-        const data = await response.json()
-        setStats(data)
-      } else {
-        // Mock data for demonstration
-        setStats({
-          totalUsers: 12,
-          activeUsers: 8,
-          totalTrucks: 43,
-          activeTrucks: 41,
-          totalMaintenance: 156,
-          pendingMaintenance: 3,
-          systemHealth: 'healthy',
-          databaseSize: '245 MB',
-          uptime: '15 days',
-          lastBackup: '2 hours ago'
-        })
+      if (!response.ok) {
+        throw new Error('System statistics are unavailable')
       }
+
+      const result = await response.json()
+      const data = result.stats
+      setStats({
+        totalUsers: data.totalUsers,
+        activeUsers: data.activeUsers,
+        totalTrucks: data.totalTrucks + data.totalTrailers,
+        activeTrucks: data.activeTrucks + data.activeTrailers,
+        totalMaintenance: data.totalMaintenance,
+        pendingMaintenance: data.pendingMaintenance,
+        systemHealth: 'unknown',
+        databaseSize: data.databaseSize,
+        uptime: data.uptime,
+        lastBackup: data.lastBackup
+      })
+      setStatsAvailable(true)
     } catch (error) {
       console.error('Error fetching system stats:', error)
-      // Mock data fallback
-      setStats({
-        totalUsers: 12,
-        activeUsers: 8,
-        totalTrucks: 43,
-        activeTrucks: 41,
-        totalMaintenance: 156,
-        pendingMaintenance: 3,
-        systemHealth: 'healthy',
-        databaseSize: '245 MB',
-        uptime: '15 days',
-        lastBackup: '2 hours ago'
-      })
+      setStatsAvailable(false)
+      setStats(current => ({ ...current, systemHealth: 'unknown' }))
+      toast.error('System statistics are unavailable')
     } finally {
       setLoading(false)
     }
@@ -155,7 +147,7 @@ export default function SettingsDashboard() {
                 <Clock className="h-4 w-4 text-blue-600" />
                 <span className="font-medium">Uptime</span>
               </div>
-              <span className="text-sm font-semibold">{stats.uptime || '0 days'}</span>
+              <span className="text-sm font-semibold">{stats.uptime}</span>
             </div>
             
             <div className="flex items-center justify-between p-3 border rounded-lg">
@@ -163,7 +155,7 @@ export default function SettingsDashboard() {
                 <HardDrive className="h-4 w-4 text-purple-600" />
                 <span className="font-medium">Database Size</span>
               </div>
-              <span className="text-sm font-semibold">{stats.databaseSize || '0 MB'}</span>
+              <span className="text-sm font-semibold">{stats.databaseSize}</span>
             </div>
             
             <div className="flex items-center justify-between p-3 border rounded-lg">
@@ -171,7 +163,7 @@ export default function SettingsDashboard() {
                 <Database className="h-4 w-4 text-green-600" />
                 <span className="font-medium">Last Backup</span>
               </div>
-              <span className="text-sm font-semibold">{stats.lastBackup || 'Never'}</span>
+              <span className="text-sm font-semibold">{stats.lastBackup}</span>
             </div>
           </div>
         </CardContent>
@@ -185,9 +177,9 @@ export default function SettingsDashboard() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.totalUsers}</div>
+            <div className="text-2xl font-bold">{statsAvailable ? stats.totalUsers : '—'}</div>
             <p className="text-xs text-muted-foreground">
-              {stats.activeUsers} active users
+              {statsAvailable ? `${stats.activeUsers} logged in during the last 24 hours` : 'Statistics unavailable'}
             </p>
           </CardContent>
         </Card>
@@ -198,9 +190,9 @@ export default function SettingsDashboard() {
             <Truck className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.totalTrucks}</div>
+            <div className="text-2xl font-bold">{statsAvailable ? stats.totalTrucks : '—'}</div>
             <p className="text-xs text-muted-foreground">
-              {stats.activeTrucks} active vehicles
+              {statsAvailable ? `${stats.activeTrucks} active vehicles` : 'Statistics unavailable'}
             </p>
           </CardContent>
         </Card>
@@ -211,9 +203,9 @@ export default function SettingsDashboard() {
             <Wrench className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.totalMaintenance}</div>
+            <div className="text-2xl font-bold">{statsAvailable ? stats.totalMaintenance : '—'}</div>
             <p className="text-xs text-muted-foreground">
-              {stats.pendingMaintenance} pending
+              {statsAvailable ? `${stats.pendingMaintenance} pending` : 'Statistics unavailable'}
             </p>
           </CardContent>
         </Card>
@@ -224,9 +216,9 @@ export default function SettingsDashboard() {
             <Shield className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">Secure</div>
+            <div className="text-2xl font-bold">Restricted</div>
             <p className="text-xs text-muted-foreground">
-              All systems protected
+              Administrator access required
             </p>
           </CardContent>
         </Card>

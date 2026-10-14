@@ -1,7 +1,7 @@
 import jwt from 'jsonwebtoken'
 import bcrypt from 'bcryptjs'
 import { db } from '@/lib/db'
-import { getTrackingInfo, TrackingInfo } from '@/lib/device-tracking'
+import { logUserLogin } from '@/lib/activity-tracking'
 import { NextRequest } from 'next/server'
 
 const JWT_SECRET = process.env.JWT_SECRET
@@ -16,6 +16,7 @@ export interface JWTPayload {
   role: string
   isActive: boolean
   isApproved: boolean
+  isEmailVerified?: boolean
   permissions?: any
 }
 
@@ -33,8 +34,10 @@ export function generateToken(payload: JWTPayload): string {
 
 export function verifyToken(token: string): JWTPayload | null {
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as JWTPayload
-    return decoded
+    const decoded = jwt.verify(token, JWT_SECRET) as JWTPayload & { userId?: string }
+    const id = decoded.id || decoded.userId
+    if (!id) return null
+    return { ...decoded, id }
   } catch (error) {
     return null
   }
@@ -81,20 +84,11 @@ export async function authenticateUser(email: string, password: string, request?
       throw new Error('Invalid credentials')
     }
 
-    // Try to log login activity with tracking info
+    // Keep the admin activity and session views backed by real login events.
     try {
-      let trackingInfo: TrackingInfo | null = null
-      
       if (request) {
-        trackingInfo = await getTrackingInfo(request)
+        await logUserLogin(user.id, request)
       }
-      
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Database timeout')), 5000)
-      )
-      
-      // Skip login history and user activity logging to avoid database issues
-      console.log('Login successful for user:', user.email)
     } catch (logError) {
       console.warn('Failed to log login activity:', logError)
     }
@@ -143,7 +137,37 @@ export async function requireAuth(request: Request): Promise<JWTPayload> {
     throw new Error('Invalid token')
   }
 
-  return decoded
+  // Re-check the account on each API request so role changes and disabled
+  // accounts take effect immediately, and normalize OTP login tokens.
+  const user = await db.user.findUnique({
+    where: { id: decoded.id },
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      role: true,
+      isActive: true,
+      isApproved: true,
+      isEmailVerified: true,
+      isDeleted: true,
+      permissions: true
+    }
+  })
+
+  if (!user || user.isDeleted || !user.isActive || !user.isApproved || !user.isEmailVerified) {
+    throw new Error('Invalid token')
+  }
+
+  return {
+    id: user.id,
+    email: user.email,
+    name: user.name || undefined,
+    role: user.role,
+    isActive: user.isActive,
+    isApproved: user.isApproved,
+    isEmailVerified: user.isEmailVerified,
+    permissions: user.permissions
+  }
 }
 
 export async function requireRole(request: Request, requiredRoles: string[]): Promise<JWTPayload> {
@@ -304,20 +328,15 @@ export async function resetPassword(email: string) {
     }
 
     // Generate temporary password
-    const tempPassword = Math.random().toString(36).slice(-8)
+    const { randomBytes } = await import('crypto')
+    const tempPassword = randomBytes(18).toString('base64url')
     const hashedPassword = await hashPassword(tempPassword)
 
     // Update password
     await db.user.update({
       where: { id: user.id },
-      data: { 
-        password: hashedPassword,
-        isActive: true // Ensure user is active
-      }
+      data: { password: hashedPassword }
     })
-
-    // In a real app, send email with temporary password
-    console.log(`Temporary password for ${email}: ${tempPassword}`)
 
     return { 
       success: true, 
@@ -338,12 +357,5 @@ export async function auth(request?: Request): Promise<JWTPayload | null> {
       return null;
     }
   }
-  return {
-    id: 'user-1',
-    email: 'admin@example.com',
-    name: 'Admin User',
-    role: 'ADMIN',
-    isActive: true,
-    isApproved: true
-  }
+  return null
 }

@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { advancedEmailService } from '@/lib/advanced-email-service'
+import { requireAdmin } from '@/lib/auth'
 
 export async function POST(request: NextRequest) {
   try {
+    await requireAdmin(request)
     const { from, to, subject, html, text, scheduledAt } = await request.json()
 
     if (!from || !to || !subject) {

@@ -62,7 +62,7 @@ export async function PUT(request: NextRequest) {
       )
     }
 
-    if (error instanceof Error && error.message === 'No token provided') {
+    if (error instanceof Error && ['No token provided', 'Invalid token'].includes(error.message)) {
       return NextResponse.json(
         { error: 'Not authenticated' },
         { status: 401 }
@@ -121,7 +121,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('Get user error:', error)
     
-    if (error instanceof Error && error.message === 'No token provided') {
+    if (error instanceof Error && ['No token provided', 'Invalid token'].includes(error.message)) {
       return NextResponse.json(
         { error: 'Not authenticated' },
         { status: 401 }

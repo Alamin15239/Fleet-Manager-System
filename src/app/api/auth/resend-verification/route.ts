@@ -4,6 +4,13 @@ import { emailVerificationService } from '@/lib/email-verification'
 
 export async function POST(request: NextRequest) {
   try {
+    if (!process.env.RESEND_API_KEY) {
+      return NextResponse.json(
+        { error: 'Verification email is not configured. Please contact the administrator.' },
+        { status: 503 }
+      )
+    }
+
     const { email } = await request.json()
 
     if (!email) {
@@ -31,11 +38,11 @@ export async function POST(request: NextRequest) {
       }
     })
 
+    const genericMessage = 'If an unverified account exists, a verification request has been received.'
     if (!user) {
-      // Always return success for security (don't reveal if email exists)
       return NextResponse.json({
         success: true,
-        message: 'If your email address is in our database, you will receive a verification email shortly.'
+        message: genericMessage
       })
     }
 
@@ -43,16 +50,13 @@ export async function POST(request: NextRequest) {
     if (user.isEmailVerified) {
       return NextResponse.json({
         success: true,
-        message: 'Your email is already verified.'
+        message: genericMessage
       })
     }
 
     // Check if user can request new verification (rate limiting)
     if (!emailVerificationService.canRequestOTP(user.lastOtpRequest)) {
-      return NextResponse.json(
-        { error: 'Please wait 60 seconds before requesting another verification email.' },
-        { status: 429 }
-      )
+      return NextResponse.json({ success: true, message: genericMessage })
     }
 
     // Generate new verification token
@@ -65,13 +69,12 @@ export async function POST(request: NextRequest) {
     try {
       await emailVerificationService.sendVerificationEmail(email, verificationToken, user.name || undefined)
     } catch (emailError) {
-      console.error('Failed to send verification email:', emailError)
-      // Don't fail the request if email fails, just log it
+      console.error('Failed to send verification email')
     }
 
     return NextResponse.json({
       success: true,
-      message: 'Verification email sent successfully.'
+      message: genericMessage
     })
 
   } catch (error) {

@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { requireAuth } from '@/lib/auth'
 
 export async function GET(request: NextRequest) {
   try {
-    // Get recent activities from the database
+    const user = await requireAuth(request)
+    // Settings are available to regular users too, so only expose their own activity here.
     const recentActivities = await db.userActivity.findMany({
+      where: { userId: user.id },
       take: 5,
       orderBy: { createdAt: 'desc' },
       include: {
@@ -35,8 +38,9 @@ export async function GET(request: NextRequest) {
 
   } catch (error) {
     console.error('Error fetching system activity:', error);
+    const unauthorized = error instanceof Error && ['No token provided', 'Invalid token'].includes(error.message)
     return NextResponse.json({
-      error: 'Failed to fetch system activity'
-    }, { status: 500 });
+      error: unauthorized ? 'Authentication required' : 'Failed to fetch system activity'
+    }, { status: unauthorized ? 401 : 503 });
   }
 }

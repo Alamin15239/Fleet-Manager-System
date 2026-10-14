@@ -1,18 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { requireManager } from '@/lib/auth'
+import { requireAuth, requireManager } from '@/lib/auth'
 
 export async function GET(request: NextRequest) {
   try {
-    // Test database connection first
-    try {
-      await db.$queryRaw`SELECT 1`
-    } catch (dbError) {
-      console.error('Database connection failed:', dbError)
-      return NextResponse.json([])
-    }
-
-    requireManager(request)
+    await requireAuth(request)
     const { searchParams } = new URL(request.url)
     const includeInactive = searchParams.get('includeInactive') === 'true'
     const includeCount = searchParams.get('includeCount') === 'true'
@@ -69,24 +61,17 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(mechanics)
   } catch (error) {
     console.error('Error fetching mechanics:', error)
-    if (error instanceof Error) {
-      if (error.message === 'Unauthorized' || error.message === 'Insufficient permissions') {
-        return NextResponse.json(
-          { error: error.message },
-          { status: 403 }
-        )
-      }
-    }
+    const unauthorized = error instanceof Error && ['No token provided', 'Invalid token'].includes(error.message)
     return NextResponse.json(
-      { error: 'Failed to fetch mechanics' },
-      { status: 500 }
+      { error: unauthorized ? 'Authentication required' : 'Failed to fetch mechanics' },
+      { status: unauthorized ? 401 : 503 }
     )
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    requireManager(request)
+    await requireManager(request)
     const body = await request.json()
     const { name, email, phone, specialty, isActive } = body
 
@@ -122,17 +107,11 @@ export async function POST(request: NextRequest) {
     }, { status: 201 })
   } catch (error) {
     console.error('Error creating mechanic:', error)
-    if (error instanceof Error) {
-      if (error.message === 'Unauthorized' || error.message === 'Insufficient permissions') {
-        return NextResponse.json(
-          { error: error.message },
-          { status: 403 }
-        )
-      }
-    }
+    const unauthorized = error instanceof Error && ['No token provided', 'Invalid token'].includes(error.message)
+    const forbidden = error instanceof Error && error.message === 'Insufficient permissions'
     return NextResponse.json(
-      { error: 'Failed to create mechanic' },
-      { status: 500 }
+      { error: unauthorized ? 'Authentication required' : forbidden ? 'Manager access required' : 'Failed to create mechanic' },
+      { status: unauthorized ? 401 : forbidden ? 403 : 500 }
     )
   }
 }

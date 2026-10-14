@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getClientIP, getLocationFromIP } from '@/lib/device-tracking'
+import { requireAdmin } from '@/lib/auth'
 
 export async function GET(request: NextRequest) {
   try {
+    await requireAdmin(request)
     const realIP = getClientIP(request)
     const location = await getLocationFromIP(realIP)
     

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { requireAuth } from '@/lib/auth'
+import { requireAuth, requireManager } from '@/lib/auth'
 import { logUserActivity } from '@/lib/activity-tracking'
 import { logEntityChange } from '@/lib/audit-logging'
 
@@ -50,12 +50,9 @@ export async function GET(request: NextRequest) {
       whereClause.status = { not: 'INACTIVE' }
     }
 
-    // Try to get real data first, fallback to sample if it fails
-    let trucks = []
-    let totalCount = 43
-    
+    // Return only actual fleet data. Synthetic vehicles make reports unreliable.
     try {
-      const [realTrucks, realCount] = await Promise.race([
+      const [trucks, totalCount] = await Promise.race([
         Promise.all([
           db.truck.findMany({
             where: whereClause,
@@ -79,42 +76,22 @@ export async function GET(request: NextRequest) {
           db.truck.count({ where: whereClause })
         ]),
         new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 3000))
-      ]) as any
-      
-      trucks = realTrucks
-      totalCount = realCount
-      console.log('Successfully fetched real truck data:', trucks.length)
+      ]) as [any[], number]
+
+      return NextResponse.json({
+        success: true,
+        data: trucks,
+        pagination: {
+          page,
+          limit,
+          total: totalCount,
+          pages: Math.ceil(totalCount / limit)
+        }
+      })
     } catch (error) {
-      console.log('Using sample truck data due to database timeout')
-      // Generate sample trucks based on pagination
-      const sampleTrucks = Array.from({ length: Math.min(limit, 43) }, (_, i) => ({
-        id: `truck-${skip + i + 1}`,
-        vin: `VIN${(skip + i + 1).toString().padStart(3, '0')}`,
-        make: ['Mercedes', 'Volvo', 'Scania', 'MAN'][i % 4],
-        model: ['Actros Mp3', 'FH16', 'R450', 'TGX'][i % 4],
-        year: 2020 + (i % 4),
-        licensePlate: `${(skip + i + 1).toString().padStart(4, '0')} ABC`,
-        currentMileage: 100000 + (i * 10000),
-        status: i % 10 === 0 ? 'MAINTENANCE' : 'ACTIVE',
-        driverName: `Driver ${skip + i + 1}`,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      }))
-      trucks = sampleTrucks
+      console.error('Truck database query failed:', error)
+      return NextResponse.json({ success: false, error: 'Unable to load trucks. Please try again.' }, { status: 503 })
     }
-
-
-    return NextResponse.json({
-      success: true,
-      data: trucks,
-      pagination: {
-        page,
-        limit,
-        total: totalCount,
-        pages: Math.ceil(totalCount / limit)
-      },
-      message: 'Using sample data due to database connection issues'
-    })
 
   } catch (error) {
     console.error('Error fetching trucks:', error)
@@ -124,36 +101,50 @@ export async function GET(request: NextRequest) {
         { status: 401 }
       )
     }
-    // Return empty data instead of 500 error
-    return NextResponse.json({
-      success: true,
-      data: [],
-      pagination: { page: 1, limit: 10, total: 0, pages: 0 },
-      error: 'Database connection failed'
-    })
+    return NextResponse.json({ success: false, error: 'Unable to load trucks. Please try again.' }, { status: 503 })
   }
 }
 
 // POST create new truck
 export async function POST(request: NextRequest) {
   try {
-    const user = await requireAuth(request)
+    const user = await requireManager(request)
     const body = await request.json()
-    console.log('Received truck data:', body)
 
-    // TEMPORARY: Remove all validation to test if truck creation works
-    console.log('Skipping validation for testing')
+    if (!body || typeof body !== 'object' || Array.isArray(body)) {
+      return NextResponse.json({ error: 'Truck details are required' }, { status: 400 })
+    }
+
+    const vin = String(body.vin || '').trim()
+    const make = String(body.make || '').trim()
+    const model = String(body.model || '').trim()
+    const licensePlate = String(body.licensePlate || '').trim()
+    const year = Number(body.year)
+    const currentMileage = Number(body.currentMileage ?? 0)
+    const status = body.status || 'ACTIVE'
+
+    if (!vin || !make || !model || !licensePlate) {
+      return NextResponse.json({ error: 'VIN, make, model, and license plate are required' }, { status: 400 })
+    }
+    if (!Number.isInteger(year) || year < 1900 || year > new Date().getFullYear() + 1) {
+      return NextResponse.json({ error: 'Enter a valid vehicle year' }, { status: 400 })
+    }
+    if (!Number.isInteger(currentMileage) || currentMileage < 0) {
+      return NextResponse.json({ error: 'Mileage must be a non-negative whole number' }, { status: 400 })
+    }
+    if (!['ACTIVE', 'INACTIVE', 'MAINTENANCE'].includes(status)) {
+      return NextResponse.json({ error: 'Invalid truck status' }, { status: 400 })
+    }
 
     // Check if VIN already exists
     const existingTruck = await db.truck.findFirst({
       where: { 
-        vin: body.vin,
+        vin,
         isDeleted: false
       }
     })
 
     if (existingTruck) {
-      console.log('VIN already exists:', body.vin)
       return NextResponse.json(
         { error: 'Truck with this VIN already exists' },
         { status: 400 }
@@ -163,13 +154,12 @@ export async function POST(request: NextRequest) {
     // Check if license plate already exists
     const existingLicensePlate = await db.truck.findFirst({
       where: { 
-        licensePlate: body.licensePlate,
+        licensePlate,
         isDeleted: false
       }
     })
 
     if (existingLicensePlate) {
-      console.log('License plate already exists:', body.licensePlate)
       return NextResponse.json(
         { error: 'Truck with this license plate already exists' },
         { status: 400 }
@@ -180,13 +170,13 @@ export async function POST(request: NextRequest) {
     const truck = await Promise.race([
       db.truck.create({
       data: {
-        vin: body.vin,
-        make: body.make,
-        model: body.model,
-        year: parseInt(body.year),
-        licensePlate: body.licensePlate,
-        currentMileage: parseInt(body.currentMileage) || 0,
-        status: body.status || 'ACTIVE',
+        vin,
+        make,
+        model,
+        year,
+        licensePlate,
+        currentMileage,
+        status,
         driverName: body.driverName || null,
         image: body.image,
         engineHours: body.engineHours ? parseInt(body.engineHours) : null,
@@ -236,6 +226,9 @@ export async function POST(request: NextRequest) {
         { error: 'Authentication required' },
         { status: 401 }
       )
+    }
+    if (error instanceof Error && error.message === 'Insufficient permissions') {
+      return NextResponse.json({ error: 'Manager access required' }, { status: 403 })
     }
     return NextResponse.json(
       { error: 'Failed to create truck' },

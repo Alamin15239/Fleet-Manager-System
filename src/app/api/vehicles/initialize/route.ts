@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { requireAdmin, requireAuth } from '@/lib/auth'
 
 // Vehicle data mapping
 const vehicleData = [
@@ -49,6 +50,7 @@ const vehicleData = [
 // POST /api/vehicles/initialize - Initialize vehicle data
 export async function POST(request: NextRequest) {
   try {
+    await requireAdmin(request)
     // Check if vehicles already exist
     const existingCount = await db.vehicle.count()
     
@@ -87,8 +89,9 @@ export async function POST(request: NextRequest) {
 }
 
 // GET /api/vehicles/initialize - Check initialization status
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    await requireAuth(request)
     const count = await db.vehicle.count()
     const vehicles = await db.vehicle.findMany({
       select: {

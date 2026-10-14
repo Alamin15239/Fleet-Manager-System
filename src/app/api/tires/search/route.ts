@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
-
-const prisma = new PrismaClient()
+import { db } from '@/lib/db'
+import { requirePermission } from '@/lib/permission-middleware'
 
 export async function GET(request: NextRequest) {
+  const authResult = await requirePermission(request, 'tire-management', 'read')
+  if (authResult instanceof NextResponse) return authResult
+
   try {
     const { searchParams } = new URL(request.url)
     const plateNumber = searchParams.get('plateNumber')
@@ -49,7 +51,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const tires = await prisma.tire.findMany({
+    const tires = await db.tire.findMany({
       where,
       orderBy: {
         createdAt: 'desc'

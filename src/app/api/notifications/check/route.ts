@@ -3,57 +3,32 @@ import { requireAuth } from '@/lib/auth'
 
 export async function POST(request: NextRequest) {
   try {
-    const user = await requireAuth(request)
-    
-    // Simple notification check without database operations
-    console.log('Notification check requested by user:', user.email)
-    
-    // Simulate notification check process
-    const checkResults = {
-      maintenanceAlerts: 0,
-      upcomingServices: 0,
-      overdueItems: 0,
-      lowStockItems: 0
-    }
-    
-    return NextResponse.json({ 
-      success: true, 
-      message: 'Notification checks completed successfully',
-      results: checkResults,
-      timestamp: new Date().toISOString()
-    })
-  } catch (error) {
-    console.error('Error running notification checks:', error)
+    await requireAuth(request)
     return NextResponse.json(
-      { 
-        error: 'Failed to run notification checks',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      },
-      { status: 500 }
+      { success: false, error: 'Notification checks are not connected to real inventory and delivery data. No check was run.' },
+      { status: 501 }
+    )
+  } catch (error) {
+    const unauthorized = error instanceof Error && ['No token provided', 'Invalid token'].includes(error.message)
+    return NextResponse.json(
+      { error: unauthorized ? 'Authentication required' : 'Failed to run notification check' },
+      { status: unauthorized ? 401 : 503 }
     )
   }
 }
 
 export async function GET(request: NextRequest) {
   try {
-    const user = await requireAuth(request)
-    
-    // Simple check without database operations
-    console.log('GET notification check requested by user:', user.email)
-    
-    return NextResponse.json({ 
-      success: true, 
-      message: 'Notification checks completed successfully',
-      timestamp: new Date().toISOString()
-    })
-  } catch (error) {
-    console.error('Error running notification checks:', error)
+    await requireAuth(request)
     return NextResponse.json(
-      { 
-        error: 'Failed to run notification checks',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      },
-      { status: 500 }
+      { success: false, error: 'Notification checks are not connected to real inventory and delivery data.' },
+      { status: 501 }
+    )
+  } catch (error) {
+    const unauthorized = error instanceof Error && ['No token provided', 'Invalid token'].includes(error.message)
+    return NextResponse.json(
+      { error: unauthorized ? 'Authentication required' : 'Failed to run notification check' },
+      { status: unauthorized ? 401 : 503 }
     )
   }
 }

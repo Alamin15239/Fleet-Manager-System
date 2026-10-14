@@ -115,10 +115,10 @@ export default function AdminDashboard() {
     recentUsers: [],
     recentActivities: [],
     systemHealth: {
-      database: 'Connected',
-      authentication: 'Operational',
-      fileStorage: 'Available',
-      reportGeneration: 'Ready'
+      database: 'Unknown',
+      authentication: 'Unknown',
+      fileStorage: 'Not checked',
+      reportGeneration: 'Not checked'
     },
     metrics: { averageMaintenanceCost: 0, fleetUtilization: 0, userApprovalRate: 0 }
   })
@@ -630,7 +630,7 @@ export default function AdminDashboard() {
                       <Database className="h-4 w-4 text-green-600" />
                       <span>Database</span>
                     </div>
-                    <Badge variant="default" className="bg-green-100 text-green-800">
+                    <Badge variant="default" className={dashboardData.systemHealth.database === 'Connected' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}>
                       {dashboardData.systemHealth.database}
                     </Badge>
                   </div>
@@ -639,7 +639,7 @@ export default function AdminDashboard() {
                       <Shield className="h-4 w-4 text-green-600" />
                       <span>Authentication</span>
                     </div>
-                    <Badge variant="default" className="bg-green-100 text-green-800">
+                    <Badge variant="default" className={dashboardData.systemHealth.authentication === 'Operational' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}>
                       {dashboardData.systemHealth.authentication}
                     </Badge>
                   </div>
@@ -650,7 +650,7 @@ export default function AdminDashboard() {
                       <HardDrive className="h-4 w-4 text-green-600" />
                       <span>File Storage</span>
                     </div>
-                    <Badge variant="default" className="bg-green-100 text-green-800">
+                    <Badge variant="default" className={dashboardData.systemHealth.fileStorage === 'Not persistent' ? 'bg-amber-100 text-amber-800' : 'bg-gray-100 text-gray-800'}>
                       {dashboardData.systemHealth.fileStorage}
                     </Badge>
                   </div>
@@ -659,7 +659,7 @@ export default function AdminDashboard() {
                       <FileText className="h-4 w-4 text-green-600" />
                       <span>Report Generation</span>
                     </div>
-                    <Badge variant="default" className="bg-green-100 text-green-800">
+                    <Badge variant="default" className={dashboardData.systemHealth.reportGeneration === 'Available' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}>
                       {dashboardData.systemHealth.reportGeneration}
                     </Badge>
                   </div>

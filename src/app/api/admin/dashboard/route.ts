@@ -1,20 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { requireAdmin } from '@/lib/auth'
 
 export async function GET(request: NextRequest) {
   try {
+    await requireAdmin(request)
     // Get comprehensive admin dashboard data
     const [
       users,
       trucks,
       trailers,
-      maintenanceRecords,
+      truckMaintenanceRecords,
+      trailerMaintenanceRecords,
+      workshopJobCards,
       recentUsers,
-      recentActivities,
-      systemHealth
+      recentActivities
     ] = await Promise.all([
       // Users statistics
       db.user.findMany({
+        where: { isDeleted: false },
         select: {
           id: true,
           email: true,
@@ -60,9 +64,19 @@ export async function GET(request: NextRequest) {
         },
         where: { isDeleted: false }
       }),
+
+      db.trailerMaintenanceRecord.findMany({
+        select: { id: true, status: true, totalCost: true, datePerformed: true, isDeleted: true },
+        where: { isDeleted: false }
+      }),
+
+      db.workshopJobCard.findMany({
+        select: { id: true, status: true, totalCost: true, serviceDate: true }
+      }),
       
       // Recent users (last 10)
       db.user.findMany({
+        where: { isDeleted: false },
         select: {
           id: true,
           email: true,
@@ -93,14 +107,6 @@ export async function GET(request: NextRequest) {
         },
         orderBy: { createdAt: 'desc' },
         take: 20
-      }),
-      
-      // System health check
-      Promise.resolve({
-        database: 'Connected',
-        authentication: 'Operational',
-        fileStorage: 'Available',
-        reportGeneration: 'Ready'
       })
     ])
 
@@ -125,6 +131,16 @@ export async function GET(request: NextRequest) {
     const maintenanceTrailers = trailers.filter(t => t.status === 'MAINTENANCE').length
 
     // Calculate maintenance statistics
+    const maintenanceRecords = [
+      ...truckMaintenanceRecords,
+      ...trailerMaintenanceRecords,
+      ...workshopJobCards.map(card => ({
+        id: card.id,
+        status: card.status,
+        totalCost: card.totalCost,
+        datePerformed: card.serviceDate
+      }))
+    ]
     const totalMaintenance = maintenanceRecords.length
     const completedMaintenance = maintenanceRecords.filter(m => m.status === 'COMPLETED').length
     const pendingMaintenance = maintenanceRecords.filter(m => 
@@ -221,7 +237,12 @@ export async function GET(request: NextRequest) {
         })),
         
         // System health
-        systemHealth,
+        systemHealth: {
+          database: 'Connected',
+          authentication: 'Operational',
+          fileStorage: 'Not persistent',
+          reportGeneration: 'Available'
+        },
         
         // Additional metrics
         metrics: {
@@ -234,25 +255,9 @@ export async function GET(request: NextRequest) {
 
   } catch (error) {
     console.error('Error fetching admin dashboard data:', error)
-    return NextResponse.json({
-      success: true,
-      data: {
-        users: { total: 0, active: 0, pending: 0, admins: 0, managers: 0, regular: 0, thisMonth: 0 },
-        fleet: {
-          trucks: { total: 0, active: 0, inactive: 0, maintenance: 0 },
-          trailers: { total: 0, active: 0, inactive: 0, maintenance: 0 }
-        },
-        maintenance: { total: 0, completed: 0, pending: 0, totalCost: 0, thisMonthCost: 0, thisMonthCount: 0, costGrowth: 0 },
-        recentUsers: [],
-        recentActivities: [],
-        systemHealth: {
-          database: 'Connected',
-          authentication: 'Operational',
-          fileStorage: 'Available',
-          reportGeneration: 'Ready'
-        },
-        metrics: { averageMaintenanceCost: 0, fleetUtilization: 0, userApprovalRate: 0 }
-      }
-    })
+    const status = error instanceof Error && ['No token provided', 'Invalid token'].includes(error.message)
+      ? 401
+      : error instanceof Error && error.message === 'Insufficient permissions' ? 403 : 503
+    return NextResponse.json({ success: false, error: status === 401 ? 'Authentication required' : status === 403 ? 'Administrator access required' : 'Unable to load admin dashboard data' }, { status })
   }
 }

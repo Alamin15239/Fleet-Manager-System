@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { 
   LineChart, 
   Line, 
@@ -29,7 +28,7 @@ import {
   RefreshCw,
   Calendar
 } from 'lucide-react'
-import { format, subDays } from 'date-fns'
+import { format } from 'date-fns'
 
 interface PerformanceData {
   timestamp: string
@@ -58,55 +57,42 @@ export function SystemPerformanceCharts() {
   const [activityData, setActivityData] = useState<ActivityData[]>([])
   const [entityData, setEntityData] = useState<EntityDistribution[]>([])
   const [loading, setLoading] = useState(true)
-  const [timeRange, setTimeRange] = useState('7d')
   const [refreshing, setRefreshing] = useState(false)
 
   const fetchChartData = async (showRefreshing = false) => {
     try {
       if (showRefreshing) setRefreshing(true)
       
-      // Generate mock performance data
-      const mockPerformanceData: PerformanceData[] = []
-      const now = new Date()
-      
-      for (let i = 23; i >= 0; i--) {
-        const timestamp = new Date(now.getTime() - i * 60 * 60 * 1000)
-        mockPerformanceData.push({
-          timestamp: timestamp.toISOString(),
-          responseTime: Math.floor(Math.random() * 200) + 50,
-          activeUsers: Math.floor(Math.random() * 50) + 10,
-          systemLoad: Math.floor(Math.random() * 80) + 20,
-          memoryUsage: Math.floor(Math.random() * 70) + 30,
-          cpuUsage: Math.floor(Math.random() * 60) + 20
-        })
-      }
-      
-      // Generate mock activity data
-      const mockActivityData: ActivityData[] = []
-      for (let i = 6; i >= 0; i--) {
-        const date = subDays(now, i)
-        mockActivityData.push({
-          date: format(date, 'MMM dd'),
-          logins: Math.floor(Math.random() * 100) + 20,
-          actions: Math.floor(Math.random() * 500) + 100,
-          errors: Math.floor(Math.random() * 10) + 1
-        })
-      }
-      
-      // Generate mock entity distribution
-      const mockEntityData: EntityDistribution[] = [
-        { name: 'Trucks', value: 45, color: '#3b82f6' },
-        { name: 'Users', value: 25, color: '#10b981' },
-        { name: 'Maintenance', value: 20, color: '#f59e0b' },
-        { name: 'Tires', value: 10, color: '#ef4444' }
+      const token = localStorage.getItem('authToken')
+      const response = await fetch('/api/admin/system-stats', {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      })
+      if (!response.ok) throw new Error('Statistics are unavailable')
+      const result = await response.json()
+      const stats = result.stats
+      const entities = [
+        { name: 'Trucks', count: stats.totalTrucks, color: '#3b82f6' },
+        { name: 'Trailers', count: stats.totalTrailers, color: '#8b5cf6' },
+        { name: 'Users', count: stats.totalUsers, color: '#10b981' },
+        { name: 'Maintenance', count: stats.totalMaintenance, color: '#f59e0b' },
+        { name: 'Tires', count: stats.totalTires, color: '#ef4444' }
       ]
-      
-      setPerformanceData(mockPerformanceData)
-      setActivityData(mockActivityData)
-      setEntityData(mockEntityData)
+      const entityTotal = entities.reduce((sum, entity) => sum + entity.count, 0)
+
+      // This app does not persist historical server resource telemetry yet.
+      setPerformanceData([])
+      setActivityData([])
+      setEntityData(entityTotal > 0 ? entities.filter(entity => entity.count > 0).map(entity => ({
+        name: entity.name,
+        value: Math.round((entity.count / entityTotal) * 100),
+        color: entity.color
+      })) : [])
       
     } catch (error) {
       console.error('Error fetching chart data:', error)
+      setPerformanceData([])
+      setActivityData([])
+      setEntityData([])
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -161,19 +147,9 @@ export function SystemPerformanceCharts() {
       {/* Controls */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Select value={timeRange} onValueChange={setTimeRange}>
-            <SelectTrigger className="w-32">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="24h">Last 24h</SelectItem>
-              <SelectItem value="7d">Last 7 days</SelectItem>
-              <SelectItem value="30d">Last 30 days</SelectItem>
-            </SelectContent>
-          </Select>
           <Badge variant="outline" className="flex items-center gap-1">
             <Calendar className="h-3 w-3" />
-            Auto-refresh: 5min
+            Current totals · refresh: 5 min
           </Badge>
         </div>
         <Button
@@ -198,7 +174,7 @@ export function SystemPerformanceCharts() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
+            {performanceData.length === 0 ? <div className="flex h-[300px] items-center justify-center text-sm text-muted-foreground">Response-time history is not collected yet.</div> : <ResponsiveContainer width="100%" height={300}>
               <LineChart data={performanceData}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis 
@@ -218,7 +194,7 @@ export function SystemPerformanceCharts() {
                   dot={false}
                 />
               </LineChart>
-            </ResponsiveContainer>
+            </ResponsiveContainer>}
           </CardContent>
         </Card>
 
@@ -231,7 +207,7 @@ export function SystemPerformanceCharts() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
+            {performanceData.length === 0 ? <div className="flex h-[300px] items-center justify-center text-sm text-muted-foreground">Server resource history is not collected yet.</div> : <ResponsiveContainer width="100%" height={300}>
               <AreaChart data={performanceData}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis 
@@ -268,7 +244,7 @@ export function SystemPerformanceCharts() {
                   fillOpacity={0.6}
                 />
               </AreaChart>
-            </ResponsiveContainer>
+            </ResponsiveContainer>}
           </CardContent>
         </Card>
 
@@ -281,7 +257,7 @@ export function SystemPerformanceCharts() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
+            {activityData.length === 0 ? <div className="flex h-[300px] items-center justify-center text-sm text-muted-foreground">Historical user activity is not available yet.</div> : <ResponsiveContainer width="100%" height={300}>
               <BarChart data={activityData}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="date" />
@@ -291,7 +267,7 @@ export function SystemPerformanceCharts() {
                 <Bar dataKey="actions" fill="#10b981" name="Actions" />
                 <Bar dataKey="errors" fill="#ef4444" name="Errors" />
               </BarChart>
-            </ResponsiveContainer>
+            </ResponsiveContainer>}
           </CardContent>
         </Card>
 
@@ -348,7 +324,7 @@ export function SystemPerformanceCharts() {
               <div className="text-2xl font-bold text-blue-600">
                 {performanceData.length > 0 ? 
                   Math.round(performanceData.reduce((acc, curr) => acc + curr.responseTime, 0) / performanceData.length) 
-                  : 0}ms
+                  : '—'}{performanceData.length > 0 ? 'ms' : ''}
               </div>
               <div className="text-sm text-muted-foreground">Avg Response Time</div>
             </div>
@@ -356,7 +332,7 @@ export function SystemPerformanceCharts() {
               <div className="text-2xl font-bold text-green-600">
                 {performanceData.length > 0 ? 
                   Math.round(performanceData.reduce((acc, curr) => acc + curr.activeUsers, 0) / performanceData.length) 
-                  : 0}
+                  : '—'}
               </div>
               <div className="text-sm text-muted-foreground">Avg Active Users</div>
             </div>
@@ -364,7 +340,7 @@ export function SystemPerformanceCharts() {
               <div className="text-2xl font-bold text-orange-600">
                 {performanceData.length > 0 ? 
                   Math.round(performanceData.reduce((acc, curr) => acc + curr.cpuUsage, 0) / performanceData.length) 
-                  : 0}%
+                  : '—'}{performanceData.length > 0 ? '%' : ''}
               </div>
               <div className="text-sm text-muted-foreground">Avg CPU Usage</div>
             </div>
@@ -372,7 +348,7 @@ export function SystemPerformanceCharts() {
               <div className="text-2xl font-bold text-purple-600">
                 {performanceData.length > 0 ? 
                   Math.round(performanceData.reduce((acc, curr) => acc + curr.memoryUsage, 0) / performanceData.length) 
-                  : 0}%
+                  : '—'}{performanceData.length > 0 ? '%' : ''}
               </div>
               <div className="text-sm text-muted-foreground">Avg Memory Usage</div>
             </div>

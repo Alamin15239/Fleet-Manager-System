@@ -109,19 +109,18 @@ export default function TireManagementForm() {
 
   const fetchVehicles = async () => {
     try {
-      const response = await apiGet('/api/vehicles')
-      if (response.ok) {
-        const data = await response.json()
-        const vehicleList = data.vehicles || []
-        setVehicles(vehicleList)
+      const [vehiclesResponse, filtersResponse] = await Promise.all([apiGet('/api/vehicles'), apiGet('/api/tires/filters')])
+      const vehicleData = vehiclesResponse.ok ? await vehiclesResponse.json() : { vehicles: [] }
+      const tireFilters = filtersResponse.ok ? await filtersResponse.json() : {}
+      const vehicleList = vehicleData.vehicles || []
+      setVehicles(vehicleList)
         
-        // Extract unique plate numbers and trailer numbers from vehicles
-        const plates = [...new Set(vehicleList.map((v: any) => v.plateNumber))] as string[]
-        const trailers = [...new Set(vehicleList.map((v: any) => v.trailerNumber).filter(Boolean))] as string[]
+      // Existing tire entries are a source for freeform truck and trailer suggestions.
+      const plates = [...new Set([...vehicleList.map((v: any) => v.plateNumber), ...(tireFilters.plates || [])].filter(Boolean))] as string[]
+      const trailers = [...new Set([...vehicleList.map((v: any) => v.trailerNumber), ...(tireFilters.trailers || [])].filter(Boolean))] as string[]
         
-        setPlateNumbers(plates)
-        setTrailerNumbers(trailers)
-      }
+      setPlateNumbers(plates)
+      setTrailerNumbers(trailers)
     } catch (error) {
       console.error('Error fetching vehicles:', error)
     }

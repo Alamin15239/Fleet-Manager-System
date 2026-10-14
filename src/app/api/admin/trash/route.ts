@@ -4,7 +4,7 @@ import { requireAdmin } from '@/lib/auth'
 
 export async function GET(request: NextRequest) {
   try {
-    const user = requireAdmin(request)
+    await requireAdmin(request)
     
     // Get all deleted users
     const deletedUsers = await db.user.findMany({

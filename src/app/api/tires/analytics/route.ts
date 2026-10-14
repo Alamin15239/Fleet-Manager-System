@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { requirePermission } from '@/lib/permission-middleware'
 
 // GET /api/tires/analytics - Get tire analytics and reports
 export async function GET(request: NextRequest) {
+  const authResult = await requirePermission(request, 'tire-management', 'read')
+  if (authResult instanceof NextResponse) return authResult
+
   try {
     // Get total tires count
     const totalTires = await db.tire.count()

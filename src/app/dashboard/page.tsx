@@ -80,6 +80,7 @@ export default function DashboardPage() {
   })
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const [loadError, setLoadError] = useState(false)
   const [currentUser, setCurrentUser] = useState<any>(null)
   const router = useRouter()
 
@@ -100,6 +101,7 @@ export default function DashboardPage() {
   }, [])
 
   const fetchDashboardStats = async (showRefreshing = false) => {
+    setLoadError(false)
     if (showRefreshing) {
       setRefreshing(true)
     } else {
@@ -112,47 +114,25 @@ export default function DashboardPage() {
         const data = await response.json()
         setStats({
           ...data,
-          monthlyMaintenanceCost: data.totalMaintenanceCost / 6,
+          monthlyMaintenanceCost: data.monthlyMaintenanceCost ?? 0,
           sixMonthCost: data.totalMaintenanceCost,
-          maintenanceByType: {
-            'Oil Change': 8,
-            'Brake Service': 5,
-            'Tire Replacement': 4,
-            'Engine Service': 2
-          },
-          maintenanceByStatus: {
-            'Completed': 15,
-            'In Progress': 3,
-            'Scheduled': 1
-          },
-          monthlyTrends: [
-            { month: 'Jan', cost: 2500, count: 5 },
-            { month: 'Feb', cost: 3200, count: 7 },
-            { month: 'Mar', cost: 2800, count: 6 },
-            { month: 'Apr', cost: 3500, count: 8 },
-            { month: 'May', cost: 2900, count: 6 },
-            { month: 'Jun', cost: 3100, count: 7 }
-          ],
-          topMechanics: [
-            { name: 'Ahmed Al-Rashid', count: 12, cost: 8500 },
-            { name: 'Mohammed Hassan', count: 8, cost: 6200 },
-            { name: 'Omar Khalil', count: 6, cost: 4800 }
-          ],
-          criticalVehicles: [
-            { id: '1', name: 'Truck ABC-123', issues: 3, lastMaintenance: '2024-01-15' },
-            { id: '2', name: 'Truck XYZ-456', issues: 2, lastMaintenance: '2024-01-10' }
-          ],
-          predictiveAlerts: [
-            { id: '1', vehicle: 'Truck ABC-123', type: 'Oil Change Due', severity: 'Medium', dueDate: '2024-02-15' },
-            { id: '2', vehicle: 'Truck DEF-789', type: 'Brake Inspection', severity: 'High', dueDate: '2024-02-10' }
-          ]
+          maintenanceByType: data.maintenanceByType || {},
+          maintenanceByStatus: data.maintenanceByStatus || {},
+          monthlyTrends: data.monthlyTrends || [],
+          topMechanics: data.topMechanics || [],
+          criticalVehicles: data.criticalVehicles || [],
+          predictiveAlerts: data.predictiveAlerts || []
         })
         if (showRefreshing) {
           toast.success('Dashboard refreshed successfully')
         }
+      } else {
+        setLoadError(true)
+        toast.error('Dashboard data could not be loaded')
       }
     } catch (error) {
       console.error('Error fetching dashboard stats:', error)
+      setLoadError(true)
       toast.error('Failed to fetch dashboard data')
     } finally {
       setLoading(false)
@@ -220,11 +200,6 @@ export default function DashboardPage() {
           subtitle="Due within 30 days"
           icon={<Calendar className="h-4 w-4" />}
           color="text-yellow-600"
-          trend={!loading && stats.upcomingMaintenance > 0 ? {
-            value: 12,
-            label: 'vs last month',
-            direction: 'up'
-          } : undefined}
           onClick={() => router.push('/job-cards')}
         />
 
@@ -234,26 +209,16 @@ export default function DashboardPage() {
           subtitle="Require immediate attention"
           icon={<AlertTriangle className="h-4 w-4" />}
           color="text-red-600"
-          trend={!loading ? {
-            value: stats.overdueRepairs > 0 ? 5 : -15,
-            label: 'vs last week',
-            direction: stats.overdueRepairs > 0 ? 'up' : 'down'
-          } : undefined}
           onClick={() => router.push('/job-cards')}
         />
 
         <QuickStats
           title="Monthly Cost"
           value={loading ? '...' : formatCurrency(stats.monthlyMaintenanceCost)}
-          subtitle="Average monthly cost"
+          subtitle="Last 30 days"
           icon={<DollarSign className="h-4 w-4" />}
           color="text-green-600"
-          trend={!loading ? {
-            value: 8,
-            label: 'vs last month',
-            direction: 'down'
-          } : undefined}
-          onClick={() => router.push('/analytics')}
+          onClick={() => router.push('/advanced-analytics')}
         />
 
         <QuickStats
@@ -262,11 +227,6 @@ export default function DashboardPage() {
           subtitle="Last 6 months"
           icon={<TrendingUp className="h-4 w-4" />}
           color="text-purple-600"
-          trend={!loading ? {
-            value: 15,
-            label: 'vs previous period',
-            direction: 'up'
-          } : undefined}
           onClick={() => router.push('/reports')}
         />
       </div>
@@ -274,7 +234,14 @@ export default function DashboardPage() {
       {/* Analytics and Data */}
       {loading ? (
         <EnhancedLoading message="Loading your fleet dashboard..." />
-      ) : stats.totalTrucks === 0 ? (
+      ) : loadError ? (
+        <Card>
+          <CardContent className="flex flex-col items-center gap-3 py-10 text-center">
+            <p className="text-muted-foreground">Dashboard data could not be loaded. Check the database connection and try again.</p>
+            <Button variant="outline" onClick={() => fetchDashboardStats()}>Retry</Button>
+          </CardContent>
+        </Card>
+      ) : stats.totalFleet === 0 ? (
         <WelcomeScreen userName={currentUser?.name} userRole={currentUser?.role} />
       ) : (
         <Tabs defaultValue="overview" className="space-y-6">
@@ -297,7 +264,7 @@ export default function DashboardPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    {Object.entries(stats.maintenanceByType).map(([type, count]) => (
+                    {Object.entries(stats.maintenanceByType).length === 0 ? <p className="text-sm text-muted-foreground">No maintenance records in this period.</p> : Object.entries(stats.maintenanceByType).map(([type, count]) => (
                       <div key={type} className="flex justify-between items-center">
                         <span className="text-sm font-medium">{type}</span>
                         <div className="flex items-center gap-2">
@@ -324,7 +291,7 @@ export default function DashboardPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    {Object.entries(stats.maintenanceByStatus).map(([status, count]) => (
+                    {Object.entries(stats.maintenanceByStatus).length === 0 ? <p className="text-sm text-muted-foreground">No maintenance records in this period.</p> : Object.entries(stats.maintenanceByStatus).map(([status, count]) => (
                       <div key={status} className="flex justify-between items-center">
                         <span className="text-sm font-medium">{status}</span>
                         <div className="flex items-center gap-2">
@@ -358,7 +325,7 @@ export default function DashboardPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {stats.topMechanics.map((mechanic, index) => (
+                  {stats.topMechanics.length === 0 ? <p className="text-sm text-muted-foreground">Mechanic analytics are not available yet.</p> : stats.topMechanics.map((mechanic, index) => (
                     <div key={mechanic.name} className="flex items-center justify-between p-3 rounded-lg border">
                       <div className="flex items-center gap-3">
                         <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold ${
@@ -403,7 +370,7 @@ export default function DashboardPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {stats.predictiveAlerts.map((alert) => (
+                    {stats.predictiveAlerts.length === 0 ? <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground">No active predictive alerts.</TableCell></TableRow> : stats.predictiveAlerts.map((alert) => (
                       <TableRow key={alert.id}>
                         <TableCell className="font-medium">{alert.vehicle}</TableCell>
                         <TableCell>{alert.type}</TableCell>

@@ -64,7 +64,7 @@ export function SecurityMonitor({ className = '' }: SecurityMonitorProps) {
       if (metricsResponse.ok) {
         const metricsData = await metricsResponse.json()
         setMetrics(metricsData.metrics)
-      }
+      } else setMetrics(null)
       
       // Fetch security events
       const eventsResponse = await fetch('/api/admin/security-events?limit=10', {
@@ -74,42 +74,12 @@ export function SecurityMonitor({ className = '' }: SecurityMonitorProps) {
       if (eventsResponse.ok) {
         const eventsData = await eventsResponse.json()
         setEvents(eventsData.events || [])
-      }
+      } else setEvents([])
       
     } catch (error) {
       console.error('Error fetching security data:', error)
-      
-      // Mock data for demonstration
-      setMetrics({
-        failedLogins: 3,
-        suspiciousActivities: 1,
-        blockedIPs: 0,
-        activeThreats: 0,
-        securityScore: 95,
-        lastSecurityScan: new Date().toISOString()
-      })
-      
-      setEvents([
-        {
-          id: '1',
-          type: 'FAILED_LOGIN',
-          severity: 'MEDIUM',
-          description: 'Multiple failed login attempts detected',
-          ipAddress: '192.168.1.100',
-          userEmail: 'user@example.com',
-          timestamp: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
-          status: 'INVESTIGATING'
-        },
-        {
-          id: '2',
-          type: 'SUSPICIOUS_ACTIVITY',
-          severity: 'HIGH',
-          description: 'Unusual access pattern detected',
-          ipAddress: '10.0.0.50',
-          timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-          status: 'ACTIVE'
-        }
-      ])
+      setMetrics(null)
+      setEvents([])
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -185,7 +155,7 @@ export function SecurityMonitor({ className = '' }: SecurityMonitorProps) {
             <Shield className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            {metrics && (
+            {metrics ? (
               <>
                 <div className="text-2xl font-bold">{metrics.securityScore}%</div>
                 <Progress value={metrics.securityScore} className="mt-2" />
@@ -195,7 +165,7 @@ export function SecurityMonitor({ className = '' }: SecurityMonitorProps) {
                   </div>
                 )}
               </>
-            )}
+            ) : <p className="text-sm text-muted-foreground">Not available</p>}
           </CardContent>
         </Card>
 
@@ -205,8 +175,8 @@ export function SecurityMonitor({ className = '' }: SecurityMonitorProps) {
             <UserX className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">{metrics?.failedLogins || 0}</div>
-            <p className="text-xs text-muted-foreground">Last 24 hours</p>
+            <div className="text-2xl font-bold text-red-600">{metrics?.failedLogins ?? '—'}</div>
+            <p className="text-xs text-muted-foreground">{metrics ? 'Last 24 hours' : 'Not tracked yet'}</p>
           </CardContent>
         </Card>
 
@@ -216,8 +186,8 @@ export function SecurityMonitor({ className = '' }: SecurityMonitorProps) {
             <AlertTriangle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-orange-600">{metrics?.activeThreats || 0}</div>
-            <p className="text-xs text-muted-foreground">Requires attention</p>
+            <div className="text-2xl font-bold text-orange-600">{metrics?.activeThreats ?? '—'}</div>
+            <p className="text-xs text-muted-foreground">{metrics ? 'Requires attention' : 'Not tracked yet'}</p>
           </CardContent>
         </Card>
 
@@ -227,14 +197,14 @@ export function SecurityMonitor({ className = '' }: SecurityMonitorProps) {
             <Globe className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{metrics?.blockedIPs || 0}</div>
-            <p className="text-xs text-muted-foreground">Auto-blocked</p>
+            <div className="text-2xl font-bold">{metrics?.blockedIPs ?? '—'}</div>
+            <p className="text-xs text-muted-foreground">{metrics ? 'Blocked addresses' : 'Blocking is not configured'}</p>
           </CardContent>
         </Card>
       </div>
 
       {/* Security Status Alert */}
-      {metrics && (
+      {metrics ? (
         <>
           {metrics.activeThreats > 0 || metrics.failedLogins > 5 ? (
             <Alert className="border-red-200 bg-red-50">
@@ -255,6 +225,11 @@ export function SecurityMonitor({ className = '' }: SecurityMonitorProps) {
             </Alert>
           )}
         </>
+      ) : (
+        <Alert>
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription>Security event collection is not configured, so this page cannot report failed logins, active threats, or blocked addresses.</AlertDescription>
+        </Alert>
       )}
 
       {/* Security Events */}
@@ -305,7 +280,7 @@ export function SecurityMonitor({ className = '' }: SecurityMonitorProps) {
               ))
             ) : (
               <div className="text-center py-8 text-muted-foreground">
-                No security events detected
+                Security event history is unavailable.
               </div>
             )}
           </div>
@@ -325,29 +300,29 @@ export function SecurityMonitor({ className = '' }: SecurityMonitorProps) {
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">Two-Factor Authentication</span>
-                <Badge className="bg-green-100 text-green-800">Enabled</Badge>
+                <Badge variant="outline">Email OTP</Badge>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">Password Policy</span>
-                <Badge className="bg-green-100 text-green-800">Strong</Badge>
+                <Badge variant="outline">8+ characters</Badge>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">Session Timeout</span>
-                <Badge className="bg-blue-100 text-blue-800">30 minutes</Badge>
+                <Badge variant="outline">7 days</Badge>
               </div>
             </div>
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">IP Whitelist</span>
-                <Badge className="bg-yellow-100 text-yellow-800">Partial</Badge>
+                <Badge variant="outline">Not configured</Badge>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">Audit Logging</span>
-                <Badge className="bg-green-100 text-green-800">Active</Badge>
+                <Badge variant="outline">Partial</Badge>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">Auto-Block</span>
-                <Badge className="bg-green-100 text-green-800">Enabled</Badge>
+                <Badge variant="outline">Not configured</Badge>
               </div>
             </div>
           </div>

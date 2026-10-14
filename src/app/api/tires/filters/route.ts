@@ -1,11 +1,15 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { requirePermission } from '@/lib/permission-middleware'
 
 // GET /api/tires/filters - Get unique filter options efficiently
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const authResult = await requirePermission(request, 'tire-management', 'read')
+  if (authResult instanceof NextResponse) return authResult
+
   try {
     // Use aggregation to get unique values efficiently
-    const [manufacturers, origins, plates, drivers] = await Promise.all([
+    const [manufacturers, origins, plates, trailers, drivers] = await Promise.all([
       db.tire.findMany({
         select: { manufacturer: true },
         distinct: ['manufacturer'],
@@ -22,6 +26,12 @@ export async function GET() {
         orderBy: { plateNumber: 'asc' }
       }),
       db.tire.findMany({
+        select: { trailerNumber: true },
+        distinct: ['trailerNumber'],
+        where: { trailerNumber: { not: null } },
+        orderBy: { trailerNumber: 'asc' }
+      }),
+      db.tire.findMany({
         select: { driverName: true },
         distinct: ['driverName'],
         where: { driverName: { not: null } },
@@ -33,6 +43,7 @@ export async function GET() {
       manufacturers: manufacturers.map(m => m.manufacturer),
       origins: origins.map(o => o.origin),
       plates: plates.map(p => p.plateNumber),
+      trailers: trailers.map(t => t.trailerNumber).filter(Boolean),
       drivers: drivers.map(d => d.driverName).filter(Boolean)
     })
   } catch (error) {

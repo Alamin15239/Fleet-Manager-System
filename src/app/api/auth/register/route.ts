@@ -7,6 +7,13 @@ import { trackRegistration } from '@/lib/activity-tracker'
 
 export async function POST(request: NextRequest) {
   try {
+    if (!process.env.RESEND_API_KEY) {
+      return NextResponse.json(
+        { error: 'Email verification is not configured. Please contact the administrator.' },
+        { status: 503 }
+      )
+    }
+
     const { email, password, name } = await request.json()
 
     if (!email || !password) {
@@ -42,25 +49,20 @@ export async function POST(request: NextRequest) {
       permissions: {}
     })
 
-    console.log('=== REGISTRATION OTP DEBUG ===')
-    console.log('User created:', { id: user.id, email: user.email, isActive: user.isActive })
-    
     // Generate and send OTP for email verification
     const { resendEmailService } = await import('@/lib/resend-email')
     const otp = resendEmailService.generateOTP()
-    console.log('Generated OTP for registration:', otp)
     
     // Store OTP for verification
     await resendEmailService.storeOTP(user.id, otp)
-    console.log('OTP stored in database')
     
     // Send OTP email
+    let emailSent = false
     try {
       await resendEmailService.sendOTPEmail(email, otp, name)
-      console.log('Registration OTP sent successfully to:', email)
+      emailSent = true
     } catch (emailError) {
-      console.error('Failed to send registration OTP:', emailError)
-      // Don't fail the registration if email fails, just log it
+      console.error('Failed to send registration OTP')
     }
 
     // Track registration activity
@@ -82,7 +84,9 @@ export async function POST(request: NextRequest) {
         isEmailVerified: user.isEmailVerified,
         createdAt: user.createdAt
       },
-      message: 'Account created successfully. Please check your email for the OTP to verify your account, then wait for admin approval before you can access the system.'
+      message: emailSent
+        ? 'Account created successfully. Please check your email for the OTP to verify your account, then wait for admin approval before you can access the system.'
+        : 'Account created, but the verification email could not be delivered. Please try requesting a new OTP later or contact the administrator.'
     })
 
   } catch (error) {

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { requireAuth } from '@/lib/auth'
+import { requireManager } from '@/lib/auth'
 
 export async function PUT(
   request: NextRequest,
@@ -8,7 +8,7 @@ export async function PUT(
 ) {
   try {
     const { id } = await params
-    const user = await requireAuth(request)
+    await requireManager(request)
     const body = await request.json()
 
     // Check if trailer number is being changed and already exists
@@ -45,6 +45,12 @@ export async function PUT(
     })
   } catch (error) {
     console.error('Error updating trailer:', error)
+    if (error instanceof Error && ['No token provided', 'Invalid token'].includes(error.message)) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+    }
+    if (error instanceof Error && error.message === 'Insufficient permissions') {
+      return NextResponse.json({ error: 'Manager access required' }, { status: 403 })
+    }
     return NextResponse.json(
       { error: 'Failed to update trailer' },
       { status: 500 }
@@ -58,7 +64,7 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params
-    const user = await requireAuth(request)
+    await requireManager(request)
 
     await db.trailer.update({
       where: { id: id },
@@ -74,6 +80,12 @@ export async function DELETE(
     })
   } catch (error) {
     console.error('Error deleting trailer:', error)
+    if (error instanceof Error && ['No token provided', 'Invalid token'].includes(error.message)) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+    }
+    if (error instanceof Error && error.message === 'Insufficient permissions') {
+      return NextResponse.json({ error: 'Manager access required' }, { status: 403 })
+    }
     return NextResponse.json(
       { error: 'Failed to delete trailer' },
       { status: 500 }

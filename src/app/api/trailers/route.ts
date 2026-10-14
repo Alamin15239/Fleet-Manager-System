@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { requireAuth } from '@/lib/auth'
+import { requireAuth, requireManager } from '@/lib/auth'
 
 export async function GET(request: NextRequest) {
   try {
-    const user = await requireAuth(request)
+    await requireAuth(request)
     const { searchParams } = new URL(request.url)
     const limit = parseInt(searchParams.get('limit') || '100')
 
@@ -37,16 +37,17 @@ export async function GET(request: NextRequest) {
     })
   } catch (error) {
     console.error('Error fetching trailers:', error)
+    const unauthorized = error instanceof Error && ['No token provided', 'Invalid token'].includes(error.message)
     return NextResponse.json(
-      { error: 'Failed to fetch trailers' },
-      { status: 500 }
+      { error: unauthorized ? 'Authentication required' : 'Failed to fetch trailers' },
+      { status: unauthorized ? 401 : 500 }
     )
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const user = await requireAuth(request)
+    await requireManager(request)
     const body = await request.json()
 
     // Check if trailer number already exists
@@ -81,6 +82,12 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error('Error creating trailer:', error)
+    if (error instanceof Error && ['No token provided', 'Invalid token'].includes(error.message)) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+    }
+    if (error instanceof Error && error.message === 'Insufficient permissions') {
+      return NextResponse.json({ error: 'Manager access required' }, { status: 403 })
+    }
     return NextResponse.json(
       { error: 'Failed to create trailer' },
       { status: 500 }

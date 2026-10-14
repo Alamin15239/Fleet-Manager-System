@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/auth'
+import { requireAdmin } from '@/lib/auth'
 import { db } from '@/lib/db'
 
 // PUT /api/settings/update - Update settings
 export async function PUT(request: NextRequest) {
   try {
-    await requireAuth(request)
+    await requireAdmin(request)
     
     const body = await request.json()
     

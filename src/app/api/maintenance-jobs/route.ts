@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { requireAuth } from '@/lib/auth'
 
 export async function GET(request: NextRequest) {
   try {
+    await requireAuth(request)
     const { searchParams } = new URL(request.url)
     const search = searchParams.get('search') || ''
     const category = searchParams.get('category') || ''

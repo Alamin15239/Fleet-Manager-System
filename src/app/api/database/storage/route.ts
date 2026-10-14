@@ -1,8 +1,10 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { requireAdmin } from '@/lib/auth'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    await requireAdmin(request)
     const timeoutPromise = new Promise((_, reject) => {
       setTimeout(() => reject(new Error('Database operation timeout')), 8000)
     })
@@ -108,6 +110,12 @@ export async function GET() {
     })
   } catch (error) {
     console.error('Error fetching database storage info:', error)
+    if (error instanceof Error && ['No token provided', 'Invalid token'].includes(error.message)) {
+      return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 })
+    }
+    if (error instanceof Error && error.message === 'Insufficient permissions') {
+      return NextResponse.json({ success: false, error: 'Administrator access required' }, { status: 403 })
+    }
     if (error instanceof Error && error.message === 'Database operation timeout') {
       return NextResponse.json(
         { success: false, error: 'Database connection timeout. Please try again.' },
