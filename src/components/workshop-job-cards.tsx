@@ -181,7 +181,7 @@ export default function WorkshopJobCards() {
       .work-complete{display:flex;justify-content:space-between;align-items:center;gap:10px}
       @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}.card-frame,.qr-footer{break-inside:avoid}tr{break-inside:avoid}}
     </style></head><body><div class="print-page"><div class="card-frame"><table class="sheet"><colgroup><col><col><col><col></colgroup><tbody>
-      <tr><td class="logo" rowspan="3"><img src="${window.location.origin}/saadfreeh-transport-logo.png" alt="Saadfreeh Transportation"></td><td class="brand-title" colspan="3" dir="rtl">سعد فريح معروف ال منيف الزعبي</td></tr>
+      <tr><td class="logo" rowspan="3"><img src="${window.location.origin}/saadfreeh-transport-logo.png" alt="Saadfreeh Transportation"></td><td class="brand-title" colspan="3" dir="rtl">سعد فريح معروف</td></tr>
       <tr><td class="brand-name" colspan="3">${esc(companyName)}</td></tr><tr><td class="brand-contact" colspan="3">${esc(companyContact || 'Workshop Job Card System')}</td></tr>
       <tr><td class="banner" colspan="4">JOB CARD&nbsp; | &nbsp;أمر شغل</td></tr>
       <tr class="meta"><td class="label">Job No. / رقم الأمر</td><td class="value"><b>${esc(card.jobNumber)}</b></td><td class="label">Date / التاريخ</td><td class="value">${printDateText(card.serviceDate)}</td></tr>
