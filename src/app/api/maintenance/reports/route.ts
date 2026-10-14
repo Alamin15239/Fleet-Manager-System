@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    if (status && status !== 'all') {
+    if (status && status !== 'all' && status !== 'OPEN') {
       whereClause.status = status
     }
 
@@ -54,6 +54,10 @@ export async function GET(request: NextRequest) {
 
     const truckWhere: any = { ...whereClause }
     const trailerWhere: any = { ...whereClause }
+    if (status === 'OPEN') {
+      truckWhere.id = '__no_open_truck_maintenance_records__'
+      trailerWhere.id = '__no_open_trailer_maintenance_records__'
+    }
     if (search) {
       truckWhere.OR = [
         { serviceType: { contains: search, mode: 'insensitive' } },
@@ -77,7 +81,43 @@ export async function GET(request: NextRequest) {
     else if (trailerIds.length > 1) trailerWhere.trailerId = { in: trailerIds }
     else if (truckIds.length) trailerWhere.id = '__no_matching_trailer_records__'
 
-    const [truckRecords, trailerRecords] = await Promise.all([
+    const selectedMechanic = mechanicId
+      ? await db.mechanic.findUnique({ where: { id: mechanicId }, select: { name: true } })
+      : null
+    const jobCardWhere: any = {}
+    if (parsedStartDate) jobCardWhere.serviceDate = { gte: parsedStartDate }
+    if (parsedEndDate) {
+      const inclusiveEndDate = new Date(parsedEndDate)
+      inclusiveEndDate.setHours(23, 59, 59, 999)
+      jobCardWhere.serviceDate = { ...(jobCardWhere.serviceDate || {}), lte: inclusiveEndDate }
+    }
+    if (status) jobCardWhere.status = status
+    if (serviceType && serviceType !== 'all') jobCardWhere.serviceType = { contains: serviceType, mode: 'insensitive' }
+    if (mechanicId) {
+      if (selectedMechanic) jobCardWhere.technicianName = { contains: selectedMechanic.name, mode: 'insensitive' }
+      else jobCardWhere.id = '__no_matching_job_cards__'
+    }
+    if (search) {
+      jobCardWhere.OR = [
+        { jobNumber: { contains: search, mode: 'insensitive' } },
+        { serviceType: { contains: search, mode: 'insensitive' } },
+        { reportedIssue: { contains: search, mode: 'insensitive' } },
+        { notes: { contains: search, mode: 'insensitive' } },
+        { driverName: { contains: search, mode: 'insensitive' } },
+        { technicianName: { contains: search, mode: 'insensitive' } },
+        { truck: { licensePlate: { contains: search, mode: 'insensitive' } } },
+        { truck: { make: { contains: search, mode: 'insensitive' } } },
+        { truck: { model: { contains: search, mode: 'insensitive' } } },
+        { trailer: { number: { contains: search, mode: 'insensitive' } } }
+      ]
+    }
+    const selectedVehicles = [
+      ...(truckIds.length ? [{ truckId: truckIds.length === 1 ? truckIds[0] : { in: truckIds } }] : []),
+      ...(trailerIds.length ? [{ trailerId: trailerIds.length === 1 ? trailerIds[0] : { in: trailerIds } }] : [])
+    ]
+    if (selectedVehicles.length) jobCardWhere.AND = [{ OR: selectedVehicles }]
+
+    const [truckRecords, trailerRecords, workshopJobCards] = await Promise.all([
       db.maintenanceRecord.findMany({
         where: truckWhere,
         include: {
@@ -126,12 +166,43 @@ export async function GET(request: NextRequest) {
           createdBy: { select: { id: true, name: true, email: true } }
         },
         orderBy: { datePerformed: 'desc' }
+      }),
+      db.workshopJobCard.findMany({
+        where: jobCardWhere,
+        include: {
+          truck: { select: { id: true, vin: true, make: true, model: true, year: true, licensePlate: true, currentMileage: true, driverName: true } },
+          trailer: { select: { id: true, number: true, driverName: true } }
+        },
+        orderBy: [{ serviceDate: 'desc' }, { createdAt: 'desc' }]
       })
     ])
 
     const records = [
       ...truckRecords.map(record => ({ ...record, trailer: undefined, vehicleType: 'truck' as const })),
-      ...trailerRecords.map(record => ({ ...record, truck: undefined, vehicleType: 'trailer' as const }))
+      ...trailerRecords.map(record => ({ ...record, truck: undefined, vehicleType: 'trailer' as const })),
+      ...workshopJobCards.map(card => ({
+        id: `job-card:${card.id}`,
+        truckId: card.truckId,
+        trailerId: card.trailerId,
+        serviceType: `Job Card · ${card.serviceType}`,
+        description: [card.jobNumber, card.reportedIssue || card.notes].filter(Boolean).join(' · ') || null,
+        datePerformed: card.serviceDate,
+        partsCost: 0,
+        laborCost: 0,
+        totalCost: 0,
+        currentMileage: card.odometerKm ?? undefined,
+        status: card.status,
+        driverName: card.driverName ?? undefined,
+        mechanicName: card.technicianName ?? undefined,
+        technicianName: card.technicianName,
+        mechanic: undefined,
+        mechanicId: null,
+        jobNumber: card.jobNumber,
+        workshopItems: card.items,
+        truck: card.truck ?? undefined,
+        trailer: card.trailer ?? undefined,
+        vehicleType: card.trailerId ? 'trailer' as const : 'truck' as const
+      }))
     ].sort((a, b) => new Date(b.datePerformed).getTime() - new Date(a.datePerformed).getTime())
     const totalCount = records.length
 
@@ -202,6 +273,7 @@ export async function GET(request: NextRequest) {
         totalLaborCost,
         averageCost,
         completedCount: records.filter(r => r.status === 'COMPLETED').length,
+        openCount: records.filter(r => r.status === 'OPEN').length,
         inProgressCount: records.filter(r => r.status === 'IN_PROGRESS').length,
         scheduledCount: records.filter(r => r.status === 'SCHEDULED').length,
         serviceTypeBreakdown,
@@ -225,6 +297,7 @@ export async function GET(request: NextRequest) {
         totalLaborCost: 0,
         averageCost: 0,
         completedCount: 0,
+        openCount: 0,
         inProgressCount: 0,
         scheduledCount: 0,
         serviceTypeBreakdown: {},

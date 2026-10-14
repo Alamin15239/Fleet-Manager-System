@@ -17,6 +17,7 @@ import { createMaintenancePdf, createMaintenanceWorkbook } from '@/lib/maintenan
 
 interface MaintenanceRecord {
   id: string
+  jobNumber?: string
   truckId?: string
   serviceType: string
   description: string | null
@@ -69,6 +70,7 @@ interface ReportSummary {
   totalLaborCost: number
   averageCost: number
   completedCount: number
+  openCount: number
   inProgressCount: number
   scheduledCount: number
   serviceTypeBreakdown: Record<string, number>
@@ -101,6 +103,7 @@ const emptyReportSummary: ReportSummary = {
   totalLaborCost: 0,
   averageCost: 0,
   completedCount: 0,
+  openCount: 0,
   inProgressCount: 0,
   scheduledCount: 0,
   serviceTypeBreakdown: {},
@@ -130,6 +133,8 @@ export default function ReportsPage() {
   const [truckFilter, setTruckFilter] = useState<string[]>([])
   const [trailerFilter, setTrailerFilter] = useState<string[]>([])
   const [mechanicFilter, setMechanicFilter] = useState('all')
+  const [truckSearch, setTruckSearch] = useState('')
+  const [trailerSearch, setTrailerSearch] = useState('')
   const [reportError, setReportError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -186,7 +191,7 @@ export default function ReportsPage() {
       const response = await apiGet('/api/trucks?limit=1000')
       if (response.ok) {
         const data = await response.json()
-        setTrucks(data.trucks || [])
+        setTrucks(Array.isArray(data) ? data : data.data || data.trucks || [])
       }
     } catch (error) {
       console.error('Error fetching trucks:', error)
@@ -198,7 +203,7 @@ export default function ReportsPage() {
       const response = await apiGet('/api/mechanics?limit=1000')
       if (response.ok) {
         const data = await response.json()
-        setMechanics(data.mechanics || [])
+        setMechanics(Array.isArray(data) ? data : data.mechanics || data.data || [])
       }
     } catch (error) {
       console.error('Error fetching mechanics:', error)
@@ -352,24 +357,34 @@ export default function ReportsPage() {
   }
 
   const filteredMaintenance = getFilteredMaintenance()
+  const visibleTrucks = trucks.filter(truck => `${truck.licensePlate} ${truck.make} ${truck.model}`.toLowerCase().includes(truckSearch.toLowerCase()))
+  const visibleTrailers = trailers.filter(trailer => trailer.number.toLowerCase().includes(trailerSearch.toLowerCase()))
+  const setVisibleVehicleSelection = (type: 'truck' | 'trailer', selected: boolean) => {
+    if (type === 'truck') {
+      const visibleIds = visibleTrucks.map(truck => truck.id)
+      setTruckFilter(current => selected
+        ? [...new Set([...current, ...visibleIds])]
+        : current.filter(id => !visibleIds.includes(id)))
+      return
+    }
+    const visibleIds = visibleTrailers.map(trailer => trailer.id)
+    setTrailerFilter(current => selected
+      ? [...new Set([...current, ...visibleIds])]
+      : current.filter(id => !visibleIds.includes(id)))
+  }
 
   return (
-      <div className="container mx-auto p-4 sm:p-6 space-y-6">
+      <div className="container mx-auto max-w-7xl space-y-6 p-4 sm:p-6">
       {reportError && <Card className="border-destructive"><CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"><p className="text-sm text-destructive">{reportError}</p><Button size="sm" variant="outline" onClick={() => { setReportError(null); const requestId = ++maintenanceRequestId.current; void fetchMaintenance(requestId) }}>Retry</Button></CardContent></Card>}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight sm:text-3xl">
-            <FileText className="h-7 w-7 text-blue-600 sm:h-8 sm:w-8" />
-            Maintenance Reports
-          </h1>
-          <p className="text-muted-foreground">Generate comprehensive maintenance reports with analytics</p>
-          <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-            <Badge variant="secondary">{filteredMaintenance.length} matching records</Badge>
-            <span>{selectionActive ? `${filteredMaintenance.length} selected for export` : 'All matching records included'}</span>
+      <section className="overflow-hidden rounded-2xl border bg-gradient-to-br from-slate-950 via-slate-900 to-emerald-950 text-white shadow-sm">
+        <div className="flex flex-col gap-6 p-5 sm:p-7 lg:flex-row lg:items-end lg:justify-between">
+          <div className="space-y-4">
+            <div className="flex items-center gap-3"><span className="rounded-xl bg-white/10 p-3"><FileText className="h-6 w-6"/></span><div><p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-300">Fleet insights</p><h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Maintenance Reports</h1></div></div>
+            <p className="max-w-2xl text-sm text-slate-300">Review truck and trailer maintenance history, workshop job cards, and fleet costs in one report.</p>
+            <div className="flex flex-wrap gap-2 text-xs"><Badge className="border-white/15 bg-white/10 text-white hover:bg-white/10">{trucks.length} trucks</Badge><Badge className="border-white/15 bg-white/10 text-white hover:bg-white/10">{trailers.length} trailers</Badge><Badge className="border-white/15 bg-white/10 text-white hover:bg-white/10">{filteredMaintenance.length} matching records</Badge><span className="self-center text-slate-300">{selectionActive ? `${selectedRecords.length} selected` : 'All matching records included'}</span></div>
           </div>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button onClick={generateReport} disabled={generating || filteredMaintenance.length === 0}>
+          <div className="flex flex-col gap-2 sm:flex-row">
+          <Button className="bg-emerald-500 text-white hover:bg-emerald-600" onClick={generateReport} disabled={generating || filteredMaintenance.length === 0}>
             <FileText className="h-4 w-4 mr-2" />
             {generating ? 'Preparing...' : format === 'pdf' ? 'Preview PDF' : 'Generate Excel'}
           </Button>
@@ -377,8 +392,9 @@ export default function ReportsPage() {
             <Download className="h-4 w-4 mr-2" />
             {format === 'pdf' ? 'Download PDF' : 'Download Excel'}
           </Button>
+          </div>
         </div>
-      </div>
+      </section>
 
       <Tabs defaultValue="filters" className="space-y-6">
         <TabsList className="grid w-full grid-cols-3">
@@ -492,9 +508,11 @@ export default function ReportsPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Status</SelectItem>
+                      <SelectItem value="OPEN">Open</SelectItem>
                       <SelectItem value="COMPLETED">Completed</SelectItem>
                       <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
                       <SelectItem value="SCHEDULED">Scheduled</SelectItem>
+                      <SelectItem value="CANCELLED">Cancelled</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -516,19 +534,25 @@ export default function ReportsPage() {
                 <div className="space-y-2">
                   <Label>Trucks (select any number)</Label>
                   <div className="max-h-40 space-y-2 overflow-y-auto rounded-md border p-2">
-                    {trucks.map(truck => <label key={truck.id} className="flex items-center gap-2 text-sm">
+                    <Input aria-label="Search trucks" placeholder="Search trucks…" value={truckSearch} onChange={event => setTruckSearch(event.target.value)} className="h-8"/>
+                    <div className="flex gap-2"><Button type="button" size="sm" variant="ghost" onClick={() => setVisibleVehicleSelection('truck', true)}>Select shown</Button><Button type="button" size="sm" variant="ghost" onClick={() => setTruckFilter([])}>Clear</Button><span className="ml-auto self-center text-xs text-muted-foreground">{truckFilter.length}/{trucks.length}</span></div>
+                    {visibleTrucks.map(truck => <label key={truck.id} className="flex items-center gap-2 text-sm">
                       <Checkbox checked={truckFilter.includes(truck.id)} onCheckedChange={checked => setTruckFilter(prev => checked ? [...prev, truck.id] : prev.filter(id => id !== truck.id))} />
                       <span>{truck.licensePlate} - {truck.year} {truck.make} {truck.model}</span>
                     </label>)}
+                    {visibleTrucks.length === 0 && <p className="py-2 text-center text-xs text-muted-foreground">No trucks match that search.</p>}
                   </div>
                 </div>
                 <div className="space-y-2">
                   <Label>Trailers (select any number)</Label>
                   <div className="max-h-40 space-y-2 overflow-y-auto rounded-md border p-2">
-                    {trailers.map(trailer => <label key={trailer.id} className="flex items-center gap-2 text-sm">
+                    <Input aria-label="Search trailers" placeholder="Search trailer number…" value={trailerSearch} onChange={event => setTrailerSearch(event.target.value)} className="h-8"/>
+                    <div className="flex gap-2"><Button type="button" size="sm" variant="ghost" onClick={() => setVisibleVehicleSelection('trailer', true)}>Select shown</Button><Button type="button" size="sm" variant="ghost" onClick={() => setTrailerFilter([])}>Clear</Button><span className="ml-auto self-center text-xs text-muted-foreground">{trailerFilter.length}/{trailers.length}</span></div>
+                    {visibleTrailers.map(trailer => <label key={trailer.id} className="flex items-center gap-2 text-sm">
                       <Checkbox checked={trailerFilter.includes(trailer.id)} onCheckedChange={checked => setTrailerFilter(prev => checked ? [...prev, trailer.id] : prev.filter(id => id !== trailer.id))} />
                       <span>Trailer {trailer.number}</span>
                     </label>)}
+                    {visibleTrailers.length === 0 && <p className="py-2 text-center text-xs text-muted-foreground">No trailers match that search.</p>}
                   </div>
                 </div>
                 <div className="space-y-2">
@@ -553,7 +577,7 @@ export default function ReportsPage() {
         </TabsContent>
 
         <TabsContent value="summary" className="space-y-6">
-          <div className="grid gap-4 md:grid-cols-4">
+                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Total Records</CardTitle>
@@ -565,6 +589,13 @@ export default function ReportsPage() {
             </Card>
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Open Job Cards</CardTitle>
+                <FileText className="h-4 w-4 text-amber-600" />
+              </CardHeader>
+              <CardContent><div className="text-2xl font-bold">{summary.openCount}</div></CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Total Cost</CardTitle>
                 <BarChart3 className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
@@ -573,6 +604,7 @@ export default function ReportsPage() {
                 <p className="text-xs text-muted-foreground">
                   Parts: {formatCurrency(summary.totalPartsCost)} | Labor: {formatCurrency(summary.totalLaborCost)}
                 </p>
+                <p className="mt-1 text-xs text-muted-foreground">Job card costs are not entered in the system yet.</p>
               </CardContent>
             </Card>
             <Card>
@@ -652,11 +684,13 @@ export default function ReportsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
+              {maintenance.length === 0 ? <div className="rounded-xl border border-dashed bg-muted/20 px-5 py-12 text-center"><div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-muted"><FileText className="h-6 w-6 text-muted-foreground"/></div><h3 className="font-semibold">No matching maintenance activity</h3><p className="mx-auto mt-1 max-w-lg text-sm text-muted-foreground">Reports include maintenance entries and workshop job cards for your trucks and trailers. Clear date, vehicle, status, or search filters to see more records.</p><Button className="mt-4" variant="outline" onClick={() => { setStartDate(''); setEndDate(''); setSearchTerm(''); setStatusFilter('all'); setServiceTypeFilter('all'); setTruckFilter([]); setTrailerFilter([]); setMechanicFilter('all') }}>Reset filters</Button></div> :
               <div className="max-h-[65vh] overflow-auto">
-                <table className="w-full border-collapse border border-gray-300">
+                <table className="w-full min-w-[920px] border-collapse border border-gray-300">
                   <thead>
                     <tr className="bg-gray-100">
                       <th className="border border-gray-300 p-2 text-left">Select</th>
+                      <th className="border border-gray-300 p-2 text-left">Record</th>
                       <th className="border border-gray-300 p-2 text-left">Date</th>
                       <th className="border border-gray-300 p-2 text-left">Vehicle</th>
                       <th className="border border-gray-300 p-2 text-left">Driver</th>
@@ -677,6 +711,7 @@ export default function ReportsPage() {
                               onCheckedChange={() => toggleRecord(record.id)}
                             />
                           </td>
+                          <td className="border border-gray-300 p-2">{record.jobNumber ? <div><Badge variant="outline">Workshop Job Card</Badge><p className="mt-1 text-xs text-muted-foreground">{record.jobNumber}</p></div> : <Badge variant="secondary">Maintenance</Badge>}</td>
                           <td className="border border-gray-300 p-2">
                             {new Date(record.datePerformed).toLocaleDateString()}
                           </td>
@@ -717,7 +752,7 @@ export default function ReportsPage() {
                   Showing all {getSearchedMaintenance().length} records
                   {searchTerm && ` (filtered from ${maintenance.length} total)`}
                 </p>
-              </div>
+              </div>}
             </CardContent>
           </Card>
         </TabsContent>
