@@ -152,7 +152,7 @@ export default function WorkshopJobCards() {
       .card-frame{width:100%;border:2px solid #101510;padding:0}
       .sheet{width:100%;border-collapse:collapse;table-layout:fixed;font-size:10px;line-height:1.12}
       .sheet col:nth-child(1){width:15.83%}.sheet col:nth-child(2){width:38.45%}.sheet col:nth-child(3){width:14.07%}.sheet col:nth-child(4){width:31.65%}
-      .sheet td,.sheet th{border:1px solid #bfd2c6;padding:3px 5px;vertical-align:middle;overflow-wrap:anywhere;background:#eaf4ee;text-align:left}
+      .sheet td,.sheet th{border:1px solid #bfd2c6;padding:3px 5px!important;vertical-align:middle!important;line-height:1.2;overflow-wrap:anywhere;background:#eaf4ee;text-align:left}
       .sheet .logo{padding:2px;text-align:center;background:#fff;border-right:2px solid #b4c9bc}
       .logo img{width:100%;height:80px;object-fit:contain}
       .brand-title{font-size:18px;font-weight:700;color:#006c35;text-align:center;direction:rtl;background:#fff!important;border:0!important;padding:3px 8px!important}
@@ -261,12 +261,15 @@ export default function WorkshopJobCards() {
       if (!page) throw new Error('Unable to render the job card')
       const renderWidth = 744
       const renderHeight = 1080
-      fitCardToPage(frameDocument, `${renderWidth}px`, renderHeight)
+      page.style.zoom = '1'
+      page.style.width = `${renderWidth}px`
+      page.style.maxWidth = `${renderWidth}px`
+      page.style.margin = '0 auto'
       frameDocument.documentElement.style.width = `${renderWidth}px`
       frameDocument.body.style.width = `${renderWidth}px`
       frameDocument.body.style.minHeight = `${renderHeight}px`
       await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))
-      const canvas = await html2canvas(page, { scale: 2, backgroundColor: '#ffffff', useCORS: true, windowWidth: renderWidth, windowHeight: renderHeight })
+      const canvas = await html2canvas(page, { scale: 2, backgroundColor: '#ffffff', useCORS: true, windowWidth: renderWidth, windowHeight: Math.max(renderHeight, page.scrollHeight) })
       const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true })
       const pageWidth = 210
       const pageHeight = 297
