@@ -36,7 +36,13 @@ export async function POST(request: NextRequest) {
     const result = await syncOneDriveWorkbook()
     if (!result.connected) return NextResponse.json({ error: result.error || 'Connect OneDrive first' }, { status: 409 })
     if (!result.success) return NextResponse.json({ error: result.error || 'Workbook sync failed' }, { status: 502 })
-    return NextResponse.json({ success: true, queued: Boolean(result.queued), lastSyncAt: result.lastSyncAt || null, webUrl: result.webUrl || null })
+    return NextResponse.json({
+      success: true,
+      queued: Boolean(result.queued),
+      lastSyncAt: result.lastSyncAt || null,
+      webUrl: result.webUrl || null,
+      recordCounts: result.recordCounts || null
+    })
   } catch (error) {
     const message = error instanceof Error ? error.message : ''
     const status = ['No token provided', 'Invalid token'].includes(message) ? 401 : message === 'Insufficient permissions' ? 403 : 500

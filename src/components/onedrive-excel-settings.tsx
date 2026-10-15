@@ -71,7 +71,14 @@ export default function OneDriveExcelSettings() {
       const response = await apiPost('/api/integrations/onedrive', {})
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || 'Workbook sync failed')
-      toast.success(data.queued ? 'Workbook update queued' : 'Workbook synced successfully')
+      if (data.queued) {
+        toast.success('Workbook update queued')
+      } else if (data.recordCounts) {
+        const counts = data.recordCounts as Record<string, number>
+        toast.success(`Workbook synced: ${counts['Job Cards'] ?? 0} job cards, ${counts.Tires ?? 0} tires, ${counts['Oil Changes'] ?? 0} oil changes`)
+      } else {
+        toast.success('Workbook synced successfully')
+      }
       await loadStatus()
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Workbook sync failed')

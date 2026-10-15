@@ -13,6 +13,7 @@ export interface OneDriveSyncResult {
   error?: string | null
   lastSyncAt?: Date | null
   webUrl?: string | null
+  recordCounts?: Record<string, number>
 }
 
 export function isOneDriveConfigured() {
@@ -166,7 +167,17 @@ async function createFleetWorkbook() {
     db.trailer.findMany({ where: { isDeleted: false }, orderBy: { number: 'asc' } }),
     db.maintenanceRecord.findMany({ where: { isDeleted: false }, include: { truck: { select: { licensePlate: true, make: true, model: true } } }, orderBy: { datePerformed: 'desc' } }),
     db.trailerMaintenanceRecord.findMany({ where: { isDeleted: false }, include: { trailer: { select: { number: true } } }, orderBy: { datePerformed: 'desc' } }),
-    db.maintenanceRecord.findMany({ where: { isDeleted: false, isOilChange: true }, include: { truck: { select: { licensePlate: true, make: true, model: true } } }, orderBy: { datePerformed: 'desc' } }),
+    db.maintenanceRecord.findMany({
+      where: {
+        isDeleted: false,
+        OR: [
+          { isOilChange: true },
+          { serviceType: { contains: 'oil', mode: 'insensitive' } }
+        ]
+      },
+      include: { truck: { select: { licensePlate: true, make: true, model: true } } },
+      orderBy: { datePerformed: 'desc' }
+    }),
     db.tire.findMany({ orderBy: { createdAt: 'desc' } }),
     db.workshopJobCard.findMany({ include: { truck: { select: { licensePlate: true, make: true, model: true } }, trailer: { select: { number: true } } }, orderBy: [{ serviceDate: 'desc' }, { createdAt: 'desc' }] })
   ])
@@ -178,6 +189,21 @@ async function createFleetWorkbook() {
   workbook.created = new Date()
   workbook.modified = new Date()
   workbook.calcProperties.fullCalcOnLoad = true
+
+  const recordCounts = {
+    Trucks: trucks.length,
+    Trailers: trailers.length,
+    Maintenance: truckMaintenance.length + trailerMaintenance.length,
+    'Oil Changes': oilChanges.length,
+    Tires: tires.length,
+    'Job Cards': jobCards.length
+  }
+
+  addTableSheet(workbook, 'Sync Summary', 'SyncSummary', [
+    { header: 'Data', key: 'data', width: 24 },
+    { header: 'Records Exported', key: 'count', width: 22 },
+    { header: 'Workbook Updated', key: 'updatedAt', width: 28 }
+  ], Object.entries(recordCounts).map(([data, count]) => ({ data, count, updatedAt: workbook.modified })))
 
   addTableSheet(workbook, 'Trucks', 'Trucks', [
     { header: 'Truck Number', key: 'truckNumber', width: 18 }, { header: 'VIN', key: 'vin', width: 24 },
@@ -242,7 +268,7 @@ async function createFleetWorkbook() {
     { header: 'Notes', key: 'notes', width: 36 }, { header: 'Last Updated', key: 'updatedAt', width: 20 }
   ], jobCards.map(row => ({ jobNumber: row.jobNumber, serviceDate: row.serviceDate, truck: row.truck?.licensePlate, trailer: row.trailer?.number, serviceType: row.serviceType, priority: row.priority, status: row.status, odometer: row.odometerKm, issue: row.reportedIssue, technician: row.technicianName, driver: row.driverName, partsCost: row.partsCost, laborCost: row.laborCost, totalCost: row.totalCost, nextOdometer: row.nextServiceOdometer, nextDate: row.nextServiceDate, items: row.items, checklist: row.checklist, notes: row.notes, updatedAt: row.updatedAt })))
 
-  return Buffer.from(await workbook.xlsx.writeBuffer())
+  return { bytes: Buffer.from(await workbook.xlsx.writeBuffer()), recordCounts }
 }
 
 export async function syncOneDriveWorkbook(): Promise<OneDriveSyncResult> {
@@ -273,6 +299,7 @@ export async function syncOneDriveWorkbook(): Promise<OneDriveSyncResult> {
     let latestItemId = integration.driveItemId
     let latestWebUrl = integration.webUrl
     let observedRevision = -1
+    let latestRecordCounts: Record<string, number> | undefined
 
     // If changes arrive while a workbook is being uploaded, immediately build
     // and upload another snapshot before releasing the lock.
@@ -287,14 +314,15 @@ export async function syncOneDriveWorkbook(): Promise<OneDriveSyncResult> {
         })
       }
 
-      const workbookBytes = await createFleetWorkbook()
+      const snapshot = await createFleetWorkbook()
+      latestRecordCounts = snapshot.recordCounts
       const target = latestItemId
         ? `https://graph.microsoft.com/v1.0/me/drive/items/${encodeURIComponent(latestItemId)}/content`
         : `https://graph.microsoft.com/v1.0/me/drive/root:/${encodeURIComponent(ONEDRIVE_WORKBOOK_NAME)}:/content`
       const upload = await graphRequest(target, tokens.access_token, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' },
-        body: workbookBytes
+        body: snapshot.bytes
       })
       const driveItem = await upload.json() as { id?: string; webUrl?: string }
       latestItemId = driveItem.id || latestItemId
@@ -313,7 +341,7 @@ export async function syncOneDriveWorkbook(): Promise<OneDriveSyncResult> {
         }
       })
       if (released.syncRevision <= observedRevision) {
-        return { connected: true, success: true, lastSyncAt: released.lastSyncAt, webUrl: released.webUrl }
+        return { connected: true, success: true, lastSyncAt: released.lastSyncAt, webUrl: released.webUrl, recordCounts: latestRecordCounts }
       }
 
       const reclaimed = await db.oneDriveIntegration.updateMany({
@@ -329,7 +357,7 @@ export async function syncOneDriveWorkbook(): Promise<OneDriveSyncResult> {
       where: { id: INTEGRATION_ID },
       data: { syncInProgressAt: null, lastSyncStatus: stillPending ? 'PENDING' : 'SUCCESS' }
     })
-    return { connected: true, success: true, queued: stillPending }
+    return { connected: true, success: true, queued: stillPending, recordCounts: latestRecordCounts }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown OneDrive sync error.'
     console.error('OneDrive workbook sync failed:', message)
