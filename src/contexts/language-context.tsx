@@ -163,6 +163,12 @@ const translations = {
     'message.error': 'An error occurred',
     'message.confirm': 'Are you sure?',
     'message.deleteConfirm': 'Are you sure you want to delete this item?',
+    'trucks.excelSavedButNotUpdated': 'Truck saved, but Excel was not updated',
+    'trucks.excelSyncFailedHelp': 'Sync failed. Check Settings → Excel Sync.',
+    'trucks.excelUpdateQueued': 'Truck saved. Excel update queued; check Settings → Excel Sync for the current workbook.',
+    'trucks.excelLockedCopyCreated': 'Truck saved. The workbook was locked, so a fresh live copy was created',
+    'trucks.openCurrentWorkbook': 'Open the current workbook from Settings → Excel Sync.',
+    'trucks.excelUpdated': 'Truck saved and Excel workbook updated.',
     
     // Placeholders
     'placeholder.search': 'Search...',
@@ -586,6 +592,12 @@ const translations = {
     'message.error': 'حدث خطأ',
     'message.confirm': 'هل أنت متأكد؟',
     'message.deleteConfirm': 'هل أنت متأكد من حذف هذا العنصر؟',
+    'trucks.excelSavedButNotUpdated': 'تم حفظ الشاحنة، لكن لم يتم تحديث Excel',
+    'trucks.excelSyncFailedHelp': 'فشلت المزامنة. تحقق من الإعدادات ← مزامنة Excel.',
+    'trucks.excelUpdateQueued': 'تم حفظ الشاحنة. تحديث Excel قيد الانتظار؛ تحقق من الإعدادات ← مزامنة Excel لمعرفة المصنف الحالي.',
+    'trucks.excelLockedCopyCreated': 'تم حفظ الشاحنة. كان المصنف مقفلاً، لذلك تم إنشاء نسخة مباشرة جديدة',
+    'trucks.openCurrentWorkbook': 'افتح المصنف الحالي من الإعدادات ← مزامنة Excel.',
+    'trucks.excelUpdated': 'تم حفظ الشاحنة وتحديث مصنف Excel.',
     
     // Placeholders
     'placeholder.search': 'بحث...',

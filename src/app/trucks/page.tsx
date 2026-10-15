@@ -297,7 +297,21 @@ export default function TrucksPage() {
       if (response.ok) {
         const result = await response.json()
         console.log('API response data:', result)
-        toast.success(t('message.success'))
+        const excelSync = result.excelSync
+        if (editingTruck && excelSync?.connected) {
+          if (!excelSync.success) {
+            toast.error(`${t('trucks.excelSavedButNotUpdated')}: ${excelSync.error || t('trucks.excelSyncFailedHelp')}`)
+          } else if (excelSync.queued) {
+            toast.success(t('trucks.excelUpdateQueued'))
+          } else if (excelSync.recoveredFromLock) {
+            const workbookName = excelSync.workbookName ? ` (${excelSync.workbookName})` : ''
+            toast.success(`${t('trucks.excelLockedCopyCreated')}${workbookName}. ${t('trucks.openCurrentWorkbook')}`)
+          } else {
+            toast.success(t('trucks.excelUpdated'))
+          }
+        } else {
+          toast.success(t('message.success'))
+        }
         setIsDialogOpen(false)
         resetForm()
         fetchTrucks() // Refresh the list

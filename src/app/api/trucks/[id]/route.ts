@@ -155,12 +155,21 @@ export async function PUT(
       }
     })
 
-    await syncOneDriveWorkbookAfterChange()
+    const excelSync = await syncOneDriveWorkbookAfterChange()
 
     return NextResponse.json({
       success: true,
       data: updatedTruck,
-      message: 'Truck updated successfully'
+      message: 'Truck updated successfully',
+      excelSync: {
+        connected: excelSync.connected,
+        success: excelSync.success,
+        queued: Boolean(excelSync.queued),
+        error: excelSync.error || null,
+        workbookName: excelSync.workbookName || null,
+        webUrl: excelSync.webUrl || null,
+        recoveredFromLock: Boolean(excelSync.recoveredFromLock)
+      }
     })
 
   } catch (error) {
