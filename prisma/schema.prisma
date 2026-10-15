@@ -346,10 +346,35 @@ model OneDriveIntegration {
   syncInProgressAt      DateTime?
   syncRevision          Int       @default(0)
   lastSyncedRevision    Int       @default(0)
+  lastWorkbookHash             String?
+  graphSubscriptionId          String?
+  graphSubscriptionExpiresAt   DateTime?
+  graphSubscriptionClientState String?
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
 
   @@map("onedrive_integrations")
+}
+
+model ExcelWorkbookChange {
+  id             String   @id @default(cuid())
+  fingerprint    String   @unique
+  sheetName      String
+  entityType     String
+  operation      String
+  recordId       String?
+  rowData        Json
+  changes        Json?
+  baseUpdatedAt  DateTime?
+  status         String   @default("PENDING")
+  error          String?
+  detectedAt     DateTime @default(now())
+  appliedAt      DateTime?
+  appliedById    String?
+
+  @@index([status, detectedAt])
+  @@index([entityType, recordId, status])
+  @@map("excel_workbook_changes")
 }
 
 model Notification {

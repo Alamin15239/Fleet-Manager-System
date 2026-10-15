@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import Link from 'next/link'
 import { AlertCircle, CheckCircle2, Cloud, ExternalLink, Loader2, RefreshCw, Unplug } from 'lucide-react'
 import { LocalizedText } from '@/components/localized-text'
 import { Badge } from '@/components/ui/badge'
@@ -19,6 +20,8 @@ interface OneDriveStatus {
   lastSyncStatus: string
   lastSyncError: string | null
   syncMode: string
+  pendingWorkbookChanges: number
+  importWatchError: string | null
 }
 
 export default function OneDriveExcelSettings() {
@@ -58,7 +61,11 @@ export default function OneDriveExcelSettings() {
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || 'Workbook sync failed')
       if (data.queued) {
-        toast.success('Workbook update queued')
+        if (data.pendingWorkbookChanges > 0) {
+          toast.success(`${data.pendingWorkbookChanges} workbook change(s) need role-checked review before sync.`)
+        } else {
+          toast.success('Workbook update queued')
+        }
       } else if (data.recoveredFromLock) {
         toast.success(`The locked workbook was left untouched. A fresh copy, ${data.workbookName}, is now live.`)
       } else if (data.recordCounts) {
@@ -122,7 +129,7 @@ export default function OneDriveExcelSettings() {
           <LocalizedText>Excel Live Data — OneDrive</LocalizedText>
         </CardTitle>
         <CardDescription>
-          <LocalizedText>Keep a one-way Excel copy of fleet records in your personal OneDrive. Fleet Manager remains the source of truth.</LocalizedText>
+          <LocalizedText>Changes flow from the app to Excel. Workbook edits are detected and wait for an authorized app user to review and apply them.</LocalizedText>
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
@@ -184,9 +191,22 @@ export default function OneDriveExcelSettings() {
               </div>
             </div>
 
+            {status?.connected && (
+              <div className="flex flex-col gap-3 rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-950 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="font-medium"><LocalizedText>Workbook changes awaiting review</LocalizedText>: {status.pendingWorkbookChanges || 0}</p>
+                  <p className="mt-1"><LocalizedText>Excel changes are applied only after a signed-in user passes the app role permission check.</LocalizedText></p>
+                  {status.importWatchError && <p className="mt-2 text-amber-800"><LocalizedText>Watcher status</LocalizedText>: <LocalizedText>{status.importWatchError}</LocalizedText></p>}
+                </div>
+                <Button asChild variant="outline" className="shrink-0">
+                  <Link href="/excel-imports"><LocalizedText>Review Excel Changes</LocalizedText></Link>
+                </Button>
+              </div>
+            )}
+
             <div className="space-y-2 text-sm text-muted-foreground">
               <p><LocalizedText>Workbook tabs include trucks, trailers, maintenance, oil changes, tires, and workshop job cards. The workbook refreshes after those records change and can also be synced manually.</LocalizedText></p>
-              <p><LocalizedText>The app replaces the generated workbook file in OneDrive. Keep app data as the source of truth; edits made directly in Excel are not imported into the app.</LocalizedText></p>
+              <p><LocalizedText>Workbook additions and edits appear in Excel Changes. Deleted worksheet rows never delete app records. Resolve all pending changes before the app replaces the workbook with its current data.</LocalizedText></p>
             </div>
           </>
         )}

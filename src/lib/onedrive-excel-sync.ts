@@ -15,6 +15,7 @@ export interface OneDriveSyncResult {
   webUrl?: string | null
   workbookName?: string | null
   recoveredFromLock?: boolean
+  pendingWorkbookChanges?: number
   recordCounts?: Record<string, number>
 }
 
@@ -85,6 +86,10 @@ export async function saveOneDriveConnection(refreshToken: string, connectedEmai
       driveItemId: null,
       driveItemName: null,
       webUrl: null,
+      lastWorkbookHash: null,
+      graphSubscriptionId: null,
+      graphSubscriptionExpiresAt: null,
+      graphSubscriptionClientState: null,
       lastSyncStatus: 'NEVER',
       lastSyncError: null,
       lastSyncAt: null,
@@ -122,6 +127,7 @@ async function refreshAccessToken(refreshTokenEncrypted: string): Promise<{ acce
 async function graphRequest(url: string, accessToken: string, init?: RequestInit) {
   const response = await fetch(url, {
     ...init,
+    cache: 'no-store',
     headers: {
       Authorization: `Bearer ${accessToken}`,
       ...init?.headers
@@ -133,14 +139,151 @@ async function graphRequest(url: string, accessToken: string, init?: RequestInit
   return response
 }
 
+export async function getOneDriveAccessToken() {
+  const integration = await db.oneDriveIntegration.findUnique({ where: { id: INTEGRATION_ID } })
+  if (!integration) throw new Error('Connect OneDrive before importing workbook changes.')
+  const tokens = await refreshAccessToken(integration.refreshTokenEncrypted)
+  if (tokens.refresh_token) {
+    await db.oneDriveIntegration.update({
+      where: { id: INTEGRATION_ID },
+      data: { refreshTokenEncrypted: encryptRefreshToken(tokens.refresh_token) }
+    })
+  }
+  return tokens.access_token
+}
+
+export async function downloadOneDriveWorkbook() {
+  const integration = await db.oneDriveIntegration.findUnique({ where: { id: INTEGRATION_ID } })
+  if (!integration?.driveItemId) throw new Error('The live workbook has not been created yet.')
+  const accessToken = await getOneDriveAccessToken()
+  const response = await graphRequest(
+    `https://graph.microsoft.com/v1.0/me/drive/items/${encodeURIComponent(integration.driveItemId)}/content`,
+    accessToken
+  )
+  return Buffer.from(await response.arrayBuffer())
+}
+
+function latestUpdatedAt(...values: (Date | null | undefined)[]) {
+  return values.reduce<Date | null>((latest, value) => value && (!latest || value > latest) ? value : latest, null)
+}
+
+export async function getFleetRecordVersion(entityType: string, id: string, rowData?: unknown) {
+  if (entityType === 'TRUCK') {
+    const truck = await db.truck.findUnique({ where: { id }, select: { licensePlate: true, updatedAt: true } })
+    if (!truck) return null
+    const [maintenance, jobCards, tires] = await Promise.all([
+      db.maintenanceRecord.aggregate({ where: { truckId: id, isDeleted: false }, _max: { updatedAt: true } }),
+      db.workshopJobCard.aggregate({ where: { truckId: id }, _max: { updatedAt: true } }),
+      db.tire.aggregate({ where: { plateNumber: truck.licensePlate }, _max: { updatedAt: true } })
+    ])
+    return latestUpdatedAt(truck.updatedAt, maintenance._max.updatedAt, jobCards._max.updatedAt, tires._max.updatedAt)
+  }
+  if (entityType === 'TRAILER') {
+    const trailer = await db.trailer.findUnique({ where: { id }, select: { number: true, updatedAt: true } })
+    if (!trailer) return null
+    const [maintenance, jobCards, tires] = await Promise.all([
+      db.trailerMaintenanceRecord.aggregate({ where: { trailerId: id, isDeleted: false }, _max: { updatedAt: true } }),
+      db.workshopJobCard.aggregate({ where: { trailerId: id }, _max: { updatedAt: true } }),
+      db.tire.aggregate({ where: { trailerNumber: trailer.number }, _max: { updatedAt: true } })
+    ])
+    return latestUpdatedAt(trailer.updatedAt, maintenance._max.updatedAt, jobCards._max.updatedAt, tires._max.updatedAt)
+  }
+  if (entityType === 'MAINTENANCE' && rowData && typeof rowData === 'object' && String((rowData as Record<string, unknown>)['Asset Type'] || '').toLowerCase() === 'trailer') {
+    return (await db.trailerMaintenanceRecord.findUnique({ where: { id }, select: { updatedAt: true } }))?.updatedAt || null
+  }
+  if (entityType === 'MAINTENANCE' || entityType === 'OIL_CHANGE') {
+    return (await db.maintenanceRecord.findUnique({ where: { id }, select: { updatedAt: true } }))?.updatedAt || null
+  }
+  if (entityType === 'TIRE') return (await db.tire.findUnique({ where: { id }, select: { updatedAt: true } }))?.updatedAt || null
+  if (entityType === 'JOBCARD') return (await db.workshopJobCard.findUnique({ where: { id }, select: { updatedAt: true } }))?.updatedAt || null
+  return null
+}
+
+export async function ensureOneDriveChangeSubscription() {
+  const integration = await db.oneDriveIntegration.findUnique({ where: { id: INTEGRATION_ID } })
+  if (!integration?.driveItemId) return { enabled: false, expiresAt: null as Date | null }
+  const currentExpiry = integration.graphSubscriptionExpiresAt
+  if (integration.graphSubscriptionId && currentExpiry && currentExpiry.getTime() > Date.now() + 24 * 60 * 60 * 1000) {
+    return { enabled: true, expiresAt: currentExpiry }
+  }
+
+  const accessToken = await getOneDriveAccessToken()
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ||
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null)
+  if (!baseUrl) throw new Error('The public app URL is not configured for workbook notifications.')
+  const notificationUrl = new URL('/api/integrations/onedrive/notifications', baseUrl).toString()
+  const expirationDateTime = new Date(Date.now() + 40 * 60 * 60 * 1000)
+  const clientState = integration.graphSubscriptionClientState || randomBytes(32).toString('hex')
+  const body = {
+    changeType: 'updated',
+    notificationUrl,
+    resource: '/me/drive/root',
+    expirationDateTime: expirationDateTime.toISOString(),
+    clientState
+  }
+
+  let subscription: { id?: string; expirationDateTime?: string }
+  if (integration.graphSubscriptionId) {
+    try {
+      await graphRequest(
+        `https://graph.microsoft.com/v1.0/subscriptions/${encodeURIComponent(integration.graphSubscriptionId)}`,
+        accessToken,
+        { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ expirationDateTime: body.expirationDateTime }) }
+      )
+      subscription = { id: integration.graphSubscriptionId, expirationDateTime: body.expirationDateTime }
+    } catch (error) {
+      if (!(error instanceof GraphRequestError) || error.status !== 404) throw error
+      const response = await graphRequest('https://graph.microsoft.com/v1.0/subscriptions', accessToken, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+      })
+      subscription = await response.json() as typeof subscription
+    }
+  } else {
+    const response = await graphRequest('https://graph.microsoft.com/v1.0/subscriptions', accessToken, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+    })
+    subscription = await response.json() as typeof subscription
+  }
+
+  const expiresAt = subscription.expirationDateTime ? new Date(subscription.expirationDateTime) : expirationDateTime
+  await db.oneDriveIntegration.update({
+    where: { id: INTEGRATION_ID },
+    data: {
+      graphSubscriptionId: subscription.id || integration.graphSubscriptionId,
+      graphSubscriptionExpiresAt: expiresAt,
+      graphSubscriptionClientState: clientState
+    }
+  })
+  return { enabled: true, expiresAt }
+}
+
+export async function deleteOneDriveChangeSubscription() {
+  const integration = await db.oneDriveIntegration.findUnique({ where: { id: INTEGRATION_ID } })
+  if (!integration?.graphSubscriptionId) return
+  try {
+    const accessToken = await getOneDriveAccessToken()
+    await graphRequest(`https://graph.microsoft.com/v1.0/subscriptions/${encodeURIComponent(integration.graphSubscriptionId)}`, accessToken, { method: 'DELETE' })
+  } catch (error) {
+    if (!(error instanceof GraphRequestError) || error.status !== 404) {
+      console.error('Could not remove OneDrive workbook notification subscription:', error instanceof Error ? error.message : 'Unknown error')
+    }
+  }
+}
+
 function asExcelValue(value: unknown) {
   if (typeof value === 'string' && /^[=+\-@\t\r]/.test(value)) return `'${value}`
   if (value && typeof value === 'object' && !(value instanceof Date)) return JSON.stringify(value)
   return value ?? null
 }
 
-type ExportColumn = { header: string; key: string; width: number; numFmt?: string }
+type ExportColumn = { header: string; key: string; width: number; numFmt?: string; hidden?: boolean }
 const DATE_TIME_FORMAT = 'dd/mm/yyyy hh:mm'
+
+function snapshotCellValue(value: unknown) {
+  const excelValue = asExcelValue(value)
+  if (excelValue == null) return ''
+  return excelValue instanceof Date ? excelValue.toISOString() : excelValue
+}
 
 function addTableSheet(
   workbook: Workbook,
@@ -148,12 +291,17 @@ function addTableSheet(
   tableName: string,
   columns: ExportColumn[],
   records: Record<string, unknown>[],
-  startRow = 1
+  startRow = 1,
+  withImportMetadata = false
 ) {
+  const sheetColumns = withImportMetadata
+    ? [...columns, { header: 'App Baseline', key: 'appBaseline', width: 16, hidden: true }]
+    : columns
   const sheet = workbook.addWorksheet(name, { views: [{ state: 'frozen', ySplit: 1 }] })
-  sheet.columns = columns.map(column => ({
+  sheet.columns = sheetColumns.map(column => ({
     key: column.key,
     width: column.width,
+    ...(column.hidden ? { hidden: true } : {}),
     ...(column.numFmt ? { style: { numFmt: column.numFmt } } : {})
   }))
   if (records.length) {
@@ -163,15 +311,23 @@ function addTableSheet(
       headerRow: true,
       totalsRow: false,
       style: { theme: 'TableStyleMedium2', showRowStripes: true },
-      columns: columns.map(column => ({ name: column.header, filterButton: true })),
-      rows: records.map(record => columns.map(column => asExcelValue(record[column.key])))
+      columns: sheetColumns.map(column => ({ name: column.header, filterButton: true })),
+      rows: records.map(record => sheetColumns.map(column => {
+        if (column.key === 'appBaseline') {
+          const baseline = Object.fromEntries(columns
+            .filter(item => item.header !== 'Maintenance ID' && item.header !== 'Last Updated')
+            .map(item => [item.header, snapshotCellValue(record[item.key])]))
+          return JSON.stringify(baseline)
+        }
+        return asExcelValue(record[column.key])
+      }))
     })
   } else {
     const headerRow = sheet.getRow(startRow)
-    headerRow.values = columns.map(column => column.header)
+    headerRow.values = sheetColumns.map(column => column.header)
     headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } }
     headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F4E78' } }
-    sheet.autoFilter = { from: `A${startRow}`, to: `${String.fromCharCode(64 + columns.length)}${startRow}` }
+    sheet.autoFilter = { from: `A${startRow}`, to: `${String.fromCharCode(64 + sheetColumns.length)}${startRow}` }
   }
   columns.forEach((column, index) => {
     if (!column.numFmt) return
@@ -225,7 +381,7 @@ function addWorkbookSyncSheet(workbook: Workbook) {
   sheet.getRow(8).height = 32
 }
 
-async function createFleetWorkbook() {
+export async function createFleetWorkbook() {
   const [trucks, trailers, truckMaintenance, trailerMaintenance, oilChanges, tires, jobCards] = await Promise.all([
     db.truck.findMany({ where: { isDeleted: false }, orderBy: { licensePlate: 'asc' } }),
     db.trailer.findMany({ where: { isDeleted: false }, orderBy: { number: 'asc' } }),
@@ -248,7 +404,7 @@ async function createFleetWorkbook() {
 
   const workbook = new Workbook()
   workbook.creator = 'Fleet Manager'
-  workbook.subject = 'One-way live export from Fleet Manager'
+  workbook.subject = 'Live fleet data export and role-checked workbook imports'
   workbook.title = ONEDRIVE_WORKBOOK_NAME
   const syncedAt = new Date()
   workbook.created = syncedAt
@@ -322,7 +478,8 @@ async function createFleetWorkbook() {
     { header: 'Mileage (km)', key: 'mileage', width: 16 }, { header: 'Status', key: 'status', width: 16 },
     { header: 'Health Score', key: 'healthScore', width: 14 }, { header: 'Risk Level', key: 'riskLevel', width: 14 },
     { header: 'Last Oil Change', key: 'lastOilChange', width: 20, numFmt: DATE_TIME_FORMAT }, { header: 'Next Oil Change', key: 'nextOilChange', width: 20, numFmt: DATE_TIME_FORMAT },
-    { header: 'Last Updated', key: 'updatedAt', width: 22, numFmt: DATE_TIME_FORMAT }
+    { header: 'Last Updated', key: 'updatedAt', width: 22, numFmt: DATE_TIME_FORMAT },
+    { header: 'Record ID', key: 'recordId', width: 28, hidden: true }
   ], trucks.map(row => {
     const latestOilChange = latestOilChangeByTruck.get(row.id)
     const useLatestOilChange = Boolean(latestOilChange && (!row.lastOilChange || latestOilChange.datePerformed >= row.lastOilChange))
@@ -339,32 +496,35 @@ async function createFleetWorkbook() {
       riskLevel: row.riskLevel,
       lastOilChange: useLatestOilChange ? latestOilChange?.datePerformed : row.lastOilChange,
       nextOilChange: useLatestOilChange ? (latestOilChange?.nextServiceDue || row.nextOilChange) : row.nextOilChange,
-      updatedAt: truckLastUpdated.get(row.id) || row.updatedAt
+      updatedAt: truckLastUpdated.get(row.id) || row.updatedAt,
+      recordId: row.id
     }
-  }))
+  }), 1, true)
 
   addTableSheet(workbook, 'Trailers', 'Trailers', [
     { header: 'Trailer Number', key: 'number', width: 20 }, { header: 'Driver', key: 'driver', width: 22 },
     { header: 'Status', key: 'status', width: 16 }, { header: 'Health Score', key: 'healthScore', width: 14 },
     { header: 'Risk Level', key: 'riskLevel', width: 14 }, { header: 'Last Inspection', key: 'lastInspection', width: 20, numFmt: DATE_TIME_FORMAT },
-    { header: 'Next Inspection', key: 'nextInspection', width: 20, numFmt: DATE_TIME_FORMAT }, { header: 'Last Updated', key: 'updatedAt', width: 22, numFmt: DATE_TIME_FORMAT }
-  ], trailers.map(row => ({ number: row.number, driver: row.driverName, status: row.status, healthScore: row.healthScore, riskLevel: row.riskLevel, lastInspection: row.lastInspection, nextInspection: row.nextInspection, updatedAt: trailerLastUpdated.get(row.id) || row.updatedAt })))
+    { header: 'Next Inspection', key: 'nextInspection', width: 20, numFmt: DATE_TIME_FORMAT }, { header: 'Last Updated', key: 'updatedAt', width: 22, numFmt: DATE_TIME_FORMAT },
+    { header: 'Record ID', key: 'recordId', width: 28, hidden: true }
+  ], trailers.map(row => ({ number: row.number, driver: row.driverName, status: row.status, healthScore: row.healthScore, riskLevel: row.riskLevel, lastInspection: row.lastInspection, nextInspection: row.nextInspection, updatedAt: trailerLastUpdated.get(row.id) || row.updatedAt, recordId: row.id })), 1, true)
 
   const maintenanceRows = [
-    ...truckMaintenance.map(row => ({ id: row.id, assetType: 'Truck', asset: row.truck.licensePlate, date: row.datePerformed, serviceType: row.serviceType, description: row.description, status: row.status, partsCost: row.partsCost, laborCost: row.laborCost, totalCost: row.totalCost, mechanic: row.mechanic?.name || row.mechanicName, driver: row.driverName, nextServiceDue: row.nextServiceDue, notes: row.notes, updatedAt: row.updatedAt })),
-    ...trailerMaintenance.map(row => ({ id: row.id, assetType: 'Trailer', asset: row.trailer.number, date: row.datePerformed, serviceType: row.serviceType, description: row.description, status: row.status, partsCost: row.partsCost, laborCost: row.laborCost, totalCost: row.totalCost, mechanic: row.mechanic?.name || row.mechanicName, driver: row.driverName, nextServiceDue: row.nextServiceDue, notes: row.notes, updatedAt: row.updatedAt }))
+    ...truckMaintenance.map(row => ({ id: row.id, recordId: row.id, assetType: 'Truck', asset: row.truck.licensePlate, date: row.datePerformed, serviceType: row.serviceType, description: row.description, status: row.status, partsCost: row.partsCost, laborCost: row.laborCost, totalCost: row.totalCost, mechanic: row.mechanic?.name || row.mechanicName, driver: row.driverName, nextServiceDue: row.nextServiceDue, notes: row.notes, updatedAt: row.updatedAt })),
+    ...trailerMaintenance.map(row => ({ id: row.id, recordId: row.id, assetType: 'Trailer', asset: row.trailer.number, date: row.datePerformed, serviceType: row.serviceType, description: row.description, status: row.status, partsCost: row.partsCost, laborCost: row.laborCost, totalCost: row.totalCost, mechanic: row.mechanic?.name || row.mechanicName, driver: row.driverName, nextServiceDue: row.nextServiceDue, notes: row.notes, updatedAt: row.updatedAt }))
   ].sort((a, b) => b.date.getTime() - a.date.getTime())
   const maintenanceColumns = [
-    { header: 'Record ID', key: 'id', width: 28 }, { header: 'Asset Type', key: 'assetType', width: 14 },
+    { header: 'Maintenance ID', key: 'id', width: 28 }, { header: 'Asset Type', key: 'assetType', width: 14 },
     { header: 'Truck / Trailer', key: 'asset', width: 20 }, { header: 'Service Date', key: 'date', width: 20, numFmt: DATE_TIME_FORMAT },
     { header: 'Service Type', key: 'serviceType', width: 24 }, { header: 'Description', key: 'description', width: 42 },
     { header: 'Status', key: 'status', width: 16 }, { header: 'Parts Cost', key: 'partsCost', width: 14 },
     { header: 'Labor Cost', key: 'laborCost', width: 14 }, { header: 'Total Cost', key: 'totalCost', width: 14 },
     { header: 'Mechanic', key: 'mechanic', width: 22 }, { header: 'Driver', key: 'driver', width: 22 },
     { header: 'Next Service Due', key: 'nextServiceDue', width: 20, numFmt: DATE_TIME_FORMAT }, { header: 'Notes', key: 'notes', width: 36 },
-    { header: 'Last Updated', key: 'updatedAt', width: 22, numFmt: DATE_TIME_FORMAT }
+    { header: 'Last Updated', key: 'updatedAt', width: 22, numFmt: DATE_TIME_FORMAT },
+    { header: 'Record ID', key: 'recordId', width: 28, hidden: true }
   ]
-  addTableSheet(workbook, 'Maintenance', 'MaintenanceRecords', maintenanceColumns, maintenanceRows)
+  addTableSheet(workbook, 'Maintenance', 'MaintenanceRecords', maintenanceColumns, maintenanceRows, 1, true)
 
   addTableSheet(workbook, 'Oil Changes', 'OilChanges', [
     { header: 'Truck Number', key: 'truck', width: 20 }, { header: 'Truck', key: 'vehicle', width: 28 },
@@ -373,8 +533,9 @@ async function createFleetWorkbook() {
     { header: 'Next Service Due', key: 'nextDue', width: 20, numFmt: DATE_TIME_FORMAT }, { header: 'Parts Cost', key: 'partsCost', width: 14 },
     { header: 'Labor Cost', key: 'laborCost', width: 14 }, { header: 'Total Cost', key: 'totalCost', width: 14 },
     { header: 'Mechanic', key: 'mechanic', width: 22 }, { header: 'Notes', key: 'notes', width: 36 },
-    { header: 'Last Updated', key: 'updatedAt', width: 22, numFmt: DATE_TIME_FORMAT }
-  ], oilChanges.map(row => ({ truck: row.truck.licensePlate, vehicle: `${row.truck.make} ${row.truck.model}`.trim(), driver: row.driverName, date: row.datePerformed, mileage: row.currentMileage, quantity: row.oilQuantityLiters, interval: row.oilChangeInterval, nextDue: row.nextServiceDue, partsCost: row.partsCost, laborCost: row.laborCost, totalCost: row.totalCost, mechanic: row.mechanic?.name || row.mechanicName, notes: row.notes, updatedAt: row.updatedAt })))
+    { header: 'Last Updated', key: 'updatedAt', width: 22, numFmt: DATE_TIME_FORMAT },
+    { header: 'Record ID', key: 'recordId', width: 28, hidden: true }
+  ], oilChanges.map(row => ({ truck: row.truck.licensePlate, vehicle: `${row.truck.make} ${row.truck.model}`.trim(), driver: row.driverName, date: row.datePerformed, mileage: row.currentMileage, quantity: row.oilQuantityLiters, interval: row.oilChangeInterval, nextDue: row.nextServiceDue, partsCost: row.partsCost, laborCost: row.laborCost, totalCost: row.totalCost, mechanic: row.mechanic?.name || row.mechanicName, notes: row.notes, updatedAt: row.updatedAt, recordId: row.id })), 1, true)
 
   addTableSheet(workbook, 'Tires', 'Tires', [
     { header: 'Tire Size', key: 'tireSize', width: 18 }, { header: 'Truck Number', key: 'truck', width: 20 },
@@ -382,8 +543,9 @@ async function createFleetWorkbook() {
     { header: 'Quantity', key: 'quantity', width: 12 }, { header: 'Serial Number', key: 'serial', width: 30 },
     { header: 'Manufacturer', key: 'manufacturer', width: 20 }, { header: 'Origin', key: 'origin', width: 16 },
     { header: 'Date', key: 'date', width: 20, numFmt: DATE_TIME_FORMAT }, { header: 'Notes', key: 'notes', width: 36 },
-    { header: 'Last Updated', key: 'updatedAt', width: 22, numFmt: DATE_TIME_FORMAT }
-  ], tires.map(row => ({ tireSize: row.tireSize, truck: row.plateNumber, trailer: row.trailerNumber, driver: row.driverName, quantity: row.quantity, serial: row.serialNumber, manufacturer: row.manufacturer, origin: row.origin, date: row.createdAt, notes: row.notes, updatedAt: row.updatedAt })))
+    { header: 'Last Updated', key: 'updatedAt', width: 22, numFmt: DATE_TIME_FORMAT },
+    { header: 'Record ID', key: 'recordId', width: 28, hidden: true }
+  ], tires.map(row => ({ tireSize: row.tireSize, truck: row.plateNumber, trailer: row.trailerNumber, driver: row.driverName, quantity: row.quantity, serial: row.serialNumber, manufacturer: row.manufacturer, origin: row.origin, date: row.createdAt, notes: row.notes, updatedAt: row.updatedAt, recordId: row.id })), 1, true)
 
   addTableSheet(workbook, 'Job Cards', 'WorkshopJobCards', [
     { header: 'Job Number', key: 'jobNumber', width: 20 }, { header: 'Service Date', key: 'serviceDate', width: 20, numFmt: DATE_TIME_FORMAT },
@@ -395,8 +557,9 @@ async function createFleetWorkbook() {
     { header: 'Labor Cost', key: 'laborCost', width: 14 }, { header: 'Total Cost', key: 'totalCost', width: 14 },
     { header: 'Next Service Odometer', key: 'nextOdometer', width: 22 }, { header: 'Next Service Date', key: 'nextDate', width: 20, numFmt: DATE_TIME_FORMAT },
     { header: 'Work Items', key: 'items', width: 48 }, { header: 'Checklist', key: 'checklist', width: 42 },
-    { header: 'Notes', key: 'notes', width: 36 }, { header: 'Last Updated', key: 'updatedAt', width: 22, numFmt: DATE_TIME_FORMAT }
-  ], jobCards.map(row => ({ jobNumber: row.jobNumber, serviceDate: row.serviceDate, truck: row.truck?.licensePlate, trailer: row.trailer?.number, serviceType: row.serviceType, priority: row.priority, status: row.status, odometer: row.odometerKm, issue: row.reportedIssue, technician: row.technicianName, driver: row.driverName, partsCost: row.partsCost, laborCost: row.laborCost, totalCost: row.totalCost, nextOdometer: row.nextServiceOdometer, nextDate: row.nextServiceDate, items: row.items, checklist: row.checklist, notes: row.notes, updatedAt: row.updatedAt })))
+    { header: 'Notes', key: 'notes', width: 36 }, { header: 'Last Updated', key: 'updatedAt', width: 22, numFmt: DATE_TIME_FORMAT },
+    { header: 'Record ID', key: 'recordId', width: 28, hidden: true }
+  ], jobCards.map(row => ({ jobNumber: row.jobNumber, serviceDate: row.serviceDate, truck: row.truck?.licensePlate, trailer: row.trailer?.number, serviceType: row.serviceType, priority: row.priority, status: row.status, odometer: row.odometerKm, issue: row.reportedIssue, technician: row.technicianName, driver: row.driverName, partsCost: row.partsCost, laborCost: row.laborCost, totalCost: row.totalCost, nextOdometer: row.nextServiceOdometer, nextDate: row.nextServiceDate, items: row.items, checklist: row.checklist, notes: row.notes, updatedAt: row.updatedAt, recordId: row.id })), 1, true)
 
   return { bytes: Buffer.from(await workbook.xlsx.writeBuffer()), recordCounts }
 }
@@ -426,6 +589,27 @@ export async function syncOneDriveWorkbook(): Promise<OneDriveSyncResult> {
   if (claim.count === 0) return { connected: true, success: true, queued: true }
 
   try {
+    const beforeUpload = await db.oneDriveIntegration.findUniqueOrThrow({ where: { id: INTEGRATION_ID } })
+    if (beforeUpload.driveItemId) {
+      const { captureOneDriveWorkbookChanges } = await import('@/lib/onedrive-excel-import')
+      await captureOneDriveWorkbookChanges()
+      const pendingWorkbookChanges = await db.excelWorkbookChange.count({ where: { status: { in: ['PENDING', 'CONFLICT'] } } })
+      if (pendingWorkbookChanges > 0) {
+        await db.oneDriveIntegration.update({
+          where: { id: INTEGRATION_ID },
+          data: { syncInProgressAt: null, lastSyncStatus: 'PENDING', lastSyncError: null }
+        })
+        return {
+          connected: true,
+          success: true,
+          queued: true,
+          pendingWorkbookChanges,
+          workbookName: beforeUpload.driveItemName || ONEDRIVE_WORKBOOK_NAME,
+          webUrl: beforeUpload.webUrl
+        }
+      }
+    }
+
     let latestItemId = integration.driveItemId
     let latestItemName = integration.driveItemName || ONEDRIVE_WORKBOOK_NAME
     let latestWebUrl = integration.webUrl
@@ -472,6 +656,7 @@ export async function syncOneDriveWorkbook(): Promise<OneDriveSyncResult> {
         recoveredFromLock = true
       }
       const driveItem = await upload.json() as { id?: string; name?: string; webUrl?: string }
+      const lastWorkbookHash = createHash('sha256').update(snapshot.bytes.toString('base64')).digest('hex')
       if (!driveItem.id && recoveredFromLock) throw new Error('Microsoft did not return the new workbook file ID.')
       latestItemId = driveItem.id || latestItemId
       latestItemName = driveItem.name || latestItemName
@@ -483,6 +668,7 @@ export async function syncOneDriveWorkbook(): Promise<OneDriveSyncResult> {
           driveItemId: latestItemId,
           driveItemName: latestItemName,
           webUrl: latestWebUrl,
+          lastWorkbookHash,
           lastSyncAt: new Date(),
           lastSyncStatus: 'SUCCESS',
           lastSyncError: null,

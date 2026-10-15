@@ -302,7 +302,11 @@ export default function TrucksPage() {
           if (!excelSync.success) {
             toast.error(`${t('trucks.excelSavedButNotUpdated')}: ${excelSync.error || t('trucks.excelSyncFailedHelp')}`)
           } else if (excelSync.queued) {
-            toast.success(t('trucks.excelUpdateQueued'))
+            if (excelSync.pendingWorkbookChanges > 0) {
+              toast.success(t('trucks.excelReviewPending').replace('{count}', String(excelSync.pendingWorkbookChanges)))
+            } else {
+              toast.success(t('trucks.excelUpdateQueued'))
+            }
           } else if (excelSync.recoveredFromLock) {
             const workbookName = excelSync.workbookName ? ` (${excelSync.workbookName})` : ''
             toast.success(`${t('trucks.excelLockedCopyCreated')}${workbookName}. ${t('trucks.openCurrentWorkbook')}`)

@@ -420,6 +420,13 @@ export class PermissionManager {
         }
       case 'advanced-analytics':
         return action === 'read' ? permissions.canViewAdvancedAnalytics : false
+      case 'excel-imports':
+        return action === 'read' && (
+          permissions.canAddTrucks || permissions.canEditTrucks ||
+          permissions.canAddTrailers || permissions.canEditTrailers ||
+          permissions.canAddMaintenance || permissions.canEditMaintenance ||
+          permissions.canAddTireManagement || permissions.canEditTireManagement
+        )
       default:
         return false
     }

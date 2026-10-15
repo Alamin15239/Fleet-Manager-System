@@ -168,7 +168,8 @@ export async function PUT(
         error: excelSync.error || null,
         workbookName: excelSync.workbookName || null,
         webUrl: excelSync.webUrl || null,
-        recoveredFromLock: Boolean(excelSync.recoveredFromLock)
+        recoveredFromLock: Boolean(excelSync.recoveredFromLock),
+        pendingWorkbookChanges: excelSync.pendingWorkbookChanges || 0
       }
     })
 

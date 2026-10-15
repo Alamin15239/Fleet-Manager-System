@@ -25,6 +25,7 @@ import {
   User,
   Shield,
   Droplets,
+  FileSpreadsheet,
 
 } from 'lucide-react'
 import { useLanguage } from '@/contexts/language-context'
@@ -94,6 +95,13 @@ const getNavigation = (t: (key: string) => string) => [
     href: '/reports', 
     icon: FileText,
     resource: 'reports',
+    action: 'read'
+  },
+  {
+    name: t('nav.excelImports'),
+    href: '/excel-imports',
+    icon: FileSpreadsheet,
+    resource: 'excel-imports',
     action: 'read'
   },
 

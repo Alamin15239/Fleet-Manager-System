@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import jwt from 'jsonwebtoken'
 import { db } from '@/lib/db'
-import { getOneDriveRedirectUri, saveOneDriveConnection, syncOneDriveWorkbook } from '@/lib/onedrive-excel-sync'
+import { ensureOneDriveChangeSubscription, getOneDriveRedirectUri, saveOneDriveConnection, syncOneDriveWorkbook } from '@/lib/onedrive-excel-sync'
 
 export const runtime = 'nodejs'
 
@@ -61,6 +61,10 @@ export async function GET(request: NextRequest) {
     const profile = profileResponse.ok ? await profileResponse.json() as { mail?: string | null; userPrincipalName?: string | null } : null
     await saveOneDriveConnection(tokens.refresh_token, profile?.mail || profile?.userPrincipalName || null)
     const sync = await syncOneDriveWorkbook()
+    if (sync.success) {
+      try { await ensureOneDriveChangeSubscription() }
+      catch (error) { console.error('OneDrive workbook notifications could not be enabled:', error instanceof Error ? error.message : 'Unknown error') }
+    }
     return clearOAuthCookies(settingsRedirect(request, sync.success ? 'connected' : 'sync_failed'))
   } catch (error) {
     console.error('OneDrive authorization callback failed:', error instanceof Error ? error.message : 'Unknown error')
