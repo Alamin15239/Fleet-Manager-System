@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requirePermission } from '@/lib/permission-middleware'
+import { TIRE_ANALYTICS_ORIGINS } from '@/lib/tire-analytics'
 
 // GET /api/tires/analytics - Get tire analytics and reports
 export async function GET(request: NextRequest) {
@@ -8,7 +9,12 @@ export async function GET(request: NextRequest) {
   if (authResult instanceof NextResponse) return authResult
 
   try {
-    const activeTires = { quantity: { gt: 0 } }
+    // Analytics includes only positive OUT QTY with a recognized origin.
+    // Other/unclassified source rows remain available in Tire Management.
+    const activeTires = {
+      quantity: { gt: 0 },
+      origin: { in: [...TIRE_ANALYTICS_ORIGINS], mode: 'insensitive' as const }
+    }
     const now = new Date()
 
     // The tire table stores line quantities; count the units rather than rows.

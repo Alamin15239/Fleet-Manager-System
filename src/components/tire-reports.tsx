@@ -33,6 +33,7 @@ import {
   Clock
 } from 'lucide-react'
 import { apiGet } from '@/lib/api'
+import { isTireIncludedInAnalytics } from '@/lib/tire-analytics'
 import { rowsToCsv } from '@/lib/csv-export'
 
 interface AnalyticsData {
@@ -140,7 +141,7 @@ export default function TireReports() {
       // Fetch detailed tire data for export
       const tiresResponse = await apiGet('/api/tires?limit=1000')
       const tiresData = tiresResponse.ok ? await tiresResponse.json() : { tires: [] }
-      const reportTires = (tiresData.tires || []).filter((tire: any) => Number(tire.quantity) > 0)
+      const reportTires = (tiresData.tires || []).filter(isTireIncludedInAnalytics)
 
       const totalTires = analytics.summary.totalTires
       const share = (quantity: number) => totalTires > 0 ? `${Math.round((quantity / totalTires) * 100)}%` : '0%'

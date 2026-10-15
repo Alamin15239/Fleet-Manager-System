@@ -22,6 +22,7 @@ import {
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { apiGet } from '@/lib/api'
+import { isTireIncludedInAnalytics } from '@/lib/tire-analytics'
 import { rowsToCsv } from '@/lib/csv-export'
 
 interface ReportData {
@@ -56,9 +57,9 @@ export default function TireReportsSimple() {
       
       if (response.ok) {
         const data = await response.json()
-        // Zero-quantity rows can exist in the imported worksheet where OUT QTY was blank.
-        // Keep those source rows in the inventory, but do not count them as tires in reports.
-        const tires = (data.tires || []).filter((tire: any) => Number(tire.quantity) > 0)
+        // Keep unclassified source rows in inventory; analytics counts only
+        // positive OUT QTY with one of the recognized origins.
+        const tires = (data.tires || []).filter(isTireIncludedInAnalytics)
         const quantityOf = (tire: any) => Number(tire.quantity ?? 0)
 
         // Calculate statistics
