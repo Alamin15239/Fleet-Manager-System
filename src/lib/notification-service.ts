@@ -1,5 +1,4 @@
 import { db } from './db'
-import { PredictiveMaintenanceEngine } from './predictive-maintenance'
 import { EmailService } from './email-service'
 
 interface NotificationSettings {
@@ -13,32 +12,26 @@ export class NotificationService {
   /**
    * Check and send maintenance notifications based on settings
    */
-  static async checkMaintenanceNotifications(): Promise<void> {
-    try {
-      // Get notification settings
-      const settings = await db.settings.findFirst()
-      if (!settings?.notifications) return
+  static async checkMaintenanceNotifications(): Promise<{ status: 'completed' | 'disabled'; warnings: string[] }> {
+    const settings = await db.settings.findFirst()
+    if (!settings?.notifications) return { status: 'disabled', warnings: ['Notification preferences are not configured.'] }
 
-      const notificationSettings = settings.notifications as NotificationSettings
-
-      // Check upcoming maintenance notifications
-      if (notificationSettings.upcomingMaintenance) {
-        await this.checkUpcomingMaintenance()
-      }
-
-      // Check overdue maintenance notifications
-      if (notificationSettings.overdueMaintenance) {
-        await this.checkOverdueMaintenance()
-      }
-
-      // Check low stock notifications
-      if (notificationSettings.lowStock) {
-        await this.checkLowStock()
-      }
-
-    } catch (error) {
-      console.error('Error checking maintenance notifications:', error)
+    const notificationSettings = settings.notifications as NotificationSettings
+    if (notificationSettings.upcomingMaintenance) {
+      await this.checkUpcomingMaintenance()
+      await this.checkUpcomingTrailerMaintenance()
+      await this.checkWorkshopJobCards('upcoming')
     }
+    if (notificationSettings.overdueMaintenance) {
+      await this.checkOverdueMaintenance()
+      await this.checkOverdueTrailerMaintenance()
+      await this.checkWorkshopJobCards('overdue')
+    }
+
+    const warnings = notificationSettings.lowStock
+      ? ['Low-stock alerts were skipped because spare-parts inventory levels are not stored in the database.']
+      : []
+    return { status: 'completed', warnings }
   }
 
   /**
@@ -54,13 +47,31 @@ export class NotificationService {
       where: { status: 'ACTIVE', isDeleted: false },
       include: {
         maintenanceRecords: {
-          orderBy: { datePerformed: 'desc' },
-          take: 10
+          where: { isDeleted: false, status: 'COMPLETED' },
+          orderBy: { datePerformed: 'desc' }
         }
       }
     })
 
     for (const truck of trucks) {
+      const now = new Date()
+      const dueSoonLimit = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
+      const latestRecordsByService = new Map<string, typeof truck.maintenanceRecords[number]>()
+      for (const record of truck.maintenanceRecords) {
+        const serviceKey = record.serviceType.trim().toLowerCase()
+        if (!latestRecordsByService.has(serviceKey)) latestRecordsByService.set(serviceKey, record)
+      }
+      for (const record of latestRecordsByService.values()) {
+        if (record.nextServiceDue && record.nextServiceDue >= now && record.nextServiceDue <= dueSoonLimit) {
+          await this.createNotification({
+            type: 'upcoming_maintenance',
+            title: `${record.serviceType} Due Soon`,
+            message: `${truck.make} ${truck.model} (${truck.licensePlate}) is scheduled for ${record.serviceType} on ${record.nextServiceDue.toLocaleDateString()}.`,
+            truckId: truck.id
+          })
+        }
+      }
+
       // Check oil change interval
       if (intervals.oilChange) {
         const lastOilChange = truck.maintenanceRecords.find(
@@ -79,13 +90,6 @@ export class NotificationService {
               truckId: truck.id
             })
             
-            // Send email notification
-            await EmailService.sendMaintenanceNotification({
-              type: 'upcoming',
-              truck,
-              message: `${truck.make} ${truck.model} (${truck.licensePlate}) needs oil change in ${remainingMileage} km`,
-              remainingKm: remainingMileage
-            })
           }
         }
       }
@@ -135,6 +139,46 @@ export class NotificationService {
     }
   }
 
+  private static async checkUpcomingTrailerMaintenance(): Promise<void> {
+    const now = new Date()
+    const dueSoonLimit = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
+    const trailers = await db.trailer.findMany({
+      where: { status: 'ACTIVE', isDeleted: false },
+      include: {
+        trailerMaintenanceRecords: {
+          where: { isDeleted: false, status: 'COMPLETED' },
+          orderBy: { datePerformed: 'desc' }
+        }
+      }
+    })
+
+    for (const trailer of trailers) {
+      const latestByService = new Map<string, typeof trailer.trailerMaintenanceRecords[number]>()
+      for (const record of trailer.trailerMaintenanceRecords) {
+        const serviceKey = record.serviceType.trim().toLowerCase()
+        if (!latestByService.has(serviceKey)) latestByService.set(serviceKey, record)
+      }
+      const dueDates = [
+        ...(trailer.nextInspection ? [{ label: 'inspection', date: trailer.nextInspection }] : []),
+        ...Array.from(latestByService.values())
+          .filter(record => record.nextServiceDue)
+          .map(record => ({ label: record.serviceType, date: record.nextServiceDue! }))
+      ]
+      for (const due of dueDates) {
+        if (due.date >= now && due.date <= dueSoonLimit) {
+          const message = `Trailer ${trailer.number} is scheduled for ${due.label} on ${due.date.toLocaleDateString()}.`
+          await this.createNotification({
+            type: 'upcoming_maintenance',
+            title: `Trailer ${trailer.number} ${due.label} Due Soon`,
+            message,
+            truckId: null,
+            emailSubject: `Upcoming maintenance - Trailer ${trailer.number}`
+          })
+        }
+      }
+    }
+  }
+
   /**
    * Check for overdue maintenance
    */
@@ -148,13 +192,31 @@ export class NotificationService {
       where: { status: 'ACTIVE', isDeleted: false },
       include: {
         maintenanceRecords: {
-          orderBy: { datePerformed: 'desc' },
-          take: 10
+          where: { isDeleted: false, status: 'COMPLETED' },
+          orderBy: { datePerformed: 'desc' }
         }
       }
     })
 
     for (const truck of trucks) {
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      const latestRecordsByService = new Map<string, typeof truck.maintenanceRecords[number]>()
+      for (const record of truck.maintenanceRecords) {
+        const serviceKey = record.serviceType.trim().toLowerCase()
+        if (!latestRecordsByService.has(serviceKey)) latestRecordsByService.set(serviceKey, record)
+      }
+      for (const record of latestRecordsByService.values()) {
+        if (record.nextServiceDue && record.nextServiceDue < today) {
+          await this.createNotification({
+            type: 'overdue',
+            title: `${record.serviceType} Overdue`,
+            message: `${truck.make} ${truck.model} (${truck.licensePlate}) was due for ${record.serviceType} on ${record.nextServiceDue.toLocaleDateString()}.`,
+            truckId: truck.id
+          })
+        }
+      }
+
       // Check overdue oil change
       if (intervals.oilChange) {
         const lastOilChange = truck.maintenanceRecords.find(
@@ -173,13 +235,6 @@ export class NotificationService {
               truckId: truck.id
             })
             
-            // Send email notification
-            await EmailService.sendMaintenanceNotification({
-              type: 'overdue',
-              truck,
-              message: `${truck.make} ${truck.model} (${truck.licensePlate}) is ${overdueMileage} km overdue for oil change`,
-              overdueKm: overdueMileage
-            })
           }
         } else if (truck.currentMileage > intervals.oilChange) {
           // No oil change record found
@@ -216,85 +271,108 @@ export class NotificationService {
     }
   }
 
-  /**
-   * Check for low stock based on maintenance usage patterns
-   */
-  private static async checkLowStock(): Promise<void> {
-    try {
-      // Get recent maintenance records to estimate part usage
-      const recentMaintenance = await db.maintenanceRecord.findMany({
-        where: {
-          datePerformed: {
-            gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) // Last 30 days
-          }
-        },
-        select: {
-          serviceType: true,
-          partsCost: true,
-          description: true
+  private static async checkOverdueTrailerMaintenance(): Promise<void> {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const trailers = await db.trailer.findMany({
+      where: { status: 'ACTIVE', isDeleted: false },
+      include: {
+        trailerMaintenanceRecords: {
+          where: { isDeleted: false, status: 'COMPLETED' },
+          orderBy: { datePerformed: 'desc' }
         }
-      })
-
-      // Count usage of common parts
-      const partUsage = {
-        'Engine Oil': 0,
-        'Oil Filter': 0,
-        'Brake Pads': 0,
-        'Air Filter': 0,
-        'Tire': 0
       }
+    })
 
-      recentMaintenance.forEach(record => {
-        const service = record.serviceType.toLowerCase()
-        const description = (record.description || '').toLowerCase()
-        
-        if (service.includes('oil') || description.includes('oil')) {
-          partUsage['Engine Oil']++
-          partUsage['Oil Filter']++
-        }
-        if (service.includes('brake') || description.includes('brake')) {
-          partUsage['Brake Pads']++
-        }
-        if (service.includes('filter') || description.includes('air filter')) {
-          partUsage['Air Filter']++
-        }
-        if (service.includes('tire') || description.includes('tire')) {
-          partUsage['Tire']++
-        }
-      })
-
-      // Estimate current stock based on usage (simulated inventory)
-      const estimatedStock = {
-        'Engine Oil': Math.max(0, 10 - partUsage['Engine Oil']),
-        'Oil Filter': Math.max(0, 8 - partUsage['Oil Filter']),
-        'Brake Pads': Math.max(0, 6 - partUsage['Brake Pads']),
-        'Air Filter': Math.max(0, 5 - partUsage['Air Filter']),
-        'Tire': Math.max(0, 4 - partUsage['Tire'])
+    for (const trailer of trailers) {
+      const latestByService = new Map<string, typeof trailer.trailerMaintenanceRecords[number]>()
+      for (const record of trailer.trailerMaintenanceRecords) {
+        const serviceKey = record.serviceType.trim().toLowerCase()
+        if (!latestByService.has(serviceKey)) latestByService.set(serviceKey, record)
       }
-
-      const thresholds = {
-        'Engine Oil': 3,
-        'Oil Filter': 2,
-        'Brake Pads': 2,
-        'Air Filter': 2,
-        'Tire': 1
-      }
-
-      // Check for low stock
-      for (const [partName, currentStock] of Object.entries(estimatedStock)) {
-        const threshold = thresholds[partName as keyof typeof thresholds]
-        
-        if (currentStock <= threshold) {
+      const dueDates = [
+        ...(trailer.nextInspection ? [{ label: 'inspection', date: trailer.nextInspection }] : []),
+        ...Array.from(latestByService.values())
+          .filter(record => record.nextServiceDue)
+          .map(record => ({ label: record.serviceType, date: record.nextServiceDue! }))
+      ]
+      for (const due of dueDates) {
+        if (due.date < today) {
+          const message = `Trailer ${trailer.number} was due for ${due.label} on ${due.date.toLocaleDateString()}.`
           await this.createNotification({
-            type: 'alert',
-            title: 'Low Stock Alert',
-            message: `${partName} is running low (${currentStock} estimated remaining, threshold: ${threshold}). Used ${partUsage[partName as keyof typeof partUsage]} in last 30 days.`,
-            truckId: null
+            type: 'overdue',
+            title: `Trailer ${trailer.number} ${due.label} Overdue`,
+            message,
+            truckId: null,
+            emailSubject: `Overdue maintenance - Trailer ${trailer.number}`
           })
         }
       }
-    } catch (error) {
-      console.error('Error checking low stock:', error)
+    }
+  }
+
+  private static async checkWorkshopJobCards(timing: 'upcoming' | 'overdue'): Promise<void> {
+    const now = new Date()
+    const today = new Date(now)
+    today.setHours(0, 0, 0, 0)
+    const dueSoonLimit = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
+    const cards = await db.workshopJobCard.findMany({
+      where: {
+        status: { not: 'CANCELLED' },
+        OR: [{ nextServiceDate: { not: null } }, { nextServiceOdometer: { not: null } }]
+      },
+      select: {
+        id: true,
+        jobNumber: true,
+        truckId: true,
+        trailerId: true,
+        serviceType: true,
+        nextServiceDate: true,
+        nextServiceOdometer: true,
+        truck: { select: { make: true, model: true, licensePlate: true, currentMileage: true } },
+        trailer: { select: { number: true } }
+      },
+      orderBy: [{ serviceDate: 'desc' }, { createdAt: 'desc' }]
+    })
+
+    // A newer card for the same vehicle and service replaces its older next-service schedule.
+    const latestCards = new Map<string, typeof cards[number]>()
+    for (const card of cards) {
+      const vehicleId = card.truckId || card.trailerId
+      if (!vehicleId) continue
+      const serviceKey = `${vehicleId}:${card.serviceType.trim().toLowerCase()}`
+      if (!latestCards.has(serviceKey)) latestCards.set(serviceKey, card)
+    }
+
+    for (const card of latestCards.values()) {
+      const remainingKm = card.nextServiceOdometer != null && card.truck
+        ? card.nextServiceOdometer - card.truck.currentMileage
+        : null
+      const dateOverdue = Boolean(card.nextServiceDate && card.nextServiceDate < today)
+      const mileageOverdue = remainingKm !== null && remainingKm < 0
+      const dateUpcoming = Boolean(card.nextServiceDate && card.nextServiceDate >= today && card.nextServiceDate <= dueSoonLimit)
+      const mileageUpcoming = remainingKm !== null && remainingKm >= 0 && remainingKm <= 500
+      const shouldNotify = timing === 'overdue'
+        ? dateOverdue || mileageOverdue
+        : !dateOverdue && !mileageOverdue && (dateUpcoming || mileageUpcoming)
+      if (!shouldNotify) continue
+
+      const vehicle = card.truck
+        ? `${card.truck.make} ${card.truck.model} (${card.truck.licensePlate})`
+        : `Trailer ${card.trailer?.number || ''}`.trim()
+      const dueDetails = [
+        card.nextServiceDate ? `date ${card.nextServiceDate.toLocaleDateString()}` : null,
+        remainingKm !== null ? `${Math.abs(remainingKm)} km ${remainingKm < 0 ? 'overdue' : 'remaining'}` : null
+      ].filter(Boolean).join('; ')
+      const title = `${card.truckId ? '' : `${vehicle} `}${card.serviceType} ${timing === 'overdue' ? 'Overdue' : 'Due Soon'}`
+      const message = `${vehicle} — ${card.serviceType} (${dueDetails || 'scheduled service'}). Job card ${card.jobNumber}.`
+      await this.createNotification({
+        type: timing === 'overdue' ? 'overdue' : 'upcoming_maintenance',
+        title,
+        message,
+        truckId: card.truckId,
+        emailSubject: card.trailerId ? `${timing === 'overdue' ? 'Overdue' : 'Upcoming'} maintenance - Trailer ${card.trailer?.number || ''}` : undefined
+      })
     }
   }
 
@@ -307,9 +385,8 @@ export class NotificationService {
     message: string
     truckId: string | null
     userId?: string
-  }): Promise<void> {
-    try {
-      // Check if similar notification already exists (prevent spam)
+    emailSubject?: string
+  }): Promise<boolean> {
       const existingNotification = await db.notification.findFirst({
         where: {
           type: data.type,
@@ -321,48 +398,43 @@ export class NotificationService {
         }
       })
 
-      if (!existingNotification) {
-        await db.notification.create({
-          data: {
-            type: data.type,
-            title: data.title,
-            message: data.message,
-            truckId: data.truckId,
-            userId: data.userId,
-            isRead: false,
-            metadata: {}
-          }
-        })
-        
-        console.log(`Notification created: ${data.title}`)
+      if (existingNotification) return false
+      await db.notification.create({
+        data: {
+          type: data.type,
+          title: data.title,
+          message: data.message,
+          truckId: data.truckId,
+          userId: data.userId,
+          isRead: false,
+          metadata: {}
+        }
+      })
+      if (data.truckId) {
+        const truck = await db.truck.findUnique({ where: { id: data.truckId } })
+        if (truck) {
+          await EmailService.sendMaintenanceNotification({
+            type: data.type === 'overdue' ? 'overdue' : 'upcoming',
+            truck,
+            message: data.message
+          })
+        }
+      } else if (data.emailSubject) {
+        await EmailService.sendAdminFleetNotification(data.emailSubject, data.message)
       }
-    } catch (error) {
-      console.error('Error creating notification:', error)
-    }
-  }
-
-  /**
-   * Send email notification if enabled
-   */
-  private static async sendEmailNotification(notification: any): Promise<void> {
-    const settings = await db.settings.findFirst()
-    const notificationSettings = settings?.notifications as NotificationSettings
-
-    if (!notificationSettings?.email) return
-
-    // Email sending logic would go here
-    // For now, just log that email would be sent
-    console.log(`Email notification would be sent: ${notification.title}`)
+      console.log(`Notification created: ${data.title}`)
+      return true
   }
 
   /**
    * Run all notification checks (to be called by cron job or scheduler)
    */
-  static async runNotificationChecks(): Promise<void> {
+  static async runNotificationChecks(): Promise<{ status: 'completed' | 'disabled'; warnings: string[] }> {
     try {
       console.log('Running notification checks...')
-      await this.checkMaintenanceNotifications()
+      const result = await this.checkMaintenanceNotifications()
       console.log('Notification checks completed')
+      return result
     } catch (error) {
       console.error('Error in runNotificationChecks:', error)
       throw error

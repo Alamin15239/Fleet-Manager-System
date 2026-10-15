@@ -1,6 +1,6 @@
 'use client'
 
-import React, { createContext, useContext, useEffect, useState } from 'react'
+import React, { createContext, useCallback, useContext, useEffect, useState } from 'react'
 import { TruckLoader } from '@/components/ui/truck-loader'
 
 interface User {
@@ -17,6 +17,8 @@ interface User {
   department?: string | null
   title?: string | null
   bio?: string | null
+  createdAt?: string
+  updatedAt?: string
 }
 
 interface AuthContextType {
@@ -65,6 +67,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     }
   }, [])
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && user) {
+      localStorage.setItem('user', JSON.stringify(user))
+    }
+  }, [user])
 
   const login = async (email: string, passwordOrOtp: string, isOtp: boolean = true): Promise<boolean> => {
     try {
@@ -130,13 +138,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  const updateUser = (userData: Partial<User>): void => {
-    if (user) {
-      const updatedUser = { ...user, ...userData }
-      setUser(updatedUser)
-      localStorage.setItem('user', JSON.stringify(updatedUser))
-    }
-  }
+  const updateUser = useCallback((userData: Partial<User>): void => {
+    setUser((currentUser) => {
+      if (!currentUser) return currentUser
+      return { ...currentUser, ...userData }
+    })
+  }, [])
 
   const logout = async (): Promise<void> => {
     try {

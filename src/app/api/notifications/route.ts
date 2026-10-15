@@ -44,7 +44,9 @@ export async function GET(request: NextRequest) {
     const type = searchParams.get('type') // 'oil_change', 'upcoming_maintenance', 'overdue'
     const userId = searchParams.get('userId')
 
-    let whereClause: any = user.role === 'ADMIN' ? {} : { userId: user.id }
+    let whereClause: any = user.role === 'ADMIN'
+      ? {}
+      : { OR: [{ userId: user.id }, { userId: null }] }
     
     if (type) {
       whereClause.type = type

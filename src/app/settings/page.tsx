@@ -194,6 +194,8 @@ export default function SettingsPage() {
   const [activityLoading, setActivityLoading] = useState(false)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [notificationSaving, setNotificationSaving] = useState(false)
+  const [notificationTesting, setNotificationTesting] = useState(false)
   const [hasChanges, setHasChanges] = useState(false)
 
   useEffect(() => {
@@ -373,6 +375,61 @@ export default function SettingsPage() {
       toast.error('Failed to save settings')
     } finally {
       setSaving(false)
+    }
+  }
+
+  const saveNotificationSettings = async (showSuccessToast = true) => {
+    if (!settings) return false
+    setNotificationSaving(true)
+    try {
+      const response = await apiPut('/api/settings/notifications', { notifications: settings.notifications || {} })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        toast.error(data.error || 'Failed to save notification settings')
+        return false
+      }
+      setSettings((current) => current ? { ...current, notifications: data.notifications } : current)
+      if (showSuccessToast) toast.success('Notification settings saved to the database')
+      return true
+    } catch (error) {
+      toast.error('Failed to save notification settings')
+      return false
+    } finally {
+      setNotificationSaving(false)
+    }
+  }
+
+  const handleTestNotifications = async () => {
+    if (!settings?.notifications?.email) {
+      toast.error('Enable email notifications before sending a test')
+      return
+    }
+
+    setNotificationTesting(true)
+    try {
+      const saved = await saveNotificationSettings(false)
+      if (!saved) return
+
+      const token = localStorage.getItem('authToken')
+      if (!token) {
+        toast.error('Authentication required')
+        return
+      }
+      const response = await fetch('/api/notifications/check', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        toast.error(data.error || 'Failed to send test notification')
+        return
+      }
+      toast.success(data.message || 'Test email sent successfully')
+    } catch (error) {
+      console.error('Notification test failed:', error)
+      toast.error('Failed to send test notification')
+    } finally {
+      setNotificationTesting(false)
     }
   }
 
@@ -812,11 +869,12 @@ export default function SettingsPage() {
                   <div className="space-y-0.5">
                     <Label htmlFor="lowStock"><LocalizedText>Low Stock Alerts</LocalizedText></Label>
                     <p className="text-sm text-muted-foreground"><LocalizedText>Get notified when parts are running low</LocalizedText></p>
+                    <p className="text-xs text-amber-700"><LocalizedText>Parts inventory quantities are not stored in this app yet, so low-stock checks are unavailable.</LocalizedText></p>
                   </div>
                   <Switch
                     id="lowStock"
-                    checked={settings.notifications?.lowStock || false}
-                    onCheckedChange={(checked) => updateNestedSettings('notifications', 'lowStock', checked)}
+                    checked={false}
+                    disabled
                   />
                 </div>
               </div>
@@ -829,8 +887,7 @@ export default function SettingsPage() {
                     {settings.notifications?.email && <div className="text-green-700">✓ Email notifications enabled</div>}
                     {settings.notifications?.upcomingMaintenance && <div className="text-green-700">✓ Upcoming maintenance alerts</div>}
                     {settings.notifications?.overdueMaintenance && <div className="text-green-700">✓ Overdue maintenance alerts</div>}
-                    {settings.notifications?.lowStock && <div className="text-green-700">✓ Low stock alerts</div>}
-                    {!Object.values(settings.notifications || {}).some(Boolean) && (
+                    {!settings.notifications?.email && !settings.notifications?.upcomingMaintenance && !settings.notifications?.overdueMaintenance && (
                       <div className="text-gray-500"><LocalizedText>No notifications enabled</LocalizedText></div>
                     )}
                   </div>
@@ -841,42 +898,23 @@ export default function SettingsPage() {
                   <p className="text-sm text-blue-700 mb-3">
                     <LocalizedText>Test if your notification settings are working.</LocalizedText>
                   </p>
-                  <Button 
+                  <Button
                     variant="outline" 
                     size="sm"
-                    onClick={async () => {
-                      try {
-                        const token = localStorage.getItem('authToken')
-                        if (!token) {
-                          toast.error('Authentication required')
-                          return
-                        }
-                        
-                        const response = await fetch('/api/notifications/check', { 
-                          method: 'POST',
-                          headers: {
-                            'Authorization': `Bearer ${token}`,
-                            'Content-Type': 'application/json'
-                          }
-                        })
-                        
-                        if (response.ok) {
-                          toast.success('Notification check completed!')
-                        } else {
-                          const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
-                          toast.error(`Failed: ${errorData.error || 'Unknown error'}`)
-                        }
-                      } catch (error) {
-                        console.error('Notification check error:', error)
-                        toast.error('Failed to run notification check')
-                      }
-                    }}
+                    onClick={handleTestNotifications}
+                    disabled={notificationTesting || notificationSaving || !settings.notifications?.email || !canUpdate('settings')}
                     className="bg-blue-600 text-white hover:bg-blue-700"
                   >
-                    <Bell className="h-4 w-4 mr-2" />
-                    Test Now
+                    {notificationTesting ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <Bell className="h-4 w-4 mr-2" />}
+                    <LocalizedText>{notificationTesting ? 'Sending test...' : 'Test Now'}</LocalizedText>
                   </Button>
                 </div>
+              </div>
+              <div className="flex justify-end border-t pt-4">
+                <Button onClick={saveNotificationSettings} disabled={!canUpdate('settings') || notificationSaving || notificationTesting}>
+                  <Save className="h-4 w-4 mr-2" />
+                  <LocalizedText>{notificationSaving ? 'Saving...' : 'Save Notification Settings'}</LocalizedText>
+                </Button>
               </div>
             </CardContent>
           </Card>

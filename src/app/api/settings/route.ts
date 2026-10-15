@@ -54,12 +54,28 @@ export async function GET(request: NextRequest) {
       })
     }
 
+    const savedNotificationSettings = settings.notifications && typeof settings.notifications === 'object'
+      ? settings.notifications as Record<string, unknown>
+      : {}
+    const responseSettings = {
+      ...settings,
+      notifications: {
+        email: true,
+        upcomingMaintenance: true,
+        overdueMaintenance: true,
+        ...savedNotificationSettings,
+        // Spare-parts stock isn't recorded in the database, so don't advertise
+        // a low-stock alert that cannot be calculated from actual inventory.
+        lowStock: false
+      }
+    }
+
     if (user.role !== 'ADMIN') {
-      const { bankName, bankAccountName, bankAccountNumber, bankIBAN, ...safeSettings } = settings
+      const { bankName, bankAccountName, bankAccountNumber, bankIBAN, ...safeSettings } = responseSettings
       return NextResponse.json(safeSettings)
     }
 
-    return NextResponse.json(settings)
+    return NextResponse.json(responseSettings)
   } catch (error) {
     console.error('Error fetching settings:', error)
     if (error instanceof Error && ['No token provided', 'Invalid token'].includes(error.message)) {

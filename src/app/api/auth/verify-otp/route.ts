@@ -92,7 +92,13 @@ export async function POST(request: NextRequest) {
           isApproved: updatedUser.isApproved,
           isEmailVerified: updatedUser.isEmailVerified,
           profileImage: updatedUser.profileImage,
-          permissions: updatedUser.permissions
+          permissions: updatedUser.permissions,
+          phone: updatedUser.phone,
+          department: updatedUser.department,
+          title: updatedUser.title,
+          bio: updatedUser.bio,
+          createdAt: updatedUser.createdAt,
+          updatedAt: updatedUser.updatedAt
         },
         message: 'Login successful'
       });

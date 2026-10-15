@@ -40,19 +40,51 @@ export class EmailService {
 
       const resend = this.getResend()
       
-      await resend.emails.send({
-        from: `${settings?.companyName || 'Fleet Manager'} <noreply@${process.env.RESEND_DOMAIN || 'fleetmaintenance.site'}>`,
+      const result = await resend.emails.send({
+        from: process.env.EMAIL_FROM || `${settings?.companyName || 'Fleet Manager'} <noreply@${process.env.RESEND_DOMAIN || 'fleetmaintenance.site'}>`,
         to: notification.to,
         subject: notification.subject,
         text: notification.text,
         html: notification.html
       })
 
+      if (result.error) throw new Error(result.error.message)
+
       console.log(`Email sent successfully to ${notification.to}`)
       return true
     } catch (error) {
       console.error('Failed to send email:', error)
       return false
+    }
+  }
+
+  static async sendTestNotification(to: string, companyName?: string | null): Promise<void> {
+    const resend = this.getResend()
+    const safeCompanyName = (companyName || 'Fleet Manager').replace(/[<>"&]/g, '')
+    const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://fleetmaintenance.site').replace(/\/$/, '')
+    const result = await resend.emails.send({
+      from: process.env.EMAIL_FROM || 'Fleet Manager <onboarding@resend.dev>',
+      to,
+      subject: `${safeCompanyName} notification test`,
+      text: `Your email notification settings are working for ${safeCompanyName}.`,
+      html: `<div style="font-family:Arial,sans-serif;max-width:560px;margin:24px auto;padding:24px;border:1px solid #e5e7eb;border-radius:12px;color:#111827"><h2 style="margin:0 0 12px;color:#1d4ed8">${safeCompanyName}</h2><p>Your email notification settings are working.</p><p><a href="${appUrl}" style="color:#1d4ed8">Open Fleet Manager</a></p></div>`
+    })
+    if (result.error) throw new Error(result.error.message)
+  }
+
+  static async sendAdminFleetNotification(subject: string, message: string): Promise<void> {
+    const admins = await db.user.findMany({
+      where: { role: 'ADMIN', isActive: true, isApproved: true },
+      select: { email: true }
+    })
+    const safeMessage = message.replace(/[<>]/g, '')
+    for (const admin of admins) {
+      await this.sendNotification({
+        to: admin.email,
+        subject,
+        text: message,
+        html: `<div style="font-family:Arial,sans-serif;max-width:560px;margin:24px auto;padding:24px;border:1px solid #e5e7eb;border-radius:12px;color:#111827"><h2 style="color:#1d4ed8">Fleet maintenance alert</h2><p>${safeMessage}</p><p><a href="${(process.env.NEXT_PUBLIC_APP_URL || 'https://fleetmaintenance.site').replace(/\/$/, '')}" style="color:#1d4ed8">Open Fleet Manager</a></p></div>`
+      })
     }
   }
 
@@ -117,6 +149,7 @@ export class EmailService {
     const isOverdue = data.type === 'overdue'
     const statusColor = isOverdue ? '#dc2626' : '#f59e0b'
     const statusText = isOverdue ? 'OVERDUE' : 'DUE SOON'
+    const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://fleetmaintenance.site').replace(/\/$/, '')
 
     return `
     <!DOCTYPE html>
@@ -168,7 +201,7 @@ export class EmailService {
             <p>Please log into the Fleet Management System to view more details and schedule the required maintenance.</p>
             
             <div style="text-align: center; margin: 30px 0;">
-                <a href="https://fleet-manager-system-q1keynpu6-alamins-projects-d8a281b1.vercel.app" 
+                <a href="${appUrl}"
                    style="background: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
                     Open Fleet Manager
                 </a>

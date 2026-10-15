@@ -32,7 +32,7 @@ interface UserProfile {
 }
 
 export default function ProfilePage() {
-  const { user, token, refreshUser } = useAuth()
+  const { token, refreshUser, updateUser } = useAuth()
   const { toast } = useToast()
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
@@ -49,18 +49,51 @@ export default function ProfilePage() {
   })
 
   useEffect(() => {
-    if (user) {
-      setProfile(user as UserProfile)
-      setFormData({
-        name: user.name || '',
-        phone: user.phone || '',
-        department: user.department || '',
-        title: user.title || '',
-        bio: user.bio || ''
-      })
+    if (!token) {
       setLoading(false)
+      return
     }
-  }, [user])
+
+    let cancelled = false
+    const loadProfile = async () => {
+      setLoading(true)
+      try {
+        const response = await fetch('/api/users/me', {
+          headers: { Authorization: `Bearer ${token}` },
+          cache: 'no-store'
+        })
+        if (!response.ok) throw new Error('Unable to load profile data')
+
+        const data = await response.json()
+        const savedProfile = data.user as UserProfile
+        if (cancelled) return
+        setProfile(savedProfile)
+        setFormData({
+          name: savedProfile.name || '',
+          phone: savedProfile.phone || '',
+          department: savedProfile.department || '',
+          title: savedProfile.title || '',
+          bio: savedProfile.bio || ''
+        })
+        updateUser(savedProfile)
+      } catch (error) {
+        console.error('Error loading profile:', error)
+        if (!cancelled) {
+          setProfile(null)
+          toast({
+            title: 'Error',
+            description: 'Unable to load profile data from the database',
+            variant: 'destructive'
+          })
+        }
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+
+    void loadProfile()
+    return () => { cancelled = true }
+  }, [token, updateUser])
 
   const handleSave = async () => {
     setSaving(true)
@@ -77,6 +110,8 @@ export default function ProfilePage() {
       if (response.ok) {
         const data = await response.json()
         setProfile(data.user)
+        updateUser(data.user)
+        await refreshUser()
         setIsEditing(false)
         toast({
           title: 'Success',
@@ -133,16 +168,11 @@ export default function ProfilePage() {
         
         // Update profile state immediately
         if (profile) {
-          const updatedProfile = { ...profile, profileImage: data.url }
+          const updatedProfile = { ...profile, ...data.user, profileImage: data.url }
           setProfile(updatedProfile)
+          updateUser(updatedProfile)
         }
-        
-        // Update auth context with new user data
-        if (data.user) {
-          localStorage.setItem('user', JSON.stringify(data.user))
-          // Force re-render by updating user state
-          window.location.reload()
-        }
+        await refreshUser()
 
         toast({
           title: 'Success',
@@ -423,7 +453,10 @@ export default function ProfilePage() {
               <span className="text-sm">{profile.isEmailVerified ? 'Email Verified' : 'Email Not Verified'}</span>
             </div>
             <div className="text-sm text-muted-foreground">
-              Member since {new Date(profile.createdAt).toLocaleDateString()}
+              <LocalizedText>Member since</LocalizedText>{' '}
+              {profile.createdAt && Number.isFinite(new Date(profile.createdAt).getTime())
+                ? new Date(profile.createdAt).toLocaleDateString()
+                : <LocalizedText>Not available</LocalizedText>}
             </div>
           </div>
         </CardContent>
