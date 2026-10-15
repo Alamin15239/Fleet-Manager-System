@@ -38,20 +38,6 @@ export default function OneDriveExcelSettings() {
     }
   }, [])
 
-  useEffect(() => {
-    void loadStatus()
-    const result = new URLSearchParams(window.location.search).get('onedrive')
-    if (result) {
-      if (result === 'connected') toast.success('OneDrive connected and workbook created')
-      else if (result === 'sync_failed') toast.error('OneDrive connected, but the first workbook sync failed. Check the status below.')
-      else if (result === 'cancelled') toast.error('OneDrive connection was cancelled')
-      else toast.error('Could not connect OneDrive. Check the app registration settings and try again.')
-      const url = new URL(window.location.href)
-      url.searchParams.delete('onedrive')
-      window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`)
-    }
-  }, [loadStatus])
-
   const connect = async () => {
     setBusy(true)
     try {
@@ -65,7 +51,7 @@ export default function OneDriveExcelSettings() {
     }
   }
 
-  const syncNow = async () => {
+  const syncNow = useCallback(async () => {
     setBusy(true)
     try {
       const response = await apiPost('/api/integrations/onedrive', {})
@@ -88,7 +74,28 @@ export default function OneDriveExcelSettings() {
     } finally {
       setBusy(false)
     }
-  }
+  }, [loadStatus])
+
+  useEffect(() => {
+    void loadStatus()
+    const url = new URL(window.location.href)
+    const result = url.searchParams.get('onedrive')
+    const syncFromWorkbook = url.searchParams.get('excelSync') === '1'
+
+    if (result) {
+      if (result === 'connected') toast.success('OneDrive connected and workbook created')
+      else if (result === 'sync_failed') toast.error('OneDrive connected, but the first workbook sync failed. Check the status below.')
+      else if (result === 'cancelled') toast.error('OneDrive connection was cancelled')
+      else toast.error('Could not connect OneDrive. Check the app registration settings and try again.')
+      url.searchParams.delete('onedrive')
+    }
+
+    if (syncFromWorkbook) url.searchParams.delete('excelSync')
+    if (result || syncFromWorkbook) {
+      window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`)
+    }
+    if (syncFromWorkbook) void syncNow()
+  }, [loadStatus, syncNow])
 
   const disconnect = async () => {
     setBusy(true)

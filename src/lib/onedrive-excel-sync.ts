@@ -147,7 +147,8 @@ function addTableSheet(
   name: string,
   tableName: string,
   columns: ExportColumn[],
-  records: Record<string, unknown>[]
+  records: Record<string, unknown>[],
+  startRow = 1
 ) {
   const sheet = workbook.addWorksheet(name, { views: [{ state: 'frozen', ySplit: 1 }] })
   sheet.columns = columns.map(column => ({
@@ -158,7 +159,7 @@ function addTableSheet(
   if (records.length) {
     sheet.addTable({
       name: tableName,
-      ref: 'A1',
+      ref: `A${startRow}`,
       headerRow: true,
       totalsRow: false,
       style: { theme: 'TableStyleMedium2', showRowStripes: true },
@@ -166,20 +167,31 @@ function addTableSheet(
       rows: records.map(record => columns.map(column => asExcelValue(record[column.key])))
     })
   } else {
-    sheet.addRow(columns.map(column => column.header))
-    sheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } }
-    sheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F4E78' } }
-    sheet.autoFilter = { from: 'A1', to: `${String.fromCharCode(64 + columns.length)}1` }
+    const headerRow = sheet.getRow(startRow)
+    headerRow.values = columns.map(column => column.header)
+    headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } }
+    headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F4E78' } }
+    sheet.autoFilter = { from: `A${startRow}`, to: `${String.fromCharCode(64 + columns.length)}${startRow}` }
   }
   columns.forEach((column, index) => {
     if (!column.numFmt) return
-    for (let rowNumber = 2; rowNumber <= records.length + 1; rowNumber++) {
+    for (let rowNumber = startRow + 1; rowNumber <= records.length + startRow; rowNumber++) {
       sheet.getCell(rowNumber, index + 1).numFmt = column.numFmt
     }
   })
-  sheet.getRow(1).height = 24
-  sheet.getRow(1).alignment = { vertical: 'middle', wrapText: true }
+  sheet.getRow(startRow).height = 24
+  sheet.getRow(startRow).alignment = { vertical: 'middle', wrapText: true }
   return sheet
+}
+
+function getWorkbookSyncUrl() {
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ||
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null)
+  if (!baseUrl) return null
+  const url = new URL('/settings', baseUrl)
+  url.searchParams.set('tab', 'onedrive')
+  url.searchParams.set('excelSync', '1')
+  return url.toString()
 }
 
 async function createFleetWorkbook() {
@@ -248,11 +260,30 @@ async function createFleetWorkbook() {
     'Job Cards': jobCards.length
   }
 
-  addTableSheet(workbook, 'Sync Summary', 'SyncSummary', [
+  const syncSummary = addTableSheet(workbook, 'Sync Summary', 'SyncSummary', [
     { header: 'Data', key: 'data', width: 24 },
     { header: 'Records Exported', key: 'count', width: 22 },
     { header: 'Workbook Updated', key: 'updatedAt', width: 28, numFmt: DATE_TIME_FORMAT }
-  ], Object.entries(recordCounts).map(([data, count]) => ({ data, count, updatedAt: syncedAt })))
+  ], Object.entries(recordCounts).map(([data, count]) => ({ data, count, updatedAt: syncedAt })), 3)
+
+  const syncButton = syncSummary.getCell('A1')
+  const syncUrl = getWorkbookSyncUrl()
+  syncButton.value = syncUrl
+    ? { text: '↻  Sync Now', hyperlink: syncUrl, tooltip: 'Open Fleet Manager and sync the latest data' }
+    : '↻  Sync Now'
+  syncButton.font = { bold: true, color: { argb: 'FFFFFFFF' }, underline: true, size: 12 }
+  syncButton.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2563EB' } }
+  syncButton.alignment = { horizontal: 'center', vertical: 'middle' }
+  syncSummary.mergeCells('B1:C1')
+  const syncInstructions = syncSummary.getCell('B1')
+  syncInstructions.value = syncUrl
+    ? 'Click Sync Now to open Fleet Manager and start a secure sync. If this file is open, a fresh copy may be created.'
+    : 'Sync Now is available when the app URL is configured.'
+  syncInstructions.font = { color: { argb: 'FF334155' }, italic: true }
+  syncInstructions.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEFF6FF' } }
+  syncInstructions.alignment = { horizontal: 'left', vertical: 'middle', wrapText: true }
+  syncSummary.getRow(1).height = 32
+  syncSummary.getRow(2).height = 10
 
   addTableSheet(workbook, 'Trucks', 'Trucks', [
     { header: 'Truck Number', key: 'truckNumber', width: 18 }, { header: 'VIN', key: 'vin', width: 24 },
