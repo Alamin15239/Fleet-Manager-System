@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireRolePermission } from '@/lib/permission-middleware'
+import { syncOneDriveWorkbookAfterChange } from '@/lib/onedrive-excel-sync'
 
 export async function GET(request: NextRequest) {
   try {
@@ -110,6 +111,7 @@ export async function POST(request: NextRequest) {
       })
     }
 
+    await syncOneDriveWorkbookAfterChange()
     return NextResponse.json(record)
   } catch (error) {
     console.error('Maintenance POST error:', error)

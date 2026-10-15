@@ -3,6 +3,7 @@ import { db } from '@/lib/db'
 import { requireRolePermission } from '@/lib/permission-middleware'
 import { logUserActivity } from '@/lib/activity-tracking'
 import { logEntityChange } from '@/lib/audit-logging'
+import { syncOneDriveWorkbookAfterChange } from '@/lib/onedrive-excel-sync'
 
 // GET all trucks
 export async function GET(request: NextRequest) {
@@ -214,6 +215,8 @@ export async function POST(request: NextRequest) {
       truck,
       request
     )
+
+    await syncOneDriveWorkbookAfterChange()
 
     console.log('Truck created successfully:', truck.id)
     return NextResponse.json({

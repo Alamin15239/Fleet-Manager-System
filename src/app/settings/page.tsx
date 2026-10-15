@@ -11,10 +11,11 @@ import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
-import { Settings, Save, RefreshCw, Building, DollarSign, Bell, Wrench, Users, Shield, Crown, User, Briefcase, Activity, Clock } from 'lucide-react'
+import { Settings, Save, RefreshCw, Building, DollarSign, Bell, Wrench, Users, Shield, Crown, User, Briefcase, Activity, Clock, Cloud } from 'lucide-react'
 import SystemStatus from '@/components/SystemStatus'
 import SettingsDashboard from '@/components/settings-dashboard'
 import SystemUtilities from '@/components/system-utilities'
+import OneDriveExcelSettings from '@/components/onedrive-excel-settings'
 import { toast } from '@/lib/localized-toast'
 import { useAuth } from '@/contexts/auth-context'
 import { usePermissions } from '@/contexts/permissions-context'
@@ -181,6 +182,12 @@ const rolePermissionSections: { title: string; description: string; permissions:
 export default function SettingsPage() {
   const { isAdmin } = useAuth()
   const { canAccess, canUpdate, refreshPermissions } = usePermissions()
+  const [activeTab, setActiveTab] = useState('company')
+
+  useEffect(() => {
+    const requestedTab = new URLSearchParams(window.location.search).get('tab')
+    if (requestedTab === 'onedrive' && isAdmin) setActiveTab('onedrive')
+  }, [isAdmin])
   const [settings, setSettings] = useState<SettingsData | null>(null)
   const [userActivities, setUserActivities] = useState<UserActivity[]>([])
   const [loginHistory, setLoginHistory] = useState<LoginHistory[]>([])
@@ -426,9 +433,9 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      <Tabs defaultValue="company" className="space-y-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <div className="overflow-x-auto">
-          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-1 min-w-max">
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-1 min-w-max">
             <TabsTrigger value="company" className="text-xs sm:text-sm flex items-center gap-1">
               <Building className="h-3 w-3" />
               <span className="hidden sm:inline"><LocalizedText>Company</LocalizedText></span>
@@ -459,6 +466,12 @@ export default function SettingsPage() {
               <TabsTrigger value="activity" className="text-xs sm:text-sm flex items-center gap-1">
                 <Activity className="h-3 w-3" />
                 <span className="hidden sm:inline"><LocalizedText>Activity</LocalizedText></span>
+              </TabsTrigger>
+            )}
+            {isAdmin && (
+              <TabsTrigger value="onedrive" className="text-xs sm:text-sm flex items-center gap-1">
+                <Cloud className="h-3 w-3" />
+                <span className="hidden sm:inline"><LocalizedText>Excel Sync</LocalizedText></span>
               </TabsTrigger>
             )}
           </TabsList>
@@ -984,6 +997,12 @@ export default function SettingsPage() {
           {isAdmin && <SystemUtilities />}
           <SystemStatus />
         </TabsContent>
+
+        {isAdmin && (
+          <TabsContent value="onedrive" className="space-y-6" id="onedrive">
+            <OneDriveExcelSettings />
+          </TabsContent>
+        )}
 
         {/* User Activity Tab - Admin Only */}
         {isAdmin && (

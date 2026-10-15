@@ -8,6 +8,7 @@ import { ExcelService } from '@/lib/excel-service'
 import { ZodError } from 'zod'
 import path from 'path'
 import fs from 'fs/promises'
+import { syncOneDriveWorkbookAfterChange } from '@/lib/onedrive-excel-sync'
 
 // GET /api/tires - Get all tires with filtering and pagination
 export async function GET(request: NextRequest) {
@@ -241,6 +242,8 @@ export async function POST(request: NextRequest) {
     const createdTires = await db.tire.createMany({
       data: tiresData
     })
+
+    await syncOneDriveWorkbookAfterChange()
     
     // Note: Auto-export removed for serverless compatibility
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireRolePermission } from '@/lib/permission-middleware'
+import { syncOneDriveWorkbookAfterChange } from '@/lib/onedrive-excel-sync'
 
 export async function PUT(
   request: NextRequest,
@@ -38,6 +39,8 @@ export async function PUT(
       }
     })
 
+    await syncOneDriveWorkbookAfterChange()
+
     return NextResponse.json({
       success: true,
       data: updatedTrailer,
@@ -73,6 +76,8 @@ export async function DELETE(
         deletedAt: new Date()
       }
     })
+
+    await syncOneDriveWorkbookAfterChange()
 
     return NextResponse.json({
       success: true,

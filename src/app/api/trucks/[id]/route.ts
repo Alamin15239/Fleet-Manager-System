@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireRolePermission } from '@/lib/permission-middleware'
+import { syncOneDriveWorkbookAfterChange } from '@/lib/onedrive-excel-sync'
 
 // GET single truck by ID
 export async function GET(
@@ -154,6 +155,8 @@ export async function PUT(
       }
     })
 
+    await syncOneDriveWorkbookAfterChange()
+
     return NextResponse.json({
       success: true,
       data: updatedTruck,
@@ -203,6 +206,8 @@ export async function DELETE(
         deletedBy: 'system' // In real app, get from auth context
       }
     })
+
+    await syncOneDriveWorkbookAfterChange()
 
     return NextResponse.json({
       success: true,

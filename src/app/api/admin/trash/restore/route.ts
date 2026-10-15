@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireAdmin } from '@/lib/auth'
+import { syncOneDriveWorkbookAfterChange } from '@/lib/onedrive-excel-sync'
 
 export async function POST(request: NextRequest) {
   try {
@@ -118,6 +119,8 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         )
     }
+
+    if (type === 'truck' || type === 'maintenance') await syncOneDriveWorkbookAfterChange()
 
     return NextResponse.json({
       message: `${type} restored successfully`,

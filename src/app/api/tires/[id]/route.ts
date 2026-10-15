@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requirePermission } from '@/lib/permission-middleware'
+import { syncOneDriveWorkbookAfterChange } from '@/lib/onedrive-excel-sync'
 
 // GET /api/tires/[id] - Get single tire
 export async function GET(
@@ -120,6 +121,8 @@ export async function PUT(
       }
     }
 
+    await syncOneDriveWorkbookAfterChange()
+
     return NextResponse.json({ 
       tire: updatedTire,
       message: 'Tire updated successfully' 
@@ -160,6 +163,8 @@ export async function DELETE(
     await db.tire.delete({
       where: { id: id }
     })
+
+    await syncOneDriveWorkbookAfterChange()
 
     return NextResponse.json({ 
       message: 'Tire deleted successfully' 

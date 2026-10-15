@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireRolePermission } from '@/lib/permission-middleware'
 import { ExcelService } from '@/lib/excel-service'
+import { syncOneDriveWorkbookAfterChange } from '@/lib/onedrive-excel-sync'
 
 // GET /api/tires/excel - Export tires to Excel
 export async function GET(request: NextRequest) {
@@ -88,6 +89,8 @@ export async function POST(request: NextRequest) {
         createdTires.push(tire)
       }
     }
+
+    if (createdTires.length > 0) await syncOneDriveWorkbookAfterChange()
 
     return NextResponse.json({
       message: `Successfully imported ${createdTires.length} tires`,

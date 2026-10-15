@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireRolePermission } from '@/lib/permission-middleware'
 import { cleanJobCardPayload } from '@/lib/job-card-validation'
+import { syncOneDriveWorkbookAfterChange } from '@/lib/onedrive-excel-sync'
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -20,6 +21,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
         trailer: { select: { id: true, number: true } }
       }
     })
+    await syncOneDriveWorkbookAfterChange()
     return NextResponse.json({ jobCard })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to update job card'

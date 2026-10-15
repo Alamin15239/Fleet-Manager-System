@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireRolePermission } from '@/lib/permission-middleware'
 import { cleanJobCardPayload } from '@/lib/job-card-validation'
+import { syncOneDriveWorkbookAfterChange } from '@/lib/onedrive-excel-sync'
 
 export async function GET(request: NextRequest) {
   try {
@@ -43,6 +44,7 @@ export async function POST(request: NextRequest) {
         }
       })
     })
+    await syncOneDriveWorkbookAfterChange()
     return NextResponse.json({ jobCard }, { status: 201 })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to create job card'

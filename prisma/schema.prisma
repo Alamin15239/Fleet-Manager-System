@@ -333,6 +333,24 @@ model Settings {
   @@map("settings")
 }
 
+model OneDriveIntegration {
+  id                    String    @id @default("primary")
+  connectedEmail        String?
+  refreshTokenEncrypted String
+  driveItemId           String?
+  webUrl                String?
+  lastSyncAt            DateTime?
+  lastSyncStatus        String    @default("NEVER")
+  lastSyncError         String?
+  syncInProgressAt      DateTime?
+  syncRevision          Int       @default(0)
+  lastSyncedRevision    Int       @default(0)
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@map("onedrive_integrations")
+}
+
 model Notification {
   id        String   @id @default(cuid())
   type      String
