@@ -1,10 +1,11 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { AlertTriangle, Check, Clock3, FileSpreadsheet, Loader2, RefreshCw, ShieldCheck, X } from 'lucide-react'
+import { AlertTriangle, Check, Clock3, FileSpreadsheet, Loader2, RefreshCw, ShieldCheck, X, CheckCheck } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
 import { LocalizedText } from '@/components/localized-text'
 import { useAuth } from '@/contexts/auth-context'
 import { apiGet, apiPost } from '@/lib/api'
@@ -35,6 +36,8 @@ export default function ExcelImportsPage() {
   const [loading, setLoading] = useState(true)
   const [activeId, setActiveId] = useState<string | null>(null)
   const [watchError, setWatchError] = useState<string | null>(null)
+  const [bulkConfirmOpen, setBulkConfirmOpen] = useState(false)
+  const [bulkProgress, setBulkProgress] = useState<{ complete: number; total: number } | null>(null)
 
   const loadChanges = useCallback(async () => {
     try {
@@ -69,6 +72,56 @@ export default function ExcelImportsPage() {
       await loadChanges()
     } finally {
       setActiveId(null)
+    }
+  }
+
+  const eligibleChanges = changes.filter(change => change.status === 'PENDING' && change.canApply)
+  const excludedChanges = changes.length - eligibleChanges.length
+
+  const applyAllChanges = async () => {
+    const ids = eligibleChanges.map(change => change.id)
+    if (!ids.length) return
+    setBulkConfirmOpen(false)
+    setActiveId('bulk')
+    setBulkProgress({ complete: 0, total: ids.length })
+    let failed = 0
+    let conflicts = 0
+    let skipped = 0
+    let remainingCount = 0
+    let workbookSync: boolean | null = null
+    let workbookSyncError: string | null = null
+    try {
+      for (let index = 0; index < ids.length; index += 20) {
+        const batch = ids.slice(index, index + 20)
+        const response = await apiPost('/api/integrations/onedrive/imports', { action: 'apply-all', ids: batch })
+        const data = await response.json()
+        if (!response.ok) throw new Error(data.error || 'Could not apply workbook changes.')
+        failed += data.failedCount || 0
+        conflicts += data.conflictCount || 0
+        skipped += data.skippedCount || 0
+        remainingCount = data.remainingWorkbookChanges || 0
+        if (data.workbookSync !== null && data.workbookSync !== undefined) workbookSync = data.workbookSync
+        if (data.workbookSyncError) workbookSyncError = data.workbookSyncError
+        setBulkProgress({ complete: Math.min(index + batch.length, ids.length), total: ids.length })
+      }
+      const notApplied = failed + conflicts + skipped
+      if (notApplied) {
+        toast.warning('Bulk apply finished with rows that need review. See each row for details.')
+      } else if (remainingCount > 0) {
+        toast.warning('Some workbook changes remain. Refresh and review the remaining rows.')
+      } else if (workbookSync === false) {
+        toast.success('All eligible changes were applied. Workbook sync is queued; retry Sync Now if it does not finish.')
+      } else {
+        toast.success('Bulk apply finished. All eligible changes were applied.')
+      }
+      if (workbookSyncError) toast.error(workbookSyncError)
+      await loadChanges()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not apply workbook changes.')
+      await loadChanges()
+    } finally {
+      setActiveId(null)
+      setBulkProgress(null)
     }
   }
 
@@ -120,11 +173,17 @@ export default function ExcelImportsPage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" onClick={scanWorkbook} disabled={loading || activeId === 'scan'}>
+          {eligibleChanges.length > 0 && (
+            <Button onClick={() => setBulkConfirmOpen(true)} disabled={loading || activeId !== null}>
+              {activeId === 'bulk' ? <Loader2 className="me-2 h-4 w-4 animate-spin" /> : <CheckCheck className="me-2 h-4 w-4" />}
+              {activeId === 'bulk' && bulkProgress ? <><LocalizedText>Applying changes</LocalizedText> {bulkProgress.complete}/{bulkProgress.total}</> : <LocalizedText>Apply all eligible shown</LocalizedText>}
+            </Button>
+          )}
+          <Button variant="outline" onClick={scanWorkbook} disabled={loading || activeId !== null}>
             {activeId === 'scan' ? <Loader2 className="me-2 h-4 w-4 animate-spin" /> : <RefreshCw className="me-2 h-4 w-4" />}
             <LocalizedText>Check workbook now</LocalizedText>
           </Button>
-          <Button variant="ghost" onClick={() => { setLoading(true); void loadChanges() }} disabled={loading}>
+          <Button variant="ghost" onClick={() => { setLoading(true); void loadChanges() }} disabled={loading || activeId !== null}>
             <RefreshCw className="me-2 h-4 w-4" /><LocalizedText>Refresh</LocalizedText>
           </Button>
         </div>
@@ -162,13 +221,13 @@ export default function ExcelImportsPage() {
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {change.status === 'PENDING' && (
-                      <Button size="sm" onClick={() => void applyChange(change)} disabled={!change.canApply || activeId === change.id}>
+                      <Button size="sm" onClick={() => void applyChange(change)} disabled={!change.canApply || activeId !== null}>
                         {activeId === change.id ? <Loader2 className="me-2 h-4 w-4 animate-spin" /> : <Check className="me-2 h-4 w-4" />}
                         <LocalizedText>{change.canApply ? 'Apply change' : 'Role cannot apply'}</LocalizedText>
                       </Button>
                     )}
                     {isAdmin && (
-                      <Button size="sm" variant="outline" onClick={() => void dismissChange(change)} disabled={activeId === change.id}>
+                      <Button size="sm" variant="outline" onClick={() => void dismissChange(change)} disabled={activeId !== null}>
                         <X className="me-2 h-4 w-4" /><LocalizedText>Dismiss</LocalizedText>
                       </Button>
                     )}
@@ -177,23 +236,55 @@ export default function ExcelImportsPage() {
               </CardHeader>
               <CardContent className="space-y-3">
                 {change.error && <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">{change.error}</div>}
-                {change.changes && Object.keys(change.changes).length > 0 ? (
-                  <div className="overflow-x-auto rounded-md border">
-                    <table className="w-full min-w-[520px] text-sm">
-                      <thead className="bg-muted/50 text-left"><tr><th className="p-2"><LocalizedText>Field</LocalizedText></th><th className="p-2"><LocalizedText>Workbook value</LocalizedText></th><th className="p-2"><LocalizedText>Baseline value</LocalizedText></th></tr></thead>
-                      <tbody>{Object.entries(change.changes).map(([field, diff]) => (
-                        <tr key={field} className="border-t"><td className="p-2 font-medium">{field}</td><td className="break-all p-2">{showValue(diff.to)}</td><td className="break-all p-2 text-muted-foreground">{showValue(diff.from)}</td></tr>
-                      ))}</tbody>
-                    </table>
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground"><LocalizedText>New row values are ready for validation and import.</LocalizedText></p>
-                )}
+                <div>
+                  <h3 className="mb-2 text-sm font-semibold"><LocalizedText>Complete workbook row</LocalizedText></h3>
+                  {Object.keys(change.rowData).length > 0 ? (
+                    <div className="overflow-x-auto rounded-md border">
+                      <table className="w-full min-w-[620px] text-sm">
+                        <thead className="bg-muted/50 text-left"><tr><th className="p-2"><LocalizedText>Field</LocalizedText></th><th className="p-2"><LocalizedText>Workbook value</LocalizedText></th><th className="p-2"><LocalizedText>Change</LocalizedText></th></tr></thead>
+                        <tbody>{Object.entries(change.rowData).map(([field, value]) => {
+                          const diff = change.changes?.[field]
+                          return (
+                            <tr key={field} className={`border-t align-top ${diff ? 'bg-amber-50/70 dark:bg-amber-950/20' : ''}`}>
+                              <td className="whitespace-nowrap p-2 font-medium">{field}{diff && <Badge variant="outline" className="ms-2"><LocalizedText>Changed</LocalizedText></Badge>}</td>
+                              <td className="max-w-[36rem] break-words p-2">{showValue(value)}</td>
+                              <td className="max-w-[24rem] break-words p-2 text-muted-foreground">{diff ? <><LocalizedText>Previous app value</LocalizedText>: {showValue(diff.from)}</> : <LocalizedText>Unchanged in workbook</LocalizedText>}</td>
+                            </tr>
+                          )
+                        })}</tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground"><LocalizedText>No workbook fields were received.</LocalizedText></p>
+                  )}
+                </div>
               </CardContent>
             </Card>
           ))}
         </div>
       )}
+
+      <AlertDialog open={bulkConfirmOpen} onOpenChange={setBulkConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle><LocalizedText>Apply all eligible workbook changes?</LocalizedText></AlertDialogTitle>
+            <AlertDialogDescription>
+              <LocalizedText>It will apply the complete rows displayed on this page after checking each one against your role and the app’s validation rules.</LocalizedText>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-1 rounded-md border bg-muted/30 p-3 text-sm">
+            <p><strong>{eligibleChanges.length}</strong> <LocalizedText>eligible pending rows will be applied.</LocalizedText></p>
+            {excludedChanges > 0 && <p className="text-muted-foreground"><strong>{excludedChanges}</strong> <LocalizedText>rows are excluded because of conflicts, permissions, or status.</LocalizedText></p>}
+            <p className="text-muted-foreground"><LocalizedText>Conflicts and rows outside your permissions will be skipped. Any row that fails app validation will remain pending with an error for review.</LocalizedText></p>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel><LocalizedText>Cancel</LocalizedText></AlertDialogCancel>
+            <AlertDialogAction onClick={(event) => { event.preventDefault(); void applyAllChanges() }}>
+              <LocalizedText>Apply eligible rows</LocalizedText>
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </main>
   )
 }

@@ -18,6 +18,75 @@ function getAction(change: { operation: string }) {
   return change.operation === 'CREATE' ? 'create' : 'update'
 }
 
+type ReviewContext = Awaited<ReturnType<typeof getRolePermissionManager>>
+type WorkbookChangeRecord = NonNullable<Awaited<ReturnType<typeof db.excelWorkbookChange.findUnique>>>
+
+async function applyPendingChange(change: WorkbookChangeRecord, context: ReviewContext, request: NextRequest) {
+  const { user, permissionManager } = context
+  if (change.status !== 'PENDING') return { status: 'SKIPPED' as const, message: 'This row is no longer pending.' }
+
+  const resource = resourceForEntity[change.entityType]
+  if (!resource || !permissionManager.hasPermission(resource, getAction(change))) {
+    return { status: 'SKIPPED' as const, message: 'Your role cannot apply this row.' }
+  }
+
+  if (change.operation === 'UPDATE' && change.recordId && change.baseUpdatedAt) {
+    const latestUpdatedAt = await getFleetRecordVersion(change.entityType, change.recordId, change.rowData)
+    if (!latestUpdatedAt || latestUpdatedAt.getTime() !== change.baseUpdatedAt.getTime()) {
+      const message = 'The app record changed after this workbook edit was detected. Review the latest app data before re-importing.'
+      await db.excelWorkbookChange.update({
+        where: { id: change.id }, data: { status: 'CONFLICT', error: message }
+      })
+      return { status: 'CONFLICT' as const, message }
+    }
+  }
+
+  let applied: { id: string } | null
+  try {
+    applied = await db.$transaction(async tx => {
+      const claim = await tx.excelWorkbookChange.updateMany({
+        where: { id: change.id, status: 'PENDING' },
+        data: { status: 'APPLYING' }
+      })
+      if (claim.count !== 1) return null
+      const record = await applyWorkbookChange(tx, change, user.id)
+      await tx.excelWorkbookChange.update({
+        where: { id: change.id }, data: { status: 'APPLIED', appliedAt: new Date(), appliedById: user.id, error: null }
+      })
+      return { id: record.id }
+    })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Could not apply this workbook change.'
+    await db.excelWorkbookChange.update({ where: { id: change.id }, data: { error: message.slice(0, 300) } })
+    return { status: 'FAILED' as const, message }
+  }
+  if (!applied) return { status: 'SKIPPED' as const, message: 'This row is already being handled or has been applied.' }
+
+  try {
+    await logAuditEvent({
+      action: change.operation === 'CREATE' ? 'CREATE' : 'UPDATE',
+      entityType: change.entityType,
+      entityId: applied.id,
+      userId: user.id,
+      userName: user.name || undefined,
+      userEmail: user.email,
+      userRole: user.role,
+      changes: change.changes,
+      ipAddress: request.headers.get('x-forwarded-for') || '127.0.0.1',
+      userAgent: request.headers.get('user-agent') || ''
+    })
+    await logUserActivity({
+      userId: user.id, action: change.operation === 'CREATE' ? 'CREATE' : 'UPDATE',
+      entityType: change.entityType, entityId: applied.id, entityName: `Excel import from ${change.sheetName}`,
+      ipAddress: request.headers.get('x-forwarded-for') || '127.0.0.1',
+      userAgent: request.headers.get('user-agent') || '', metadata: { workbookChangeId: change.id }
+    })
+  } catch (error) {
+    console.error('Workbook change was applied but audit logging failed:', error instanceof Error ? error.message : 'Unknown error')
+  }
+  return { status: 'APPLIED' as const, entityId: applied.id }
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { permissionManager } = await getRolePermissionManager(request)
@@ -58,7 +127,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const { user, permissionManager } = await getRolePermissionManager(request)
-    const body = await request.json() as { id?: string; action?: string }
+    const body = await request.json() as { id?: string; ids?: string[]; action?: string }
     if (body.action === 'scan') {
       if (!permissionManager.hasPermission('excel-imports', 'read')) {
         return NextResponse.json({ error: 'Your role cannot review workbook changes.' }, { status: 403 })
@@ -67,6 +136,44 @@ export async function POST(request: NextRequest) {
       if (!subscription.enabled) return NextResponse.json({ error: 'Connect OneDrive and create the live workbook first.' }, { status: 409 })
       const result = await captureOneDriveWorkbookChanges()
       return NextResponse.json({ success: true, ...result })
+    }
+    if (body.action === 'apply-all') {
+      if (!permissionManager.hasPermission('excel-imports', 'read')) {
+        return NextResponse.json({ error: 'Your role cannot review workbook changes.' }, { status: 403 })
+      }
+      const ids = Array.isArray(body.ids) ? [...new Set(body.ids.filter(id => typeof id === 'string'))] : []
+      if (!ids.length || ids.length > 20) {
+        return NextResponse.json({ error: 'Choose between 1 and 20 pending rows for each batch.' }, { status: 400 })
+      }
+
+      let appliedCount = 0
+      let failedCount = 0
+      let conflictCount = 0
+      let skippedCount = 0
+      const results: { id: string; status: string; message?: string }[] = []
+      for (const id of ids) {
+        const change = await db.excelWorkbookChange.findUnique({ where: { id } })
+        if (!change) {
+          skippedCount++
+          results.push({ id, status: 'SKIPPED', message: 'Row no longer exists.' })
+          continue
+        }
+        const result = await applyPendingChange(change, { user, permissionManager }, request)
+        results.push({ id, status: result.status, ...('message' in result ? { message: result.message } : {}) })
+        if (result.status === 'APPLIED') appliedCount++
+        else if (result.status === 'FAILED') failedCount++
+        else if (result.status === 'CONFLICT') conflictCount++
+        else skippedCount++
+      }
+
+      const remainingWorkbookChanges = await db.excelWorkbookChange.count({ where: { status: { in: ['PENDING', 'CONFLICT'] } } })
+      const sync = remainingWorkbookChanges === 0 ? await syncOneDriveWorkbookAfterChange() : null
+      return NextResponse.json({
+        success: true, appliedCount, failedCount, conflictCount, skippedCount, results,
+        remainingWorkbookChanges,
+        workbookSync: sync ? sync.success && !sync.queued : null,
+        workbookSyncError: sync?.error || null
+      })
     }
     if (!body.id) return NextResponse.json({ error: 'A workbook change ID is required.' }, { status: 400 })
     const change = await db.excelWorkbookChange.findUnique({ where: { id: body.id } })
@@ -80,64 +187,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, status: 'DISMISSED', workbookSync: sync ? sync.success && !sync.queued : null })
     }
 
-    if (change.status !== 'PENDING') return NextResponse.json({ error: 'This change is no longer pending. Refresh the list.' }, { status: 409 })
-    const resource = resourceForEntity[change.entityType]
-    if (!resource || !permissionManager.hasPermission(resource, getAction(change))) {
-      return NextResponse.json({ error: 'Your role does not allow this change.' }, { status: 403 })
-    }
+    const result = await applyPendingChange(change, { user, permissionManager }, request)
+    if (result.status === 'CONFLICT') return NextResponse.json({ error: 'This record changed in the app after the workbook edit was detected. It was marked for conflict review.' }, { status: 409 })
+    if (result.status === 'FAILED') return NextResponse.json({ error: result.message }, { status: 400 })
+    if (result.status === 'SKIPPED') return NextResponse.json({ error: result.message }, { status: change.status !== 'PENDING' ? 409 : 403 })
 
-    if (change.operation === 'UPDATE' && change.recordId && change.baseUpdatedAt) {
-      const latestUpdatedAt = await getFleetRecordVersion(change.entityType, change.recordId, change.rowData)
-      if (!latestUpdatedAt || latestUpdatedAt.getTime() !== change.baseUpdatedAt.getTime()) {
-        await db.excelWorkbookChange.update({
-          where: { id: change.id }, data: { status: 'CONFLICT', error: 'The app record changed after this workbook edit was detected. Review the latest app data before re-importing.' }
-        })
-        return NextResponse.json({ error: 'This record changed in the app after the workbook edit. It was marked for conflict review.' }, { status: 409 })
-      }
-    }
-
-    let applied: { id: string } | null
-    try {
-      applied = await db.$transaction(async tx => {
-        const claim = await tx.excelWorkbookChange.updateMany({
-          where: { id: change.id, status: 'PENDING' },
-          data: { status: 'APPLYING' }
-        })
-        if (claim.count !== 1) return null
-        const record = await applyWorkbookChange(tx, change, user.id)
-        await tx.excelWorkbookChange.update({ where: { id: change.id }, data: { status: 'APPLIED', appliedAt: new Date(), appliedById: user.id, error: null } })
-        return { id: record.id }
-      })
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Could not apply this workbook change.'
-      await db.excelWorkbookChange.update({ where: { id: change.id }, data: { error: message.slice(0, 300) } })
-      return NextResponse.json({ error: message }, { status: 400 })
-    }
-    if (!applied) return NextResponse.json({ error: 'This workbook change is already being handled or has been applied.' }, { status: 409 })
-
-    const entityId = applied.id
-    try {
-      await logAuditEvent({
-        action: change.operation === 'CREATE' ? 'CREATE' : 'UPDATE',
-        entityType: change.entityType,
-        entityId,
-        userId: user.id,
-        userName: user.name || undefined,
-        userEmail: user.email,
-        userRole: user.role,
-        changes: change.changes,
-        ipAddress: request.headers.get('x-forwarded-for') || '127.0.0.1',
-        userAgent: request.headers.get('user-agent') || ''
-      })
-      await logUserActivity({
-        userId: user.id, action: change.operation === 'CREATE' ? 'CREATE' : 'UPDATE',
-        entityType: change.entityType, entityId, entityName: `Excel import from ${change.sheetName}`,
-        ipAddress: request.headers.get('x-forwarded-for') || '127.0.0.1',
-        userAgent: request.headers.get('user-agent') || '', metadata: { workbookChangeId: change.id }
-      })
-    } catch (error) {
-      console.error('Workbook change was applied but audit logging failed:', error instanceof Error ? error.message : 'Unknown error')
-    }
     const sync = await syncOneDriveWorkbookAfterChange()
     return NextResponse.json({ success: true, status: 'APPLIED', workbookSync: sync.success && !sync.queued, pendingWorkbookChanges: sync.pendingWorkbookChanges || 0, workbookSyncError: sync.error || null })
   } catch (error) {
