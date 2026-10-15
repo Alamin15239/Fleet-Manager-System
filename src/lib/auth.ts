@@ -47,8 +47,8 @@ export async function authenticateUser(email: string, password: string, request?
   try {
     // First, check if user exists at all
     const user = await Promise.race([
-      db.user.findUnique({
-        where: { email }
+      db.user.findFirst({
+        where: { email: { equals: email.trim(), mode: 'insensitive' } }
       }),
       new Promise((_, reject) => 
         setTimeout(() => reject(new Error('Database connection timeout')), 8000)
@@ -206,14 +206,53 @@ export async function createUser(userData: {
   name?: string
   role?: string
   permissions?: any
+  isActive?: boolean
+  /** Accounts created by an authorized user manager are ready to sign in. */
+  isApproved?: boolean
+  isEmailVerified?: boolean
+  /** Reuse a soft-deleted account when an administrator adds that email again. */
+  restoreDeleted?: boolean
 }) {
   try {
+    const email = userData.email.trim()
+
     // Check if user already exists
-    const existingUser = await db.user.findUnique({
-      where: { email: userData.email }
+    const existingUser = await db.user.findFirst({
+      where: { email: { equals: email, mode: 'insensitive' } }
     })
 
     if (existingUser) {
+      if (existingUser.isDeleted && userData.restoreDeleted) {
+        const hashedPassword = await hashPassword(userData.password)
+        return db.user.update({
+          where: { id: existingUser.id },
+          data: {
+            email,
+            password: hashedPassword,
+            name: userData.name,
+            role: (userData.role as any) || 'USER',
+            permissions: userData.permissions || {},
+            isActive: userData.isActive ?? true,
+            isApproved: userData.isApproved ?? false,
+            isEmailVerified: userData.isEmailVerified ?? false,
+            isDeleted: false,
+            deletedAt: null,
+            deletedBy: null
+          },
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            role: true,
+            isActive: true,
+            isApproved: true,
+            isEmailVerified: true,
+            permissions: true,
+            createdAt: true,
+            updatedAt: true
+          }
+        })
+      }
       throw new Error('User already exists')
     }
 
@@ -223,14 +262,14 @@ export async function createUser(userData: {
     // Create user
     const user = await db.user.create({
       data: {
-        email: userData.email,
+        email,
         password: hashedPassword,
         name: userData.name,
         role: (userData.role as any) || 'USER',
         permissions: userData.permissions || {},
-        isActive: true,
-        isApproved: false, // All new users require admin approval
-        isEmailVerified: false // Email verification required
+        isActive: userData.isActive ?? true,
+        isApproved: userData.isApproved ?? false,
+        isEmailVerified: userData.isEmailVerified ?? false
       },
       select: {
         id: true,
@@ -241,7 +280,8 @@ export async function createUser(userData: {
         isApproved: true,
         isEmailVerified: true,
         permissions: true,
-        createdAt: true
+        createdAt: true,
+        updatedAt: true
       }
     })
 

@@ -46,27 +46,31 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST create new user (admin only)
+// POST create new user for callers with user-management create permission
 export async function POST(request: NextRequest) {
   try {
     const caller = await requireRolePermission(request, 'users', 'create')
 
     const body = await request.json()
+    const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : ''
 
     // Validate required fields
-    const requiredFields = ['email', 'password']
-    for (const field of requiredFields) {
-      if (!body[field]) {
-        return NextResponse.json(
-          { error: `${field} is required` },
-          { status: 400 }
-        )
-      }
+    if (!email) {
+      return NextResponse.json(
+        { error: 'email is required' },
+        { status: 400 }
+      )
+    }
+    if (typeof body.password !== 'string' || !body.password) {
+      return NextResponse.json(
+        { error: 'password is required' },
+        { status: 400 }
+      )
     }
 
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(body.email)) {
+    if (!emailRegex.test(email)) {
       return NextResponse.json(
         { error: 'Invalid email format' },
         { status: 400 }
@@ -94,11 +98,19 @@ export async function POST(request: NextRequest) {
     }
 
     const user = await createUser({
-      email: body.email,
+      email,
       password: body.password,
       name: body.name,
       role: body.role || 'USER',
-      permissions: caller.role === 'ADMIN' ? body.permissions || {} : {}
+      permissions: caller.role === 'ADMIN' ? body.permissions || {} : {},
+      isActive: typeof body.isActive === 'boolean' ? body.isActive : true,
+      // Accounts added through user management are created by trusted staff,
+      // so they should not require a second approval or email-verification step.
+      isApproved: true,
+      isEmailVerified: true,
+      // A soft-deleted email is unique in the database; restore it from this
+      // authorized management flow instead of making the UI appear to fail.
+      restoreDeleted: true
     })
 
     // Broadcast real-time update (if socket.io is available)
@@ -136,9 +148,14 @@ export async function POST(request: NextRequest) {
 
     if (error instanceof Error) {
       if (error.message === 'User already exists') {
-        errorMessage = 'User with this email already exists'
+        errorMessage = 'A user with this email already exists'
         statusCode = 409
       }
+    }
+
+    if (error && typeof error === 'object' && 'code' in error && error.code === 'P2002') {
+      errorMessage = 'A user with this email already exists'
+      statusCode = 409
     }
 
     return NextResponse.json(

@@ -102,7 +102,10 @@ export const useRealtimeUsers = (enabled = true) => {
   const createUser = useCallback(async (userData: any) => {
     try {
       const token = localStorage.getItem('authToken')
-      if (!token) return false
+      if (!token) {
+        toast.error('Authentication required. Please sign in again.')
+        return false
+      }
 
       const response = await fetch('/api/users', {
         method: 'POST',
@@ -114,18 +117,24 @@ export const useRealtimeUsers = (enabled = true) => {
       })
 
       if (response.ok) {
-        toast.success('User created successfully')
-        // Force refresh to get the new user
-        setTimeout(() => fetchUsers(), 500)
+        const result = await response.json().catch(() => ({}))
+        const createdUser = result.data as User | undefined
+        if (createdUser?.id) {
+          // Show the created account immediately, even if the follow-up list
+          // refresh is temporarily unavailable.
+          setUsers(current => [createdUser, ...current.filter(user => user.id !== createdUser.id)])
+        }
+        toast.success(result.message || 'User created successfully')
+        void fetchUsers()
         return true
       } else {
-        const error = await response.json()
-        toast.error(error.error || 'Failed to create user')
+        const error = await response.json().catch(() => ({}))
+        toast.error(error.error || `Failed to create user (${response.status})`)
         return false
       }
     } catch (error) {
       console.error('Error creating user:', error)
-      toast.error('Failed to create user')
+      toast.error(error instanceof Error ? error.message : 'Failed to create user')
       return false
     }
   }, [fetchUsers])
