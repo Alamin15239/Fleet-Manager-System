@@ -13,6 +13,8 @@ export interface OneDriveSyncResult {
   error?: string | null
   lastSyncAt?: Date | null
   webUrl?: string | null
+  workbookName?: string | null
+  recoveredFromLock?: boolean
   recordCounts?: Record<string, number>
 }
 
@@ -30,6 +32,13 @@ export function getOneDriveRedirectUri(origin?: string) {
     (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : origin)
   if (!baseUrl) throw new Error('The app URL is not configured')
   return new URL('/api/integrations/onedrive/callback', baseUrl).toString()
+}
+
+class GraphRequestError extends Error {
+  constructor(readonly status: number) {
+    super(`OneDrive file update failed (Microsoft Graph HTTP ${status}).`)
+    this.name = 'GraphRequestError'
+  }
 }
 
 function getEncryptionKey() {
@@ -74,6 +83,7 @@ export async function saveOneDriveConnection(refreshToken: string, connectedEmai
       refreshTokenEncrypted,
       connectedEmail,
       driveItemId: null,
+      driveItemName: null,
       webUrl: null,
       lastSyncStatus: 'NEVER',
       lastSyncError: null,
@@ -118,7 +128,7 @@ async function graphRequest(url: string, accessToken: string, init?: RequestInit
     }
   })
   if (!response.ok) {
-    throw new Error(`OneDrive file update failed (Microsoft Graph HTTP ${response.status}).`)
+    throw new GraphRequestError(response.status)
   }
   return response
 }
@@ -297,9 +307,11 @@ export async function syncOneDriveWorkbook(): Promise<OneDriveSyncResult> {
 
   try {
     let latestItemId = integration.driveItemId
+    let latestItemName = integration.driveItemName || ONEDRIVE_WORKBOOK_NAME
     let latestWebUrl = integration.webUrl
     let observedRevision = -1
     let latestRecordCounts: Record<string, number> | undefined
+    let recoveredFromLock = false
 
     // If changes arrive while a workbook is being uploaded, immediately build
     // and upload another snapshot before releasing the lock.
@@ -319,19 +331,37 @@ export async function syncOneDriveWorkbook(): Promise<OneDriveSyncResult> {
       const target = latestItemId
         ? `https://graph.microsoft.com/v1.0/me/drive/items/${encodeURIComponent(latestItemId)}/content`
         : `https://graph.microsoft.com/v1.0/me/drive/root:/${encodeURIComponent(ONEDRIVE_WORKBOOK_NAME)}:/content`
-      const upload = await graphRequest(target, tokens.access_token, {
+      const uploadOptions: RequestInit = {
         method: 'PUT',
         headers: { 'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' },
         body: snapshot.bytes
-      })
-      const driveItem = await upload.json() as { id?: string; webUrl?: string }
+      }
+      let upload: Response
+      try {
+        upload = await graphRequest(target, tokens.access_token, uploadOptions)
+      } catch (error) {
+        if (!(error instanceof GraphRequestError) || error.status !== 423) throw error
+
+        // Excel can hold an edit lock while the workbook is open. Preserve that
+        // file and publish a fresh snapshot so app data can continue syncing.
+        const timestamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z')
+        const suffix = randomBytes(4).toString('hex')
+        latestItemName = `Fleet Manager Live Data - ${timestamp}-${suffix}.xlsx`
+        const replacementTarget = `https://graph.microsoft.com/v1.0/me/drive/root:/${encodeURIComponent(latestItemName)}:/content`
+        upload = await graphRequest(replacementTarget, tokens.access_token, uploadOptions)
+        recoveredFromLock = true
+      }
+      const driveItem = await upload.json() as { id?: string; name?: string; webUrl?: string }
+      if (!driveItem.id && recoveredFromLock) throw new Error('Microsoft did not return the new workbook file ID.')
       latestItemId = driveItem.id || latestItemId
+      latestItemName = driveItem.name || latestItemName
       latestWebUrl = driveItem.webUrl || latestWebUrl
 
       const released = await db.oneDriveIntegration.update({
         where: { id: INTEGRATION_ID },
         data: {
           driveItemId: latestItemId,
+          driveItemName: latestItemName,
           webUrl: latestWebUrl,
           lastSyncAt: new Date(),
           lastSyncStatus: 'SUCCESS',
@@ -341,7 +371,15 @@ export async function syncOneDriveWorkbook(): Promise<OneDriveSyncResult> {
         }
       })
       if (released.syncRevision <= observedRevision) {
-        return { connected: true, success: true, lastSyncAt: released.lastSyncAt, webUrl: released.webUrl, recordCounts: latestRecordCounts }
+        return {
+          connected: true,
+          success: true,
+          lastSyncAt: released.lastSyncAt,
+          webUrl: released.webUrl,
+          workbookName: latestItemName,
+          recoveredFromLock,
+          recordCounts: latestRecordCounts
+        }
       }
 
       const reclaimed = await db.oneDriveIntegration.updateMany({
@@ -357,9 +395,11 @@ export async function syncOneDriveWorkbook(): Promise<OneDriveSyncResult> {
       where: { id: INTEGRATION_ID },
       data: { syncInProgressAt: null, lastSyncStatus: stillPending ? 'PENDING' : 'SUCCESS' }
     })
-    return { connected: true, success: true, queued: stillPending, recordCounts: latestRecordCounts }
+    return { connected: true, success: true, queued: stillPending, workbookName: latestItemName, recoveredFromLock, recordCounts: latestRecordCounts }
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown OneDrive sync error.'
+    const message = error instanceof GraphRequestError && error.status === 423
+      ? 'OneDrive is still locking the workbook. Close it in Excel and retry Sync Now.'
+      : error instanceof Error ? error.message : 'Unknown OneDrive sync error.'
     console.error('OneDrive workbook sync failed:', message)
     await db.oneDriveIntegration.update({
       where: { id: INTEGRATION_ID },

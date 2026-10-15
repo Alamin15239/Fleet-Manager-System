@@ -73,6 +73,8 @@ export default function OneDriveExcelSettings() {
       if (!response.ok) throw new Error(data.error || 'Workbook sync failed')
       if (data.queued) {
         toast.success('Workbook update queued')
+      } else if (data.recoveredFromLock) {
+        toast.success(`The locked workbook was left untouched. A fresh copy, ${data.workbookName}, is now live.`)
       } else if (data.recordCounts) {
         const counts = data.recordCounts as Record<string, number>
         toast.success(`Workbook synced: ${counts['Job Cards'] ?? 0} job cards, ${counts.Tires ?? 0} tires, ${counts['Oil Changes'] ?? 0} oil changes`)

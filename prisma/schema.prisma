@@ -338,6 +338,7 @@ model OneDriveIntegration {
   connectedEmail        String?
   refreshTokenEncrypted String
   driveItemId           String?
+  driveItemName         String?
   webUrl                String?
   lastSyncAt            DateTime?
   lastSyncStatus        String    @default("NEVER")

@@ -10,13 +10,13 @@ export async function GET(request: NextRequest) {
     await requireAdmin(request)
     const integration = await db.oneDriveIntegration.findUnique({
       where: { id: 'primary' },
-      select: { connectedEmail: true, webUrl: true, lastSyncAt: true, lastSyncStatus: true, lastSyncError: true }
+      select: { connectedEmail: true, driveItemName: true, webUrl: true, lastSyncAt: true, lastSyncStatus: true, lastSyncError: true }
     })
     return NextResponse.json({
       configured: isOneDriveConfigured(),
       connected: Boolean(integration),
       connectedEmail: integration?.connectedEmail || null,
-      workbookName: ONEDRIVE_WORKBOOK_NAME,
+      workbookName: integration?.driveItemName || ONEDRIVE_WORKBOOK_NAME,
       webUrl: integration?.webUrl || null,
       lastSyncAt: integration?.lastSyncAt || null,
       lastSyncStatus: integration?.lastSyncStatus || 'NEVER',
@@ -41,6 +41,8 @@ export async function POST(request: NextRequest) {
       queued: Boolean(result.queued),
       lastSyncAt: result.lastSyncAt || null,
       webUrl: result.webUrl || null,
+      workbookName: result.workbookName || ONEDRIVE_WORKBOOK_NAME,
+      recoveredFromLock: Boolean(result.recoveredFromLock),
       recordCounts: result.recordCounts || null
     })
   } catch (error) {
