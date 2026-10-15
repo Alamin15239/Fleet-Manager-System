@@ -7,6 +7,7 @@ import { useAuth } from '@/contexts/auth-context'
 import { useSidebar } from '@/contexts/sidebar-context'
 import { ThemeToggle } from './theme-toggle'
 import { PageTransition } from './ui/page-transition'
+import { useLanguage } from '@/contexts/language-context'
 
 
 interface LayoutProps {
@@ -18,6 +19,7 @@ interface LayoutProps {
 export function Layout({ children, userRole = 'MECHANIC', isAuthenticated: forceAuthenticated = false }: LayoutProps) {
   const { user, isAuthenticated, logout } = useAuth()
   const { isSidebarOpen, closeSidebar } = useSidebar()
+  const { t } = useLanguage()
 
   // If forceAuthenticated is true, bypass authentication check
   const effectiveIsAuthenticated = forceAuthenticated || isAuthenticated
@@ -42,7 +44,7 @@ export function Layout({ children, userRole = 'MECHANIC', isAuthenticated: force
       {isSidebarOpen && (
         <button
           type="button"
-          aria-label="Close navigation menu"
+          aria-label={t('Close navigation menu')}
           className="fixed inset-0 z-40 bg-black/40 md:hidden"
           onClick={closeSidebar}
         />

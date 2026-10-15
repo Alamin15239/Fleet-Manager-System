@@ -1,4 +1,5 @@
 'use client'
+import { LocalizedText } from '@/components/localized-text'
 
 import { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -13,6 +14,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Users, Plus, Edit, Trash2, Shield, UserCheck, UserX, RefreshCw, Bug } from 'lucide-react'
 import { useRealtimeUsers } from '@/hooks/use-realtime-users'
 import { useAuth } from '@/contexts/auth-context'
+import { usePermissions } from '@/contexts/permissions-context'
+import { useLanguage } from '@/contexts/language-context'
 
 interface User {
   id: string
@@ -33,8 +36,11 @@ interface UserFormData {
 }
 
 export default function UsersPage() {
+  const { t } = useLanguage()
   const { user: currentUser } = useAuth()
-  const { users, loading, error, deleteUser, createUser, updateUser, refresh } = useRealtimeUsers()
+  const { canAccess, canCreate, canUpdate, canDelete } = usePermissions()
+  const isAdmin = currentUser?.role === 'ADMIN'
+  const { users, loading, error, deleteUser, createUser, updateUser, refresh } = useRealtimeUsers(canAccess('users'))
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingUser, setEditingUser] = useState<User | null>(null)
   const [formData, setFormData] = useState<UserFormData>({
@@ -99,7 +105,7 @@ export default function UsersPage() {
 
   const handleDelete = async (userId: string, userEmail: string) => {
     const confirmed = confirm(
-      `Are you sure you want to delete the user "${userEmail}"?\n\nThis action cannot be undone. The user will be soft-deleted and can be restored by an administrator if needed.`
+      `${t('Are you sure you want to delete the user')} "${userEmail}"?\n\n${t('This action cannot be undone. The user will be soft-deleted and can be restored by an administrator if needed.')}`
     )
     if (!confirmed) return
     await deleteUser(userId)
@@ -142,13 +148,13 @@ export default function UsersPage() {
     )
   }
 
-  if (!currentUser || currentUser.role !== 'ADMIN') {
+  if (!currentUser || !canAccess('users')) {
     return (
       <div className="container mx-auto p-6">
         <Alert>
           <Shield className="h-4 w-4" />
           <AlertDescription>
-            Access denied. Only administrators can manage users.
+            <LocalizedText>You do not have permission to view users.</LocalizedText>
           </AlertDescription>
         </Alert>
       </div>
@@ -159,8 +165,8 @@ export default function UsersPage() {
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">User Management</h1>
-          <p className="text-muted-foreground">Manage user accounts and permissions</p>
+          <h1 className="text-3xl font-bold tracking-tight"><LocalizedText>User Management</LocalizedText></h1>
+          <p className="text-muted-foreground"><LocalizedText>Manage user accounts and permissions</LocalizedText></p>
         </div>
         <div className="flex gap-2">
           <Button
@@ -179,12 +185,14 @@ export default function UsersPage() {
             Debug
           </Button>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button onClick={resetForm}>
-                <Plus className="h-4 w-4 mr-2" />
-                Add User
-              </Button>
-            </DialogTrigger>
+            {canCreate('users') && (
+              <DialogTrigger asChild>
+                <Button onClick={resetForm}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add User
+                </Button>
+              </DialogTrigger>
+            )}
           <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
               <DialogTitle>
@@ -199,7 +207,7 @@ export default function UsersPage() {
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="email"><LocalizedText>Email</LocalizedText></Label>
                 <Input
                   id="email"
                   type="email"
@@ -209,7 +217,7 @@ export default function UsersPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="name">Full Name</Label>
+                <Label htmlFor="name"><LocalizedText>Full Name</LocalizedText></Label>
                 <Input
                   id="name"
                   value={formData.name}
@@ -217,15 +225,15 @@ export default function UsersPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="role">Role</Label>
+                <Label htmlFor="role"><LocalizedText>Role</LocalizedText></Label>
                 <Select value={formData.role} onValueChange={(value: any) => setFormData({ ...formData, role: value })}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="ADMIN">Administrator</SelectItem>
-                    <SelectItem value="MANAGER">Manager</SelectItem>
-                    <SelectItem value="USER">Office User</SelectItem>
+                    {isAdmin && <SelectItem value="ADMIN"><LocalizedText>Administrator</LocalizedText></SelectItem>}
+                    {isAdmin && <SelectItem value="MANAGER"><LocalizedText>Manager</LocalizedText></SelectItem>}
+                    <SelectItem value="USER"><LocalizedText>Office User</LocalizedText></SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -247,7 +255,7 @@ export default function UsersPage() {
                   onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
                   className="rounded"
                 />
-                <Label htmlFor="isActive">Active Account</Label>
+                <Label htmlFor="isActive"><LocalizedText>Active Account</LocalizedText></Label>
               </div>
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
@@ -269,7 +277,7 @@ export default function UsersPage() {
           <AlertDescription>
             Error loading users: {error}
             <Button variant="link" onClick={refresh} className="ml-2 p-0 h-auto">
-              Try again
+              <LocalizedText>Try again</LocalizedText>
             </Button>
           </AlertDescription>
         </Alert>
@@ -278,12 +286,12 @@ export default function UsersPage() {
       {showDebug && (
         <Card className="mb-4">
           <CardHeader>
-            <CardTitle className="text-sm">Debug Information</CardTitle>
+            <CardTitle className="text-sm"><LocalizedText>Debug Information</LocalizedText></CardTitle>
           </CardHeader>
           <CardContent className="text-sm">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <strong>Frontend Status:</strong>
+                <strong><LocalizedText>Frontend Status:</LocalizedText></strong>
                 <ul className="mt-1 space-y-1">
                   <li>Users loaded: {users.length}</li>
                   <li>Loading: {loading ? 'Yes' : 'No'}</li>
@@ -292,7 +300,7 @@ export default function UsersPage() {
                 </ul>
               </div>
               <div>
-                <strong>Database Health:</strong>
+                <strong><LocalizedText>Database Health:</LocalizedText></strong>
                 {dbHealth ? (
                   <ul className="mt-1 space-y-1">
                     <li>Status: {dbHealth.status}</li>
@@ -302,7 +310,7 @@ export default function UsersPage() {
                     <li>Deleted users: {dbHealth.data?.deletedUsers}</li>
                   </ul>
                 ) : (
-                  <p className="mt-1">Loading...</p>
+                  <p className="mt-1"><LocalizedText>Loading...</LocalizedText></p>
                 )}
                 <Button 
                   variant="outline" 
@@ -310,7 +318,7 @@ export default function UsersPage() {
                   onClick={checkDbHealth}
                   className="mt-2"
                 >
-                  Refresh DB Health
+                  <LocalizedText>Refresh DB Health</LocalizedText>
                 </Button>
               </div>
             </div>
@@ -325,18 +333,18 @@ export default function UsersPage() {
             {loading && <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-900"></div>}
           </CardTitle>
           <CardDescription>
-            Manage all user accounts in the system - Auto-refreshes every 10 seconds
+            <LocalizedText>Manage all user accounts in the system - Auto-refreshes every 10 seconds</LocalizedText>
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>User</TableHead>
-                <TableHead>Role</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Created</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead><LocalizedText>User</LocalizedText></TableHead>
+                <TableHead><LocalizedText>Role</LocalizedText></TableHead>
+                <TableHead><LocalizedText>Status</LocalizedText></TableHead>
+                <TableHead><LocalizedText>Created</LocalizedText></TableHead>
+                <TableHead className="text-right"><LocalizedText>Actions</LocalizedText></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -353,7 +361,7 @@ export default function UsersPage() {
                       <Badge className={getRoleBadgeColor(user.role)}>
                         <div className="flex items-center gap-1">
                           {getRoleIcon(user.role)}
-                          {user.role}
+                          <LocalizedText>{user.role}</LocalizedText>
                         </div>
                       </Badge>
                     </TableCell>
@@ -367,23 +375,23 @@ export default function UsersPage() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleEdit(user)}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleDelete(user.id, user.email)}
-                          disabled={user.id === currentUser?.id}
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                          title={user.id === currentUser?.id ? 'Cannot delete your own account' : 'Delete user'}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        {canUpdate('users') && (isAdmin || user.role === 'USER') && (
+                          <Button variant="outline" size="sm" onClick={() => handleEdit(user)}>
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {canDelete('users') && (isAdmin || user.role === 'USER') && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDelete(user.id, user.email)}
+                            disabled={user.id === currentUser?.id}
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                            title={user.id === currentUser?.id ? 'Cannot delete your own account' : 'Delete user'}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>

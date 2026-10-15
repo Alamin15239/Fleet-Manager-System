@@ -1,4 +1,5 @@
 'use client'
+import { LocalizedText } from '@/components/localized-text'
 
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
@@ -130,18 +131,18 @@ export function EmailManager() {
     <div className="space-y-6">
       <Tabs defaultValue="send" className="w-full">
         <TabsList className="grid w-full grid-cols-6">
-          <TabsTrigger value="send">Send</TabsTrigger>
-          <TabsTrigger value="batch">Batch</TabsTrigger>
-          <TabsTrigger value="get">Get</TabsTrigger>
-          <TabsTrigger value="update">Update</TabsTrigger>
-          <TabsTrigger value="cancel">Cancel</TabsTrigger>
-          <TabsTrigger value="maintenance">Maintenance</TabsTrigger>
+          <TabsTrigger value="send"><LocalizedText>Send</LocalizedText></TabsTrigger>
+          <TabsTrigger value="batch"><LocalizedText>Batch</LocalizedText></TabsTrigger>
+          <TabsTrigger value="get"><LocalizedText>Get</LocalizedText></TabsTrigger>
+          <TabsTrigger value="update"><LocalizedText>Update</LocalizedText></TabsTrigger>
+          <TabsTrigger value="cancel"><LocalizedText>Cancel</LocalizedText></TabsTrigger>
+          <TabsTrigger value="maintenance"><LocalizedText>Maintenance</LocalizedText></TabsTrigger>
         </TabsList>
 
         <TabsContent value="send">
           <Card>
             <CardHeader>
-              <CardTitle>Send Email</CardTitle>
+              <CardTitle><LocalizedText>Send Email</LocalizedText></CardTitle>
             </CardHeader>
             <CardContent>
               <form action={sendEmail} className="space-y-4">
@@ -161,7 +162,7 @@ export function EmailManager() {
         <TabsContent value="batch">
           <Card>
             <CardHeader>
-              <CardTitle>Send Batch Emails</CardTitle>
+              <CardTitle><LocalizedText>Send Batch Emails</LocalizedText></CardTitle>
             </CardHeader>
             <CardContent>
               <form action={sendBatchEmails} className="space-y-4">
@@ -195,7 +196,7 @@ export function EmailManager() {
         <TabsContent value="get">
           <Card>
             <CardHeader>
-              <CardTitle>Get Email</CardTitle>
+              <CardTitle><LocalizedText>Get Email</LocalizedText></CardTitle>
             </CardHeader>
             <CardContent>
               <form action={getEmail} className="space-y-4">
@@ -211,7 +212,7 @@ export function EmailManager() {
         <TabsContent value="update">
           <Card>
             <CardHeader>
-              <CardTitle>Update Email</CardTitle>
+              <CardTitle><LocalizedText>Update Email</LocalizedText></CardTitle>
             </CardHeader>
             <CardContent>
               <form action={updateEmail} className="space-y-4">
@@ -228,7 +229,7 @@ export function EmailManager() {
         <TabsContent value="cancel">
           <Card>
             <CardHeader>
-              <CardTitle>Cancel Email</CardTitle>
+              <CardTitle><LocalizedText>Cancel Email</LocalizedText></CardTitle>
             </CardHeader>
             <CardContent>
               <form action={cancelEmail} className="space-y-4">
@@ -244,7 +245,7 @@ export function EmailManager() {
         <TabsContent value="maintenance">
           <Card>
             <CardHeader>
-              <CardTitle>Send Maintenance Alert</CardTitle>
+              <CardTitle><LocalizedText>Send Maintenance Alert</LocalizedText></CardTitle>
             </CardHeader>
             <CardContent>
               <form action={sendMaintenanceAlert} className="space-y-4">
@@ -257,10 +258,10 @@ export function EmailManager() {
                     <SelectValue placeholder="Select urgency" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="low">Low</SelectItem>
-                    <SelectItem value="medium">Medium</SelectItem>
-                    <SelectItem value="high">High</SelectItem>
-                    <SelectItem value="critical">Critical</SelectItem>
+                    <SelectItem value="low"><LocalizedText>Low</LocalizedText></SelectItem>
+                    <SelectItem value="medium"><LocalizedText>Medium</LocalizedText></SelectItem>
+                    <SelectItem value="high"><LocalizedText>High</LocalizedText></SelectItem>
+                    <SelectItem value="critical"><LocalizedText>Critical</LocalizedText></SelectItem>
                   </SelectContent>
                 </Select>
                 <Button type="submit" disabled={loading}>
@@ -275,7 +276,7 @@ export function EmailManager() {
       {result && (
         <Card>
           <CardHeader>
-            <CardTitle>Result</CardTitle>
+            <CardTitle><LocalizedText>Result</LocalizedText></CardTitle>
           </CardHeader>
           <CardContent>
             <pre className="bg-gray-100 p-4 rounded text-sm overflow-auto">

@@ -1,4 +1,5 @@
 'use client'
+import { LocalizedText } from '@/components/localized-text'
 
 import { useState } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -70,14 +71,14 @@ Generated on: ${new Date().toLocaleString()}
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label>Vehicle</Label>
+              <Label><LocalizedText>Vehicle</LocalizedText></Label>
               <Input 
                 value={jobCardData.vehicleName} 
                 onChange={(e) => setJobCardData({...jobCardData, vehicleName: e.target.value})}
               />
             </div>
             <div>
-              <Label>Plate Number</Label>
+              <Label><LocalizedText>Plate Number</LocalizedText></Label>
               <Input 
                 value={jobCardData.plateNumber} 
                 onChange={(e) => setJobCardData({...jobCardData, plateNumber: e.target.value})}
@@ -87,14 +88,14 @@ Generated on: ${new Date().toLocaleString()}
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label>Driver</Label>
+              <Label><LocalizedText>Driver</LocalizedText></Label>
               <Input 
                 value={jobCardData.driverName} 
                 onChange={(e) => setJobCardData({...jobCardData, driverName: e.target.value})}
               />
             </div>
             <div>
-              <Label>Mechanic</Label>
+              <Label><LocalizedText>Mechanic</LocalizedText></Label>
               <Input 
                 value={jobCardData.mechanicName} 
                 onChange={(e) => setJobCardData({...jobCardData, mechanicName: e.target.value})}
@@ -103,7 +104,7 @@ Generated on: ${new Date().toLocaleString()}
           </div>
 
           <div>
-            <Label>Service Type</Label>
+            <Label><LocalizedText>Service Type</LocalizedText></Label>
             <Input 
               value={jobCardData.serviceType} 
               onChange={(e) => setJobCardData({...jobCardData, serviceType: e.target.value})}
@@ -111,7 +112,7 @@ Generated on: ${new Date().toLocaleString()}
           </div>
 
           <div>
-            <Label>Description</Label>
+            <Label><LocalizedText>Description</LocalizedText></Label>
             <Textarea 
               value={jobCardData.description} 
               onChange={(e) => setJobCardData({...jobCardData, description: e.target.value})}
@@ -121,7 +122,7 @@ Generated on: ${new Date().toLocaleString()}
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label>Date</Label>
+              <Label><LocalizedText>Date</LocalizedText></Label>
               <Input 
                 type="date"
                 value={jobCardData.datePerformed} 
@@ -129,7 +130,7 @@ Generated on: ${new Date().toLocaleString()}
               />
             </div>
             <div>
-              <Label>Total Cost</Label>
+              <Label><LocalizedText>Total Cost</LocalizedText></Label>
               <Input 
                 type="number"
                 value={jobCardData.totalCost} 
@@ -144,7 +145,7 @@ Generated on: ${new Date().toLocaleString()}
               Download Job Card
             </Button>
             <Button variant="outline" onClick={onClose}>
-              Close
+              <LocalizedText>Close</LocalizedText>
             </Button>
           </div>
         </div>

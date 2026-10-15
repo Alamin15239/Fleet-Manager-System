@@ -1,4 +1,5 @@
 'use client'
+import { LocalizedText } from '@/components/localized-text'
 
 import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -174,7 +175,7 @@ export function SystemPerformanceCharts() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {performanceData.length === 0 ? <div className="flex h-[300px] items-center justify-center text-sm text-muted-foreground">Response-time history is not collected yet.</div> : <ResponsiveContainer width="100%" height={300}>
+            {performanceData.length === 0 ? <div className="flex h-[300px] items-center justify-center text-sm text-muted-foreground"><LocalizedText>Response-time history is not collected yet.</LocalizedText></div> : <ResponsiveContainer width="100%" height={300}>
               <LineChart data={performanceData}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis 
@@ -207,7 +208,7 @@ export function SystemPerformanceCharts() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {performanceData.length === 0 ? <div className="flex h-[300px] items-center justify-center text-sm text-muted-foreground">Server resource history is not collected yet.</div> : <ResponsiveContainer width="100%" height={300}>
+            {performanceData.length === 0 ? <div className="flex h-[300px] items-center justify-center text-sm text-muted-foreground"><LocalizedText>Server resource history is not collected yet.</LocalizedText></div> : <ResponsiveContainer width="100%" height={300}>
               <AreaChart data={performanceData}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis 
@@ -257,7 +258,7 @@ export function SystemPerformanceCharts() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {activityData.length === 0 ? <div className="flex h-[300px] items-center justify-center text-sm text-muted-foreground">Historical user activity is not available yet.</div> : <ResponsiveContainer width="100%" height={300}>
+            {activityData.length === 0 ? <div className="flex h-[300px] items-center justify-center text-sm text-muted-foreground"><LocalizedText>Historical user activity is not available yet.</LocalizedText></div> : <ResponsiveContainer width="100%" height={300}>
               <BarChart data={activityData}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="date" />
@@ -316,7 +317,7 @@ export function SystemPerformanceCharts() {
       {/* Performance Summary */}
       <Card>
         <CardHeader>
-          <CardTitle>Performance Summary</CardTitle>
+          <CardTitle><LocalizedText>Performance Summary</LocalizedText></CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid gap-4 md:grid-cols-4">
@@ -326,7 +327,7 @@ export function SystemPerformanceCharts() {
                   Math.round(performanceData.reduce((acc, curr) => acc + curr.responseTime, 0) / performanceData.length) 
                   : '—'}{performanceData.length > 0 ? 'ms' : ''}
               </div>
-              <div className="text-sm text-muted-foreground">Avg Response Time</div>
+              <div className="text-sm text-muted-foreground"><LocalizedText>Avg Response Time</LocalizedText></div>
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-green-600">
@@ -334,7 +335,7 @@ export function SystemPerformanceCharts() {
                   Math.round(performanceData.reduce((acc, curr) => acc + curr.activeUsers, 0) / performanceData.length) 
                   : '—'}
               </div>
-              <div className="text-sm text-muted-foreground">Avg Active Users</div>
+              <div className="text-sm text-muted-foreground"><LocalizedText>Avg Active Users</LocalizedText></div>
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-orange-600">
@@ -342,7 +343,7 @@ export function SystemPerformanceCharts() {
                   Math.round(performanceData.reduce((acc, curr) => acc + curr.cpuUsage, 0) / performanceData.length) 
                   : '—'}{performanceData.length > 0 ? '%' : ''}
               </div>
-              <div className="text-sm text-muted-foreground">Avg CPU Usage</div>
+              <div className="text-sm text-muted-foreground"><LocalizedText>Avg CPU Usage</LocalizedText></div>
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-purple-600">
@@ -350,7 +351,7 @@ export function SystemPerformanceCharts() {
                   Math.round(performanceData.reduce((acc, curr) => acc + curr.memoryUsage, 0) / performanceData.length) 
                   : '—'}{performanceData.length > 0 ? '%' : ''}
               </div>
-              <div className="text-sm text-muted-foreground">Avg Memory Usage</div>
+              <div className="text-sm text-muted-foreground"><LocalizedText>Avg Memory Usage</LocalizedText></div>
             </div>
           </div>
         </CardContent>

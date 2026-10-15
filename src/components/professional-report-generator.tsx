@@ -1,4 +1,5 @@
 'use client'
+import { LocalizedText } from '@/components/localized-text'
 
 import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -748,9 +749,9 @@ export default function ProfessionalReportGenerator() {
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <div className="text-6xl mb-4">🔒</div>
-          <h1 className="text-2xl font-bold mb-2">Authentication Required</h1>
+          <h1 className="text-2xl font-bold mb-2"><LocalizedText>Authentication Required</LocalizedText></h1>
           <p className="text-gray-600 mb-4">
-            Please log in to access the report generator.
+            <LocalizedText>Please log in to access the report generator.</LocalizedText>
           </p>
         </div>
       </div>
@@ -761,8 +762,8 @@ export default function ProfessionalReportGenerator() {
     <div className="container mx-auto p-4 sm:p-6 space-y-4 sm:space-y-6">
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Report Generator</h1>
-          <p className="text-muted-foreground text-sm">Generate professional tire management reports</p>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight"><LocalizedText>Report Generator</LocalizedText></h1>
+          <p className="text-muted-foreground text-sm"><LocalizedText>Generate professional tire management reports</LocalizedText></p>
         </div>
         <Button variant="outline" onClick={() => {
           console.log('Reset button clicked')
@@ -800,7 +801,7 @@ export default function ProfessionalReportGenerator() {
           {/* Template Selection */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <Label>Report Template</Label>
+              <Label><LocalizedText>Report Template</LocalizedText></Label>
               {reportConfig.template && (
                 <div className="text-sm text-green-600 font-medium">
                   ✓ Selected: {reportTemplates.find(t => t.id === reportConfig.template)?.name}
@@ -858,7 +859,7 @@ export default function ProfessionalReportGenerator() {
           {/* Date Range */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label className="text-sm">Start Date</Label>
+              <Label className="text-sm"><LocalizedText>Start Date</LocalizedText></Label>
               <Input
                 type="date"
                 value={reportConfig.dateRange.start}
@@ -869,7 +870,7 @@ export default function ProfessionalReportGenerator() {
               />
             </div>
             <div className="space-y-2">
-              <Label className="text-sm">End Date</Label>
+              <Label className="text-sm"><LocalizedText>End Date</LocalizedText></Label>
               <Input
                 type="date"
                 value={reportConfig.dateRange.end}
@@ -889,7 +890,7 @@ export default function ProfessionalReportGenerator() {
             </Label>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
               <div className="space-y-2">
-                <Label className="text-sm">Manufacturer</Label>
+                <Label className="text-sm"><LocalizedText>Manufacturer</LocalizedText></Label>
                 <Select value={reportConfig.filters.manufacturer || ''} onValueChange={(value) => 
                   setReportConfig({
                     ...reportConfig,
@@ -900,7 +901,7 @@ export default function ProfessionalReportGenerator() {
                     <SelectValue placeholder="All manufacturers" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All manufacturers</SelectItem>
+                    <SelectItem value="all"><LocalizedText>All manufacturers</LocalizedText></SelectItem>
                     {manufacturers.map((m) => (
                       <SelectItem key={m} value={m}>{m}</SelectItem>
                     ))}
@@ -909,7 +910,7 @@ export default function ProfessionalReportGenerator() {
               </div>
 
               <div className="space-y-2">
-                <Label className="text-sm">Origin</Label>
+                <Label className="text-sm"><LocalizedText>Origin</LocalizedText></Label>
                 <Select value={reportConfig.filters.origin || ''} onValueChange={(value) => 
                   setReportConfig({
                     ...reportConfig,
@@ -920,7 +921,7 @@ export default function ProfessionalReportGenerator() {
                     <SelectValue placeholder="All origins" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All origins</SelectItem>
+                    <SelectItem value="all"><LocalizedText>All origins</LocalizedText></SelectItem>
                     {origins.map((o) => (
                       <SelectItem key={o} value={o}>{o}</SelectItem>
                     ))}
@@ -929,7 +930,7 @@ export default function ProfessionalReportGenerator() {
               </div>
 
               <div className="space-y-2">
-                <Label className="text-sm">Truck Plates (select any number)</Label>
+                <Label className="text-sm"><LocalizedText>Truck Plates (select any number)</LocalizedText></Label>
                 <div className="max-h-36 space-y-2 overflow-y-auto rounded-md border p-2">
                   {plates.map(plate => <label key={plate} className="flex items-center gap-2 text-sm">
                     <Checkbox checked={reportConfig.filters.plateNumbers?.includes(plate) || false} onCheckedChange={checked => setReportConfig(current => ({ ...current, filters: { ...current.filters, plateNumbers: checked ? [...(current.filters.plateNumbers || []), plate] : (current.filters.plateNumbers || []).filter(item => item !== plate) } }))} />
@@ -939,7 +940,7 @@ export default function ProfessionalReportGenerator() {
               </div>
 
               <div className="space-y-2">
-                <Label className="text-sm">Trailer Numbers (select any number)</Label>
+                <Label className="text-sm"><LocalizedText>Trailer Numbers (select any number)</LocalizedText></Label>
                 <div className="max-h-36 space-y-2 overflow-y-auto rounded-md border p-2">
                   {trailerNumbers.map(number => <label key={number} className="flex items-center gap-2 text-sm">
                     <Checkbox checked={reportConfig.filters.trailerNumbers?.includes(number) || false} onCheckedChange={checked => setReportConfig(current => ({ ...current, filters: { ...current.filters, trailerNumbers: checked ? [...(current.filters.trailerNumbers || []), number] : (current.filters.trailerNumbers || []).filter(item => item !== number) } }))} />
@@ -949,7 +950,7 @@ export default function ProfessionalReportGenerator() {
               </div>
 
               <div className="space-y-2">
-                <Label className="text-sm">Driver Name</Label>
+                <Label className="text-sm"><LocalizedText>Driver Name</LocalizedText></Label>
                 <Select value={reportConfig.filters.driverName || ''} onValueChange={(value) => 
                   setReportConfig({
                     ...reportConfig,
@@ -960,7 +961,7 @@ export default function ProfessionalReportGenerator() {
                     <SelectValue placeholder="All drivers" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All drivers</SelectItem>
+                    <SelectItem value="all"><LocalizedText>All drivers</LocalizedText></SelectItem>
                     {drivers.map((d) => (
                       <SelectItem key={d} value={d}>{d}</SelectItem>
                     ))}
@@ -973,7 +974,7 @@ export default function ProfessionalReportGenerator() {
           {/* Output Options */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
             <div className="space-y-3">
-              <Label className="text-sm">Include Charts</Label>
+              <Label className="text-sm"><LocalizedText>Include Charts</LocalizedText></Label>
               <div className="flex items-center space-x-2">
                 <input
                   type="checkbox"
@@ -982,12 +983,12 @@ export default function ProfessionalReportGenerator() {
                   onChange={(e) => setReportConfig({ ...reportConfig, includeCharts: e.target.checked })}
                   className="rounded"
                 />
-                <Label htmlFor="includeCharts" className="text-sm">Include charts and graphs in report</Label>
+                <Label htmlFor="includeCharts" className="text-sm"><LocalizedText>Include charts and graphs in report</LocalizedText></Label>
               </div>
             </div>
 
             <div className="space-y-3">
-              <Label className="text-sm">Output Format</Label>
+              <Label className="text-sm"><LocalizedText>Output Format</LocalizedText></Label>
               <Select value={reportConfig.format} onValueChange={(value: any) => 
                 setReportConfig({ ...reportConfig, format: value })
               }>
@@ -995,9 +996,9 @@ export default function ProfessionalReportGenerator() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="pdf">PDF Document</SelectItem>
-                  <SelectItem value="excel">Excel Spreadsheet</SelectItem>
-                  <SelectItem value="csv">CSV Data</SelectItem>
+                  <SelectItem value="pdf"><LocalizedText>PDF Document</LocalizedText></SelectItem>
+                  <SelectItem value="excel"><LocalizedText>Excel Spreadsheet</LocalizedText></SelectItem>
+                  <SelectItem value="csv"><LocalizedText>CSV Data</LocalizedText></SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -1025,14 +1026,14 @@ export default function ProfessionalReportGenerator() {
               {generating ? (
                 <>
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  <span className="hidden sm:inline">Generating...</span>
-                  <span className="sm:hidden">Generating</span>
+                  <span className="hidden sm:inline"><LocalizedText>Generating...</LocalizedText></span>
+                  <span className="sm:hidden"><LocalizedText>Generating</LocalizedText></span>
                 </>
               ) : (
                 <>
                   <FileText className="mr-2 h-4 w-4" />
-                  <span className="hidden sm:inline">Generate Report</span>
-                  <span className="sm:hidden">Generate</span>
+                  <span className="hidden sm:inline"><LocalizedText>Generate Report</LocalizedText></span>
+                  <span className="sm:hidden"><LocalizedText>Generate</LocalizedText></span>
                 </>
               )}
             </Button>
@@ -1044,9 +1045,9 @@ export default function ProfessionalReportGenerator() {
       <Dialog open={showPreview} onOpenChange={setShowPreview}>
         <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto mx-4 sm:mx-auto">
           <DialogHeader>
-            <DialogTitle className="text-lg">Report Preview</DialogTitle>
+            <DialogTitle className="text-lg"><LocalizedText>Report Preview</LocalizedText></DialogTitle>
             <DialogDescription className="text-sm">
-              Preview of your generated report
+              <LocalizedText>Preview of your generated report</LocalizedText>
             </DialogDescription>
           </DialogHeader>
           
@@ -1056,12 +1057,12 @@ export default function ProfessionalReportGenerator() {
               {reportData.isEmpty && (
                 <div className="text-center py-8">
                   <AlertCircle className="h-12 w-12 text-yellow-500 mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">No Data Found</h3>
+                  <h3 className="text-lg font-semibold mb-2"><LocalizedText>No Data Found</LocalizedText></h3>
                   <p className="text-gray-600 mb-4">
-                    No tire data found for the selected criteria and date range.
+                    <LocalizedText>No tire data found for the selected criteria and date range.</LocalizedText>
                   </p>
                   <p className="text-sm text-gray-500">
-                    Try adjusting your filters or date range to include more data.
+                    <LocalizedText>Try adjusting your filters or date range to include more data.</LocalizedText>
                   </p>
                 </div>
               )}
@@ -1090,31 +1091,31 @@ export default function ProfessionalReportGenerator() {
                   {/* Executive Summary */}
                   {selectedSummary && (
                     <div className="space-y-4">
-                      <h2 className="text-lg sm:text-xl font-semibold">Executive Summary</h2>
+                      <h2 className="text-lg sm:text-xl font-semibold"><LocalizedText>Executive Summary</LocalizedText></h2>
                       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                         <div className="text-center p-3 sm:p-4 bg-gray-50 rounded-lg">
                           <div className="text-lg sm:text-2xl font-bold text-blue-600">
                             {selectedSummary.totalTires || 0}
                           </div>
-                          <div className="text-xs sm:text-sm text-gray-600">Total Tires</div>
+                          <div className="text-xs sm:text-sm text-gray-600"><LocalizedText>Total Tires</LocalizedText></div>
                         </div>
                         <div className="text-center p-3 sm:p-4 bg-gray-50 rounded-lg">
                           <div className="text-lg sm:text-2xl font-bold text-green-600">
                             {selectedSummary.totalVehicles || 0}
                           </div>
-                          <div className="text-xs sm:text-sm text-gray-600">Vehicles</div>
+                          <div className="text-xs sm:text-sm text-gray-600"><LocalizedText>Vehicles</LocalizedText></div>
                         </div>
                         <div className="text-center p-3 sm:p-4 bg-gray-50 rounded-lg">
                           <div className="text-lg sm:text-2xl font-bold text-purple-600">
                             {selectedSummary.totalDrivers || 0}
                           </div>
-                          <div className="text-xs sm:text-sm text-gray-600">Drivers</div>
+                          <div className="text-xs sm:text-sm text-gray-600"><LocalizedText>Drivers</LocalizedText></div>
                         </div>
                         <div className="text-center p-3 sm:p-4 bg-gray-50 rounded-lg">
                           <div className="text-lg sm:text-2xl font-bold text-orange-600">
                             {selectedSummary.averageTiresPerVehicle || 0}
                           </div>
-                          <div className="text-xs sm:text-sm text-gray-600">Avg Tires/Vehicle</div>
+                          <div className="text-xs sm:text-sm text-gray-600"><LocalizedText>Avg Tires/Vehicle</LocalizedText></div>
                         </div>
                       </div>
                     </div>
@@ -1125,7 +1126,7 @@ export default function ProfessionalReportGenerator() {
                     <div className="space-y-4">
                       <div className="flex flex-wrap items-center gap-2 text-sm">
                         <span>{tireSelectionActive ? `${selectedTireIds.length} of ${reportData.tires.length} tires selected for this report` : `All ${reportData.tires.length} matching tires included`}</span>
-                        <Button variant="outline" size="sm" onClick={selectAllTires}>Select all</Button>
+                        <Button variant="outline" size="sm" onClick={selectAllTires}><LocalizedText>Select all</LocalizedText></Button>
                         <Button variant="outline" size="sm" onClick={() => { setTireSelectionActive(true); setSelectedTireIds([]) }}>Clear selection</Button>
                       </div>
                       <h2 className="text-lg sm:text-xl font-semibold">
@@ -1135,18 +1136,18 @@ export default function ProfessionalReportGenerator() {
                       {/* Show trailer-specific summary if applicable */}
                       {(reportConfig.template === 'trailer-report' || reportConfig.filters.trailerNumbers?.length) && (
                         <div className="bg-orange-50 p-4 rounded-lg">
-                          <h3 className="font-semibold text-orange-800 mb-2">Trailer Analysis</h3>
+                          <h3 className="font-semibold text-orange-800 mb-2"><LocalizedText>Trailer Analysis</LocalizedText></h3>
                           <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 text-sm">
                             <div>
-                              <span className="text-orange-600 font-medium">Trailer Tires:</span>
+                              <span className="text-orange-600 font-medium"><LocalizedText>Trailer Tires:</LocalizedText></span>
                               <span className="ml-2">{selectedTires.filter((t: any) => t.trailerNumber).reduce((sum: number, t: any) => sum + (t.quantity || 1), 0)}</span>
                             </div>
                             <div>
-                              <span className="text-orange-600 font-medium">Unique Trailers:</span>
+                              <span className="text-orange-600 font-medium"><LocalizedText>Unique Trailers:</LocalizedText></span>
                               <span className="ml-2">{new Set(selectedTires.filter((t: any) => t.trailerNumber).map((t: any) => t.trailerNumber)).size}</span>
                             </div>
                             <div>
-                              <span className="text-orange-600 font-medium">Avg per Trailer:</span>
+                              <span className="text-orange-600 font-medium"><LocalizedText>Avg per Trailer:</LocalizedText></span>
                               <span className="ml-2">
                                 {(() => {
                                   const trailerTires = selectedTires.filter((t: any) => t.trailerNumber)
@@ -1157,7 +1158,7 @@ export default function ProfessionalReportGenerator() {
                               </span>
                             </div>
                             <div>
-                              <span className="text-orange-600 font-medium">Coverage:</span>
+                              <span className="text-orange-600 font-medium"><LocalizedText>Coverage:</LocalizedText></span>
                               <span className="ml-2">
                                 {Math.round((selectedTires.filter((t: any) => t.trailerNumber).length / selectedTires.length) * 100)}%
                               </span>
@@ -1170,13 +1171,13 @@ export default function ProfessionalReportGenerator() {
                         <Table>
                           <TableHeader>
                             <TableRow>
-                              <TableHead>Select</TableHead>
-                              <TableHead>Tire Details</TableHead>
-                              <TableHead>Vehicle/Trailer</TableHead>
-                              <TableHead>Driver</TableHead>
-                              <TableHead>Origin</TableHead>
-                              <TableHead>Quantity</TableHead>
-                              <TableHead>Created</TableHead>
+                              <TableHead><LocalizedText>Select</LocalizedText></TableHead>
+                              <TableHead><LocalizedText>Tire Details</LocalizedText></TableHead>
+                              <TableHead><LocalizedText>Vehicle/Trailer</LocalizedText></TableHead>
+                              <TableHead><LocalizedText>Driver</LocalizedText></TableHead>
+                              <TableHead><LocalizedText>Origin</LocalizedText></TableHead>
+                              <TableHead><LocalizedText>Quantity</LocalizedText></TableHead>
+                              <TableHead><LocalizedText>Created</LocalizedText></TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -1246,13 +1247,13 @@ export default function ProfessionalReportGenerator() {
                           </TableBody>
                         </Table>
                       </div>
-                      {tireSelectionActive && selectedTireIds.length === 0 && <p className="text-sm text-amber-700">No tire records are selected. Choose one or more rows before downloading.</p>}
+                      {tireSelectionActive && selectedTireIds.length === 0 && <p className="text-sm text-amber-700"><LocalizedText>No tire records are selected. Choose one or more rows before downloading.</LocalizedText></p>}
                     </div>
                   )}
 
                   {/* Recommendations */}
                   <div className="space-y-4">
-                    <h2 className="text-lg sm:text-xl font-semibold">Recommendations</h2>
+                    <h2 className="text-lg sm:text-xl font-semibold"><LocalizedText>Recommendations</LocalizedText></h2>
                     <div className="bg-blue-50 p-3 sm:p-4 rounded-lg">
                       <ul className="space-y-2 text-xs sm:text-sm">
                         {reportConfig.template === 'trailer-report' ? (

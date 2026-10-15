@@ -1,7 +1,7 @@
 'use client'
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
-import { PermissionManager, SettingsPermissions, defaultPermissions, adminPermissions, managerPermissions } from '@/lib/permissions'
+import { PermissionManager, SettingsPermissions, defaultPermissions, adminPermissions, managerPermissions, normalizeRolePermissions, normalizePermissionOverrides } from '@/lib/permissions'
 import { useAuth } from '@/contexts/auth-context'
 import { apiGet } from '@/lib/api'
 
@@ -28,23 +28,30 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   const fetchPermissions = async () => {
+    setLoading(true)
     try {
       const response = await apiGet('/api/settings')
       if (response.ok) {
         const settings = await response.json()
-        const permissions = settings.rolePermissions && settings.userPermissions 
-          ? {
-              rolePermissions: settings.rolePermissions,
-              userPermissions: settings.userPermissions
-            }
-          : {
-              rolePermissions: {
-                ADMIN: adminPermissions,
-                MANAGER: managerPermissions,
-                USER: defaultPermissions
-              },
-              userPermissions: {}
-            }
+        const storedRolePermissions = settings.rolePermissions || {
+          ADMIN: adminPermissions,
+          MANAGER: managerPermissions,
+          USER: defaultPermissions
+        }
+        const permissions: SettingsPermissions = {
+          rolePermissions: Object.fromEntries(
+            Object.entries(storedRolePermissions).map(([role, rolePermissions]) => [
+              role,
+              normalizeRolePermissions(rolePermissions)
+            ])
+          ),
+          userPermissions: Object.fromEntries(
+            Object.entries(settings.userPermissions || {}).map(([userId, userPermissions]) => [
+              userId,
+              normalizePermissionOverrides(userPermissions)
+            ])
+          )
+        }
         
         setSettingsPermissions(permissions)
         
@@ -87,11 +94,17 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
   }
 
   useEffect(() => {
-    if (user && typeof window !== 'undefined') {
-      fetchPermissions()
-    } else {
+    if (!user || typeof window === 'undefined') {
+      setPermissionManager(null)
+      setSettingsPermissions(null)
       setLoading(false)
+      return
     }
+
+    fetchPermissions()
+    const refreshOnFocus = () => { void fetchPermissions() }
+    window.addEventListener('focus', refreshOnFocus)
+    return () => window.removeEventListener('focus', refreshOnFocus)
   }, [user])
 
   const hasPermission = (resource: string, action: string): boolean => {

@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { Prisma } from '@prisma/client'
-import { defaultPermissions, adminPermissions, managerPermissions } from '@/lib/permissions'
-import { requireAdmin, requireAuth } from '@/lib/auth'
+import { PermissionManager, defaultPermissions, adminPermissions, managerPermissions } from '@/lib/permissions'
+import { requireAuth } from '@/lib/auth'
 
 export async function GET(request: NextRequest) {
   try {
@@ -78,7 +78,26 @@ export async function GET(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    await requireAdmin(request)
+    const user = await requireAuth(request)
+
+    // Resolve the caller's saved permissions before accepting an update. Admins
+    // retain full access; other roles may edit ordinary settings only when an
+    // Admin has granted the settings:update permission.
+    const existingSettings = await db.settings.findFirst()
+    const isAdmin = user.role === 'ADMIN'
+    if (!isAdmin) {
+      const permissionManager = new PermissionManager(user.role, user.id, user.permissions)
+      permissionManager.setSettingsPermissions({
+        rolePermissions: (existingSettings?.rolePermissions || {}) as any,
+        userPermissions: (existingSettings?.userPermissions || {}) as any
+      })
+      if (!permissionManager.canUpdate('settings')) {
+        return NextResponse.json(
+          { error: 'You do not have permission to change settings' },
+          { status: 403 }
+        )
+      }
+    }
 
     const body = await request.json()
     const {
@@ -106,66 +125,54 @@ export async function PUT(request: NextRequest) {
       userPermissions
     } = body
 
-    // Get existing settings
-    let settings = await db.settings.findFirst()
+    const commonSettings = {
+      currencySymbol,
+      currencyCode,
+      currencyName,
+      decimalPlaces: Number.parseInt(String(decimalPlaces), 10),
+      thousandsSeparator,
+      decimalSeparator,
+      symbolPosition,
+      companyName,
+      companyAddress,
+      companyPhone,
+      companyEmail,
+      timezone,
+      dateFormat,
+      maintenanceIntervals,
+      notifications
+    }
+    const adminOnlySettings = isAdmin
+      ? {
+          bankName,
+          bankAccountName,
+          bankAccountNumber,
+          bankIBAN,
+          acceptedPaymentMethods,
+          rolePermissions,
+          userPermissions
+        }
+      : {}
+    const settingsData = { ...commonSettings, ...adminOnlySettings }
+
+    let settings = existingSettings
 
     if (settings) {
       // Update existing settings
       settings = await db.settings.update({
         where: { id: settings.id },
-        data: {
-          currencySymbol,
-          currencyCode,
-          currencyName,
-          decimalPlaces: parseInt(decimalPlaces),
-          thousandsSeparator,
-          decimalSeparator,
-          symbolPosition,
-          companyName,
-          companyAddress,
-          companyPhone,
-          companyEmail,
-          bankName,
-          bankAccountName,
-          bankAccountNumber,
-          bankIBAN,
-          acceptedPaymentMethods,
-          timezone,
-          dateFormat,
-          maintenanceIntervals,
-          notifications,
-          rolePermissions,
-          userPermissions
-        }
+        data: settingsData
       })
     } else {
       // Create new settings
       settings = await db.settings.create({
-        data: {
-          currencySymbol,
-          currencyCode,
-          currencyName,
-          decimalPlaces: parseInt(decimalPlaces),
-          thousandsSeparator,
-          decimalSeparator,
-          symbolPosition,
-          companyName,
-          companyAddress,
-          companyPhone,
-          companyEmail,
-          bankName,
-          bankAccountName,
-          bankAccountNumber,
-          bankIBAN,
-          acceptedPaymentMethods,
-          timezone,
-          dateFormat,
-          maintenanceIntervals,
-          notifications,
-          rolePermissions,
-          userPermissions
-        }
+        data: settingsData
       })
+    }
+
+    if (!isAdmin) {
+      const { bankName, bankAccountName, bankAccountNumber, bankIBAN, ...safeSettings } = settings
+      return NextResponse.json(safeSettings)
     }
 
     return NextResponse.json(settings)
@@ -178,10 +185,7 @@ export async function PUT(request: NextRequest) {
       )
     }
     if (error instanceof Error && error.message === 'Insufficient permissions') {
-      return NextResponse.json(
-        { error: 'Administrator access required' },
-        { status: 403 }
-      )
+      return NextResponse.json({ error: 'Administrator access required' }, { status: 403 })
     }
 
     return NextResponse.json(

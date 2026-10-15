@@ -1,4 +1,5 @@
 'use client'
+import { LocalizedText } from '@/components/localized-text'
 
 import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -88,7 +89,7 @@ export function DatabaseStorageMonitor() {
     return (
       <Card>
         <CardContent className="flex items-center justify-center py-6">
-          <p className="text-muted-foreground">Failed to load storage data</p>
+          <p className="text-muted-foreground"><LocalizedText>Failed to load storage data</LocalizedText></p>
         </CardContent>
       </Card>
     )
@@ -123,7 +124,7 @@ export function DatabaseStorageMonitor() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <HardDrive className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm font-medium">Used:</span>
+              <span className="text-sm font-medium"><LocalizedText>Used:</LocalizedText></span>
             </div>
             <Badge variant="secondary">
               {storageData.storage.actual 
@@ -136,14 +137,14 @@ export function DatabaseStorageMonitor() {
           {storageData.storage.available && (
             <>
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Available:</span>
+                <span className="text-sm font-medium"><LocalizedText>Available:</LocalizedText></span>
                 <Badge variant="outline">
                   {storageData.storage.available.availableGB?.toFixed(2) || '0'} GB
                 </Badge>
               </div>
               
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Available (KB):</span>
+                <span className="text-sm font-medium"><LocalizedText>Available (KB):</LocalizedText></span>
                 <Badge variant="outline">
                   {storageData.storage.available.availableKB?.toLocaleString() || '0'} KB
                 </Badge>
@@ -163,39 +164,39 @@ export function DatabaseStorageMonitor() {
         </div>
 
         <div className="space-y-2 border-t pt-2">
-          <div className="text-sm font-medium">Records Count:</div>
+          <div className="text-sm font-medium"><LocalizedText>Records Count:</LocalizedText></div>
           <div className="grid grid-cols-2 gap-2 text-xs">
             <div className="flex justify-between">
-              <span>Users:</span>
+              <span><LocalizedText>Users:</LocalizedText></span>
               <span className="font-mono">{storageData.tableCounts.users}</span>
             </div>
             <div className="flex justify-between">
-              <span>Trucks:</span>
+              <span><LocalizedText>Trucks:</LocalizedText></span>
               <span className="font-mono">{storageData.tableCounts.trucks}</span>
             </div>
             <div className="flex justify-between">
-              <span>Trailers:</span>
+              <span><LocalizedText>Trailers:</LocalizedText></span>
               <span className="font-mono">{storageData.tableCounts.trailers}</span>
             </div>
             <div className="flex justify-between">
-              <span>Maintenance:</span>
+              <span><LocalizedText>Maintenance:</LocalizedText></span>
               <span className="font-mono">{storageData.tableCounts.maintenance}</span>
             </div>
             <div className="flex justify-between">
-              <span>Tires:</span>
+              <span><LocalizedText>Tires:</LocalizedText></span>
               <span className="font-mono">{storageData.tableCounts.tires}</span>
             </div>
             <div className="flex justify-between">
-              <span>Mechanics:</span>
+              <span><LocalizedText>Mechanics:</LocalizedText></span>
               <span className="font-mono">{storageData.tableCounts.mechanics}</span>
             </div>
             <div className="flex justify-between">
-              <span>Documents:</span>
+              <span><LocalizedText>Documents:</LocalizedText></span>
               <span className="font-mono">{storageData.tableCounts.documents}</span>
             </div>
           </div>
           <div className="border-t pt-2 flex justify-between font-medium">
-            <span>Total Records:</span>
+            <span><LocalizedText>Total Records:</LocalizedText></span>
             <span className="font-mono">{storageData.tableCounts.total}</span>
           </div>
         </div>

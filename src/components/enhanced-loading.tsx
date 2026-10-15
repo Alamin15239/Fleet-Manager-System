@@ -1,4 +1,5 @@
 'use client'
+import { LocalizedText } from '@/components/localized-text'
 
 import { Card, CardContent } from '@/components/ui/card'
 import { Truck, Activity, Database, BarChart3 } from 'lucide-react'
@@ -34,7 +35,7 @@ export function EnhancedLoading({
         
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
         
-        <h3 className="text-lg font-semibold mb-2">Fleet Manager</h3>
+        <h3 className="text-lg font-semibold mb-2"><LocalizedText>Fleet Manager</LocalizedText></h3>
         <p className="text-muted-foreground">{message}</p>
         
         <div className="mt-6 flex justify-center">

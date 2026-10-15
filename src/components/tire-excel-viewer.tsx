@@ -1,4 +1,5 @@
 'use client'
+import { LocalizedText } from '@/components/localized-text'
 
 import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -7,7 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { FileSpreadsheet, RefreshCw, Download } from 'lucide-react'
-import { toast } from 'sonner'
+import { toast } from '@/lib/localized-toast'
 import { apiGet } from '@/lib/api'
 
 interface Tire {
@@ -139,19 +140,19 @@ export default function TireExcelViewer() {
         {loading ? (
           <div className="flex items-center justify-center py-8">
             <RefreshCw className="h-6 w-6 animate-spin" />
-            <span className="ml-2">Loading...</span>
+            <span className="ml-2"><LocalizedText>Loading...</LocalizedText></span>
           </div>
         ) : (
           <div className="border rounded-lg overflow-x-auto">
             <Table className="min-w-[720px]">
               <TableHeader>
                 <TableRow className="bg-gray-50">
-                  <TableHead>Tire Size</TableHead>
-                  <TableHead>Truck Number</TableHead>
-                  <TableHead>Driver Name</TableHead>
-                  <TableHead>Out Qty</TableHead>
-                  <TableHead>Serial Number</TableHead>
-                  <TableHead>Date</TableHead>
+                  <TableHead><LocalizedText>Tire Size</LocalizedText></TableHead>
+                  <TableHead><LocalizedText>Truck Number</LocalizedText></TableHead>
+                  <TableHead><LocalizedText>Driver Name</LocalizedText></TableHead>
+                  <TableHead><LocalizedText>Out Qty</LocalizedText></TableHead>
+                  <TableHead><LocalizedText>Serial Number</LocalizedText></TableHead>
+                  <TableHead><LocalizedText>Date</LocalizedText></TableHead>
                 </TableRow>
                 <TableRow className="bg-blue-50">
                   <TableHead className="p-1">
@@ -160,7 +161,7 @@ export default function TireExcelViewer() {
                         <SelectValue placeholder="All" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="all">All</SelectItem>
+                        <SelectItem value="all"><LocalizedText>All</LocalizedText></SelectItem>
                         {uniqueValues.tireSize.map(v => (
                           <SelectItem key={v} value={v}>{formatTireSize(v)}</SelectItem>
                         ))}
@@ -173,7 +174,7 @@ export default function TireExcelViewer() {
                         <SelectValue placeholder="All" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="all">All</SelectItem>
+                        <SelectItem value="all"><LocalizedText>All</LocalizedText></SelectItem>
                         {uniqueValues.plateNumber.map(v => (
                           <SelectItem key={v} value={v}>{v}</SelectItem>
                         ))}
@@ -186,7 +187,7 @@ export default function TireExcelViewer() {
                         <SelectValue placeholder="All" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="all">All</SelectItem>
+                        <SelectItem value="all"><LocalizedText>All</LocalizedText></SelectItem>
                         {uniqueValues.driverName.map(v => (
                           <SelectItem key={v} value={v}>{v}</SelectItem>
                         ))}
@@ -216,7 +217,7 @@ export default function TireExcelViewer() {
                       size="sm"
                       className="h-6 text-xs px-2"
                     >
-                      Clear
+                      <LocalizedText>Clear</LocalizedText>
                     </Button>
                   </TableHead>
                 </TableRow>
@@ -236,7 +237,7 @@ export default function TireExcelViewer() {
             </Table>
             {filteredTires.length === 0 && tires.length > 0 && (
               <div className="text-center py-8 text-gray-500">
-                No tires match the current filters
+                <LocalizedText>No tires match the current filters</LocalizedText>
               </div>
             )}
             {loadError && (
@@ -246,7 +247,7 @@ export default function TireExcelViewer() {
             )}
             {tires.length === 0 && !loadError && (
               <div className="text-center py-8 text-gray-500">
-                No tire data available
+                <LocalizedText>No tire data available</LocalizedText>
               </div>
             )}
           </div>

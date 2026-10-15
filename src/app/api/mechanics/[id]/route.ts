@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { requireManager } from '@/lib/auth'
+import { requireRolePermission } from '@/lib/permission-middleware'
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params
-    await requireManager(request)
+    await requireRolePermission(request, 'mechanics', 'update')
     const body = await request.json()
     const { name, email, phone, specialty, isActive } = body
 
@@ -65,7 +65,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params
-    await requireManager(request)
+    await requireRolePermission(request, 'mechanics', 'delete')
     // Check if mechanic exists
     const mechanic = await db.mechanic.findUnique({
       where: { id, isDeleted: false }

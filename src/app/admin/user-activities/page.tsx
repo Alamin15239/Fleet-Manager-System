@@ -1,4 +1,5 @@
 'use client'
+import { LocalizedText } from '@/components/localized-text'
 
 import { UserActivityMonitor } from '@/components/user-activity-monitor'
 import { useAuth } from '@/contexts/auth-context'
@@ -16,7 +17,7 @@ export default function UserActivitiesPage() {
   }, [user, isLoading, router])
 
   if (isLoading) {
-    return <div className="flex items-center justify-center min-h-screen">Loading...</div>
+    return <div className="flex items-center justify-center min-h-screen"><LocalizedText>Loading...</LocalizedText></div>
   }
 
   if (!user || user.role !== 'ADMIN') {
@@ -26,8 +27,8 @@ export default function UserActivitiesPage() {
   return (
     <div className="container mx-auto p-6">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold tracking-tight">User Activity Monitor</h1>
-        <p className="text-muted-foreground">Monitor all user activities, logins, and system interactions with location and device tracking</p>
+        <h1 className="text-3xl font-bold tracking-tight"><LocalizedText>User Activity Monitor</LocalizedText></h1>
+        <p className="text-muted-foreground"><LocalizedText>Monitor all user activities, logins, and system interactions with location and device tracking</LocalizedText></p>
       </div>
       
       <UserActivityMonitor className="mt-6" />

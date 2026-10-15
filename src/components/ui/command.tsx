@@ -5,6 +5,7 @@ import { Command as CommandPrimitive } from "cmdk"
 import { SearchIcon } from "lucide-react"
 
 import { cn } from "@/lib/utils"
+import { useLanguage } from '@/contexts/language-context'
 import {
   Dialog,
   DialogContent,
@@ -42,11 +43,13 @@ function CommandDialog({
   className?: string
   showCloseButton?: boolean
 }) {
+  const { t } = useLanguage()
+
   return (
     <Dialog {...props}>
       <DialogHeader className="sr-only">
-        <DialogTitle>{title}</DialogTitle>
-        <DialogDescription>{description}</DialogDescription>
+        <DialogTitle>{t(title)}</DialogTitle>
+        <DialogDescription>{t(description)}</DialogDescription>
       </DialogHeader>
       <DialogContent
         className={cn("overflow-hidden p-0", className)}
@@ -62,8 +65,11 @@ function CommandDialog({
 
 function CommandInput({
   className,
+  placeholder,
   ...props
 }: React.ComponentProps<typeof CommandPrimitive.Input>) {
+  const { t } = useLanguage()
+
   return (
     <div
       data-slot="command-input-wrapper"
@@ -76,6 +82,7 @@ function CommandInput({
           "placeholder:text-muted-foreground flex h-10 w-full rounded-md bg-transparent py-3 text-sm outline-hidden disabled:cursor-not-allowed disabled:opacity-50",
           className
         )}
+        placeholder={typeof placeholder === 'string' ? t(placeholder) : placeholder}
         {...props}
       />
     </div>

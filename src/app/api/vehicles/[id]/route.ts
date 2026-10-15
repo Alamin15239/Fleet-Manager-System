@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { requireAuth, requireManager } from '@/lib/auth'
+import { requireRolePermission } from '@/lib/permission-middleware'
 
 // GET /api/vehicles/[id] - Get single vehicle
 export async function GET(
@@ -9,7 +9,7 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    await requireAuth(request)
+    await requireRolePermission(request, 'trucks', 'read')
     const vehicle = await db.vehicle.findUnique({
       where: { id: id }
     })
@@ -25,9 +25,10 @@ export async function GET(
   } catch (error) {
     console.error('Error fetching vehicle:', error)
     const unauthorized = error instanceof Error && ['No token provided', 'Invalid token'].includes(error.message)
+    const forbidden = error instanceof Error && error.message === 'Insufficient permissions'
     return NextResponse.json(
-      { error: unauthorized ? 'Authentication required' : 'Failed to fetch vehicle' },
-      { status: unauthorized ? 401 : 500 }
+      { error: unauthorized ? 'Authentication required' : forbidden ? 'Access denied' : 'Failed to fetch vehicle' },
+      { status: unauthorized ? 401 : forbidden ? 403 : 500 }
     )
   }
 }
@@ -39,7 +40,7 @@ export async function PUT(
 ) {
   try {
     const { id } = await params;
-    await requireManager(request)
+    await requireRolePermission(request, 'trucks', 'update')
     const body = await request.json()
     const { plateNumber, trailerNumber, driverName, isActive } = body
 
@@ -90,7 +91,7 @@ export async function PUT(
       )
     }
     if (error instanceof Error && error.message === 'Insufficient permissions') {
-      return NextResponse.json({ error: 'Manager access required' }, { status: 403 })
+      return NextResponse.json({ error: 'Access denied' }, { status: 403 })
     }
     
     return NextResponse.json(
@@ -107,7 +108,7 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    await requireManager(request)
+    await requireRolePermission(request, 'trucks', 'delete')
 
     // Check if vehicle exists
     const existingVehicle = await db.vehicle.findUnique({
@@ -150,7 +151,7 @@ export async function DELETE(
       )
     }
     if (error instanceof Error && error.message === 'Insufficient permissions') {
-      return NextResponse.json({ error: 'Manager access required' }, { status: 403 })
+      return NextResponse.json({ error: 'Access denied' }, { status: 403 })
     }
     
     return NextResponse.json(

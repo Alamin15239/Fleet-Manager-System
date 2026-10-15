@@ -1,4 +1,5 @@
 'use client'
+import { LocalizedText } from '@/components/localized-text'
 
 import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -91,8 +92,8 @@ function ResetPasswordContent() {
             <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100">
               <CheckCircle className="h-6 w-6 text-green-600" />
             </div>
-            <CardTitle className="text-2xl font-bold text-green-600">Success!</CardTitle>
-            <CardDescription>Your password has been reset successfully</CardDescription>
+            <CardTitle className="text-2xl font-bold text-green-600"><LocalizedText>Success!</LocalizedText></CardTitle>
+            <CardDescription><LocalizedText>Your password has been reset successfully</LocalizedText></CardDescription>
           </CardHeader>
           <CardContent>
             <Alert>
@@ -114,8 +115,8 @@ function ResetPasswordContent() {
           <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-blue-100">
             <Lock className="h-6 w-6 text-blue-600" />
           </div>
-          <CardTitle className="text-2xl font-bold">Reset Password</CardTitle>
-          <CardDescription>Enter your new password below</CardDescription>
+          <CardTitle className="text-2xl font-bold"><LocalizedText>Reset Password</LocalizedText></CardTitle>
+          <CardDescription><LocalizedText>Enter your new password below</LocalizedText></CardDescription>
         </CardHeader>
         <CardContent>
           {error && (
@@ -127,7 +128,7 @@ function ResetPasswordContent() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <Label htmlFor="password">New Password</Label>
+              <Label htmlFor="password"><LocalizedText>New Password</LocalizedText></Label>
               <div className="relative">
                 <Input
                   id="password"
@@ -154,7 +155,7 @@ function ResetPasswordContent() {
             </div>
 
             <div>
-              <Label htmlFor="confirmPassword">Confirm Password</Label>
+              <Label htmlFor="confirmPassword"><LocalizedText>Confirm Password</LocalizedText></Label>
               <div className="relative">
                 <Input
                   id="confirmPassword"

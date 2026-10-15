@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { requireAuth, requireManager } from '@/lib/auth'
+import { requireRolePermission } from '@/lib/permission-middleware'
 
 export async function GET(request: NextRequest) {
   try {
-    await requireAuth(request)
+    await requireRolePermission(request, 'maintenance', 'read')
     // Get both truck and trailer maintenance records
     const [truckRecords, trailerRecords] = await Promise.all([
       db.maintenanceRecord.findMany({
@@ -53,13 +53,14 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('Maintenance error:', error)
     const unauthorized = error instanceof Error && ['No token provided', 'Invalid token'].includes(error.message)
-    return NextResponse.json({ success: false, error: unauthorized ? 'Authentication required' : 'Failed to fetch maintenance records' }, { status: unauthorized ? 401 : 503 })
+    const forbidden = error instanceof Error && error.message === 'Insufficient permissions'
+    return NextResponse.json({ success: false, error: unauthorized ? 'Authentication required' : forbidden ? 'Access denied' : 'Failed to fetch maintenance records' }, { status: unauthorized ? 401 : forbidden ? 403 : 503 })
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    await requireManager(request)
+    await requireRolePermission(request, 'maintenance', 'create')
     const body = await request.json()
 
     // Check if the selected vehicle is a trailer by checking if it exists in trailer table

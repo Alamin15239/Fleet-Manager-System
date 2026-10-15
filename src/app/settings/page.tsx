@@ -1,4 +1,5 @@
 'use client'
+import { LocalizedText } from '@/components/localized-text'
 
 import { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -14,10 +15,10 @@ import { Settings, Save, RefreshCw, Building, DollarSign, Bell, Wrench, Users, S
 import SystemStatus from '@/components/SystemStatus'
 import SettingsDashboard from '@/components/settings-dashboard'
 import SystemUtilities from '@/components/system-utilities'
-import { toast } from 'sonner'
+import { toast } from '@/lib/localized-toast'
 import { useAuth } from '@/contexts/auth-context'
 import { usePermissions } from '@/contexts/permissions-context'
-import { defaultSettingsPermissions } from '@/lib/permissions'
+import { defaultSettingsPermissions, defaultRolePermissions, normalizeRolePermissions } from '@/lib/permissions'
 import { apiGet, apiPut } from '@/lib/api'
 
 interface SettingsData {
@@ -141,7 +142,7 @@ const roleDefinitions = {
 
 export default function SettingsPage() {
   const { isAdmin } = useAuth()
-  const { canAccess, refreshPermissions } = usePermissions()
+  const { canAccess, canUpdate, refreshPermissions } = usePermissions()
   const [settings, setSettings] = useState<SettingsData | null>(null)
   const [userActivities, setUserActivities] = useState<UserActivity[]>([])
   const [loginHistory, setLoginHistory] = useState<LoginHistory[]>([])
@@ -248,181 +249,60 @@ export default function SettingsPage() {
     }
   }
 
+  const rolePermissionFields: Record<string, string[]> = {
+    dashboard: ['canViewDashboard'],
+    trucks: ['canViewTrucks', 'canAddTrucks', 'canEditTrucks'],
+    'trucks-delete': ['canDeleteTrucks'],
+    maintenance: ['canViewMaintenance', 'canAddMaintenance', 'canEditMaintenance'],
+    'maintenance-delete': ['canDeleteMaintenance'],
+    reports: ['canViewReports'],
+    users: ['canViewUsers'],
+    'users-manage': ['canManageUsers'],
+    settings: ['canViewSettings'],
+    'settings-manage': ['canManageSettings']
+  }
+
   const updateRolePermission = (role: string, permissionType: string, enabled: boolean) => {
     if (!settings) return
+    const fields = rolePermissionFields[permissionType]
+    if (!fields) return
 
-    const rolePermissions = settings.rolePermissions || { ...defaultSettingsPermissions.rolePermissions }
-    
-    // Check if we're dealing with object format or array format
-    const currentPermissions = rolePermissions[role]
-    const isArrayFormat = Array.isArray(currentPermissions)
-    
-    if (!rolePermissions[role]) {
-      if (isArrayFormat) {
-        rolePermissions[role] = []
-      } else {
-        // Initialize with default permissions object
-        rolePermissions[role] = {
-          canViewDashboard: false,
-          canViewTrucks: false,
-          canAddTrucks: false,
-          canEditTrucks: false,
-          canDeleteTrucks: false,
-          canViewMaintenance: false,
-          canAddMaintenance: false,
-          canEditMaintenance: false,
-          canDeleteMaintenance: false,
-          canViewMechanics: false,
-          canAddMechanics: false,
-          canEditMechanics: false,
-          canDeleteMechanics: false,
-          canViewReports: false,
-          canViewUsers: false,
-          canManageUsers: false,
-          canViewSettings: false,
-          canManageSettings: false,
-          canViewAdmin: false,
-          canManageAdmin: false
-        }
-      }
+    const currentRolePermissions = settings.rolePermissions || defaultSettingsPermissions.rolePermissions
+    const rolePermissions = Object.fromEntries(
+      Object.entries(currentRolePermissions).map(([roleKey, permissions]) => [
+        roleKey,
+        normalizeRolePermissions(permissions)
+      ])
+    ) as Record<string, ReturnType<typeof normalizeRolePermissions>>
+    const nextRolePermissions = {
+      ...(rolePermissions[role] || normalizeRolePermissions(defaultRolePermissions[role as keyof typeof defaultRolePermissions]))
     }
-    
-    if (isArrayFormat) {
-      // Array format handling (original logic)
-      const permissionMap = {
-        'dashboard': { resource: 'dashboard', actions: ['read'] },
-        'trucks': { resource: 'trucks', actions: ['read', 'create', 'update'] },
-        'trucks-delete': { resource: 'trucks', actions: ['delete'] },
-        'maintenance': { resource: 'maintenance', actions: ['read', 'create', 'update'] },
-        'maintenance-delete': { resource: 'maintenance', actions: ['delete'] },
-        'mechanics': { resource: 'mechanics', actions: ['read', 'create', 'update'] },
-        'mechanics-delete': { resource: 'mechanics', actions: ['delete'] },
-        'reports': { resource: 'reports', actions: ['read', 'create', 'export'] },
-        'users': { resource: 'users', actions: ['read'] },
-        'users-manage': { resource: 'users', actions: ['create', 'update', 'delete'] },
-        'settings': { resource: 'settings', actions: ['read'] },
-        'settings-manage': { resource: 'settings', actions: ['update'] },
-        'admin': { resource: 'admin', actions: ['read', 'update'] }
-      }
 
-      const permission = permissionMap[permissionType as keyof typeof permissionMap]
-      if (!permission) return
-
-      const permissionIndex = rolePermissions[role].findIndex((p: any) => p.resource === permission.resource)
-      
-      if (permissionIndex >= 0) {
-        if (enabled) {
-          permission.actions.forEach(action => {
-            if (!rolePermissions[role][permissionIndex].actions.includes(action)) {
-              rolePermissions[role][permissionIndex].actions.push(action)
-            }
-          })
-        } else {
-          permission.actions.forEach(action => {
-            rolePermissions[role][permissionIndex].actions = rolePermissions[role][permissionIndex].actions.filter((a: string) => a !== action)
-          })
-          // Remove permission if no actions left
-          if (rolePermissions[role][permissionIndex].actions.length === 0) {
-            rolePermissions[role].splice(permissionIndex, 1)
-          }
-        }
-      } else if (enabled) {
-        rolePermissions[role].push({ resource: permission.resource, actions: [...permission.actions] })
-      }
-    } else {
-      // Object format handling
-      const permissionUpdates: Record<string, (obj: any, enabled: boolean) => void> = {
-        'dashboard': (obj, enabled) => { obj.canViewDashboard = enabled },
-        'trucks': (obj, enabled) => { 
-          obj.canViewTrucks = enabled
-          obj.canAddTrucks = enabled
-          obj.canEditTrucks = enabled
-        },
-        'trucks-delete': (obj, enabled) => { obj.canDeleteTrucks = enabled },
-        'maintenance': (obj, enabled) => { 
-          obj.canViewMaintenance = enabled
-          obj.canAddMaintenance = enabled
-          obj.canEditMaintenance = enabled
-        },
-        'maintenance-delete': (obj, enabled) => { obj.canDeleteMaintenance = enabled },
-        'mechanics': (obj, enabled) => { 
-          obj.canViewMechanics = enabled
-          obj.canAddMechanics = enabled
-          obj.canEditMechanics = enabled
-        },
-        'mechanics-delete': (obj, enabled) => { obj.canDeleteMechanics = enabled },
-        'reports': (obj, enabled) => { obj.canViewReports = enabled },
-        'users': (obj, enabled) => { obj.canViewUsers = enabled },
-        'users-manage': (obj, enabled) => { obj.canManageUsers = enabled },
-        'settings': (obj, enabled) => { obj.canViewSettings = enabled },
-        'settings-manage': (obj, enabled) => { obj.canManageSettings = enabled },
-        'admin': (obj, enabled) => { obj.canViewAdmin = enabled }
-      }
-      
-      const updater = permissionUpdates[permissionType]
-      if (updater) {
-        updater(rolePermissions[role], enabled)
-      }
+    for (const field of fields) {
+      nextRolePermissions[field as keyof typeof nextRolePermissions] = enabled
     }
+    // Managing users requires access to the user list so the grant is usable.
+    if (permissionType === 'users-manage' && enabled) {
+      nextRolePermissions.canViewUsers = true
+    }
+    if (permissionType === 'users' && !enabled) {
+      nextRolePermissions.canManageUsers = false
+    }
+    rolePermissions[role] = nextRolePermissions
 
     updateSettings('rolePermissions', rolePermissions)
   }
 
   const hasPermission = (role: string, permissionType: string): boolean => {
     if (!settings) return false
+    const fields = rolePermissionFields[permissionType]
+    if (!fields) return false
 
     const rolePermissions = settings.rolePermissions || defaultSettingsPermissions.rolePermissions
-    const permissions = rolePermissions[role] || []
-
-    // Handle both object format (from API) and array format (for UI)
-    const isArrayFormat = Array.isArray(permissions)
-    
-    const permissionMap = {
-      'dashboard': { resource: 'dashboard', actions: ['read'] },
-      'trucks': { resource: 'trucks', actions: ['read', 'create', 'update'] },
-      'trucks-delete': { resource: 'trucks', actions: ['delete'] },
-      'maintenance': { resource: 'maintenance', actions: ['read', 'create', 'update'] },
-      'maintenance-delete': { resource: 'maintenance', actions: ['delete'] },
-      'mechanics': { resource: 'mechanics', actions: ['read', 'create', 'update'] },
-      'mechanics-delete': { resource: 'mechanics', actions: ['delete'] },
-      'reports': { resource: 'reports', actions: ['read', 'create', 'export'] },
-      'users': { resource: 'users', actions: ['read'] },
-      'users-manage': { resource: 'users', actions: ['create', 'update', 'delete'] },
-      'settings': { resource: 'settings', actions: ['read'] },
-      'settings-manage': { resource: 'settings', actions: ['update'] },
-      'admin': { resource: 'admin', actions: ['read', 'update'] }
-    }
-
-    const permission = permissionMap[permissionType as keyof typeof permissionMap]
-    if (!permission) return false
-
-    if (isArrayFormat) {
-      // Array format: [{ resource: 'trucks', actions: ['read', 'create'] }]
-      return permissions.some((p: any) => 
-        p.resource === permission.resource && 
-        permission.actions.every(action => p.actions.includes(action))
-      )
-    } else {
-      // Object format: { canViewTrucks: true, canAddTrucks: false, ... }
-      const permissionChecks: Record<string, (obj: any) => boolean> = {
-        'dashboard': (obj) => obj.canViewDashboard,
-        'trucks': (obj) => obj.canViewTrucks && obj.canAddTrucks && obj.canEditTrucks,
-        'trucks-delete': (obj) => obj.canDeleteTrucks,
-        'maintenance': (obj) => obj.canViewMaintenance && obj.canAddMaintenance && obj.canEditMaintenance,
-        'maintenance-delete': (obj) => obj.canDeleteMaintenance,
-        'mechanics': (obj) => obj.canViewMechanics && obj.canAddMechanics && obj.canEditMechanics,
-        'mechanics-delete': (obj) => obj.canDeleteMechanics,
-        'reports': (obj) => obj.canViewReports,
-        'users': (obj) => obj.canViewUsers,
-        'users-manage': (obj) => obj.canManageUsers,
-        'settings': (obj) => obj.canViewSettings,
-        'settings-manage': (obj) => obj.canManageSettings,
-        'admin': (obj) => obj.canViewAdmin
-      }
-      
-      const checker = permissionChecks[permissionType]
-      return checker ? checker(permissions) : false
-    }
+    const permissions = normalizeRolePermissions(
+      rolePermissions[role] || defaultRolePermissions[role as keyof typeof defaultRolePermissions]
+    )
+    return fields.every((field) => permissions[field as keyof typeof permissions] === true)
   }
 
   const handleSave = async () => {
@@ -439,7 +319,8 @@ export default function SettingsPage() {
         refreshPermissions()
         toast.success('Settings saved successfully!')
       } else {
-        toast.error('Failed to save settings')
+        const errorData = await response.json().catch(() => ({}))
+        toast.error(errorData.error || 'Failed to save settings')
       }
     } catch (error) {
       toast.error('Failed to save settings')
@@ -458,8 +339,8 @@ export default function SettingsPage() {
       <div className="container mx-auto p-6">
         <div className="text-center">
           <Settings className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-          <h2 className="text-xl font-semibold mb-2">Access Denied</h2>
-          <p className="text-gray-600">You don't have permission to access settings.</p>
+          <h2 className="text-xl font-semibold mb-2"><LocalizedText>Access Denied</LocalizedText></h2>
+          <p className="text-gray-600"><LocalizedText>You don't have permission to access settings.</LocalizedText></p>
         </div>
       </div>
     )
@@ -478,8 +359,8 @@ export default function SettingsPage() {
       <div className="container mx-auto p-6">
         <div className="text-center">
           <Settings className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-          <h2 className="text-xl font-semibold mb-2">Settings Not Available</h2>
-          <p className="text-gray-600">Unable to load settings. Please try again.</p>
+          <h2 className="text-xl font-semibold mb-2"><LocalizedText>Settings Not Available</LocalizedText></h2>
+          <p className="text-gray-600"><LocalizedText>Unable to load settings. Please try again.</LocalizedText></p>
         </div>
       </div>
     )
@@ -489,15 +370,15 @@ export default function SettingsPage() {
     <div className="container mx-auto p-3 sm:p-6 space-y-4 sm:space-y-6">
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Settings</h1>
-          <p className="text-muted-foreground text-sm sm:text-base">Configure your fleet management system</p>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight"><LocalizedText>Settings</LocalizedText></h1>
+          <p className="text-muted-foreground text-sm sm:text-base"><LocalizedText>Configure your fleet management system</LocalizedText></p>
         </div>
         <div className="flex gap-2 w-full sm:w-auto">
           <Button variant="outline" onClick={handleReset} disabled={!hasChanges} className="flex-1 sm:flex-none">
             <RefreshCw className="h-4 w-4 mr-2" />
-            <span className="hidden sm:inline">Reset</span>
+            <span className="hidden sm:inline"><LocalizedText>Reset</LocalizedText></span>
           </Button>
-          <Button onClick={handleSave} disabled={!hasChanges || saving} className="flex-1 sm:flex-none">
+          <Button onClick={handleSave} disabled={!canUpdate('settings') || !hasChanges || saving} className="flex-1 sm:flex-none">
             <Save className="h-4 w-4 mr-2" />
             <span className="hidden sm:inline">{saving ? 'Saving...' : 'Save Changes'}</span>
             <span className="sm:hidden">{saving ? 'Save...' : 'Save'}</span>
@@ -510,34 +391,34 @@ export default function SettingsPage() {
           <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-1 min-w-max">
             <TabsTrigger value="company" className="text-xs sm:text-sm flex items-center gap-1">
               <Building className="h-3 w-3" />
-              <span className="hidden sm:inline">Company</span>
+              <span className="hidden sm:inline"><LocalizedText>Company</LocalizedText></span>
             </TabsTrigger>
             <TabsTrigger value="currency" className="text-xs sm:text-sm flex items-center gap-1">
               <DollarSign className="h-3 w-3" />
-              <span className="hidden sm:inline">Currency</span>
+              <span className="hidden sm:inline"><LocalizedText>Currency</LocalizedText></span>
             </TabsTrigger>
             <TabsTrigger value="maintenance" className="text-xs sm:text-sm flex items-center gap-1">
               <Wrench className="h-3 w-3" />
-              <span className="hidden sm:inline">Maintenance</span>
+              <span className="hidden sm:inline"><LocalizedText>Maintenance</LocalizedText></span>
             </TabsTrigger>
             <TabsTrigger value="notifications" className="text-xs sm:text-sm flex items-center gap-1">
               <Bell className="h-3 w-3" />
-              <span className="hidden sm:inline">Notifications</span>
+              <span className="hidden sm:inline"><LocalizedText>Notifications</LocalizedText></span>
             </TabsTrigger>
             <TabsTrigger value="system" className="text-xs sm:text-sm flex items-center gap-1">
               <Settings className="h-3 w-3" />
-              <span className="hidden sm:inline">System</span>
+              <span className="hidden sm:inline"><LocalizedText>System</LocalizedText></span>
             </TabsTrigger>
             {isAdmin && (
               <TabsTrigger value="roles" className="text-xs sm:text-sm flex items-center gap-1">
                 <Shield className="h-3 w-3" />
-                <span className="hidden sm:inline">Roles</span>
+                <span className="hidden sm:inline"><LocalizedText>Roles</LocalizedText></span>
               </TabsTrigger>
             )}
             {isAdmin && (
               <TabsTrigger value="activity" className="text-xs sm:text-sm flex items-center gap-1">
                 <Activity className="h-3 w-3" />
-                <span className="hidden sm:inline">Activity</span>
+                <span className="hidden sm:inline"><LocalizedText>Activity</LocalizedText></span>
               </TabsTrigger>
             )}
           </TabsList>
@@ -552,13 +433,13 @@ export default function SettingsPage() {
                 Company Information
               </CardTitle>
               <CardDescription>
-                Set up your company details that appear on reports and documents
+                <LocalizedText>Set up your company details that appear on reports and documents</LocalizedText>
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="companyName">Company Name</Label>
+                  <Label htmlFor="companyName"><LocalizedText>Company Name</LocalizedText></Label>
                   <Input
                     id="companyName"
                     placeholder="Enter company name"
@@ -568,7 +449,7 @@ export default function SettingsPage() {
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="companyEmail">Company Email</Label>
+                  <Label htmlFor="companyEmail"><LocalizedText>Company Email</LocalizedText></Label>
                   <Input
                     id="companyEmail"
                     type="email"
@@ -579,7 +460,7 @@ export default function SettingsPage() {
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="companyPhone">Company Phone</Label>
+                  <Label htmlFor="companyPhone"><LocalizedText>Company Phone</LocalizedText></Label>
                   <Input
                     id="companyPhone"
                     placeholder="+966 12 345 6789"
@@ -589,23 +470,23 @@ export default function SettingsPage() {
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="timezone">Timezone</Label>
+                  <Label htmlFor="timezone"><LocalizedText>Timezone</LocalizedText></Label>
                   <Select value={settings.timezone} onValueChange={(value) => updateSettings('timezone', value)}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Asia/Riyadh">Asia/Riyadh (Saudi Arabia)</SelectItem>
-                      <SelectItem value="UTC">UTC</SelectItem>
-                      <SelectItem value="America/New_York">America/New_York</SelectItem>
-                      <SelectItem value="Europe/London">Europe/London</SelectItem>
+                      <SelectItem value="Asia/Riyadh"><LocalizedText>Asia/Riyadh (Saudi Arabia)</LocalizedText></SelectItem>
+                      <SelectItem value="UTC"><LocalizedText>UTC</LocalizedText></SelectItem>
+                      <SelectItem value="America/New_York"><LocalizedText>America/New_York</LocalizedText></SelectItem>
+                      <SelectItem value="Europe/London"><LocalizedText>Europe/London</LocalizedText></SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="companyAddress">Company Address</Label>
+                <Label htmlFor="companyAddress"><LocalizedText>Company Address</LocalizedText></Label>
                 <Textarea
                   id="companyAddress"
                   placeholder="Enter company address"
@@ -627,13 +508,13 @@ export default function SettingsPage() {
                 Currency Settings
               </CardTitle>
               <CardDescription>
-                Configure how currency values are displayed throughout the application
+                <LocalizedText>Configure how currency values are displayed throughout the application</LocalizedText>
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                 <div className="space-y-2">
-                  <Label htmlFor="currencySymbol">Currency Symbol</Label>
+                  <Label htmlFor="currencySymbol"><LocalizedText>Currency Symbol</LocalizedText></Label>
                   <Input
                     id="currencySymbol"
                     placeholder="﷼"
@@ -641,26 +522,26 @@ export default function SettingsPage() {
                     onChange={(e) => updateSettings('currencySymbol', e.target.value)}
                     maxLength={3}
                   />
-                  <p className="text-xs text-muted-foreground">Example: ﷼, $, €, £</p>
+                  <p className="text-xs text-muted-foreground"><LocalizedText>Example: ﷼, $, €, £</LocalizedText></p>
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="currencyCode">Currency Code</Label>
+                  <Label htmlFor="currencyCode"><LocalizedText>Currency Code</LocalizedText></Label>
                   <Select value={settings.currencyCode} onValueChange={(value) => updateSettings('currencyCode', value)}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="SAR">SAR - Saudi Riyal</SelectItem>
-                      <SelectItem value="USD">USD - US Dollar</SelectItem>
-                      <SelectItem value="EUR">EUR - Euro</SelectItem>
-                      <SelectItem value="GBP">GBP - British Pound</SelectItem>
+                      <SelectItem value="SAR"><LocalizedText>SAR - Saudi Riyal</LocalizedText></SelectItem>
+                      <SelectItem value="USD"><LocalizedText>USD - US Dollar</LocalizedText></SelectItem>
+                      <SelectItem value="EUR"><LocalizedText>EUR - Euro</LocalizedText></SelectItem>
+                      <SelectItem value="GBP"><LocalizedText>GBP - British Pound</LocalizedText></SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="currencyName">Currency Name</Label>
+                  <Label htmlFor="currencyName"><LocalizedText>Currency Name</LocalizedText></Label>
                   <Input
                     id="currencyName"
                     placeholder="Saudi Riyal"
@@ -670,7 +551,7 @@ export default function SettingsPage() {
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="decimalPlaces">Decimal Places</Label>
+                  <Label htmlFor="decimalPlaces"><LocalizedText>Decimal Places</LocalizedText></Label>
                   <Select value={settings.decimalPlaces.toString()} onValueChange={(value) => updateSettings('decimalPlaces', parseInt(value))}>
                     <SelectTrigger>
                       <SelectValue />
@@ -684,7 +565,7 @@ export default function SettingsPage() {
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="thousandsSeparator">Thousands Separator</Label>
+                  <Label htmlFor="thousandsSeparator"><LocalizedText>Thousands Separator</LocalizedText></Label>
                   <Input
                     id="thousandsSeparator"
                     placeholder=","
@@ -692,11 +573,11 @@ export default function SettingsPage() {
                     onChange={(e) => updateSettings('thousandsSeparator', e.target.value)}
                     maxLength={1}
                   />
-                  <p className="text-xs text-muted-foreground">Example: , or . or space</p>
+                  <p className="text-xs text-muted-foreground"><LocalizedText>Example: , or . or space</LocalizedText></p>
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="decimalSeparator">Decimal Separator</Label>
+                  <Label htmlFor="decimalSeparator"><LocalizedText>Decimal Separator</LocalizedText></Label>
                   <Input
                     id="decimalSeparator"
                     placeholder="."
@@ -704,28 +585,28 @@ export default function SettingsPage() {
                     onChange={(e) => updateSettings('decimalSeparator', e.target.value)}
                     maxLength={1}
                   />
-                  <p className="text-xs text-muted-foreground">Example: . or ,</p>
+                  <p className="text-xs text-muted-foreground"><LocalizedText>Example: . or ,</LocalizedText></p>
                 </div>
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="symbolPosition">Symbol Position</Label>
+                <Label htmlFor="symbolPosition"><LocalizedText>Symbol Position</LocalizedText></Label>
                 <Select value={settings.symbolPosition} onValueChange={(value) => updateSettings('symbolPosition', value as 'before' | 'after')}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="before">Before amount (﷼ 1,000.00)</SelectItem>
-                    <SelectItem value="after">After amount (1,000.00 ﷼)</SelectItem>
+                    <SelectItem value="before"><LocalizedText>Before amount (﷼ 1,000.00)</LocalizedText></SelectItem>
+                    <SelectItem value="after"><LocalizedText>After amount (1,000.00 ﷼)</LocalizedText></SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               <div className="p-4 bg-gradient-to-r from-blue-50 to-green-50 border border-blue-200 rounded-lg">
-                <h4 className="font-medium mb-3 text-blue-800">Currency Preview</h4>
+                <h4 className="font-medium mb-3 text-blue-800"><LocalizedText>Currency Preview</LocalizedText></h4>
                 <div className="space-y-2">
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-blue-700">Small Amount:</span>
+                    <span className="text-sm text-blue-700"><LocalizedText>Small Amount:</LocalizedText></span>
                     <span className="text-lg font-semibold text-green-700">
                       {settings.symbolPosition === 'before' ? settings.currencySymbol : ''}
                       123{settings.decimalPlaces > 0 ? settings.decimalSeparator + '45' : ''}
@@ -733,7 +614,7 @@ export default function SettingsPage() {
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-blue-700">Large Amount:</span>
+                    <span className="text-sm text-blue-700"><LocalizedText>Large Amount:</LocalizedText></span>
                     <span className="text-xl font-bold text-green-700">
                       {settings.symbolPosition === 'before' ? settings.currencySymbol : ''}
                       1{settings.thousandsSeparator}234{settings.thousandsSeparator}567{settings.decimalPlaces > 0 ? settings.decimalSeparator + '89' : ''}
@@ -755,13 +636,13 @@ export default function SettingsPage() {
                 Maintenance Intervals
               </CardTitle>
               <CardDescription>
-                Set default maintenance intervals for your fleet (in kilometers)
+                <LocalizedText>Set default maintenance intervals for your fleet (in kilometers)</LocalizedText>
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                 <div className="space-y-2">
-                  <Label htmlFor="oilChange">Oil Change Interval</Label>
+                  <Label htmlFor="oilChange"><LocalizedText>Oil Change Interval</LocalizedText></Label>
                   <Input
                     id="oilChange"
                     type="number"
@@ -769,11 +650,11 @@ export default function SettingsPage() {
                     value={settings.maintenanceIntervals?.oilChange || ''}
                     onChange={(e) => updateNestedSettings('maintenanceIntervals', 'oilChange', parseInt(e.target.value) || 0)}
                   />
-                  <p className="text-xs text-muted-foreground">Kilometers</p>
+                  <p className="text-xs text-muted-foreground"><LocalizedText>Kilometers</LocalizedText></p>
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="tireRotation">Tire Rotation</Label>
+                  <Label htmlFor="tireRotation"><LocalizedText>Tire Rotation</LocalizedText></Label>
                   <Input
                     id="tireRotation"
                     type="number"
@@ -781,11 +662,11 @@ export default function SettingsPage() {
                     value={settings.maintenanceIntervals?.tireRotation || ''}
                     onChange={(e) => updateNestedSettings('maintenanceIntervals', 'tireRotation', parseInt(e.target.value) || 0)}
                   />
-                  <p className="text-xs text-muted-foreground">Kilometers</p>
+                  <p className="text-xs text-muted-foreground"><LocalizedText>Kilometers</LocalizedText></p>
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="brakeInspection">Brake Inspection</Label>
+                  <Label htmlFor="brakeInspection"><LocalizedText>Brake Inspection</LocalizedText></Label>
                   <Input
                     id="brakeInspection"
                     type="number"
@@ -793,11 +674,11 @@ export default function SettingsPage() {
                     value={settings.maintenanceIntervals?.brakeInspection || ''}
                     onChange={(e) => updateNestedSettings('maintenanceIntervals', 'brakeInspection', parseInt(e.target.value) || 0)}
                   />
-                  <p className="text-xs text-muted-foreground">Kilometers</p>
+                  <p className="text-xs text-muted-foreground"><LocalizedText>Kilometers</LocalizedText></p>
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="engineTuneUp">Engine Tune-up</Label>
+                  <Label htmlFor="engineTuneUp"><LocalizedText>Engine Tune-up</LocalizedText></Label>
                   <Input
                     id="engineTuneUp"
                     type="number"
@@ -805,11 +686,11 @@ export default function SettingsPage() {
                     value={settings.maintenanceIntervals?.engineTuneUp || ''}
                     onChange={(e) => updateNestedSettings('maintenanceIntervals', 'engineTuneUp', parseInt(e.target.value) || 0)}
                   />
-                  <p className="text-xs text-muted-foreground">Kilometers</p>
+                  <p className="text-xs text-muted-foreground"><LocalizedText>Kilometers</LocalizedText></p>
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="transmissionService">Transmission Service</Label>
+                  <Label htmlFor="transmissionService"><LocalizedText>Transmission Service</LocalizedText></Label>
                   <Input
                     id="transmissionService"
                     type="number"
@@ -817,7 +698,7 @@ export default function SettingsPage() {
                     value={settings.maintenanceIntervals?.transmissionService || ''}
                     onChange={(e) => updateNestedSettings('maintenanceIntervals', 'transmissionService', parseInt(e.target.value) || 0)}
                   />
-                  <p className="text-xs text-muted-foreground">Kilometers</p>
+                  <p className="text-xs text-muted-foreground"><LocalizedText>Kilometers</LocalizedText></p>
                 </div>
               </div>
             </CardContent>
@@ -833,15 +714,15 @@ export default function SettingsPage() {
                 Notification Settings
               </CardTitle>
               <CardDescription>
-                Configure which notifications you want to receive
+                <LocalizedText>Configure which notifications you want to receive</LocalizedText>
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
-                    <Label htmlFor="emailNotifications">Email Notifications</Label>
-                    <p className="text-sm text-muted-foreground">Receive notifications via email</p>
+                    <Label htmlFor="emailNotifications"><LocalizedText>Email Notifications</LocalizedText></Label>
+                    <p className="text-sm text-muted-foreground"><LocalizedText>Receive notifications via email</LocalizedText></p>
                   </div>
                   <Switch
                     id="emailNotifications"
@@ -852,8 +733,8 @@ export default function SettingsPage() {
                 
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
-                    <Label htmlFor="upcomingMaintenance">Upcoming Maintenance</Label>
-                    <p className="text-sm text-muted-foreground">Get notified when maintenance is due</p>
+                    <Label htmlFor="upcomingMaintenance"><LocalizedText>Upcoming Maintenance</LocalizedText></Label>
+                    <p className="text-sm text-muted-foreground"><LocalizedText>Get notified when maintenance is due</LocalizedText></p>
                   </div>
                   <Switch
                     id="upcomingMaintenance"
@@ -864,8 +745,8 @@ export default function SettingsPage() {
                 
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
-                    <Label htmlFor="overdueMaintenance">Overdue Maintenance</Label>
-                    <p className="text-sm text-muted-foreground">Get notified when maintenance is overdue</p>
+                    <Label htmlFor="overdueMaintenance"><LocalizedText>Overdue Maintenance</LocalizedText></Label>
+                    <p className="text-sm text-muted-foreground"><LocalizedText>Get notified when maintenance is overdue</LocalizedText></p>
                   </div>
                   <Switch
                     id="overdueMaintenance"
@@ -876,8 +757,8 @@ export default function SettingsPage() {
                 
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
-                    <Label htmlFor="lowStock">Low Stock Alerts</Label>
-                    <p className="text-sm text-muted-foreground">Get notified when parts are running low</p>
+                    <Label htmlFor="lowStock"><LocalizedText>Low Stock Alerts</LocalizedText></Label>
+                    <p className="text-sm text-muted-foreground"><LocalizedText>Get notified when parts are running low</LocalizedText></p>
                   </div>
                   <Switch
                     id="lowStock"
@@ -890,22 +771,22 @@ export default function SettingsPage() {
               {/* Notification Summary */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-                  <h4 className="font-medium mb-2 text-green-800">Active Notifications</h4>
+                  <h4 className="font-medium mb-2 text-green-800"><LocalizedText>Active Notifications</LocalizedText></h4>
                   <div className="space-y-1 text-sm">
                     {settings.notifications?.email && <div className="text-green-700">✓ Email notifications enabled</div>}
                     {settings.notifications?.upcomingMaintenance && <div className="text-green-700">✓ Upcoming maintenance alerts</div>}
                     {settings.notifications?.overdueMaintenance && <div className="text-green-700">✓ Overdue maintenance alerts</div>}
                     {settings.notifications?.lowStock && <div className="text-green-700">✓ Low stock alerts</div>}
                     {!Object.values(settings.notifications || {}).some(Boolean) && (
-                      <div className="text-gray-500">No notifications enabled</div>
+                      <div className="text-gray-500"><LocalizedText>No notifications enabled</LocalizedText></div>
                     )}
                   </div>
                 </div>
                 
                 <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                  <h4 className="font-medium mb-2 text-blue-800">Test Notifications</h4>
+                  <h4 className="font-medium mb-2 text-blue-800"><LocalizedText>Test Notifications</LocalizedText></h4>
                   <p className="text-sm text-blue-700 mb-3">
-                    Test if your notification settings are working.
+                    <LocalizedText>Test if your notification settings are working.</LocalizedText>
                   </p>
                   <Button 
                     variant="outline" 
@@ -958,7 +839,7 @@ export default function SettingsPage() {
                   Role Permissions
                 </CardTitle>
                 <CardDescription>
-                  Configure what each role can do in the system. Admin users always have full access.
+                  <LocalizedText>Configure what each role can do in the system. Admin users always have full access.</LocalizedText>
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
@@ -972,11 +853,11 @@ export default function SettingsPage() {
                           <div className="flex justify-center mb-2">
                             <IconComponent className="h-8 w-8" />
                           </div>
-                          <CardTitle className="text-lg">{role.name}</CardTitle>
-                          <CardDescription>{role.description}</CardDescription>
+                          <CardTitle className="text-lg"><LocalizedText>{role.name}</LocalizedText></CardTitle>
+                          <CardDescription><LocalizedText>{role.description}</LocalizedText></CardDescription>
                         </CardHeader>
                         <CardContent>
-                          <Badge variant={role.color as any}>{role.name}</Badge>
+                          <Badge variant={role.color as any}><LocalizedText>{role.name}</LocalizedText></Badge>
                         </CardContent>
                       </Card>
                     )
@@ -985,7 +866,7 @@ export default function SettingsPage() {
 
                 {/* Permission Matrix */}
                 <div className="space-y-6">
-                  <h3 className="text-lg font-semibold">Configure Permissions</h3>
+                  <h3 className="text-lg font-semibold"><LocalizedText>Configure Permissions</LocalizedText></h3>
                   
                   {/* Dashboard Permissions */}
                   <Card>
@@ -995,7 +876,7 @@ export default function SettingsPage() {
                         Dashboard Access
                       </CardTitle>
                       <CardDescription className="text-sm">
-                        Control who can view the main dashboard
+                        <LocalizedText>Control who can view the main dashboard</LocalizedText>
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="pt-0">
@@ -1004,7 +885,7 @@ export default function SettingsPage() {
                           <div key={roleKey} className="flex items-center justify-between p-3 border rounded-lg">
                             <div className="flex items-center gap-2">
                               <role.icon className="h-4 w-4" />
-                              <span className="font-medium text-sm">{role.name}</span>
+                              <span className="font-medium text-sm"><LocalizedText>{role.name}</LocalizedText></span>
                             </div>
                             <Switch
                               checked={hasPermission(roleKey, 'dashboard')}
@@ -1025,7 +906,7 @@ export default function SettingsPage() {
                         Truck Management
                       </CardTitle>
                       <CardDescription className="text-sm">
-                        Control who can manage trucks
+                        <LocalizedText>Control who can manage trucks</LocalizedText>
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="pt-0 space-y-4">
@@ -1035,12 +916,12 @@ export default function SettingsPage() {
                             <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/50">
                               <div className="flex items-center gap-2">
                                 <role.icon className="h-4 w-4" />
-                                <span className="font-medium">{role.name}</span>
+                                <span className="font-medium"><LocalizedText>{role.name}</LocalizedText></span>
                               </div>
                             </div>
                             <div className="space-y-2 ml-4">
                               <div className="flex items-center justify-between">
-                                <span className="text-sm">View Trucks</span>
+                                <span className="text-sm"><LocalizedText>View Trucks</LocalizedText></span>
                                 <Switch
                                   checked={hasPermission(roleKey, 'trucks')}
                                   onCheckedChange={(checked) => updateRolePermission(roleKey, 'trucks', checked)}
@@ -1048,7 +929,7 @@ export default function SettingsPage() {
                                 />
                               </div>
                               <div className="flex items-center justify-between">
-                                <span className="text-sm">Delete Trucks</span>
+                                <span className="text-sm"><LocalizedText>Delete Trucks</LocalizedText></span>
                                 <Switch
                                   checked={hasPermission(roleKey, 'trucks-delete')}
                                   onCheckedChange={(checked) => updateRolePermission(roleKey, 'trucks-delete', checked)}
@@ -1070,7 +951,7 @@ export default function SettingsPage() {
                         Maintenance Management
                       </CardTitle>
                       <CardDescription className="text-sm">
-                        Control who can manage maintenance records
+                        <LocalizedText>Control who can manage maintenance records</LocalizedText>
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="pt-0 space-y-4">
@@ -1080,12 +961,12 @@ export default function SettingsPage() {
                             <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/50">
                               <div className="flex items-center gap-2">
                                 <role.icon className="h-4 w-4" />
-                                <span className="font-medium">{role.name}</span>
+                                <span className="font-medium"><LocalizedText>{role.name}</LocalizedText></span>
                               </div>
                             </div>
                             <div className="space-y-2 ml-4">
                               <div className="flex items-center justify-between">
-                                <span className="text-sm">Manage Maintenance</span>
+                                <span className="text-sm"><LocalizedText>Manage Maintenance</LocalizedText></span>
                                 <Switch
                                   checked={hasPermission(roleKey, 'maintenance')}
                                   onCheckedChange={(checked) => updateRolePermission(roleKey, 'maintenance', checked)}
@@ -1093,7 +974,7 @@ export default function SettingsPage() {
                                 />
                               </div>
                               <div className="flex items-center justify-between">
-                                <span className="text-sm">Delete Records</span>
+                                <span className="text-sm"><LocalizedText>Delete Records</LocalizedText></span>
                                 <Switch
                                   checked={hasPermission(roleKey, 'maintenance-delete')}
                                   onCheckedChange={(checked) => updateRolePermission(roleKey, 'maintenance-delete', checked)}
@@ -1115,7 +996,7 @@ export default function SettingsPage() {
                         Reports Access
                       </CardTitle>
                       <CardDescription className="text-sm">
-                        Control who can view and create reports
+                        <LocalizedText>Control who can view and create reports</LocalizedText>
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="pt-0">
@@ -1124,7 +1005,7 @@ export default function SettingsPage() {
                           <div key={roleKey} className="flex items-center justify-between p-3 border rounded-lg">
                             <div className="flex items-center gap-2">
                               <role.icon className="h-4 w-4" />
-                              <span className="font-medium">{role.name}</span>
+                              <span className="font-medium"><LocalizedText>{role.name}</LocalizedText></span>
                             </div>
                             <Switch
                               checked={hasPermission(roleKey, 'reports')}
@@ -1145,7 +1026,7 @@ export default function SettingsPage() {
                         User Management
                       </CardTitle>
                       <CardDescription className="text-sm">
-                        Control who can manage users
+                        <LocalizedText>Control who can manage users</LocalizedText>
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="pt-0 space-y-4">
@@ -1155,12 +1036,12 @@ export default function SettingsPage() {
                             <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/50">
                               <div className="flex items-center gap-2">
                                 <role.icon className="h-4 w-4" />
-                                <span className="font-medium">{role.name}</span>
+                                <span className="font-medium"><LocalizedText>{role.name}</LocalizedText></span>
                               </div>
                             </div>
                             <div className="space-y-2 ml-4">
                               <div className="flex items-center justify-between">
-                                <span className="text-sm">View Users</span>
+                                <span className="text-sm"><LocalizedText>View Users</LocalizedText></span>
                                 <Switch
                                   checked={hasPermission(roleKey, 'users')}
                                   onCheckedChange={(checked) => updateRolePermission(roleKey, 'users', checked)}
@@ -1168,7 +1049,7 @@ export default function SettingsPage() {
                                 />
                               </div>
                               <div className="flex items-center justify-between">
-                                <span className="text-sm">Manage Users</span>
+                                <span className="text-sm"><LocalizedText>Manage Users</LocalizedText></span>
                                 <Switch
                                   checked={hasPermission(roleKey, 'users-manage')}
                                   onCheckedChange={(checked) => updateRolePermission(roleKey, 'users-manage', checked)}
@@ -1190,7 +1071,7 @@ export default function SettingsPage() {
                         Settings Access
                       </CardTitle>
                       <CardDescription className="text-sm">
-                        Control who can change settings
+                        <LocalizedText>Control who can change settings</LocalizedText>
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="pt-0 space-y-4">
@@ -1200,12 +1081,12 @@ export default function SettingsPage() {
                             <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/50">
                               <div className="flex items-center gap-2">
                                 <role.icon className="h-4 w-4" />
-                                <span className="font-medium">{role.name}</span>
+                                <span className="font-medium"><LocalizedText>{role.name}</LocalizedText></span>
                               </div>
                             </div>
                             <div className="space-y-2 ml-4">
                               <div className="flex items-center justify-between">
-                                <span className="text-sm">View Settings</span>
+                                <span className="text-sm"><LocalizedText>View Settings</LocalizedText></span>
                                 <Switch
                                   checked={hasPermission(roleKey, 'settings')}
                                   onCheckedChange={(checked) => updateRolePermission(roleKey, 'settings', checked)}
@@ -1213,7 +1094,7 @@ export default function SettingsPage() {
                                 />
                               </div>
                               <div className="flex items-center justify-between">
-                                <span className="text-sm">Change Settings</span>
+                                <span className="text-sm"><LocalizedText>Change Settings</LocalizedText></span>
                                 <Switch
                                   checked={hasPermission(roleKey, 'settings-manage')}
                                   onCheckedChange={(checked) => updateRolePermission(roleKey, 'settings-manage', checked)}
@@ -1231,21 +1112,21 @@ export default function SettingsPage() {
                 {/* Quick Summary */}
                 <Card className="bg-blue-50 border-blue-200">
                   <CardHeader className="pb-3">
-                    <CardTitle className="text-base text-blue-800">Quick Summary</CardTitle>
+                    <CardTitle className="text-base text-blue-800"><LocalizedText>Quick Summary</LocalizedText></CardTitle>
                   </CardHeader>
                   <CardContent className="pt-0">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                       <div>
-                        <h4 className="font-semibold text-blue-800 mb-2">👑 Admin</h4>
-                        <p className="text-blue-700">Full access to everything. Cannot be changed.</p>
+                        <h4 className="font-semibold text-blue-800 mb-2">👑 <LocalizedText>Admin</LocalizedText></h4>
+                        <p className="text-blue-700"><LocalizedText>Full access to everything. Cannot be changed.</LocalizedText></p>
                       </div>
                       <div>
-                        <h4 className="font-semibold text-blue-800 mb-2">💼 Manager</h4>
-                        <p className="text-blue-700">Can manage most operations but cannot delete important data or manage users.</p>
+                        <h4 className="font-semibold text-blue-800 mb-2">💼 <LocalizedText>Manager</LocalizedText></h4>
+                        <p className="text-blue-700"><LocalizedText>Can manage most operations but cannot delete important data or manage users.</LocalizedText></p>
                       </div>
                       <div>
-                        <h4 className="font-semibold text-blue-800 mb-2">👤 User</h4>
-                        <p className="text-blue-700">Read-only access. Can view information but cannot make changes.</p>
+                        <h4 className="font-semibold text-blue-800 mb-2">👤 <LocalizedText>User</LocalizedText></h4>
+                        <p className="text-blue-700"><LocalizedText>Read-only access. Can view information but cannot make changes.</LocalizedText></p>
                       </div>
                     </div>
                   </CardContent>
@@ -1272,7 +1153,7 @@ export default function SettingsPage() {
                   User Activity Monitoring
                 </CardTitle>
                 <CardDescription>
-                  Monitor user activities and login history across the system
+                  <LocalizedText>Monitor user activities and login history across the system</LocalizedText>
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -1292,10 +1173,10 @@ export default function SettingsPage() {
                         <table className="w-full">
                           <thead className="bg-muted sticky top-0">
                             <tr>
-                              <th className="text-left p-3 font-medium">User</th>
-                              <th className="text-left p-3 font-medium">Action</th>
-                              <th className="text-left p-3 font-medium">Entity</th>
-                              <th className="text-left p-3 font-medium">Time</th>
+                              <th className="text-left p-3 font-medium"><LocalizedText>User</LocalizedText></th>
+                              <th className="text-left p-3 font-medium"><LocalizedText>Action</LocalizedText></th>
+                              <th className="text-left p-3 font-medium"><LocalizedText>Entity</LocalizedText></th>
+                              <th className="text-left p-3 font-medium"><LocalizedText>Time</LocalizedText></th>
                             </tr>
                           </thead>
                           <tbody>
@@ -1311,12 +1192,12 @@ export default function SettingsPage() {
                                 </td>
                                 <td className="p-3">
                                   <Badge variant="outline">
-                                    {activity.action}
+                                    <LocalizedText>{activity.action}</LocalizedText>
                                   </Badge>
                                 </td>
                                 <td className="p-3">
                                   <div>
-                                    <div className="font-medium">{activity.entityType}</div>
+                                    <div className="font-medium"><LocalizedText>{activity.entityType}</LocalizedText></div>
                                     {activity.entityName && (
                                       <div className="text-sm text-muted-foreground">
                                         {activity.entityName}
@@ -1336,7 +1217,7 @@ export default function SettingsPage() {
                       </div>
                       {userActivities.length === 0 && (
                         <div className="text-center py-8 text-muted-foreground">
-                          No recent activities found
+                          <LocalizedText>No recent activities found</LocalizedText>
                         </div>
                       )}
                     </div>
@@ -1351,11 +1232,11 @@ export default function SettingsPage() {
                         <table className="w-full">
                           <thead className="bg-muted sticky top-0">
                             <tr>
-                              <th className="text-left p-3 font-medium">User</th>
-                              <th className="text-left p-3 font-medium">Login Time</th>
-                              <th className="text-left p-3 font-medium">Logout Time</th>
-                              <th className="text-left p-3 font-medium">Duration</th>
-                              <th className="text-left p-3 font-medium">Status</th>
+                              <th className="text-left p-3 font-medium"><LocalizedText>User</LocalizedText></th>
+                              <th className="text-left p-3 font-medium"><LocalizedText>Login Time</LocalizedText></th>
+                              <th className="text-left p-3 font-medium"><LocalizedText>Logout Time</LocalizedText></th>
+                              <th className="text-left p-3 font-medium"><LocalizedText>Duration</LocalizedText></th>
+                              <th className="text-left p-3 font-medium"><LocalizedText>Status</LocalizedText></th>
                             </tr>
                           </thead>
                           <tbody>
@@ -1380,7 +1261,7 @@ export default function SettingsPage() {
                                       {new Date(login.logoutTime).toLocaleString()}
                                     </div>
                                   ) : (
-                                    <span className="text-muted-foreground">Still active</span>
+                                    <span className="text-muted-foreground"><LocalizedText>Still active</LocalizedText></span>
                                   )}
                                 </td>
                                 <td className="p-3">
@@ -1394,7 +1275,7 @@ export default function SettingsPage() {
                                         }s
                                       </span>
                                     ) : (
-                                      <span className="text-muted-foreground">N/A</span>
+                                      <span className="text-muted-foreground"><LocalizedText>N/A</LocalizedText></span>
                                     )}
                                   </div>
                                 </td>
@@ -1410,7 +1291,7 @@ export default function SettingsPage() {
                       </div>
                       {loginHistory.length === 0 && (
                         <div className="text-center py-8 text-muted-foreground">
-                          No login history found
+                          <LocalizedText>No login history found</LocalizedText>
                         </div>
                       )}
                     </div>

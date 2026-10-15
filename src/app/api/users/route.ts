@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { requireAdmin } from '@/lib/auth'
-import { createUser, updateUser } from '@/lib/auth'
+import { requireRolePermission } from '@/lib/permission-middleware'
+import { createUser } from '@/lib/auth'
 
 // GET all users (admin only)
 export async function GET(request: NextRequest) {
   try {
-    await requireAdmin(request)
+    await requireRolePermission(request, 'users', 'read')
 
     const users = await db.user.findMany({
       select: {
@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
       }
       if (error.message === 'Insufficient permissions') {
         return NextResponse.json(
-          { error: 'Admin access required' },
+          { error: 'Access denied' },
           { status: 403 }
         )
       }
@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
 // POST create new user (admin only)
 export async function POST(request: NextRequest) {
   try {
-    await requireAdmin(request)
+    const caller = await requireRolePermission(request, 'users', 'create')
 
     const body = await request.json()
 
@@ -87,13 +87,16 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
+    if (caller.role !== 'ADMIN' && body.role && body.role !== 'USER') {
+      return NextResponse.json({ error: 'Only administrators can assign elevated roles' }, { status: 403 })
+    }
 
     const user = await createUser({
       email: body.email,
       password: body.password,
       name: body.name,
       role: body.role || 'USER',
-      permissions: body.permissions || {}
+      permissions: caller.role === 'ADMIN' ? body.permissions || {} : {}
     })
 
     // Broadcast real-time update (if socket.io is available)

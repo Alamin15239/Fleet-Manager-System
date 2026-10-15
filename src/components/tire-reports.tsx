@@ -1,4 +1,5 @@
 'use client'
+import { LocalizedText } from '@/components/localized-text'
 
 import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -206,7 +207,7 @@ export default function TireReports() {
   if (!analytics) {
     return (
       <div className="text-center p-8">
-        <p className="text-gray-500">No analytics data available</p>
+        <p className="text-gray-500"><LocalizedText>No analytics data available</LocalizedText></p>
       </div>
     )
   }
@@ -216,20 +217,20 @@ export default function TireReports() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold">Tire Analytics</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold"><LocalizedText>Tire Analytics</LocalizedText></h1>
           <p className="text-muted-foreground text-sm">
-            Comprehensive tire management insights and reports
+            <LocalizedText>Comprehensive tire management insights and reports</LocalizedText>
           </p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={handleRefresh} disabled={refreshing} size="sm">
             <RefreshCw className={`mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4 ${refreshing ? 'animate-spin' : ''}`} />
-            <span className="hidden sm:inline">Refresh</span>
+            <span className="hidden sm:inline"><LocalizedText>Refresh</LocalizedText></span>
           </Button>
           <Button variant="outline" onClick={handleExport} size="sm">
             <Download className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
-            <span className="hidden sm:inline">Export</span>
-            <span className="sm:hidden">CSV</span>
+            <span className="hidden sm:inline"><LocalizedText>Export</LocalizedText></span>
+            <span className="sm:hidden"><LocalizedText>CSV</LocalizedText></span>
           </Button>
         </div>
       </div>
@@ -238,21 +239,21 @@ export default function TireReports() {
       <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-xs sm:text-sm font-medium">Total Tires</CardTitle>
+            <CardTitle className="text-xs sm:text-sm font-medium"><LocalizedText>Total Tires</LocalizedText></CardTitle>
             <Package className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-lg sm:text-2xl font-bold">{analytics.summary.totalTires.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">
-              <span className="hidden sm:inline">Across all vehicles</span>
-              <span className="sm:hidden">All vehicles</span>
+              <span className="hidden sm:inline"><LocalizedText>Across all vehicles</LocalizedText></span>
+              <span className="sm:hidden"><LocalizedText>All vehicles</LocalizedText></span>
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-xs sm:text-sm font-medium">Serial Tracked</CardTitle>
+            <CardTitle className="text-xs sm:text-sm font-medium"><LocalizedText>Serial Tracked</LocalizedText></CardTitle>
             <Hash className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -265,7 +266,7 @@ export default function TireReports() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-xs sm:text-sm font-medium">Truck Tires</CardTitle>
+            <CardTitle className="text-xs sm:text-sm font-medium"><LocalizedText>Truck Tires</LocalizedText></CardTitle>
             <Truck className="h-3 w-3 sm:h-4 sm:w-4 text-blue-600" />
           </CardHeader>
           <CardContent>
@@ -278,7 +279,7 @@ export default function TireReports() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-xs sm:text-sm font-medium">Trailer Tires</CardTitle>
+            <CardTitle className="text-xs sm:text-sm font-medium"><LocalizedText>Trailer Tires</LocalizedText></CardTitle>
             <Package className="h-3 w-3 sm:h-4 sm:w-4 text-orange-600" />
           </CardHeader>
           <CardContent>
@@ -291,7 +292,7 @@ export default function TireReports() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-xs sm:text-sm font-medium">New Tires</CardTitle>
+            <CardTitle className="text-xs sm:text-sm font-medium"><LocalizedText>New Tires</LocalizedText></CardTitle>
             <Shield className="h-3 w-3 sm:h-4 sm:w-4 text-green-600" />
           </CardHeader>
           <CardContent>
@@ -304,13 +305,13 @@ export default function TireReports() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-xs sm:text-sm font-medium">Recent</CardTitle>
+            <CardTitle className="text-xs sm:text-sm font-medium"><LocalizedText>Recent</LocalizedText></CardTitle>
             <Calendar className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-lg sm:text-2xl font-bold">{analytics.summary.recentTires}</div>
             <p className="text-xs text-muted-foreground">
-              Last 30 days
+              <LocalizedText>Last 30 days</LocalizedText>
             </p>
           </CardContent>
         </Card>
@@ -321,7 +322,7 @@ export default function TireReports() {
         {/* Vehicle Type Distribution */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Vehicle Type Distribution</CardTitle>
+            <CardTitle className="text-lg"><LocalizedText>Vehicle Type Distribution</LocalizedText></CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={200}>
@@ -348,7 +349,7 @@ export default function TireReports() {
         {/* Tire Condition */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Tire Age Distribution</CardTitle>
+            <CardTitle className="text-lg"><LocalizedText>Tire Age Distribution</LocalizedText></CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={200}>
@@ -366,7 +367,7 @@ export default function TireReports() {
         {/* Top Tire Sizes */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Popular Tire Sizes</CardTitle>
+            <CardTitle className="text-lg"><LocalizedText>Popular Tire Sizes</LocalizedText></CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
@@ -391,7 +392,7 @@ export default function TireReports() {
         {/* Monthly Trends */}
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle className="text-lg">Monthly Tire Addition Trends</CardTitle>
+            <CardTitle className="text-lg"><LocalizedText>Monthly Tire Addition Trends</LocalizedText></CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={250}>
@@ -423,7 +424,7 @@ export default function TireReports() {
         {/* Manufacturer Distribution */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Tires by Manufacturer</CardTitle>
+            <CardTitle className="text-lg"><LocalizedText>Tires by Manufacturer</LocalizedText></CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={250}>
@@ -441,7 +442,7 @@ export default function TireReports() {
         {/* Origin Distribution with Enhanced Design */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Tires by Origin</CardTitle>
+            <CardTitle className="text-lg"><LocalizedText>Tires by Origin</LocalizedText></CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
@@ -484,7 +485,7 @@ export default function TireReports() {
         {/* Top Vehicles */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Top Vehicles by Tire Count</CardTitle>
+            <CardTitle className="text-lg"><LocalizedText>Top Vehicles by Tire Count</LocalizedText></CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
@@ -515,7 +516,7 @@ export default function TireReports() {
         {/* Top Drivers */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Top Drivers by Tire Count</CardTitle>
+            <CardTitle className="text-lg"><LocalizedText>Top Drivers by Tire Count</LocalizedText></CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
@@ -547,7 +548,7 @@ export default function TireReports() {
         {/* Vehicle Breakdown */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Tires by Vehicle (Top 15)</CardTitle>
+            <CardTitle className="text-lg"><LocalizedText>Tires by Vehicle (Top 15)</LocalizedText></CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={250}>
@@ -565,7 +566,7 @@ export default function TireReports() {
         {/* Driver Breakdown */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Tires by Driver (Top 15)</CardTitle>
+            <CardTitle className="text-lg"><LocalizedText>Tires by Driver (Top 15)</LocalizedText></CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={250}>

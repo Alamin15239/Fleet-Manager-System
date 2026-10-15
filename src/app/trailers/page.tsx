@@ -1,4 +1,5 @@
 'use client'
+import { LocalizedText } from '@/components/localized-text'
 
 import { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -10,9 +11,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { Truck, Plus, Edit, Eye, Trash2, Wrench, AlertTriangle } from 'lucide-react'
-import { toast } from 'sonner'
+import { toast } from '@/lib/localized-toast'
 import { usePermissions } from '@/contexts/permissions-context'
 import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api'
+import { useLanguage } from '@/contexts/language-context'
 
 interface Trailer {
   id: string
@@ -31,6 +33,7 @@ interface Trailer {
 }
 
 export default function TrailersPage() {
+  const { t } = useLanguage()
   const { canAccess, canCreate, canUpdate, canDelete, loading: permissionsLoading } = usePermissions()
   const [trailers, setTrailers] = useState<Trailer[]>([])
   const [loading, setLoading] = useState(true)
@@ -129,7 +132,7 @@ export default function TrailersPage() {
   }
 
   const handleDelete = async (trailerId: string) => {
-    if (confirm('Are you sure you want to delete this trailer?')) {
+    if (confirm(t('Are you sure you want to delete this trailer?'))) {
       try {
         const response = await apiDelete(`/api/trailers/${trailerId}`)
 
@@ -169,8 +172,8 @@ export default function TrailersPage() {
       <div className="container mx-auto p-6">
         <div className="text-center">
           <Truck className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-          <h2 className="text-xl font-semibold mb-2">Access Denied</h2>
-          <p className="text-gray-600">You don't have permission to access trailers.</p>
+          <h2 className="text-xl font-semibold mb-2"><LocalizedText>Access Denied</LocalizedText></h2>
+          <p className="text-gray-600"><LocalizedText>You don't have permission to access trailers.</LocalizedText></p>
         </div>
       </div>
     )
@@ -180,8 +183,8 @@ export default function TrailersPage() {
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Trailer Management</h1>
-          <p className="text-muted-foreground">Manage your trailer fleet</p>
+          <h1 className="text-3xl font-bold tracking-tight"><LocalizedText>Trailer Management</LocalizedText></h1>
+          <p className="text-muted-foreground"><LocalizedText>Manage your trailer fleet</LocalizedText></p>
         </div>
         {canCreate('trailers') && (
           <Dialog open={isDialogOpen} onOpenChange={(open) => {
@@ -209,7 +212,7 @@ export default function TrailersPage() {
             <form onSubmit={handleSubmit} className="grid gap-4 py-4">
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="number" className="text-right">
-                  Number
+                  <LocalizedText>Number</LocalizedText>
                 </Label>
                 <Input
                   id="number"
@@ -222,7 +225,7 @@ export default function TrailersPage() {
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="driverName" className="text-right">
-                  Driver Name
+                  <LocalizedText>Driver Name</LocalizedText>
                 </Label>
                 <Input
                   id="driverName"
@@ -234,16 +237,16 @@ export default function TrailersPage() {
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="status" className="text-right">
-                  Status
+                  <LocalizedText>Status</LocalizedText>
                 </Label>
                 <Select value={formData.status} onValueChange={(value) => setFormData({...formData, status: value as any})}>
                   <SelectTrigger className="col-span-3">
                     <SelectValue placeholder="Select status" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="ACTIVE">Active</SelectItem>
-                    <SelectItem value="INACTIVE">Inactive</SelectItem>
-                    <SelectItem value="MAINTENANCE">Maintenance</SelectItem>
+                    <SelectItem value="ACTIVE"><LocalizedText>Active</LocalizedText></SelectItem>
+                    <SelectItem value="INACTIVE"><LocalizedText>Inactive</LocalizedText></SelectItem>
+                    <SelectItem value="MAINTENANCE"><LocalizedText>Maintenance</LocalizedText></SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -268,7 +271,7 @@ export default function TrailersPage() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Trailers</CardTitle>
+            <CardTitle className="text-sm font-medium"><LocalizedText>Total Trailers</LocalizedText></CardTitle>
             <Truck className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -281,20 +284,20 @@ export default function TrailersPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">In Maintenance</CardTitle>
+            <CardTitle className="text-sm font-medium"><LocalizedText>In Maintenance</LocalizedText></CardTitle>
             <Wrench className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{trailers.filter(t => t.status === 'MAINTENANCE').length}</div>
             <p className="text-xs text-muted-foreground">
-              Currently being serviced
+              <LocalizedText>Currently being serviced</LocalizedText>
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">High Risk</CardTitle>
+            <CardTitle className="text-sm font-medium"><LocalizedText>High Risk</LocalizedText></CardTitle>
             <AlertTriangle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -302,14 +305,14 @@ export default function TrailersPage() {
               {trailers.filter(t => t.riskLevel === 'HIGH' || t.riskLevel === 'CRITICAL').length}
             </div>
             <p className="text-xs text-muted-foreground">
-              Require attention
+              <LocalizedText>Require attention</LocalizedText>
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Maintenance</CardTitle>
+            <CardTitle className="text-sm font-medium"><LocalizedText>Total Maintenance</LocalizedText></CardTitle>
             <Wrench className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -317,7 +320,7 @@ export default function TrailersPage() {
               {trailers.reduce((sum, t) => sum + t._count.trailerMaintenanceRecords, 0)}
             </div>
             <p className="text-xs text-muted-foreground">
-              All time records
+              <LocalizedText>All time records</LocalizedText>
             </p>
           </CardContent>
         </Card>
@@ -333,18 +336,18 @@ export default function TrailersPage() {
               Trailer Details - {selectedTrailer?.number}
             </DialogTitle>
             <DialogDescription>
-              View detailed information about this trailer
+              <LocalizedText>View detailed information about this trailer</LocalizedText>
             </DialogDescription>
           </DialogHeader>
           {selectedTrailer && (
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-sm font-medium text-gray-500">Number</Label>
+                  <Label className="text-sm font-medium text-gray-500"><LocalizedText>Number</LocalizedText></Label>
                   <p className="text-lg font-semibold">{selectedTrailer.number}</p>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium text-gray-500">Status</Label>
+                  <Label className="text-sm font-medium text-gray-500"><LocalizedText>Status</LocalizedText></Label>
                   <Badge className={getStatusColor(selectedTrailer.status)}>
                     {selectedTrailer.status}
                   </Badge>
@@ -352,7 +355,7 @@ export default function TrailersPage() {
               </div>
               
               <div>
-                <Label className="text-sm font-medium text-gray-500">Driver Name</Label>
+                <Label className="text-sm font-medium text-gray-500"><LocalizedText>Driver Name</LocalizedText></Label>
                 <p className="text-sm text-gray-600">
                   {selectedTrailer.driverName || 'No driver assigned'}
                 </p>
@@ -360,11 +363,11 @@ export default function TrailersPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-sm font-medium text-gray-500">Created</Label>
+                  <Label className="text-sm font-medium text-gray-500"><LocalizedText>Created</LocalizedText></Label>
                   <p className="text-sm">{new Date(selectedTrailer.createdAt).toLocaleDateString()}</p>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium text-gray-500">Last Updated</Label>
+                  <Label className="text-sm font-medium text-gray-500"><LocalizedText>Last Updated</LocalizedText></Label>
                   <p className="text-sm">{new Date(selectedTrailer.updatedAt).toLocaleDateString()}</p>
                 </div>
               </div>
@@ -389,7 +392,7 @@ export default function TrailersPage() {
       {/* Trailers Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Trailer Fleet Overview</CardTitle>
+          <CardTitle><LocalizedText>Trailer Fleet Overview</LocalizedText></CardTitle>
           <CardDescription>
             Showing {trailers.length} trailers
           </CardDescription>
@@ -399,13 +402,13 @@ export default function TrailersPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Number</TableHead>
-                  <TableHead>Driver</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Risk Level</TableHead>
-                  <TableHead>Maintenance Records</TableHead>
-                  <TableHead>Created</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead><LocalizedText>Number</LocalizedText></TableHead>
+                  <TableHead><LocalizedText>Driver</LocalizedText></TableHead>
+                  <TableHead><LocalizedText>Status</LocalizedText></TableHead>
+                  <TableHead><LocalizedText>Risk Level</LocalizedText></TableHead>
+                  <TableHead><LocalizedText>Maintenance Records</LocalizedText></TableHead>
+                  <TableHead><LocalizedText>Created</LocalizedText></TableHead>
+                  <TableHead className="text-right"><LocalizedText>Actions</LocalizedText></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

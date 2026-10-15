@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/auth'
+import { requireRolePermission } from '@/lib/permission-middleware'
 import { db } from '@/lib/db'
 
 export async function GET(request: NextRequest) {
   try {
     // Use custom JWT authentication
-    const user = await requireAuth(request)
+    await requireRolePermission(request, 'reports', 'read')
     
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -227,6 +227,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(reportData)
   } catch (error) {
     console.error('Error generating report:', error)
-    return NextResponse.json({ error: 'Failed to generate report' }, { status: 500 })
+    const message = error instanceof Error ? error.message : ''
+    const status = ['No token provided', 'Invalid token'].includes(message) ? 401 : message === 'Insufficient permissions' ? 403 : 500
+    return NextResponse.json({ error: status === 403 ? 'Access denied' : status === 401 ? 'Authentication required' : 'Failed to generate report' }, { status })
   }
 }

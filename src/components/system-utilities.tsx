@@ -1,4 +1,5 @@
 'use client'
+import { LocalizedText } from '@/components/localized-text'
 
 import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -19,7 +20,7 @@ import {
   FileText,
   Settings
 } from 'lucide-react'
-import { toast } from 'sonner'
+import { toast } from '@/lib/localized-toast'
 
 export default function SystemUtilities() {
   const [backupProgress, setBackupProgress] = useState(0)
@@ -135,9 +136,9 @@ export default function SystemUtilities() {
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-3">
-              <h4 className="font-semibold text-sm">Backup Database</h4>
+              <h4 className="font-semibold text-sm"><LocalizedText>Backup Database</LocalizedText></h4>
               <p className="text-sm text-muted-foreground">
-                Create a complete backup of your fleet management data
+                <LocalizedText>Create a complete backup of your fleet management data</LocalizedText>
               </p>
               {isBackingUp && (
                 <div className="space-y-2">
@@ -158,9 +159,9 @@ export default function SystemUtilities() {
             </div>
 
             <div className="space-y-3">
-              <h4 className="font-semibold text-sm">Restore Database</h4>
+              <h4 className="font-semibold text-sm"><LocalizedText>Restore Database</LocalizedText></h4>
               <p className="text-sm text-muted-foreground">
-                Restore your database from a backup file
+                <LocalizedText>Restore your database from a backup file</LocalizedText>
               </p>
               <div className="space-y-2">
                 <input
@@ -222,9 +223,9 @@ export default function SystemUtilities() {
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-3">
-              <h4 className="font-semibold text-sm">Clean System</h4>
+              <h4 className="font-semibold text-sm"><LocalizedText>Clean System</LocalizedText></h4>
               <p className="text-sm text-muted-foreground">
-                Remove temporary files and optimize database
+                <LocalizedText>Remove temporary files and optimize database</LocalizedText>
               </p>
               <Button 
                 variant="outline"
@@ -238,9 +239,9 @@ export default function SystemUtilities() {
             </div>
 
             <div className="space-y-3">
-              <h4 className="font-semibold text-sm">Export Settings</h4>
+              <h4 className="font-semibold text-sm"><LocalizedText>Export Settings</LocalizedText></h4>
               <p className="text-sm text-muted-foreground">
-                Download current system configuration
+                <LocalizedText>Download current system configuration</LocalizedText>
               </p>
               <Button 
                 variant="outline"
@@ -253,9 +254,9 @@ export default function SystemUtilities() {
             </div>
 
             <div className="space-y-3">
-              <h4 className="font-semibold text-sm">System Check</h4>
+              <h4 className="font-semibold text-sm"><LocalizedText>System Check</LocalizedText></h4>
               <p className="text-sm text-muted-foreground">
-                Run comprehensive system diagnostics
+                <LocalizedText>Run comprehensive system diagnostics</LocalizedText>
               </p>
               <Button 
                 variant="outline"
@@ -298,9 +299,9 @@ export default function SystemUtilities() {
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-3">
-              <h4 className="font-semibold text-sm">Security Scan</h4>
+              <h4 className="font-semibold text-sm"><LocalizedText>Security Scan</LocalizedText></h4>
               <p className="text-sm text-muted-foreground">
-                Check for security vulnerabilities and issues
+                <LocalizedText>Check for security vulnerabilities and issues</LocalizedText>
               </p>
               <Button 
                 variant="outline"
@@ -330,9 +331,9 @@ export default function SystemUtilities() {
             </div>
 
             <div className="space-y-3">
-              <h4 className="font-semibold text-sm">Export Logs</h4>
+              <h4 className="font-semibold text-sm"><LocalizedText>Export Logs</LocalizedText></h4>
               <p className="text-sm text-muted-foreground">
-                Download system logs for analysis
+                <LocalizedText>Download system logs for analysis</LocalizedText>
               </p>
               <Button 
                 variant="outline"

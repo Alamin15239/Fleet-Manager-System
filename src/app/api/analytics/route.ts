@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { requireAuth } from '@/lib/auth'
+import { requireRolePermission } from '@/lib/permission-middleware'
 
 type AnalyticsRecord = {
   serviceType: string
@@ -17,7 +17,7 @@ type AnalyticsRecord = {
 
 export async function GET(request: NextRequest) {
   try {
-    await requireAuth(request)
+    await requireRolePermission(request, 'advanced-analytics', 'read')
     const { searchParams } = new URL(request.url)
     const period = searchParams.get('period') || '6months'
     const truckId = searchParams.get('truckId') || 'all'
@@ -182,9 +182,10 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('Error fetching analytics data:', error)
     const unauthorized = error instanceof Error && ['No token provided', 'Invalid token'].includes(error.message)
+    const forbidden = error instanceof Error && error.message === 'Insufficient permissions'
     return NextResponse.json(
-      { error: unauthorized ? 'Authentication required' : 'Failed to fetch analytics data' },
-      { status: unauthorized ? 401 : 500 }
+      { error: unauthorized ? 'Authentication required' : forbidden ? 'Access denied' : 'Failed to fetch analytics data' },
+      { status: unauthorized ? 401 : forbidden ? 403 : 500 }
     )
   }
 }

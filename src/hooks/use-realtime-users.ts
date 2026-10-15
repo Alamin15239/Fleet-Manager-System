@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { toast } from 'sonner'
+import { toast } from '@/lib/localized-toast'
 
 interface User {
   id: string
@@ -11,12 +11,17 @@ interface User {
   updatedAt: string
 }
 
-export const useRealtimeUsers = () => {
+export const useRealtimeUsers = (enabled = true) => {
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   const fetchUsers = useCallback(async (showLoading = false) => {
+    if (!enabled) {
+      setLoading(false)
+      return
+    }
+
     try {
       if (showLoading) setLoading(true)
       setError(null)
@@ -54,7 +59,7 @@ export const useRealtimeUsers = () => {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [enabled])
 
   const deleteUser = useCallback(async (userId: string) => {
     try {
@@ -156,6 +161,11 @@ export const useRealtimeUsers = () => {
 
   // Auto-refresh every 10 seconds
   useEffect(() => {
+    if (!enabled) {
+      setLoading(false)
+      return
+    }
+
     fetchUsers(true)
     
     const interval = setInterval(() => {
@@ -163,7 +173,7 @@ export const useRealtimeUsers = () => {
     }, 10000)
     
     return () => clearInterval(interval)
-  }, [fetchUsers])
+  }, [enabled, fetchUsers])
 
   return {
     users,

@@ -1,4 +1,5 @@
 'use client';
+import { LocalizedText } from '@/components/localized-text'
 
 import { useState } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
@@ -77,13 +78,13 @@ export default function PDFViewer({ fileUrl, title }: PDFViewerProps) {
           <Document
             file={fileUrl}
             onLoadSuccess={onDocumentLoadSuccess}
-            loading={<div className="p-8 text-center text-gray-500">Loading PDF...</div>}
-            error={<div className="p-8 text-center text-red-500">Error loading PDF</div>}
+            loading={<div className="p-8 text-center text-gray-500"><LocalizedText>Loading PDF...</LocalizedText></div>}
+            error={<div className="p-8 text-center text-red-500"><LocalizedText>Error loading PDF</LocalizedText></div>}
           >
             <Page 
               pageNumber={pageNumber} 
               scale={scale}
-              loading={<div className="p-4 text-center text-gray-500">Loading page...</div>}
+              loading={<div className="p-4 text-center text-gray-500"><LocalizedText>Loading page...</LocalizedText></div>}
               className="shadow-lg"
             />
           </Document>

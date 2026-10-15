@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { requireAuth } from '@/lib/auth'
+import { requireRolePermission } from '@/lib/permission-middleware'
 
 type CostRecord = {
   serviceType: string
@@ -12,7 +12,7 @@ type CostRecord = {
 
 export async function GET(request: NextRequest) {
   try {
-    await requireAuth(request)
+    await requireRolePermission(request, 'dashboard', 'read')
 
     const now = new Date()
     const today = new Date(now)
@@ -213,9 +213,9 @@ export async function GET(request: NextRequest) {
     })
   } catch (error) {
     console.error('Dashboard stats query failed:', error instanceof Error ? error.message : 'Unknown error')
-    const status = error instanceof Error && ['No token provided', 'Invalid token'].includes(error.message) ? 401 : 503
+    const status = error instanceof Error && ['No token provided', 'Invalid token'].includes(error.message) ? 401 : error instanceof Error && error.message === 'Insufficient permissions' ? 403 : 503
     return NextResponse.json(
-      { error: status === 401 ? 'Authentication required' : 'Unable to load dashboard data' },
+      { error: status === 401 ? 'Authentication required' : status === 403 ? 'Access denied' : 'Unable to load dashboard data' },
       { status }
     )
   }

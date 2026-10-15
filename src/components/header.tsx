@@ -21,6 +21,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { getProfileImageUrl, handleImageError } from '@/lib/image-utils'
+import { useLanguage } from '@/contexts/language-context'
 
 interface Notification {
   id: string
@@ -35,6 +36,7 @@ export function Header() {
   const router = useRouter()
   const { toggleSidebar, isSidebarOpen } = useSidebar()
   const { user, logout } = useAuth()
+  const { t } = useLanguage()
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -167,7 +169,7 @@ export function Header() {
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-80">
             <DropdownMenuLabel className="flex items-center justify-between">
-              <span>Notifications</span>
+              <span>{t('Notifications')}</span>
               {unreadCount > 0 && (
                 <Button 
                   variant="ghost" 
@@ -175,7 +177,7 @@ export function Header() {
                   onClick={markAllAsRead}
                   className="text-xs h-6"
                 >
-                  Mark all read
+                  {t('Mark all read')}
                 </Button>
               )}
             </DropdownMenuLabel>
@@ -184,11 +186,11 @@ export function Header() {
               <ScrollArea className="h-80">
                 {loading ? (
                   <div className="p-4 text-center text-sm text-muted-foreground">
-                    Loading notifications...
+                    {t('Loading notifications...')}
                   </div>
                 ) : notifications.length === 0 ? (
                   <div className="p-4 text-center text-sm text-muted-foreground">
-                    No notifications
+                    {t('No notifications')}
                   </div>
                 ) : (
                   notifications.map((notification) => (
@@ -202,14 +204,14 @@ export function Header() {
                         <div className="flex-1 space-y-1">
                           <div className="flex items-center justify-between">
                             <p className={`text-sm font-medium ${!notification.read ? 'text-foreground' : 'text-muted-foreground'}`}>
-                              {notification.title}
+                              {t(notification.title)}
                             </p>
                             {!notification.read && (
                               <div className="h-2 w-2 bg-primary rounded-full" />
                             )}
                           </div>
                           <p className={`text-xs ${!notification.read ? 'text-muted-foreground' : 'text-muted-foreground/70'}`}>
-                            {notification.message}
+                            {t(notification.message)}
                           </p>
                           <p className="text-xs text-muted-foreground/50">
                             {notification.time}
@@ -223,7 +225,7 @@ export function Header() {
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuItem className="text-center justify-center text-sm text-primary">
-              View all notifications
+              {t('View all notifications')}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -239,7 +241,7 @@ export function Header() {
             <DropdownMenuLabel className="font-normal">
               <div className="flex flex-col space-y-1">
                 <p className="text-sm font-medium leading-none">
-                  {user?.name || 'User'}
+                  {user?.name || t('User')}
                 </p>
                 <p className="text-xs leading-none text-muted-foreground">
                   {user?.email}
@@ -259,18 +261,18 @@ export function Header() {
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
               <DropdownMenuItem onClick={() => router.push('/profile')}>
-                <User className="mr-2 h-4 w-4" />
-                <span>Profile</span>
+                <User className="me-2 h-4 w-4" />
+                <span>{t('Profile')}</span>
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => router.push('/settings')}>
-                <Settings className="mr-2 h-4 w-4" />
-                <span>Settings</span>
+                <Settings className="me-2 h-4 w-4" />
+                <span>{t('Settings')}</span>
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={logout}>
-              <LogOut className="mr-2 h-4 w-4" />
-              <span>Log out</span>
+              <LogOut className="me-2 h-4 w-4" />
+              <span>{t('Log out')}</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

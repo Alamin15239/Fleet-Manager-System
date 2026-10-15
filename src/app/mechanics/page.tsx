@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { Plus, Edit, Trash2, Search, User, Wrench, Phone, Star } from 'lucide-react'
-import { toast } from 'sonner'
+import { toast } from '@/lib/localized-toast'
 import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api'
 import { useLanguage } from '@/contexts/language-context'
 import { PageHeader } from '@/components/page-header'
@@ -129,7 +129,7 @@ export default function MechanicsPage() {
   }
 
   const handleDelete = async (mechanicId: string) => {
-    if (confirm('Are you sure you want to delete this mechanic?')) {
+    if (confirm(t('Are you sure you want to delete this mechanic?'))) {
       try {
         const response = await apiDelete(`/api/mechanics/${mechanicId}`)
 

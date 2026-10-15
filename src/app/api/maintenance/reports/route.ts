@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { requireAuth } from '@/lib/auth'
+import { requireRolePermission } from '@/lib/permission-middleware'
 
 export async function GET(request: NextRequest) {
   try {
-    await requireAuth(request)
+    await requireRolePermission(request, 'reports', 'read')
     const { searchParams } = new URL(request.url)
     const startDate = searchParams.get('startDate')
     const endDate = searchParams.get('endDate')
@@ -289,6 +289,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('Error fetching maintenance reports:', error)
     const unauthorized = error instanceof Error && ['No token provided', 'Invalid token'].includes(error.message)
+    const forbidden = error instanceof Error && error.message === 'Insufficient permissions'
     return NextResponse.json({
       success: false,
       error: 'Unable to load maintenance report data. Please try again.',
@@ -309,6 +310,6 @@ export async function GET(request: NextRequest) {
         mechanicBreakdown: {},
         vehicleBreakdown: {}
       }
-    }, { status: unauthorized ? 401 : 500 })
+    }, { status: unauthorized ? 401 : forbidden ? 403 : 500 })
   }
 }

@@ -1,4 +1,5 @@
 'use client'
+import { LocalizedText } from '@/components/localized-text'
 
 import { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -14,6 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Truck, Plus, Edit, Trash2, Search, Filter, MapPin, Activity, AlertTriangle, TrendingUp, Calendar, Wrench, Gauge, Battery, Thermometer } from 'lucide-react'
 import { format } from 'date-fns'
+import { useLanguage } from '@/contexts/language-context'
 
 interface Truck {
   id: string
@@ -87,6 +89,7 @@ interface TruckFormData {
 }
 
 export default function TruckManagement() {
+  const { t } = useLanguage()
   const [trucks, setTrucks] = useState<Truck[]>([])
   const [filteredTrucks, setFilteredTrucks] = useState<Truck[]>([])
   const [selectedTruck, setSelectedTruck] = useState<Truck | null>(null)
@@ -329,7 +332,7 @@ export default function TruckManagement() {
   }
 
   const handleDelete = async (truckId: string) => {
-    if (confirm('Are you sure you want to delete this truck?')) {
+    if (confirm(t('Are you sure you want to delete this truck?'))) {
       try {
         // Mock API call
         setTrucks(prev => prev.filter(t => t.id !== truckId))
@@ -353,8 +356,8 @@ export default function TruckManagement() {
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Truck Management</h1>
-          <p className="text-muted-foreground">Manage your fleet vehicles and monitor their status</p>
+          <h1 className="text-3xl font-bold tracking-tight"><LocalizedText>Truck Management</LocalizedText></h1>
+          <p className="text-muted-foreground"><LocalizedText>Manage your fleet vehicles and monitor their status</LocalizedText></p>
         </div>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
@@ -372,7 +375,7 @@ export default function TruckManagement() {
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <Label htmlFor="vin">VIN</Label>
+                <Label htmlFor="vin"><LocalizedText>VIN</LocalizedText></Label>
                 <Input
                   id="vin"
                   value={formData.vin}
@@ -382,7 +385,7 @@ export default function TruckManagement() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="make">Make</Label>
+                  <Label htmlFor="make"><LocalizedText>Make</LocalizedText></Label>
                   <Input
                     id="make"
                     value={formData.make}
@@ -391,7 +394,7 @@ export default function TruckManagement() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="model">Model</Label>
+                  <Label htmlFor="model"><LocalizedText>Model</LocalizedText></Label>
                   <Input
                     id="model"
                     value={formData.model}
@@ -402,7 +405,7 @@ export default function TruckManagement() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="year">Year</Label>
+                  <Label htmlFor="year"><LocalizedText>Year</LocalizedText></Label>
                   <Input
                     id="year"
                     type="number"
@@ -412,7 +415,7 @@ export default function TruckManagement() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="licensePlate">License Plate</Label>
+                  <Label htmlFor="licensePlate"><LocalizedText>License Plate</LocalizedText></Label>
                   <Input
                     id="licensePlate"
                     value={formData.licensePlate}
@@ -423,7 +426,7 @@ export default function TruckManagement() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="currentMileage">Current Mileage</Label>
+                  <Label htmlFor="currentMileage"><LocalizedText>Current Mileage</LocalizedText></Label>
                   <Input
                     id="currentMileage"
                     type="number"
@@ -433,22 +436,22 @@ export default function TruckManagement() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="status">Status</Label>
+                  <Label htmlFor="status"><LocalizedText>Status</LocalizedText></Label>
                   <Select value={formData.status} onValueChange={(value) => handleInputChange('status', value as any)}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="ACTIVE">Active</SelectItem>
-                      <SelectItem value="INACTIVE">Inactive</SelectItem>
-                      <SelectItem value="MAINTENANCE">Maintenance</SelectItem>
+                      <SelectItem value="ACTIVE"><LocalizedText>Active</LocalizedText></SelectItem>
+                      <SelectItem value="INACTIVE"><LocalizedText>Inactive</LocalizedText></SelectItem>
+                      <SelectItem value="MAINTENANCE"><LocalizedText>Maintenance</LocalizedText></SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="fuelEfficiency">Fuel Efficiency (MPG)</Label>
+                  <Label htmlFor="fuelEfficiency"><LocalizedText>Fuel Efficiency (MPG)</LocalizedText></Label>
                   <Input
                     id="fuelEfficiency"
                     type="number"
@@ -458,7 +461,7 @@ export default function TruckManagement() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="engineHours">Engine Hours</Label>
+                  <Label htmlFor="engineHours"><LocalizedText>Engine Hours</LocalizedText></Label>
                   <Input
                     id="engineHours"
                     type="number"
@@ -501,10 +504,10 @@ export default function TruckManagement() {
                 <SelectValue placeholder="Filter by status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="ACTIVE">Active</SelectItem>
-                <SelectItem value="INACTIVE">Inactive</SelectItem>
-                <SelectItem value="MAINTENANCE">Maintenance</SelectItem>
+                <SelectItem value="all"><LocalizedText>All Status</LocalizedText></SelectItem>
+                <SelectItem value="ACTIVE"><LocalizedText>Active</LocalizedText></SelectItem>
+                <SelectItem value="INACTIVE"><LocalizedText>Inactive</LocalizedText></SelectItem>
+                <SelectItem value="MAINTENANCE"><LocalizedText>Maintenance</LocalizedText></SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -514,7 +517,7 @@ export default function TruckManagement() {
       {/* Truck List */}
       <Card>
         <CardHeader>
-          <CardTitle>Fleet Overview</CardTitle>
+          <CardTitle><LocalizedText>Fleet Overview</LocalizedText></CardTitle>
           <CardDescription>
             {filteredTrucks.length} truck{filteredTrucks.length !== 1 ? 's' : ''} found
           </CardDescription>
@@ -523,14 +526,14 @@ export default function TruckManagement() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Vehicle</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Mileage</TableHead>
-                <TableHead>Health</TableHead>
-                <TableHead>Risk</TableHead>
-                <TableHead>Efficiency</TableHead>
-                <TableHead>Location</TableHead>
-                <TableHead>Actions</TableHead>
+                <TableHead><LocalizedText>Vehicle</LocalizedText></TableHead>
+                <TableHead><LocalizedText>Status</LocalizedText></TableHead>
+                <TableHead><LocalizedText>Mileage</LocalizedText></TableHead>
+                <TableHead><LocalizedText>Health</LocalizedText></TableHead>
+                <TableHead><LocalizedText>Risk</LocalizedText></TableHead>
+                <TableHead><LocalizedText>Efficiency</LocalizedText></TableHead>
+                <TableHead><LocalizedText>Location</LocalizedText></TableHead>
+                <TableHead><LocalizedText>Actions</LocalizedText></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -586,10 +589,10 @@ export default function TruckManagement() {
                     {truck.locationLat && truck.locationLng ? (
                       <div className="flex items-center space-x-1">
                         <MapPin className="h-4 w-4 text-green-500" />
-                        <span className="text-sm">Tracked</span>
+                        <span className="text-sm"><LocalizedText>Tracked</LocalizedText></span>
                       </div>
                     ) : (
-                      <span className="text-sm text-muted-foreground">Unknown</span>
+                      <span className="text-sm text-muted-foreground"><LocalizedText>Unknown</LocalizedText></span>
                     )}
                   </TableCell>
                   <TableCell>
@@ -621,9 +624,9 @@ export default function TruckManagement() {
           <CardContent>
             <Tabs defaultValue="overview" className="space-y-4">
               <TabsList>
-                <TabsTrigger value="overview">Overview</TabsTrigger>
-                <TabsTrigger value="maintenance">Maintenance</TabsTrigger>
-                <TabsTrigger value="alerts">Alerts</TabsTrigger>
+                <TabsTrigger value="overview"><LocalizedText>Overview</LocalizedText></TabsTrigger>
+                <TabsTrigger value="maintenance"><LocalizedText>Maintenance</LocalizedText></TabsTrigger>
+                <TabsTrigger value="alerts"><LocalizedText>Alerts</LocalizedText></TabsTrigger>
 
               </TabsList>
 
@@ -631,23 +634,23 @@ export default function TruckManagement() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   <Card>
                     <CardHeader className="pb-3">
-                      <CardTitle className="text-sm font-medium">Vehicle Information</CardTitle>
+                      <CardTitle className="text-sm font-medium"><LocalizedText>Vehicle Information</LocalizedText></CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-2">
                       <div className="flex justify-between">
-                        <span className="text-sm text-muted-foreground">VIN:</span>
+                        <span className="text-sm text-muted-foreground"><LocalizedText>VIN:</LocalizedText></span>
                         <span className="text-sm font-medium">{selectedTruck.vin}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-sm text-muted-foreground">Year:</span>
+                        <span className="text-sm text-muted-foreground"><LocalizedText>Year:</LocalizedText></span>
                         <span className="text-sm font-medium">{selectedTruck.year}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-sm text-muted-foreground">License Plate:</span>
+                        <span className="text-sm text-muted-foreground"><LocalizedText>License Plate:</LocalizedText></span>
                         <span className="text-sm font-medium">{selectedTruck.licensePlate}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-sm text-muted-foreground">Status:</span>
+                        <span className="text-sm text-muted-foreground"><LocalizedText>Status:</LocalizedText></span>
                         <Badge className={getStatusColor(selectedTruck.status)}>
                           {selectedTruck.status}
                         </Badge>
@@ -657,23 +660,23 @@ export default function TruckManagement() {
 
                   <Card>
                     <CardHeader className="pb-3">
-                      <CardTitle className="text-sm font-medium">Performance Metrics</CardTitle>
+                      <CardTitle className="text-sm font-medium"><LocalizedText>Performance Metrics</LocalizedText></CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-2">
                       <div className="flex justify-between">
-                        <span className="text-sm text-muted-foreground">Current Mileage:</span>
+                        <span className="text-sm text-muted-foreground"><LocalizedText>Current Mileage:</LocalizedText></span>
                         <span className="text-sm font-medium">{selectedTruck.currentMileage.toLocaleString()} mi</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-sm text-muted-foreground">Engine Hours:</span>
+                        <span className="text-sm text-muted-foreground"><LocalizedText>Engine Hours:</LocalizedText></span>
                         <span className="text-sm font-medium">{selectedTruck.engineHours}h</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-sm text-muted-foreground">Fuel Efficiency:</span>
+                        <span className="text-sm text-muted-foreground"><LocalizedText>Fuel Efficiency:</LocalizedText></span>
                         <span className="text-sm font-medium">{selectedTruck.fuelEfficiency || 'N/A'} MPG</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-sm text-muted-foreground">Health Score:</span>
+                        <span className="text-sm text-muted-foreground"><LocalizedText>Health Score:</LocalizedText></span>
                         <span className="text-sm font-medium">{selectedTruck.healthScore || 0}%</span>
                       </div>
                     </CardContent>
@@ -681,30 +684,30 @@ export default function TruckManagement() {
 
                   <Card>
                     <CardHeader className="pb-3">
-                      <CardTitle className="text-sm font-medium">Status & Location</CardTitle>
+                      <CardTitle className="text-sm font-medium"><LocalizedText>Status & Location</LocalizedText></CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-2">
                       <div className="flex justify-between">
-                        <span className="text-sm text-muted-foreground">Online Status:</span>
+                        <span className="text-sm text-muted-foreground"><LocalizedText>Online Status:</LocalizedText></span>
                         <div className="flex items-center space-x-1">
                           <div className={`w-2 h-2 rounded-full ${selectedTruck.isOnline ? 'bg-green-500' : 'bg-red-500'}`}></div>
                           <span className="text-sm font-medium">{selectedTruck.isOnline ? 'Online' : 'Offline'}</span>
                         </div>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-sm text-muted-foreground">Risk Level:</span>
+                        <span className="text-sm text-muted-foreground"><LocalizedText>Risk Level:</LocalizedText></span>
                         <Badge className={getRiskColor(selectedTruck.riskLevel || 'LOW')}>
                           {selectedTruck.riskLevel || 'LOW'}
                         </Badge>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-sm text-muted-foreground">Last Ping:</span>
+                        <span className="text-sm text-muted-foreground"><LocalizedText>Last Ping:</LocalizedText></span>
                         <span className="text-sm font-medium">
                           {selectedTruck.lastPing ? format(new Date(selectedTruck.lastPing), 'MMM dd, yyyy HH:mm') : 'Never'}
                         </span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-sm text-muted-foreground">Location:</span>
+                        <span className="text-sm text-muted-foreground"><LocalizedText>Location:</LocalizedText></span>
                         <span className="text-sm font-medium">
                           {selectedTruck.locationLat && selectedTruck.locationLng ? 'Available' : 'Unknown'}
                         </span>
@@ -717,19 +720,19 @@ export default function TruckManagement() {
               <TabsContent value="maintenance" className="space-y-4">
                 <Card>
                   <CardHeader>
-                    <CardTitle>Maintenance History</CardTitle>
-                    <CardDescription>Recent maintenance records for this vehicle</CardDescription>
+                    <CardTitle><LocalizedText>Maintenance History</LocalizedText></CardTitle>
+                    <CardDescription><LocalizedText>Recent maintenance records for this vehicle</LocalizedText></CardDescription>
                   </CardHeader>
                   <CardContent>
                     {selectedTruck.maintenanceRecords && selectedTruck.maintenanceRecords.length > 0 ? (
                       <Table>
                         <TableHeader>
                           <TableRow>
-                            <TableHead>Service Type</TableHead>
-                            <TableHead>Date</TableHead>
-                            <TableHead>Cost</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead>Downtime</TableHead>
+                            <TableHead><LocalizedText>Service Type</LocalizedText></TableHead>
+                            <TableHead><LocalizedText>Date</LocalizedText></TableHead>
+                            <TableHead><LocalizedText>Cost</LocalizedText></TableHead>
+                            <TableHead><LocalizedText>Status</LocalizedText></TableHead>
+                            <TableHead><LocalizedText>Downtime</LocalizedText></TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -749,7 +752,7 @@ export default function TruckManagement() {
                         </TableBody>
                       </Table>
                     ) : (
-                      <p className="text-muted-foreground">No maintenance records found.</p>
+                      <p className="text-muted-foreground"><LocalizedText>No maintenance records found.</LocalizedText></p>
                     )}
                   </CardContent>
                 </Card>
@@ -758,8 +761,8 @@ export default function TruckManagement() {
               <TabsContent value="alerts" className="space-y-4">
                 <Card>
                   <CardHeader>
-                    <CardTitle>Active Alerts</CardTitle>
-                    <CardDescription>Predictive maintenance alerts and notifications</CardDescription>
+                    <CardTitle><LocalizedText>Active Alerts</LocalizedText></CardTitle>
+                    <CardDescription><LocalizedText>Predictive maintenance alerts and notifications</LocalizedText></CardDescription>
                   </CardHeader>
                   <CardContent>
                     {selectedTruck.predictiveAlerts && selectedTruck.predictiveAlerts.length > 0 ? (
@@ -796,7 +799,7 @@ export default function TruckManagement() {
                                 </div>
                                 {alert.recommendedAction && (
                                   <div className="text-sm">
-                                    <strong>Recommended Action:</strong> {alert.recommendedAction}
+                                    <strong><LocalizedText>Recommended Action:</LocalizedText></strong> {alert.recommendedAction}
                                   </div>
                                 )}
                               </div>
@@ -805,7 +808,7 @@ export default function TruckManagement() {
                         ))}
                       </div>
                     ) : (
-                      <p className="text-muted-foreground">No active alerts found.</p>
+                      <p className="text-muted-foreground"><LocalizedText>No active alerts found.</LocalizedText></p>
                     )}
                   </CardContent>
                 </Card>

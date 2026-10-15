@@ -1,4 +1,5 @@
 'use client'
+import { LocalizedText } from '@/components/localized-text'
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -91,8 +92,8 @@ export function WelcomeScreen({ userName, userRole }: WelcomeScreenProps) {
           Welcome to Fleet Manager{userName && `, ${userName}`}!
         </h1>
         <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-          Your comprehensive solution for managing truck fleet maintenance, tracking, and analytics.
-          Let's get you started with setting up your fleet.
+          <LocalizedText>Your comprehensive solution for managing truck fleet maintenance, tracking, and analytics.
+          Let's get you started with setting up your fleet.</LocalizedText>
         </p>
         {userRole && (
           <Badge variant="outline" className="text-sm px-3 py-1">
@@ -108,7 +109,7 @@ export function WelcomeScreen({ userName, userRole }: WelcomeScreenProps) {
             <Plus className="h-6 w-6 text-blue-600" />
             Quick Setup
           </CardTitle>
-          <p className="text-gray-600">Get started with these essential steps</p>
+          <p className="text-gray-600"><LocalizedText>Get started with these essential steps</LocalizedText></p>
         </CardHeader>
         <CardContent>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -148,7 +149,7 @@ export function WelcomeScreen({ userName, userRole }: WelcomeScreenProps) {
             <CheckCircle className="h-6 w-6 text-green-600" />
             What You Can Do
           </CardTitle>
-          <p className="text-gray-600">Explore the powerful features available to you</p>
+          <p className="text-gray-600"><LocalizedText>Explore the powerful features available to you</LocalizedText></p>
         </CardHeader>
         <CardContent>
           <div className="grid gap-6 md:grid-cols-2">
@@ -170,8 +171,8 @@ export function WelcomeScreen({ userName, userRole }: WelcomeScreenProps) {
       {/* Getting Started Steps */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-2xl">Getting Started Checklist</CardTitle>
-          <p className="text-gray-600">Follow these steps to set up your fleet management system</p>
+          <CardTitle className="text-2xl"><LocalizedText>Getting Started Checklist</LocalizedText></CardTitle>
+          <p className="text-gray-600"><LocalizedText>Follow these steps to set up your fleet management system</LocalizedText></p>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
@@ -180,8 +181,8 @@ export function WelcomeScreen({ userName, userRole }: WelcomeScreenProps) {
                 <span className="text-blue-600 font-bold">1</span>
               </div>
               <div className="flex-1">
-                <h3 className="font-semibold">Add Your Trucks</h3>
-                <p className="text-gray-600">Register all vehicles in your fleet with details like VIN, make, model, and license plate</p>
+                <h3 className="font-semibold"><LocalizedText>Add Your Trucks</LocalizedText></h3>
+                <p className="text-gray-600"><LocalizedText>Register all vehicles in your fleet with details like VIN, make, model, and license plate</LocalizedText></p>
               </div>
               <Button variant="outline" onClick={() => router.push('/trucks')}>
                 Add Trucks
@@ -193,8 +194,8 @@ export function WelcomeScreen({ userName, userRole }: WelcomeScreenProps) {
                 <span className="text-green-600 font-bold">2</span>
               </div>
               <div className="flex-1">
-                <h3 className="font-semibold">Register Mechanics</h3>
-                <p className="text-gray-600">Add your maintenance team members to assign them to service jobs</p>
+                <h3 className="font-semibold"><LocalizedText>Register Mechanics</LocalizedText></h3>
+                <p className="text-gray-600"><LocalizedText>Add your maintenance team members to assign them to service jobs</LocalizedText></p>
               </div>
               <Button variant="outline" onClick={() => router.push('/mechanics')}>
                 Add Mechanics
@@ -206,8 +207,8 @@ export function WelcomeScreen({ userName, userRole }: WelcomeScreenProps) {
                 <span className="text-purple-600 font-bold">3</span>
               </div>
               <div className="flex-1">
-                <h3 className="font-semibold">Schedule Maintenance</h3>
-                <p className="text-gray-600">Set up regular maintenance schedules and track service history</p>
+                <h3 className="font-semibold"><LocalizedText>Schedule Maintenance</LocalizedText></h3>
+                <p className="text-gray-600"><LocalizedText>Set up regular maintenance schedules and track service history</LocalizedText></p>
               </div>
               <Button variant="outline" onClick={() => router.push('/maintenance')}>
                 Schedule Service
@@ -219,8 +220,8 @@ export function WelcomeScreen({ userName, userRole }: WelcomeScreenProps) {
                 <span className="text-orange-600 font-bold">4</span>
               </div>
               <div className="flex-1">
-                <h3 className="font-semibold">Explore Analytics</h3>
-                <p className="text-gray-600">View reports and analytics to optimize your fleet performance</p>
+                <h3 className="font-semibold"><LocalizedText>Explore Analytics</LocalizedText></h3>
+                <p className="text-gray-600"><LocalizedText>View reports and analytics to optimize your fleet performance</LocalizedText></p>
               </div>
               <Button variant="outline" onClick={() => router.push('/analytics')}>
                 View Analytics
@@ -233,16 +234,16 @@ export function WelcomeScreen({ userName, userRole }: WelcomeScreenProps) {
       {/* Help & Support */}
       <Card className="bg-gradient-to-r from-blue-50 to-purple-50 border-blue-200">
         <CardContent className="p-8 text-center">
-          <h3 className="text-2xl font-bold mb-4">Need Help Getting Started?</h3>
+          <h3 className="text-2xl font-bold mb-4"><LocalizedText>Need Help Getting Started?</LocalizedText></h3>
           <p className="text-gray-600 mb-6 max-w-2xl mx-auto">
-            Our comprehensive documentation and support team are here to help you make the most of your fleet management system.
+            <LocalizedText>Our comprehensive documentation and support team are here to help you make the most of your fleet management system.</LocalizedText>
           </p>
           <div className="flex justify-center gap-4">
             <Button variant="outline">
-              View Documentation
+              <LocalizedText>View Documentation</LocalizedText>
             </Button>
             <Button>
-              Contact Support
+              <LocalizedText>Contact Support</LocalizedText>
             </Button>
           </div>
         </CardContent>

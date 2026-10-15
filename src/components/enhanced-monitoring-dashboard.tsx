@@ -1,4 +1,5 @@
 'use client'
+import { LocalizedText } from '@/components/localized-text'
 
 import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -138,7 +139,7 @@ export function EnhancedMonitoringDashboard() {
       <Alert className="border-red-200 bg-red-50">
         <AlertTriangle className="h-4 w-4 text-red-600" />
         <AlertDescription className="text-red-800">
-          Failed to load system metrics. Please try refreshing the page.
+          <LocalizedText>Failed to load system metrics. Please try refreshing the page.</LocalizedText>
         </AlertDescription>
       </Alert>
     )
@@ -152,18 +153,18 @@ export function EnhancedMonitoringDashboard() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">System Health</CardTitle>
+            <CardTitle className="text-sm font-medium"><LocalizedText>System Health</LocalizedText></CardTitle>
             <Shield className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">—</div>
-            <div className="text-xs mt-2 text-muted-foreground">Health score is not measured by this app.</div>
+            <div className="text-xs mt-2 text-muted-foreground"><LocalizedText>Health score is not measured by this app.</LocalizedText></div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Users</CardTitle>
+            <CardTitle className="text-sm font-medium"><LocalizedText>Active Users</LocalizedText></CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -180,7 +181,7 @@ export function EnhancedMonitoringDashboard() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Sessions</CardTitle>
+            <CardTitle className="text-sm font-medium"><LocalizedText>Active Sessions</LocalizedText></CardTitle>
             <Monitor className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -190,14 +191,14 @@ export function EnhancedMonitoringDashboard() {
             </p>
             <div className="flex items-center mt-2">
               <Activity className="h-3 w-3 text-green-500 mr-1" />
-              <span className="text-xs text-green-600">Live sessions</span>
+              <span className="text-xs text-green-600"><LocalizedText>Live sessions</LocalizedText></span>
             </div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Response Time</CardTitle>
+            <CardTitle className="text-sm font-medium"><LocalizedText>Response Time</LocalizedText></CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -225,7 +226,7 @@ export function EnhancedMonitoringDashboard() {
         <Alert className="border-green-200 bg-green-50">
           <CheckCircle className="h-4 w-4 text-green-600" />
           <AlertDescription className="text-green-800">
-            All systems operating normally. No critical alerts detected.
+            <LocalizedText>All systems operating normally. No critical alerts detected.</LocalizedText>
           </AlertDescription>
         </Alert>
       )}
@@ -241,12 +242,12 @@ export function EnhancedMonitoringDashboard() {
           </CardHeader>
           <CardContent>
             <div className="flex items-center justify-between">
-              <span className="text-sm">Connection</span>
-              <Badge className="bg-green-100 text-green-800">Healthy</Badge>
+              <span className="text-sm"><LocalizedText>Connection</LocalizedText></span>
+              <Badge className="bg-green-100 text-green-800"><LocalizedText>Healthy</LocalizedText></Badge>
             </div>
             <div className="flex items-center justify-between mt-2">
-              <span className="text-sm">Performance</span>
-              <Badge className="bg-blue-100 text-blue-800">Optimal</Badge>
+              <span className="text-sm"><LocalizedText>Performance</LocalizedText></span>
+              <Badge className="bg-blue-100 text-blue-800"><LocalizedText>Optimal</LocalizedText></Badge>
             </div>
           </CardContent>
         </Card>
@@ -260,11 +261,11 @@ export function EnhancedMonitoringDashboard() {
           </CardHeader>
           <CardContent>
             <div className="flex items-center justify-between">
-              <span className="text-sm">Status</span>
-              <Badge className="bg-green-100 text-green-800">Online</Badge>
+              <span className="text-sm"><LocalizedText>Status</LocalizedText></span>
+              <Badge className="bg-green-100 text-green-800"><LocalizedText>Online</LocalizedText></Badge>
             </div>
             <div className="flex items-center justify-between mt-2">
-              <span className="text-sm">Uptime</span>
+              <span className="text-sm"><LocalizedText>Uptime</LocalizedText></span>
               <Badge className="bg-green-100 text-green-800">99.9%</Badge>
             </div>
           </CardContent>
@@ -279,12 +280,12 @@ export function EnhancedMonitoringDashboard() {
           </CardHeader>
           <CardContent>
             <div className="flex items-center justify-between">
-              <span className="text-sm">Status</span>
-              <Badge className="bg-green-100 text-green-800">Secure</Badge>
+              <span className="text-sm"><LocalizedText>Status</LocalizedText></span>
+              <Badge className="bg-green-100 text-green-800"><LocalizedText>Secure</LocalizedText></Badge>
             </div>
             <div className="flex items-center justify-between mt-2">
-              <span className="text-sm">Threats</span>
-              <Badge className="bg-green-100 text-green-800">None</Badge>
+              <span className="text-sm"><LocalizedText>Threats</LocalizedText></span>
+              <Badge className="bg-green-100 text-green-800"><LocalizedText>None</LocalizedText></Badge>
             </div>
           </CardContent>
         </Card>
@@ -305,7 +306,7 @@ export function EnhancedMonitoringDashboard() {
                 <div key={activity.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                   <div className="flex items-center gap-3">
                     <Badge className={getActivityStatusColor(activity.status)}>
-                      {activity.action}
+                      <LocalizedText>{activity.action}</LocalizedText>
                     </Badge>
                     <div>
                       <div className="font-medium text-sm">{activity.user}</div>
@@ -321,7 +322,7 @@ export function EnhancedMonitoringDashboard() {
               ))
             ) : (
               <div className="text-center py-8 text-muted-foreground">
-                No recent activities
+                <LocalizedText>No recent activities</LocalizedText>
               </div>
             )}
           </div>

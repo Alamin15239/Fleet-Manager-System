@@ -1,4 +1,5 @@
 'use client'
+import { LocalizedText } from '@/components/localized-text'
 
 import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'next/navigation'
@@ -63,7 +64,7 @@ export default function JobCardShareView() {
     <main className="min-h-dvh bg-slate-100 text-slate-900">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-800">Saadfreeh Transport</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-800"><LocalizedText>Saadfreeh Transport</LocalizedText></p>
           <h1 className="text-lg font-semibold">{jobNumber}</h1>
         </div>
         {documentHtml && <div className="flex gap-2">
@@ -71,7 +72,7 @@ export default function JobCardShareView() {
           <button type="button" onClick={downloadPdf} disabled={downloading} className="inline-flex min-h-10 items-center gap-2 rounded-md bg-emerald-800 px-3 text-sm font-semibold text-white shadow-sm hover:bg-emerald-900 disabled:cursor-wait disabled:opacity-60"><Download className="h-4 w-4"/>{downloading ? 'Preparing PDF…' : 'Download PDF'}</button>
         </div>}
       </div>
-      {error ? <div role="alert" className="mx-4 mt-6 rounded-lg border border-red-200 bg-white p-5 text-sm text-red-700 sm:mx-auto sm:max-w-2xl">{error}</div> : loading ? <div className="px-4 py-16 text-center text-sm text-slate-600">Loading job card…</div> : <div className="mx-auto max-w-6xl px-2 pb-6 sm:px-6"><iframe ref={previewRef} title={`${jobNumber} PDF preview`} srcDoc={documentHtml} className="h-[calc(100dvh-88px)] min-h-[640px] w-full rounded-lg border border-slate-300 bg-white shadow-lg"/></div>}
+      {error ? <div role="alert" className="mx-4 mt-6 rounded-lg border border-red-200 bg-white p-5 text-sm text-red-700 sm:mx-auto sm:max-w-2xl">{error}</div> : loading ? <div className="px-4 py-16 text-center text-sm text-slate-600"><LocalizedText>Loading job card…</LocalizedText></div> : <div className="mx-auto max-w-6xl px-2 pb-6 sm:px-6"><iframe ref={previewRef} title={`${jobNumber} PDF preview`} srcDoc={documentHtml} className="h-[calc(100dvh-88px)] min-h-[640px] w-full rounded-lg border border-slate-300 bg-white shadow-lg"/></div>}
     </main>
   )
 }

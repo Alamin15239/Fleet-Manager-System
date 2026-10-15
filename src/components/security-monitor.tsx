@@ -1,4 +1,5 @@
 'use client'
+import { LocalizedText } from '@/components/localized-text'
 
 import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -151,7 +152,7 @@ export function SecurityMonitor({ className = '' }: SecurityMonitorProps) {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Security Score</CardTitle>
+            <CardTitle className="text-sm font-medium"><LocalizedText>Security Score</LocalizedText></CardTitle>
             <Shield className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -165,13 +166,13 @@ export function SecurityMonitor({ className = '' }: SecurityMonitorProps) {
                   </div>
                 )}
               </>
-            ) : <p className="text-sm text-muted-foreground">Not available</p>}
+            ) : <p className="text-sm text-muted-foreground"><LocalizedText>Not available</LocalizedText></p>}
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Failed Logins</CardTitle>
+            <CardTitle className="text-sm font-medium"><LocalizedText>Failed Logins</LocalizedText></CardTitle>
             <UserX className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -182,7 +183,7 @@ export function SecurityMonitor({ className = '' }: SecurityMonitorProps) {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Threats</CardTitle>
+            <CardTitle className="text-sm font-medium"><LocalizedText>Active Threats</LocalizedText></CardTitle>
             <AlertTriangle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -193,7 +194,7 @@ export function SecurityMonitor({ className = '' }: SecurityMonitorProps) {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Blocked IPs</CardTitle>
+            <CardTitle className="text-sm font-medium"><LocalizedText>Blocked IPs</LocalizedText></CardTitle>
             <Globe className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -210,9 +211,9 @@ export function SecurityMonitor({ className = '' }: SecurityMonitorProps) {
             <Alert className="border-red-200 bg-red-50">
               <AlertTriangle className="h-4 w-4 text-red-600" />
               <AlertDescription className="text-red-800">
-                <strong>Security Alert:</strong> {metrics.activeThreats} active threats and {metrics.failedLogins} failed login attempts detected.
+                <strong><LocalizedText>Security Alert:</LocalizedText></strong> {metrics.activeThreats} active threats and {metrics.failedLogins} failed login attempts detected.
                 <Button variant="link" className="p-0 h-auto ml-2 text-red-600">
-                  Take Action
+                  <LocalizedText>Take Action</LocalizedText>
                 </Button>
               </AlertDescription>
             </Alert>
@@ -220,7 +221,7 @@ export function SecurityMonitor({ className = '' }: SecurityMonitorProps) {
             <Alert className="border-green-200 bg-green-50">
               <CheckCircle className="h-4 w-4 text-green-600" />
               <AlertDescription className="text-green-800">
-                Security status is good. No immediate threats detected.
+                <LocalizedText>Security status is good. No immediate threats detected.</LocalizedText>
               </AlertDescription>
             </Alert>
           )}
@@ -228,7 +229,7 @@ export function SecurityMonitor({ className = '' }: SecurityMonitorProps) {
       ) : (
         <Alert>
           <AlertTriangle className="h-4 w-4" />
-          <AlertDescription>Security event collection is not configured, so this page cannot report failed logins, active threats, or blocked addresses.</AlertDescription>
+          <AlertDescription><LocalizedText>Security event collection is not configured, so this page cannot report failed logins, active threats, or blocked addresses.</LocalizedText></AlertDescription>
         </Alert>
       )}
 
@@ -280,7 +281,7 @@ export function SecurityMonitor({ className = '' }: SecurityMonitorProps) {
               ))
             ) : (
               <div className="text-center py-8 text-muted-foreground">
-                Security event history is unavailable.
+                <LocalizedText>Security event history is unavailable.</LocalizedText>
               </div>
             )}
           </div>
@@ -299,30 +300,30 @@ export function SecurityMonitor({ className = '' }: SecurityMonitorProps) {
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Two-Factor Authentication</span>
-                <Badge variant="outline">Email OTP</Badge>
+                <span className="text-sm font-medium"><LocalizedText>Two-Factor Authentication</LocalizedText></span>
+                <Badge variant="outline"><LocalizedText>Email OTP</LocalizedText></Badge>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Password Policy</span>
-                <Badge variant="outline">8+ characters</Badge>
+                <span className="text-sm font-medium"><LocalizedText>Password Policy</LocalizedText></span>
+                <Badge variant="outline"><LocalizedText>8+ characters</LocalizedText></Badge>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Session Timeout</span>
-                <Badge variant="outline">7 days</Badge>
+                <span className="text-sm font-medium"><LocalizedText>Session Timeout</LocalizedText></span>
+                <Badge variant="outline"><LocalizedText>7 days</LocalizedText></Badge>
               </div>
             </div>
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">IP Whitelist</span>
-                <Badge variant="outline">Not configured</Badge>
+                <span className="text-sm font-medium"><LocalizedText>IP Whitelist</LocalizedText></span>
+                <Badge variant="outline"><LocalizedText>Not configured</LocalizedText></Badge>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Audit Logging</span>
-                <Badge variant="outline">Partial</Badge>
+                <span className="text-sm font-medium"><LocalizedText>Audit Logging</LocalizedText></span>
+                <Badge variant="outline"><LocalizedText>Partial</LocalizedText></Badge>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Auto-Block</span>
-                <Badge variant="outline">Not configured</Badge>
+                <span className="text-sm font-medium"><LocalizedText>Auto-Block</LocalizedText></span>
+                <Badge variant="outline"><LocalizedText>Not configured</LocalizedText></Badge>
               </div>
             </div>
           </div>

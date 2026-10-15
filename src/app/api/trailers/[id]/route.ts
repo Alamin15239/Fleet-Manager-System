@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { requireManager } from '@/lib/auth'
+import { requireRolePermission } from '@/lib/permission-middleware'
 
 export async function PUT(
   request: NextRequest,
@@ -8,7 +8,7 @@ export async function PUT(
 ) {
   try {
     const { id } = await params
-    await requireManager(request)
+    await requireRolePermission(request, 'trailers', 'update')
     const body = await request.json()
 
     // Check if trailer number is being changed and already exists
@@ -49,7 +49,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
     }
     if (error instanceof Error && error.message === 'Insufficient permissions') {
-      return NextResponse.json({ error: 'Manager access required' }, { status: 403 })
+      return NextResponse.json({ error: 'Access denied' }, { status: 403 })
     }
     return NextResponse.json(
       { error: 'Failed to update trailer' },
@@ -64,7 +64,7 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params
-    await requireManager(request)
+    await requireRolePermission(request, 'trailers', 'delete')
 
     await db.trailer.update({
       where: { id: id },
@@ -84,7 +84,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
     }
     if (error instanceof Error && error.message === 'Insufficient permissions') {
-      return NextResponse.json({ error: 'Manager access required' }, { status: 403 })
+      return NextResponse.json({ error: 'Access denied' }, { status: 403 })
     }
     return NextResponse.json(
       { error: 'Failed to delete trailer' },

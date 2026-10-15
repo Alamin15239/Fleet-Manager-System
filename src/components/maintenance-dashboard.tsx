@@ -1,4 +1,5 @@
 'use client'
+import { LocalizedText } from '@/components/localized-text'
 
 import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -64,7 +65,7 @@ export default function MaintenanceDashboard({
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5 mb-6">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Total Trucks</CardTitle>
+          <CardTitle className="text-sm font-medium"><LocalizedText>Total Trucks</LocalizedText></CardTitle>
           <Truck className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
@@ -77,52 +78,52 @@ export default function MaintenanceDashboard({
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Upcoming Maintenance</CardTitle>
+          <CardTitle className="text-sm font-medium"><LocalizedText>Upcoming Maintenance</LocalizedText></CardTitle>
           <Calendar className="h-4 w-4 text-yellow-600" />
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold text-yellow-600">{upcomingMaintenance}</div>
           <p className="text-xs text-muted-foreground">
-            Due within 30 days
+            <LocalizedText>Due within 30 days</LocalizedText>
           </p>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Overdue Repairs</CardTitle>
+          <CardTitle className="text-sm font-medium"><LocalizedText>Overdue Repairs</LocalizedText></CardTitle>
           <AlertTriangle className="h-4 w-4 text-red-600" />
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold text-red-600">{overdueMaintenance}</div>
           <p className="text-xs text-muted-foreground">
-            Require immediate attention
+            <LocalizedText>Require immediate attention</LocalizedText>
           </p>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Monthly Maintenance Cost</CardTitle>
+          <CardTitle className="text-sm font-medium"><LocalizedText>Monthly Maintenance Cost</LocalizedText></CardTitle>
           <DollarSign className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">{formatCurrency(monthlyCost)}</div>
           <p className="text-xs text-muted-foreground">
-            Average monthly cost
+            <LocalizedText>Average monthly cost</LocalizedText>
           </p>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Total Cost (6mo)</CardTitle>
+          <CardTitle className="text-sm font-medium"><LocalizedText>Total Cost (6mo)</LocalizedText></CardTitle>
           <DollarSign className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">{formatCurrency(sixMonthCost)}</div>
           <p className="text-xs text-muted-foreground">
-            Last 6 months
+            <LocalizedText>Last 6 months</LocalizedText>
           </p>
         </CardContent>
       </Card>

@@ -1,4 +1,5 @@
 'use client'
+import { LocalizedText } from '@/components/localized-text'
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -9,7 +10,7 @@ import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Truck, Shield, Mail, Lock, User, Building, Loader2, CheckCircle } from 'lucide-react'
-import { toast } from 'sonner'
+import { toast } from '@/lib/localized-toast'
 import Link from 'next/link'
 
 export default function SignupPage() {
@@ -110,10 +111,10 @@ export default function SignupPage() {
                 <CheckCircle className="h-16 w-16 text-green-600" />
               </div>
               <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-                Account Created Successfully!
+                <LocalizedText>Account Created Successfully!</LocalizedText>
               </h2>
               <p className="text-gray-600 dark:text-gray-400 mb-4">
-                Please check your email for verification instructions. You will be redirected to the verification page...
+                <LocalizedText>Please check your email for verification instructions. You will be redirected to the verification page...</LocalizedText>
               </p>
               <Button onClick={() => router.push(`/verify-otp?email=${encodeURIComponent(formData.email)}`)}>                Go to OTP Verification
               </Button>
@@ -136,19 +137,19 @@ export default function SignupPage() {
             </div>
           </div>
           <h1 className="mt-6 text-3xl font-bold text-gray-900 dark:text-white">
-            Create Account
+            <LocalizedText>Create Account</LocalizedText>
           </h1>
           <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-            Sign up to get started with fleet management
+            <LocalizedText>Sign up to get started with fleet management</LocalizedText>
           </p>
         </div>
 
         {/* Signup Card */}
         <Card>
           <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl text-center">Sign Up</CardTitle>
+            <CardTitle className="text-2xl text-center"><LocalizedText>Sign Up</LocalizedText></CardTitle>
             <CardDescription className="text-center">
-              Create your account to access the fleet management system
+              <LocalizedText>Create your account to access the fleet management system</LocalizedText>
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -160,7 +161,7 @@ export default function SignupPage() {
               )}
 
               <div className="space-y-2">
-                <Label htmlFor="name">Full Name</Label>
+                <Label htmlFor="name"><LocalizedText>Full Name</LocalizedText></Label>
                 <div className="relative">
                   <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                   <Input
@@ -176,7 +177,7 @@ export default function SignupPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="email">Email Address</Label>
+                <Label htmlFor="email"><LocalizedText>Email Address</LocalizedText></Label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                   <Input
@@ -192,7 +193,7 @@ export default function SignupPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="company">Company (Optional)</Label>
+                <Label htmlFor="company"><LocalizedText>Company (Optional)</LocalizedText></Label>
                 <div className="relative">
                   <Building className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                   <Input
@@ -207,21 +208,21 @@ export default function SignupPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="role">Role</Label>
+                <Label htmlFor="role"><LocalizedText>Role</LocalizedText></Label>
                 <Select value={formData.role} onValueChange={(value) => handleChange('role', value)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select your role" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="USER">User</SelectItem>
-                    <SelectItem value="MANAGER">Manager</SelectItem>
-                    <SelectItem value="ADMIN">Admin</SelectItem>
+                    <SelectItem value="USER"><LocalizedText>User</LocalizedText></SelectItem>
+                    <SelectItem value="MANAGER"><LocalizedText>Manager</LocalizedText></SelectItem>
+                    <SelectItem value="ADMIN"><LocalizedText>Admin</LocalizedText></SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password"><LocalizedText>Password</LocalizedText></Label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                   <Input
@@ -253,7 +254,7 @@ export default function SignupPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="confirmPassword">Confirm Password</Label>
+                <Label htmlFor="confirmPassword"><LocalizedText>Confirm Password</LocalizedText></Label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                   <Input
@@ -307,7 +308,7 @@ export default function SignupPage() {
                   href="/login"
                   className="font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
                 >
-                  Sign in
+                  <LocalizedText>Sign in</LocalizedText>
                 </Link>
               </p>
             </div>
@@ -319,7 +320,7 @@ export default function SignupPage() {
           <CardContent className="pt-6">
             <div className="text-center">
               <h3 className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-2">
-                Account Information
+                <LocalizedText>Account Information</LocalizedText>
               </h3>
               <div className="space-y-1 text-xs text-blue-700 dark:text-blue-300">
                 <p>• Use a real email address for verification</p>

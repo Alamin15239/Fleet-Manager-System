@@ -1,4 +1,5 @@
 'use client'
+import { LocalizedText } from '@/components/localized-text'
 
 import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -18,7 +19,7 @@ import {
   Wifi,
   Server
 } from 'lucide-react'
-import { toast } from 'sonner'
+import { toast } from '@/lib/localized-toast'
 
 interface SystemStats {
   totalUsers: number
@@ -135,7 +136,7 @@ export default function SettingsDashboard() {
             <div className="flex items-center justify-between p-3 border rounded-lg">
               <div className="flex items-center gap-2">
                 {getHealthIcon(stats.systemHealth)}
-                <span className="font-medium">System Status</span>
+                <span className="font-medium"><LocalizedText>System Status</LocalizedText></span>
               </div>
               <Badge className={getHealthColor(stats.systemHealth)}>
                 {stats.systemHealth?.charAt(0).toUpperCase() + stats.systemHealth?.slice(1) || 'Unknown'}
@@ -145,7 +146,7 @@ export default function SettingsDashboard() {
             <div className="flex items-center justify-between p-3 border rounded-lg">
               <div className="flex items-center gap-2">
                 <Clock className="h-4 w-4 text-blue-600" />
-                <span className="font-medium">Uptime</span>
+                <span className="font-medium"><LocalizedText>Uptime</LocalizedText></span>
               </div>
               <span className="text-sm font-semibold">{stats.uptime}</span>
             </div>
@@ -153,7 +154,7 @@ export default function SettingsDashboard() {
             <div className="flex items-center justify-between p-3 border rounded-lg">
               <div className="flex items-center gap-2">
                 <HardDrive className="h-4 w-4 text-purple-600" />
-                <span className="font-medium">Database Size</span>
+                <span className="font-medium"><LocalizedText>Database Size</LocalizedText></span>
               </div>
               <span className="text-sm font-semibold">{stats.databaseSize}</span>
             </div>
@@ -161,7 +162,7 @@ export default function SettingsDashboard() {
             <div className="flex items-center justify-between p-3 border rounded-lg">
               <div className="flex items-center gap-2">
                 <Database className="h-4 w-4 text-green-600" />
-                <span className="font-medium">Last Backup</span>
+                <span className="font-medium"><LocalizedText>Last Backup</LocalizedText></span>
               </div>
               <span className="text-sm font-semibold">{stats.lastBackup}</span>
             </div>
@@ -173,7 +174,7 @@ export default function SettingsDashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Users</CardTitle>
+            <CardTitle className="text-sm font-medium"><LocalizedText>Total Users</LocalizedText></CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -186,7 +187,7 @@ export default function SettingsDashboard() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Fleet Vehicles</CardTitle>
+            <CardTitle className="text-sm font-medium"><LocalizedText>Fleet Vehicles</LocalizedText></CardTitle>
             <Truck className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -199,7 +200,7 @@ export default function SettingsDashboard() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Maintenance Records</CardTitle>
+            <CardTitle className="text-sm font-medium"><LocalizedText>Maintenance Records</LocalizedText></CardTitle>
             <Wrench className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -212,13 +213,13 @@ export default function SettingsDashboard() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">System Security</CardTitle>
+            <CardTitle className="text-sm font-medium"><LocalizedText>System Security</LocalizedText></CardTitle>
             <Shield className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">Restricted</div>
+            <div className="text-2xl font-bold"><LocalizedText>Restricted</LocalizedText></div>
             <p className="text-xs text-muted-foreground">
-              Administrator access required
+              <LocalizedText>Administrator access required</LocalizedText>
             </p>
           </CardContent>
         </Card>
@@ -327,41 +328,41 @@ export default function SettingsDashboard() {
       {/* System Information */}
       <Card>
         <CardHeader>
-          <CardTitle>System Information</CardTitle>
+          <CardTitle><LocalizedText>System Information</LocalizedText></CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-3">
-              <h4 className="font-semibold text-sm">Application Details</h4>
+              <h4 className="font-semibold text-sm"><LocalizedText>Application Details</LocalizedText></h4>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Version:</span>
+                  <span className="text-muted-foreground"><LocalizedText>Version:</LocalizedText></span>
                   <span className="font-medium">1.0.0</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Environment:</span>
-                  <Badge variant="outline">Production</Badge>
+                  <span className="text-muted-foreground"><LocalizedText>Environment:</LocalizedText></span>
+                  <Badge variant="outline"><LocalizedText>Production</LocalizedText></Badge>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Last Updated:</span>
+                  <span className="text-muted-foreground"><LocalizedText>Last Updated:</LocalizedText></span>
                   <span className="font-medium">2024-01-15</span>
                 </div>
               </div>
             </div>
             
             <div className="space-y-3">
-              <h4 className="font-semibold text-sm">Performance Metrics</h4>
+              <h4 className="font-semibold text-sm"><LocalizedText>Performance Metrics</LocalizedText></h4>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Response Time:</span>
+                  <span className="text-muted-foreground"><LocalizedText>Response Time:</LocalizedText></span>
                   <span className="font-medium text-green-600">&lt; 200ms</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Memory Usage:</span>
+                  <span className="text-muted-foreground"><LocalizedText>Memory Usage:</LocalizedText></span>
                   <span className="font-medium">45%</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">CPU Usage:</span>
+                  <span className="text-muted-foreground"><LocalizedText>CPU Usage:</LocalizedText></span>
                   <span className="font-medium">12%</span>
                 </div>
               </div>

@@ -7,6 +7,7 @@ import { Camera, Upload, X } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
 import { apiPost, apiDelete } from '@/lib/api'
 import { prepareProfileImage } from '@/lib/prepare-profile-image'
+import { useLanguage } from '@/contexts/language-context'
 
 interface ProfilePictureProps {
   size?: 'sm' | 'md' | 'lg' | 'xl'
@@ -16,6 +17,7 @@ interface ProfilePictureProps {
 
 export function ProfilePicture({ size = 'md', editable = false, className = '' }: ProfilePictureProps) {
   const { user, updateUser } = useAuth()
+  const { t } = useLanguage()
   const [uploading, setUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -50,11 +52,11 @@ export function ProfilePicture({ size = 'md', editable = false, className = '' }
         updateUser({ profileImage: data.user.profileImage })
       } else {
         const errorData = await response.json().catch(() => ({}))
-        alert(errorData.error || 'Failed to upload profile picture')
+        alert(t(errorData.error || 'Failed to upload profile picture'))
       }
     } catch (error) {
       console.error('Error uploading profile picture:', error)
-      alert(error instanceof Error ? error.message : 'Failed to upload profile picture')
+      alert(t(error instanceof Error ? error.message : 'Failed to upload profile picture'))
     } finally {
       setUploading(false)
       if (fileInputRef.current) {
@@ -64,7 +66,7 @@ export function ProfilePicture({ size = 'md', editable = false, className = '' }
   }
 
   const handleRemovePicture = async () => {
-    if (!confirm('Are you sure you want to remove your profile picture?')) return
+    if (!confirm(t('Are you sure you want to remove your profile picture?'))) return
 
     setUploading(true)
 
@@ -80,11 +82,11 @@ export function ProfilePicture({ size = 'md', editable = false, className = '' }
         updateUser({ profileImage: null })
       } else {
         const errorData = await response.json()
-        alert(errorData.error || 'Failed to remove profile picture')
+        alert(t(errorData.error || 'Failed to remove profile picture'))
       }
     } catch (error) {
       console.error('Error removing profile picture:', error)
-      alert('Failed to remove profile picture')
+      alert(t('Failed to remove profile picture'))
     } finally {
       setUploading(false)
     }
@@ -100,7 +102,7 @@ export function ProfilePicture({ size = 'md', editable = false, className = '' }
   if (!editable) {
     return (
       <Avatar className={`${sizeClasses[size]} ${className}`}>
-        <AvatarImage src={user?.profileImage || undefined} alt={user?.name || 'Profile'} />
+        <AvatarImage src={user?.profileImage || undefined} alt={user?.name || t('Profile')} />
         <AvatarFallback>{getInitials()}</AvatarFallback>
       </Avatar>
     )

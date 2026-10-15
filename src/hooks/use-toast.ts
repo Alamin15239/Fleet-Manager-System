@@ -2,6 +2,7 @@
 
 // Inspired by react-hot-toast library
 import * as React from "react"
+import { translateText } from '@/contexts/language-context'
 
 import type {
   ToastActionElement,
@@ -143,19 +144,32 @@ function dispatch(action: Action) {
 type Toast = Omit<ToasterToast, "id">
 
 function toast({ ...props }: Toast) {
+  let language: 'en' | 'ar' = 'en'
+  try {
+    if (typeof window !== 'undefined' && window.localStorage.getItem('language') === 'ar') {
+      language = 'ar'
+    }
+  } catch {
+    // Keep showing toasts if browser storage is blocked.
+  }
+  const localizedProps: Toast = {
+    ...props,
+    title: typeof props.title === 'string' ? translateText(props.title, language) : props.title,
+    description: typeof props.description === 'string' ? translateText(props.description, language) : props.description,
+  }
   const id = genId()
 
   const update = (props: ToasterToast) =>
     dispatch({
       type: "UPDATE_TOAST",
-      toast: { ...props, id },
+      toast: { ...localizedProps, id },
     })
   const dismiss = () => dispatch({ type: "DISMISS_TOAST", toastId: id })
 
   dispatch({
     type: "ADD_TOAST",
     toast: {
-      ...props,
+      ...localizedProps,
       id,
       open: true,
       onOpenChange: (open) => {

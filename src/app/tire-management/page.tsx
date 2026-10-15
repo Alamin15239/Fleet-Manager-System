@@ -1,4 +1,5 @@
 'use client'
+import { LocalizedText } from '@/components/localized-text'
 
 import { useState } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -25,23 +26,23 @@ export default function TireManagementPage() {
         <TabsList className="grid h-auto w-full grid-cols-2 gap-1 p-1 sm:grid-cols-5">
           <TabsTrigger value="form" className="flex min-h-[60px] flex-col items-center gap-1 p-1.5 text-xs">
             <Plus className="h-4 w-4" />
-            <span className="leading-tight">Add</span>
+            <span className="leading-tight"><LocalizedText>Add</LocalizedText></span>
           </TabsTrigger>
           <TabsTrigger value="inventory" className="flex min-h-[60px] flex-col items-center gap-1 p-1.5 text-xs">
             <List className="h-4 w-4" />
-            <span className="leading-tight">List</span>
+            <span className="leading-tight"><LocalizedText>List</LocalizedText></span>
           </TabsTrigger>
           <TabsTrigger value="excel" className="flex min-h-[60px] flex-col items-center gap-1 p-1.5 text-xs">
             <FileText className="h-4 w-4" />
-            <span className="leading-tight">Excel</span>
+            <span className="leading-tight"><LocalizedText>Excel</LocalizedText></span>
           </TabsTrigger>
           <TabsTrigger value="analytics" className="flex min-h-[60px] flex-col items-center gap-1 p-1.5 text-xs">
             <BarChart3 className="h-4 w-4" />
-            <span className="leading-tight">Stats</span>
+            <span className="leading-tight"><LocalizedText>Stats</LocalizedText></span>
           </TabsTrigger>
           <TabsTrigger value="reports" className="flex min-h-[60px] flex-col items-center gap-1 p-1.5 text-xs">
             <Settings className="h-4 w-4" />
-            <span className="leading-tight">Reports</span>
+            <span className="leading-tight"><LocalizedText>Reports</LocalizedText></span>
           </TabsTrigger>
         </TabsList>
 

@@ -1,4 +1,5 @@
 'use client'
+import { LocalizedText } from '@/components/localized-text'
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
@@ -11,6 +12,7 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/
 import { Bar, BarChart, Line, LineChart, XAxis, YAxis, CartesianGrid } from 'recharts'
 import { apiGet } from '@/lib/api'
 import { useAuth } from '@/contexts/auth-context'
+import { usePermissions } from '@/contexts/permissions-context'
 import { useLanguage } from '@/contexts/language-context'
 import { DatabaseStorageMonitor } from '@/components/database-storage-monitor'
 import { TruckLoader } from '@/components/ui/truck-loader'
@@ -48,6 +50,8 @@ interface MaintenanceRecord {
 export default function Dashboard() {
   const router = useRouter()
   const { isAuthenticated, isLoading, user } = useAuth()
+  const { canAccess, loading: permissionsLoading } = usePermissions()
+  const canViewDashboard = canAccess('dashboard')
   const { t } = useLanguage()
   const [stats, setStats] = useState<DashboardStats>({
     totalTrucks: 0,
@@ -64,15 +68,16 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (isLoading) return
+    if (isLoading || permissionsLoading) return
     
     if (!isAuthenticated) {
       router.replace('/login')
       return
     }
 
-    fetchDashboardData()
-  }, [isAuthenticated, isLoading, router])
+    if (canViewDashboard) fetchDashboardData()
+    else setLoading(false)
+  }, [isAuthenticated, isLoading, permissionsLoading, canViewDashboard, router])
 
   const fetchDashboardData = async () => {
     try {
@@ -209,7 +214,7 @@ export default function Dashboard() {
     }
   }
 
-  if (isLoading || (isAuthenticated && loading)) {
+  if (isLoading || permissionsLoading || (isAuthenticated && loading)) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <TruckLoader size="lg" className="mx-auto" />
@@ -219,6 +224,10 @@ export default function Dashboard() {
 
   if (!isAuthenticated) {
     return null // Will redirect to login
+  }
+
+  if (!canViewDashboard) {
+    return <div className="container mx-auto p-6"><Card><CardContent className="p-6 text-muted-foreground"><LocalizedText>You do not have permission to view the dashboard.</LocalizedText></CardContent></Card></div>
   }
 
   return (
@@ -349,8 +358,8 @@ export default function Dashboard() {
             <Truck className="h-12 w-12 text-muted-foreground mb-4" />
             <h3 className="text-lg font-semibold mb-2">{t('dashboard.noDataAvailable')}</h3>
             <p className="text-muted-foreground text-center max-w-md">
-              Add trucks and maintenance records to see analytics and charts here. 
-              Start by adding your first truck to begin tracking your fleet maintenance.
+              <LocalizedText>Add trucks and maintenance records to see analytics and charts here.
+              Start by adding your first truck to begin tracking your fleet maintenance.</LocalizedText>
             </p>
             <Button className="mt-4" onClick={() => router.push('/trucks')}>
               <Plus className="h-4 w-4 mr-2" />

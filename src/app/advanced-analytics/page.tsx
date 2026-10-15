@@ -1,4 +1,5 @@
 'use client'
+import { LocalizedText } from '@/components/localized-text'
 
 import { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -27,7 +28,8 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/
 import { Bar, BarChart, Line, LineChart, XAxis, YAxis, CartesianGrid, Pie, PieChart as RechartsPieChart, Cell, Legend, ResponsiveContainer, Area, AreaChart } from 'recharts'
 import { apiGet } from '@/lib/api'
 import { formatCurrency } from '@/lib/currency'
-import { toast } from 'sonner'
+import { toast } from '@/lib/localized-toast'
+import { usePermissions } from '@/contexts/permissions-context'
 
 interface AnalyticsData {
   maintenanceTrends: any[]
@@ -49,6 +51,8 @@ interface AnalyticsData {
 }
 
 export default function AdvancedAnalytics() {
+  const { canAccess, loading: permissionsLoading } = usePermissions()
+  const canViewAnalytics = canAccess('advanced-analytics')
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData>({
     maintenanceTrends: [],
     costAnalysis: [],
@@ -74,8 +78,8 @@ export default function AdvancedAnalytics() {
   const [trucks, setTrucks] = useState<any[]>([])
 
   useEffect(() => {
-    fetchAnalyticsData()
-  }, [selectedPeriod, selectedTruck])
+    if (!permissionsLoading && canViewAnalytics) fetchAnalyticsData()
+  }, [selectedPeriod, selectedTruck, permissionsLoading, canViewAnalytics])
 
   const fetchAnalyticsData = async (showRefreshing = false) => {
     if (showRefreshing) {
@@ -188,6 +192,14 @@ export default function AdvancedAnalytics() {
     }
   }
 
+  if (permissionsLoading) {
+    return <div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900" /></div>
+  }
+
+  if (!canViewAnalytics) {
+    return <div className="container mx-auto p-6"><Card><CardContent className="p-6 text-muted-foreground"><LocalizedText>You do not have permission to view advanced analytics.</LocalizedText></CardContent></Card></div>
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -204,7 +216,7 @@ export default function AdvancedAnalytics() {
             <BarChart3 className="h-8 w-8 text-blue-600" />
             Advanced Analytics
           </h1>
-          <p className="text-muted-foreground">Fleet performance insights and trends</p>
+          <p className="text-muted-foreground"><LocalizedText>Fleet performance insights and trends</LocalizedText></p>
         </div>
         <div className="flex gap-2">
           <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
@@ -212,10 +224,10 @@ export default function AdvancedAnalytics() {
               <SelectValue placeholder="Select Period" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="1month">Last Month</SelectItem>
-              <SelectItem value="3months">Last 3 Months</SelectItem>
-              <SelectItem value="6months">Last 6 Months</SelectItem>
-              <SelectItem value="1year">Last Year</SelectItem>
+              <SelectItem value="1month"><LocalizedText>Last Month</LocalizedText></SelectItem>
+              <SelectItem value="3months"><LocalizedText>Last 3 Months</LocalizedText></SelectItem>
+              <SelectItem value="6months"><LocalizedText>Last 6 Months</LocalizedText></SelectItem>
+              <SelectItem value="1year"><LocalizedText>Last Year</LocalizedText></SelectItem>
             </SelectContent>
           </Select>
           <Select value={selectedTruck} onValueChange={setSelectedTruck}>
@@ -223,7 +235,7 @@ export default function AdvancedAnalytics() {
               <SelectValue placeholder="All Trucks" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Trucks</SelectItem>
+              <SelectItem value="all"><LocalizedText>All Trucks</LocalizedText></SelectItem>
               {trucks.map(truck => (
                 <SelectItem key={truck.id} value={truck.id}>
                   {truck.licensePlate}
@@ -246,45 +258,45 @@ export default function AdvancedAnalytics() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Fleet Uptime</CardTitle>
+            <CardTitle className="text-sm font-medium"><LocalizedText>Fleet Uptime</LocalizedText></CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">—</div>
-            <p className="text-xs text-muted-foreground">Uptime telemetry is not collected.</p>
+            <p className="text-xs text-muted-foreground"><LocalizedText>Uptime telemetry is not collected.</LocalizedText></p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Maintenance Costs</CardTitle>
+            <CardTitle className="text-sm font-medium"><LocalizedText>Maintenance Costs</LocalizedText></CardTitle>
             <BarChart3 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatCurrency(analyticsData.fleetMetrics.totalCost)}</div>
-            <p className="text-xs text-muted-foreground">Selected period · no prior-period comparison</p>
+            <p className="text-xs text-muted-foreground"><LocalizedText>Selected period · no prior-period comparison</LocalizedText></p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Mechanic Efficiency</CardTitle>
+            <CardTitle className="text-sm font-medium"><LocalizedText>Mechanic Efficiency</LocalizedText></CardTitle>
             <Target className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">—</div>
-            <p className="text-xs text-muted-foreground">Labor hours are not recorded for efficiency analysis.</p>
+            <p className="text-xs text-muted-foreground"><LocalizedText>Labor hours are not recorded for efficiency analysis.</LocalizedText></p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Fleet Utilization</CardTitle>
+            <CardTitle className="text-sm font-medium"><LocalizedText>Fleet Utilization</LocalizedText></CardTitle>
             <Activity className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">—</div>
-            <p className="text-xs text-muted-foreground">Vehicle usage data is not collected.</p>
+            <p className="text-xs text-muted-foreground"><LocalizedText>Vehicle usage data is not collected.</LocalizedText></p>
           </CardContent>
         </Card>
       </div>
@@ -297,7 +309,7 @@ export default function AdvancedAnalytics() {
               <Zap className="h-5 w-5 text-yellow-600" />
               Recorded Vehicle Alerts
             </CardTitle>
-            <CardDescription>Alerts saved for vehicles in the selected fleet.</CardDescription>
+            <CardDescription><LocalizedText>Alerts saved for vehicles in the selected fleet.</LocalizedText></CardDescription>
           </CardHeader>
           <CardContent>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -337,17 +349,17 @@ export default function AdvancedAnalytics() {
       {/* Analytics Charts */}
       <Tabs defaultValue="trends" className="space-y-4">
         <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="trends">Maintenance Trends</TabsTrigger>
-          <TabsTrigger value="costs">Cost Analysis</TabsTrigger>
-          <TabsTrigger value="performance">Truck Performance</TabsTrigger>
-          <TabsTrigger value="productivity">Mechanic Productivity</TabsTrigger>
+          <TabsTrigger value="trends"><LocalizedText>Maintenance Trends</LocalizedText></TabsTrigger>
+          <TabsTrigger value="costs"><LocalizedText>Cost Analysis</LocalizedText></TabsTrigger>
+          <TabsTrigger value="performance"><LocalizedText>Truck Performance</LocalizedText></TabsTrigger>
+          <TabsTrigger value="productivity"><LocalizedText>Mechanic Productivity</LocalizedText></TabsTrigger>
         </TabsList>
 
         <TabsContent value="trends" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Maintenance Trends</CardTitle>
-              <CardDescription>Maintenance activities over time</CardDescription>
+              <CardTitle><LocalizedText>Maintenance Trends</LocalizedText></CardTitle>
+              <CardDescription><LocalizedText>Maintenance activities over time</LocalizedText></CardDescription>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={400}>
@@ -371,8 +383,8 @@ export default function AdvancedAnalytics() {
           <div className="grid gap-6 md:grid-cols-2">
             <Card>
               <CardHeader>
-                <CardTitle>Cost Analysis</CardTitle>
-                <CardDescription>Cost breakdown by category</CardDescription>
+                <CardTitle><LocalizedText>Cost Analysis</LocalizedText></CardTitle>
+                <CardDescription><LocalizedText>Cost breakdown by category</LocalizedText></CardDescription>
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
@@ -400,8 +412,8 @@ export default function AdvancedAnalytics() {
             
             <Card>
               <CardHeader>
-                <CardTitle>Cost Breakdown</CardTitle>
-                <CardDescription>Detailed cost analysis</CardDescription>
+                <CardTitle><LocalizedText>Cost Breakdown</LocalizedText></CardTitle>
+                <CardDescription><LocalizedText>Detailed cost analysis</LocalizedText></CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
@@ -429,24 +441,24 @@ export default function AdvancedAnalytics() {
         <TabsContent value="performance" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Truck Performance</CardTitle>
-              <CardDescription>Individual vehicle performance metrics</CardDescription>
+              <CardTitle><LocalizedText>Truck Performance</LocalizedText></CardTitle>
+              <CardDescription><LocalizedText>Individual vehicle performance metrics</LocalizedText></CardDescription>
             </CardHeader>
             <CardContent>
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Vehicle</TableHead>
-                    <TableHead>Uptime</TableHead>
-                    <TableHead>Maintenance Cost</TableHead>
-                    <TableHead>Downtime (Hours)</TableHead>
+                    <TableHead><LocalizedText>Vehicle</LocalizedText></TableHead>
+                    <TableHead><LocalizedText>Uptime</LocalizedText></TableHead>
+                    <TableHead><LocalizedText>Maintenance Cost</LocalizedText></TableHead>
+                    <TableHead><LocalizedText>Downtime (Hours)</LocalizedText></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {analyticsData.truckPerformance.length === 0 ? <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground">No vehicle maintenance data for this period.</TableCell></TableRow> : analyticsData.truckPerformance.map((truck, index) => (
+                  {analyticsData.truckPerformance.length === 0 ? <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground"><LocalizedText>No vehicle maintenance data for this period.</LocalizedText></TableCell></TableRow> : analyticsData.truckPerformance.map((truck, index) => (
                     <TableRow key={index}>
                       <TableCell className="font-medium">{truck.name}</TableCell>
-                      <TableCell>Not tracked</TableCell>
+                      <TableCell><LocalizedText>Not tracked</LocalizedText></TableCell>
                       <TableCell>{formatCurrency(truck.maintenanceCost)}</TableCell>
                       <TableCell>{truck.downtime} h</TableCell>
                     </TableRow>
@@ -461,8 +473,8 @@ export default function AdvancedAnalytics() {
           <div className="grid gap-6 md:grid-cols-2">
             <Card>
               <CardHeader>
-                <CardTitle>Mechanic Productivity</CardTitle>
-                <CardDescription>Completed job counts from maintenance records.</CardDescription>
+                <CardTitle><LocalizedText>Mechanic Productivity</LocalizedText></CardTitle>
+                <CardDescription><LocalizedText>Completed job counts from maintenance records.</LocalizedText></CardDescription>
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
@@ -480,12 +492,12 @@ export default function AdvancedAnalytics() {
             
             <Card>
               <CardHeader>
-                <CardTitle>Mechanic Rankings</CardTitle>
-                <CardDescription>Top performing mechanics</CardDescription>
+                <CardTitle><LocalizedText>Mechanic Rankings</LocalizedText></CardTitle>
+                <CardDescription><LocalizedText>Top performing mechanics</LocalizedText></CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {analyticsData.mechanicProductivity.length === 0 ? <p className="text-sm text-muted-foreground">No completed job data for this period.</p> : [...analyticsData.mechanicProductivity]
+                  {analyticsData.mechanicProductivity.length === 0 ? <p className="text-sm text-muted-foreground"><LocalizedText>No completed job data for this period.</LocalizedText></p> : [...analyticsData.mechanicProductivity]
                     .sort((a, b) => b.completedJobs - a.completedJobs)
                     .map((mechanic, index) => (
                     <div key={index} className="flex items-center justify-between p-3 rounded-lg border">
@@ -504,7 +516,7 @@ export default function AdvancedAnalytics() {
                       </div>
                       <div className="text-right">
                         <div className="font-bold text-lg">{formatCurrency(mechanic.totalCost)}</div>
-                        <div className="text-sm text-muted-foreground">Recorded cost</div>
+                        <div className="text-sm text-muted-foreground"><LocalizedText>Recorded cost</LocalizedText></div>
                       </div>
                     </div>
                   ))}

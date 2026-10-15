@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { requireAuth, requireManager } from '@/lib/auth'
+import { requireRolePermission } from '@/lib/permission-middleware'
 
 // GET single maintenance record by ID
 export async function GET(
@@ -8,7 +8,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireAuth(request)
+    await requireRolePermission(request, 'maintenance', 'read')
     const { id } = await params;
     
     // Try to find in truck maintenance records first
@@ -118,9 +118,10 @@ export async function GET(
   } catch (error) {
     console.error('Error fetching maintenance record:', error)
     const unauthorized = error instanceof Error && ['No token provided', 'Invalid token'].includes(error.message)
+    const forbidden = error instanceof Error && error.message === 'Insufficient permissions'
     return NextResponse.json(
-      { error: unauthorized ? 'Authentication required' : 'Failed to fetch maintenance record' },
-      { status: unauthorized ? 401 : 500 }
+      { error: unauthorized ? 'Authentication required' : forbidden ? 'Access denied' : 'Failed to fetch maintenance record' },
+      { status: unauthorized ? 401 : forbidden ? 403 : 500 }
     )
   }
 }
@@ -131,7 +132,7 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireManager(request)
+    await requireRolePermission(request, 'maintenance', 'update')
     const { id } = await params;
     const body = await request.json()
 
@@ -303,7 +304,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireManager(request)
+    await requireRolePermission(request, 'maintenance', 'delete')
     const { id } = await params;
     
     // Check if maintenance record exists in truck records

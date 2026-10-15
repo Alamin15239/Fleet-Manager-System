@@ -1,4 +1,5 @@
 'use client'
+import { LocalizedText } from '@/components/localized-text'
 
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -14,8 +15,10 @@ import {
   Clock,
   Users
 } from 'lucide-react'
+import { useLanguage } from '@/contexts/language-context'
 
 export function AppFooter() {
+  const { t } = useLanguage()
   const currentYear = new Date().getFullYear()
   
   return (
@@ -28,39 +31,39 @@ export function AppFooter() {
               <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
                 <Truck className="h-5 w-5 text-white" />
               </div>
-              <span className="font-bold text-lg">Fleet Manager</span>
+              <span className="font-bold text-lg"><LocalizedText>Fleet Manager</LocalizedText></span>
             </div>
             <p className="text-sm text-gray-600">
-              Comprehensive fleet maintenance and tire management system for modern transportation businesses.
+              {t('Comprehensive fleet maintenance and tire management system for modern transportation businesses.')}
             </p>
             <div className="flex items-center gap-2">
               <Badge variant="outline" className="text-xs">
                 <Shield className="h-3 w-3 mr-1" />
-                Secure
+                {t('Secure')}
               </Badge>
               <Badge variant="outline" className="text-xs">
                 <Clock className="h-3 w-3 mr-1" />
-                24/7 Support
+                {t('24/7 Support')}
               </Badge>
             </div>
           </div>
 
           {/* Features */}
           <div className="space-y-4">
-            <h3 className="font-semibold text-gray-900">Features</h3>
+            <h3 className="font-semibold text-gray-900">{t('Features')}</h3>
             <ul className="space-y-2 text-sm text-gray-600">
-              <li>• Fleet Tracking & Management</li>
-              <li>• Maintenance Scheduling</li>
-              <li>• Tire Inventory Management</li>
-              <li>• Analytics & Reporting</li>
-              <li>• Predictive Maintenance</li>
-              <li>• User Management</li>
+              <li>• {t('Fleet Tracking & Management')}</li>
+              <li>• {t('Maintenance Scheduling')}</li>
+              <li>• {t('Tire Inventory Management')}</li>
+              <li>• {t('Analytics & Reporting')}</li>
+              <li>• {t('Predictive Maintenance')}</li>
+              <li>• {t('User Management')}</li>
             </ul>
           </div>
 
           {/* Support */}
           <div className="space-y-4">
-            <h3 className="font-semibold text-gray-900">Support</h3>
+            <h3 className="font-semibold text-gray-900">{t('Support')}</h3>
             <ul className="space-y-2 text-sm text-gray-600">
               <li>
                 <a href="#" className="hover:text-blue-600 transition-colors flex items-center gap-2">
@@ -77,7 +80,7 @@ export function AppFooter() {
               <li>
                 <a href="#" className="hover:text-blue-600 transition-colors flex items-center gap-2">
                   <MapPin className="h-4 w-4" />
-                  Help Center
+                  {t('Help Center')}
                 </a>
               </li>
             </ul>
@@ -85,25 +88,25 @@ export function AppFooter() {
 
           {/* System Info */}
           <div className="space-y-4">
-            <h3 className="font-semibold text-gray-900">System</h3>
+            <h3 className="font-semibold text-gray-900">{t('System')}</h3>
             <div className="space-y-2 text-sm text-gray-600">
               <div className="flex justify-between">
-                <span>Version:</span>
-                <Badge variant="secondary">v1.0.0</Badge>
+                <span>{t('Version')}:</span>
+                <Badge variant="secondary"><LocalizedText>v1.0.0</LocalizedText></Badge>
               </div>
               <div className="flex justify-between">
-                <span>Status:</span>
-                <Badge className="bg-green-100 text-green-800">Online</Badge>
+                <span>{t('Status')}:</span>
+                <Badge className="bg-green-100 text-green-800"><LocalizedText>Online</LocalizedText></Badge>
               </div>
               <div className="flex justify-between">
-                <span>Uptime:</span>
+                <span>{t('Uptime')}:</span>
                 <span>99.9%</span>
               </div>
               <div className="flex justify-between">
-                <span>Users:</span>
+                <span>{t('Users')}:</span>
                 <div className="flex items-center gap-1">
                   <Users className="h-3 w-3" />
-                  <span>Active</span>
+                  <span>{t('Active')}</span>
                 </div>
               </div>
             </div>
@@ -114,18 +117,18 @@ export function AppFooter() {
         <div className="mt-8 pt-8 border-t border-gray-200">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
             <div className="flex items-center gap-4 text-sm text-gray-600">
-              <span>© {currentYear} Fleet Manager System.</span>
-              <span>Built with</span>
+              <span>© {currentYear} {t('Fleet Manager System')}.</span>
+              <span>{t('Built with')}</span>
               <Heart className="h-4 w-4 text-red-500" />
-              <span>for transportation excellence.</span>
+              <span>{t('for transportation excellence.')}</span>
             </div>
             
             <div className="flex items-center gap-4">
               <Button variant="ghost" size="sm">
-                Privacy Policy
+                {t('Privacy Policy')}
               </Button>
               <Button variant="ghost" size="sm">
-                Terms of Service
+                {t('Terms of Service')}
               </Button>
               <Button variant="ghost" size="sm">
                 <Github className="h-4 w-4 mr-2" />
@@ -136,10 +139,10 @@ export function AppFooter() {
           
           <div className="mt-4 text-center text-xs text-gray-500">
             <p>
-              Next.js 15 • TypeScript • Tailwind CSS • Prisma • PostgreSQL/SQLite
+              <LocalizedText>Next.js 15 • TypeScript • Tailwind CSS • Prisma • PostgreSQL/SQLite</LocalizedText>
             </p>
             <p className="mt-1">
-              Designed for scalability, security, and performance
+              {t('Designed for scalability, security, and performance')}
             </p>
           </div>
         </div>

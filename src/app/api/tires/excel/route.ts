@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { requireAuth } from '@/lib/auth'
+import { requireRolePermission } from '@/lib/permission-middleware'
 import { ExcelService } from '@/lib/excel-service'
 
 // GET /api/tires/excel - Export tires to Excel
 export async function GET(request: NextRequest) {
   try {
-    const user = await requireAuth(request)
+    const user = await requireRolePermission(request, 'tire-management', 'read')
     console.log('Exporting tires for user:', user.id)
     
     const tires = await db.tire.findMany({
@@ -32,9 +32,11 @@ export async function GET(request: NextRequest) {
     })
   } catch (error) {
     console.error('Error exporting tires to Excel:', error)
+    const message = error instanceof Error ? error.message : ''
+    const status = ['No token provided', 'Invalid token'].includes(message) ? 401 : message === 'Insufficient permissions' ? 403 : 500
     return NextResponse.json(
       { error: `Failed to export tires: ${error instanceof Error ? error.message : 'Unknown error'}` },
-      { status: 500 }
+      { status }
     )
   }
 }
@@ -42,7 +44,7 @@ export async function GET(request: NextRequest) {
 // POST /api/tires/excel - Import tires from Excel
 export async function POST(request: NextRequest) {
   try {
-    const user = await requireAuth(request)
+    const user = await requireRolePermission(request, 'tire-management', 'create')
     
     const formData = await request.formData()
     const file = formData.get('file') as File
@@ -93,9 +95,11 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error('Error importing tires from Excel:', error)
+    const message = error instanceof Error ? error.message : ''
+    const status = ['No token provided', 'Invalid token'].includes(message) ? 401 : message === 'Insufficient permissions' ? 403 : 500
     return NextResponse.json(
-      { error: 'Failed to import tires' },
-      { status: 500 }
+      { error: status === 403 ? 'Access denied' : status === 401 ? 'Authentication required' : 'Failed to import tires' },
+      { status }
     )
   }
 }

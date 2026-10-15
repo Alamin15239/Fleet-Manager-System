@@ -1,4 +1,5 @@
 'use client'
+import { LocalizedText } from '@/components/localized-text'
 
 import { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -35,7 +36,7 @@ import {
 import { useRouter } from 'next/navigation'
 import { formatCurrency } from '@/lib/currency'
 import { apiGet } from '@/lib/api'
-import { toast } from 'sonner'
+import { toast } from '@/lib/localized-toast'
 
 interface AdminDashboardData {
   users: {
@@ -237,7 +238,7 @@ export default function AdminDashboard() {
         <Alert>
           <Shield className="h-4 w-4" />
           <AlertDescription>
-            Access denied. Only administrators can view this page.
+            <LocalizedText>Access denied. Only administrators can view this page.</LocalizedText>
           </AlertDescription>
         </Alert>
       </div>
@@ -281,7 +282,7 @@ export default function AdminDashboard() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Users</CardTitle>
+            <CardTitle className="text-sm font-medium"><LocalizedText>Total Users</LocalizedText></CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -297,7 +298,7 @@ export default function AdminDashboard() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Fleet Trucks</CardTitle>
+            <CardTitle className="text-sm font-medium"><LocalizedText>Fleet Trucks</LocalizedText></CardTitle>
             <Truck className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -313,7 +314,7 @@ export default function AdminDashboard() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Fleet Trailers</CardTitle>
+            <CardTitle className="text-sm font-medium"><LocalizedText>Fleet Trailers</LocalizedText></CardTitle>
             <Truck className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -326,7 +327,7 @@ export default function AdminDashboard() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Maintenance</CardTitle>
+            <CardTitle className="text-sm font-medium"><LocalizedText>Maintenance</LocalizedText></CardTitle>
             <Wrench className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -339,7 +340,7 @@ export default function AdminDashboard() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Costs</CardTitle>
+            <CardTitle className="text-sm font-medium"><LocalizedText>Total Costs</LocalizedText></CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -364,50 +365,50 @@ export default function AdminDashboard() {
         <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => router.push('/users')}>
           <CardContent className="p-6 text-center">
             <Plus className="h-12 w-12 mx-auto mb-2 text-blue-600" />
-            <h3 className="font-semibold">Add User</h3>
-            <p className="text-sm text-muted-foreground">Create new user account</p>
+            <h3 className="font-semibold"><LocalizedText>Add User</LocalizedText></h3>
+            <p className="text-sm text-muted-foreground"><LocalizedText>Create new user account</LocalizedText></p>
           </CardContent>
         </Card>
 
         <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => router.push('/trucks')}>
           <CardContent className="p-6 text-center">
             <Plus className="h-12 w-12 mx-auto mb-2 text-green-600" />
-            <h3 className="font-semibold">Add Truck</h3>
-            <p className="text-sm text-muted-foreground">Add new vehicle to fleet</p>
+            <h3 className="font-semibold"><LocalizedText>Add Truck</LocalizedText></h3>
+            <p className="text-sm text-muted-foreground"><LocalizedText>Add new vehicle to fleet</LocalizedText></p>
           </CardContent>
         </Card>
 
         <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => router.push('/job-cards')}>
           <CardContent className="p-6 text-center">
             <Plus className="h-12 w-12 mx-auto mb-2 text-orange-600" />
-            <h3 className="font-semibold">Create Job Card</h3>
-            <p className="text-sm text-muted-foreground">Open a workshop maintenance order</p>
+            <h3 className="font-semibold"><LocalizedText>Create Job Card</LocalizedText></h3>
+            <p className="text-sm text-muted-foreground"><LocalizedText>Open a workshop maintenance order</LocalizedText></p>
           </CardContent>
         </Card>
 
         <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => router.push('/admin/activity')}>
           <CardContent className="p-6 text-center">
             <Activity className="h-12 w-12 mx-auto mb-2 text-purple-600" />
-            <h3 className="font-semibold">Activity Monitor</h3>
-            <p className="text-sm text-muted-foreground">Track user activities</p>
+            <h3 className="font-semibold"><LocalizedText>Activity Monitor</LocalizedText></h3>
+            <p className="text-sm text-muted-foreground"><LocalizedText>Track user activities</LocalizedText></p>
           </CardContent>
         </Card>
 
         <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => router.push('/reports')}>
           <CardContent className="p-6 text-center">
             <FileText className="h-12 w-12 mx-auto mb-2 text-indigo-600" />
-            <h3 className="font-semibold">Generate Report</h3>
-            <p className="text-sm text-muted-foreground">Export system data</p>
+            <h3 className="font-semibold"><LocalizedText>Generate Report</LocalizedText></h3>
+            <p className="text-sm text-muted-foreground"><LocalizedText>Export system data</LocalizedText></p>
           </CardContent>
         </Card>
       </div>
 
       <Tabs defaultValue="overview" className="space-y-6">
         <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="users">Users</TabsTrigger>
-          <TabsTrigger value="activity">Activity</TabsTrigger>
-          <TabsTrigger value="system">System</TabsTrigger>
+          <TabsTrigger value="overview"><LocalizedText>Overview</LocalizedText></TabsTrigger>
+          <TabsTrigger value="users"><LocalizedText>Users</LocalizedText></TabsTrigger>
+          <TabsTrigger value="activity"><LocalizedText>Activity</LocalizedText></TabsTrigger>
+          <TabsTrigger value="system"><LocalizedText>System</LocalizedText></TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
@@ -415,7 +416,7 @@ export default function AdminDashboard() {
           <div className="grid gap-4 md:grid-cols-3">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">This Month</CardTitle>
+                <CardTitle className="text-sm font-medium"><LocalizedText>This Month</LocalizedText></CardTitle>
                 <Calendar className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
@@ -428,26 +429,26 @@ export default function AdminDashboard() {
             
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">New Users</CardTitle>
+                <CardTitle className="text-sm font-medium"><LocalizedText>New Users</LocalizedText></CardTitle>
                 <UserPlus className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{dashboardData.users.thisMonth}</div>
                 <p className="text-xs text-muted-foreground">
-                  Registered this month
+                  <LocalizedText>Registered this month</LocalizedText>
                 </p>
               </CardContent>
             </Card>
             
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Fleet Utilization</CardTitle>
+                <CardTitle className="text-sm font-medium"><LocalizedText>Fleet Utilization</LocalizedText></CardTitle>
                 <BarChart3 className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{dashboardData.metrics.fleetUtilization.toFixed(1)}%</div>
                 <p className="text-xs text-muted-foreground">
-                  Active vehicles
+                  <LocalizedText>Active vehicles</LocalizedText>
                 </p>
                 <div className="mt-2">
                   <Progress value={dashboardData.metrics.fleetUtilization} className="h-2" />
@@ -462,7 +463,7 @@ export default function AdminDashboard() {
           <div className="grid gap-4 md:grid-cols-4">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Admins</CardTitle>
+                <CardTitle className="text-sm font-medium"><LocalizedText>Admins</LocalizedText></CardTitle>
                 <Shield className="h-4 w-4 text-red-500" />
               </CardHeader>
               <CardContent>
@@ -472,7 +473,7 @@ export default function AdminDashboard() {
             
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Managers</CardTitle>
+                <CardTitle className="text-sm font-medium"><LocalizedText>Managers</LocalizedText></CardTitle>
                 <Users className="h-4 w-4 text-blue-500" />
               </CardHeader>
               <CardContent>
@@ -482,7 +483,7 @@ export default function AdminDashboard() {
             
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Users</CardTitle>
+                <CardTitle className="text-sm font-medium"><LocalizedText>Users</LocalizedText></CardTitle>
                 <Users className="h-4 w-4 text-green-500" />
               </CardHeader>
               <CardContent>
@@ -492,7 +493,7 @@ export default function AdminDashboard() {
             
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Pending</CardTitle>
+                <CardTitle className="text-sm font-medium"><LocalizedText>Pending</LocalizedText></CardTitle>
                 <Clock className="h-4 w-4 text-orange-500" />
               </CardHeader>
               <CardContent>
@@ -504,20 +505,20 @@ export default function AdminDashboard() {
           {/* Recent Users */}
           <Card>
             <CardHeader>
-              <CardTitle>Recent Users</CardTitle>
+              <CardTitle><LocalizedText>Recent Users</LocalizedText></CardTitle>
               <CardDescription>
-                Latest user registrations in the system
+                <LocalizedText>Latest user registrations in the system</LocalizedText>
               </CardDescription>
             </CardHeader>
             <CardContent>
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>User</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Joined</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                    <TableHead><LocalizedText>User</LocalizedText></TableHead>
+                    <TableHead><LocalizedText>Role</LocalizedText></TableHead>
+                    <TableHead><LocalizedText>Status</LocalizedText></TableHead>
+                    <TableHead><LocalizedText>Joined</LocalizedText></TableHead>
+                    <TableHead className="text-right"><LocalizedText>Actions</LocalizedText></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -531,7 +532,7 @@ export default function AdminDashboard() {
                       </TableCell>
                       <TableCell>
                         <Badge className={getRoleBadgeColor(user.role)}>
-                          {user.role}
+                          <LocalizedText>{user.role}</LocalizedText>
                         </Badge>
                       </TableCell>
                       <TableCell>
@@ -546,7 +547,7 @@ export default function AdminDashboard() {
                           </span>
                           {!user.isApproved && (
                             <Badge variant="outline" className="ml-2 text-orange-600">
-                              Pending
+                              <LocalizedText>Pending</LocalizedText>
                             </Badge>
                           )}
                         </div>
@@ -579,7 +580,7 @@ export default function AdminDashboard() {
                 Recent Activity
               </CardTitle>
               <CardDescription>
-                Latest system activities and user actions
+                <LocalizedText>Latest system activities and user actions</LocalizedText>
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -591,9 +592,9 @@ export default function AdminDashboard() {
                         <Activity className="h-4 w-4 text-blue-600" />
                       </div>
                       <div className="flex-1">
-                        <div className="font-medium">{activity.action}</div>
+                        <div className="font-medium"><LocalizedText>{activity.action}</LocalizedText></div>
                         <div className="text-sm text-muted-foreground">
-                          {activity.entityType}: {activity.entityName || 'N/A'}
+                          <LocalizedText>{activity.entityType}</LocalizedText>: {activity.entityName || 'N/A'}
                         </div>
                         <div className="text-xs text-muted-foreground mt-1">
                           By {activity.userName} • {new Date(activity.createdAt).toLocaleString()}
@@ -605,8 +606,8 @@ export default function AdminDashboard() {
               ) : (
                 <div className="text-center py-8 text-gray-500">
                   <Activity className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-                  <p className="text-sm">No recent activities</p>
-                  <p className="text-xs text-gray-400">Activities will appear here as users interact with the system</p>
+                  <p className="text-sm"><LocalizedText>No recent activities</LocalizedText></p>
+                  <p className="text-xs text-gray-400"><LocalizedText>Activities will appear here as users interact with the system</LocalizedText></p>
                 </div>
               )}
             </CardContent>
@@ -628,7 +629,7 @@ export default function AdminDashboard() {
                   <div className="flex justify-between items-center p-3 rounded-lg border">
                     <div className="flex items-center gap-2">
                       <Database className="h-4 w-4 text-green-600" />
-                      <span>Database</span>
+                      <span><LocalizedText>Database</LocalizedText></span>
                     </div>
                     <Badge variant="default" className={dashboardData.systemHealth.database === 'Connected' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}>
                       {dashboardData.systemHealth.database}
@@ -637,7 +638,7 @@ export default function AdminDashboard() {
                   <div className="flex justify-between items-center p-3 rounded-lg border">
                     <div className="flex items-center gap-2">
                       <Shield className="h-4 w-4 text-green-600" />
-                      <span>Authentication</span>
+                      <span><LocalizedText>Authentication</LocalizedText></span>
                     </div>
                     <Badge variant="default" className={dashboardData.systemHealth.authentication === 'Operational' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}>
                       {dashboardData.systemHealth.authentication}
@@ -648,7 +649,7 @@ export default function AdminDashboard() {
                   <div className="flex justify-between items-center p-3 rounded-lg border">
                     <div className="flex items-center gap-2">
                       <HardDrive className="h-4 w-4 text-green-600" />
-                      <span>File Storage</span>
+                      <span><LocalizedText>File Storage</LocalizedText></span>
                     </div>
                     <Badge variant="default" className={dashboardData.systemHealth.fileStorage === 'Not persistent' ? 'bg-amber-100 text-amber-800' : 'bg-gray-100 text-gray-800'}>
                       {dashboardData.systemHealth.fileStorage}
@@ -657,7 +658,7 @@ export default function AdminDashboard() {
                   <div className="flex justify-between items-center p-3 rounded-lg border">
                     <div className="flex items-center gap-2">
                       <FileText className="h-4 w-4 text-green-600" />
-                      <span>Report Generation</span>
+                      <span><LocalizedText>Report Generation</LocalizedText></span>
                     </div>
                     <Badge variant="default" className={dashboardData.systemHealth.reportGeneration === 'Available' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}>
                       {dashboardData.systemHealth.reportGeneration}

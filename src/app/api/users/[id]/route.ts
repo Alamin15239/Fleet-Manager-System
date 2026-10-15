@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { requireAdmin } from '@/lib/auth'
+import { requireRolePermission } from '@/lib/permission-middleware'
 import { updateUser, resetPassword } from '@/lib/auth'
 
 // GET single user by ID (admin only)
@@ -10,7 +10,7 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    await requireAdmin(request)
+    await requireRolePermission(request, 'users', 'read')
 
     const user = await db.user.findUnique({
       where: { 
@@ -92,6 +92,9 @@ export async function GET(
         { status: 403 }
       )
     }
+    if (error instanceof Error && ['No token provided', 'Invalid token'].includes(error.message)) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+    }
 
     return NextResponse.json(
       { error: 'Failed to fetch user' },
@@ -107,7 +110,7 @@ export async function PUT(
 ) {
   try {
     const { id } = await params;
-    await requireAdmin(request)
+    const caller = await requireRolePermission(request, 'users', 'update')
 
     const body = await request.json()
 
@@ -126,8 +129,14 @@ export async function PUT(
       )
     }
 
+    if (caller.role !== 'ADMIN' && (existingUser.role !== 'USER' ||
+      (body.role !== undefined && body.role !== 'USER') ||
+      body.isApproved !== undefined || body.permissions !== undefined)) {
+      return NextResponse.json({ error: 'Only administrators can change elevated roles or account permissions' }, { status: 403 })
+    }
+
     // Prevent self-deactivation
-    if (body.isActive === false && id === (await requireAdmin(request)).id) {
+    if (body.isActive === false && id === caller.id) {
       return NextResponse.json(
         { error: 'Cannot deactivate your own account' },
         { status: 400 }
@@ -177,6 +186,9 @@ export async function PUT(
         { status: 403 }
       )
     }
+    if (error instanceof Error && ['No token provided', 'Invalid token'].includes(error.message)) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+    }
 
     return NextResponse.json(
       { error: 'Failed to update user' },
@@ -192,10 +204,10 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    const adminUser = await requireAdmin(request)
+    const caller = await requireRolePermission(request, 'users', 'delete')
 
     // Prevent self-deletion
-    if (id === adminUser.id) {
+    if (id === caller.id) {
       return NextResponse.json(
         { error: 'Cannot delete your own account' },
         { status: 400 }
@@ -217,13 +229,17 @@ export async function DELETE(
       )
     }
 
+    if (caller.role !== 'ADMIN' && user.role !== 'USER') {
+      return NextResponse.json({ error: 'Only administrators can delete elevated accounts' }, { status: 403 })
+    }
+
     // Soft delete user
     const deletedUser = await db.user.update({
       where: { id: id },
       data: {
         isDeleted: true,
         deletedAt: new Date(),
-        deletedBy: adminUser.id,
+        deletedBy: caller.id,
         isActive: false
       }
     })
@@ -252,6 +268,9 @@ export async function DELETE(
         { error: 'Insufficient permissions' },
         { status: 403 }
       )
+    }
+    if (error instanceof Error && ['No token provided', 'Invalid token'].includes(error.message)) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
     }
 
     return NextResponse.json(

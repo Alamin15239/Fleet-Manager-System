@@ -1,4 +1,5 @@
 'use client'
+import { LocalizedText } from '@/components/localized-text'
 
 import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -204,7 +205,7 @@ export default function TireInventoryGrouped() {
         <CardContent>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-7 gap-6">
             <div className="space-y-2 sm:col-span-2 md:col-span-1">
-              <Label className="text-sm">Search</Label>
+              <Label className="text-sm"><LocalizedText>Search</LocalizedText></Label>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <Input
@@ -217,27 +218,27 @@ export default function TireInventoryGrouped() {
             </div>
             
             <div className="space-y-2">
-              <Label className="text-sm">Vehicle Type</Label>
+              <Label className="text-sm"><LocalizedText>Vehicle Type</LocalizedText></Label>
               <Select value={vehicleType} onValueChange={setVehicleType}>
                 <SelectTrigger>
                   <SelectValue placeholder="All types" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All types</SelectItem>
-                  <SelectItem value="truck">Trucks only</SelectItem>
-                  <SelectItem value="trailer">Trailers only</SelectItem>
+                  <SelectItem value="all"><LocalizedText>All types</LocalizedText></SelectItem>
+                  <SelectItem value="truck"><LocalizedText>Trucks only</LocalizedText></SelectItem>
+                  <SelectItem value="trailer"><LocalizedText>Trailers only</LocalizedText></SelectItem>
                 </SelectContent>
               </Select>
             </div>
             
             <div className="space-y-2">
-              <Label className="text-sm">Manufacturer</Label>
+              <Label className="text-sm"><LocalizedText>Manufacturer</LocalizedText></Label>
               <Select value={selectedManufacturer} onValueChange={setSelectedManufacturer}>
                 <SelectTrigger>
                   <SelectValue placeholder="All manufacturers" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All manufacturers</SelectItem>
+                  <SelectItem value="all"><LocalizedText>All manufacturers</LocalizedText></SelectItem>
                   {manufacturers.map((manufacturer) => (
                     <SelectItem key={manufacturer} value={manufacturer}>
                       {manufacturer}
@@ -248,24 +249,24 @@ export default function TireInventoryGrouped() {
             </div>
             
             <div className="space-y-2">
-              <Label className="text-sm">Origin</Label>
+              <Label className="text-sm"><LocalizedText>Origin</LocalizedText></Label>
               <Select value={selectedOrigin} onValueChange={setSelectedOrigin}>
                 <SelectTrigger>
                   <SelectValue placeholder="All origins" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All origins</SelectItem>
-                  <SelectItem value="CHINESE">Chinese</SelectItem>
-                  <SelectItem value="JAPANESE">Japanese</SelectItem>
-                  <SelectItem value="EUROPEAN">European</SelectItem>
-                  <SelectItem value="AMERICAN">American</SelectItem>
-                  <SelectItem value="OTHER">Other</SelectItem>
+                  <SelectItem value="all"><LocalizedText>All origins</LocalizedText></SelectItem>
+                  <SelectItem value="CHINESE"><LocalizedText>Chinese</LocalizedText></SelectItem>
+                  <SelectItem value="JAPANESE"><LocalizedText>Japanese</LocalizedText></SelectItem>
+                  <SelectItem value="EUROPEAN"><LocalizedText>European</LocalizedText></SelectItem>
+                  <SelectItem value="AMERICAN"><LocalizedText>American</LocalizedText></SelectItem>
+                  <SelectItem value="OTHER"><LocalizedText>Other</LocalizedText></SelectItem>
                 </SelectContent>
               </Select>
             </div>
             
             <div className="space-y-2">
-              <Label className="text-sm">Date From</Label>
+              <Label className="text-sm"><LocalizedText>Date From</LocalizedText></Label>
               <Input
                 type="date"
                 value={dateFrom}
@@ -274,7 +275,7 @@ export default function TireInventoryGrouped() {
             </div>
             
             <div className="space-y-2">
-              <Label className="text-sm">Date To</Label>
+              <Label className="text-sm"><LocalizedText>Date To</LocalizedText></Label>
               <Input
                 type="date"
                 value={dateTo}
@@ -283,7 +284,7 @@ export default function TireInventoryGrouped() {
             </div>
             
             <div className="space-y-2">
-              <Label className="text-sm">Actions</Label>
+              <Label className="text-sm"><LocalizedText>Actions</LocalizedText></Label>
               <Button variant="outline" onClick={fetchAndGroupTires} className="w-full">
                 <RefreshCw className="mr-2 h-4 w-4" />
                 Refresh
@@ -295,7 +296,7 @@ export default function TireInventoryGrouped() {
 
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-bold">Tires by Vehicle</h2>
+          <h2 className="text-2xl font-bold"><LocalizedText>Tires by Vehicle</LocalizedText></h2>
           <p className="text-muted-foreground">
             {Object.keys(groupedTires).length} vehicles with tires
           </p>
@@ -416,7 +417,7 @@ export default function TireInventoryGrouped() {
         <Card>
           <CardContent className="text-center py-8">
             <Package className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-            <p className="text-gray-500">No tires found</p>
+            <p className="text-gray-500"><LocalizedText>No tires found</LocalizedText></p>
           </CardContent>
         </Card>
       )}

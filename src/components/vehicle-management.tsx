@@ -1,4 +1,5 @@
 'use client'
+import { LocalizedText } from '@/components/localized-text'
 
 import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -25,6 +26,7 @@ import {
   Filter
 } from 'lucide-react'
 import { apiPost, apiPut, apiDelete, apiGet } from '@/lib/api'
+import { useLanguage } from '@/contexts/language-context'
 
 interface Vehicle {
   id: string
@@ -51,6 +53,7 @@ interface DriverFormData {
 }
 
 export default function VehicleManagement() {
+  const { t } = useLanguage()
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
   const [filteredVehicles, setFilteredVehicles] = useState<Vehicle[]>([])
   const [loading, setLoading] = useState(false)
@@ -161,7 +164,7 @@ export default function VehicleManagement() {
   }
 
   const handleDeleteVehicle = async (vehicleId: string) => {
-    if (!confirm('Are you sure you want to delete this vehicle?')) return
+    if (!confirm(t('Are you sure you want to delete this vehicle?'))) return
 
     setLoading(true)
     try {
@@ -272,9 +275,9 @@ export default function VehicleManagement() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <div>
-          <h2 className="text-xl sm:text-2xl font-bold tracking-tight">Vehicle Management</h2>
+          <h2 className="text-xl sm:text-2xl font-bold tracking-tight"><LocalizedText>Vehicle Management</LocalizedText></h2>
           <p className="text-muted-foreground text-sm">
-            Manage trucks, trailers, and driver assignments
+            <LocalizedText>Manage trucks, trailers, and driver assignments</LocalizedText>
           </p>
         </div>
         <div className="flex flex-col sm:flex-row gap-2">
@@ -299,7 +302,7 @@ export default function VehicleManagement() {
               </DialogHeader>
               <form onSubmit={handleVehicleSubmit} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="plateNumber" className="text-sm">Plate Number *</Label>
+                  <Label htmlFor="plateNumber" className="text-sm"><LocalizedText>Plate Number *</LocalizedText></Label>
                   <Input
                     id="plateNumber"
                     value={vehicleForm.plateNumber}
@@ -309,7 +312,7 @@ export default function VehicleManagement() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="trailerNumber" className="text-sm">Trailer Number</Label>
+                  <Label htmlFor="trailerNumber" className="text-sm"><LocalizedText>Trailer Number</LocalizedText></Label>
                   <Input
                     id="trailerNumber"
                     value={vehicleForm.trailerNumber}
@@ -319,7 +322,7 @@ export default function VehicleManagement() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="driverName" className="text-sm">Driver Name</Label>
+                  <Label htmlFor="driverName" className="text-sm"><LocalizedText>Driver Name</LocalizedText></Label>
                   <Input
                     id="driverName"
                     value={vehicleForm.driverName}
@@ -336,7 +339,7 @@ export default function VehicleManagement() {
                     onChange={(e) => setVehicleForm({ ...vehicleForm, isActive: e.target.checked })}
                     className="rounded"
                   />
-                  <Label htmlFor="isActive" className="text-sm">Active</Label>
+                  <Label htmlFor="isActive" className="text-sm"><LocalizedText>Active</LocalizedText></Label>
                 </div>
 
                 {error && (
@@ -389,14 +392,14 @@ export default function VehicleManagement() {
             </DialogTrigger>
             <DialogContent className="max-w-md mx-4 sm:mx-auto">
               <DialogHeader>
-                <DialogTitle className="text-lg">Add New Driver</DialogTitle>
+                <DialogTitle className="text-lg"><LocalizedText>Add New Driver</LocalizedText></DialogTitle>
                 <DialogDescription className="text-sm">
-                  Add driver information to the system
+                  <LocalizedText>Add driver information to the system</LocalizedText>
                 </DialogDescription>
               </DialogHeader>
               <form onSubmit={handleDriverSubmit} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="driverName" className="text-sm">Driver Name *</Label>
+                  <Label htmlFor="driverName" className="text-sm"><LocalizedText>Driver Name *</LocalizedText></Label>
                   <Input
                     id="driverName"
                     value={driverForm.name}
@@ -406,7 +409,7 @@ export default function VehicleManagement() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="phone" className="text-sm">Phone Number</Label>
+                  <Label htmlFor="phone" className="text-sm"><LocalizedText>Phone Number</LocalizedText></Label>
                   <Input
                     id="phone"
                     value={driverForm.phone}
@@ -416,7 +419,7 @@ export default function VehicleManagement() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="license" className="text-sm">License Number</Label>
+                  <Label htmlFor="license" className="text-sm"><LocalizedText>License Number</LocalizedText></Label>
                   <Input
                     id="license"
                     value={driverForm.license}
@@ -426,7 +429,7 @@ export default function VehicleManagement() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="notes" className="text-sm">Notes</Label>
+                  <Label htmlFor="notes" className="text-sm"><LocalizedText>Notes</LocalizedText></Label>
                   <Textarea
                     id="notes"
                     value={driverForm.notes}
@@ -477,9 +480,9 @@ export default function VehicleManagement() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Vehicles</SelectItem>
-                  <SelectItem value="active">Active Only</SelectItem>
-                  <SelectItem value="inactive">Inactive Only</SelectItem>
+                  <SelectItem value="all"><LocalizedText>All Vehicles</LocalizedText></SelectItem>
+                  <SelectItem value="active"><LocalizedText>Active Only</LocalizedText></SelectItem>
+                  <SelectItem value="inactive"><LocalizedText>Inactive Only</LocalizedText></SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -506,22 +509,22 @@ export default function VehicleManagement() {
                 <TableHeader>
                   <TableRow>
                     <TableHead className="min-w-[120px]">
-                      <span className="text-xs sm:text-sm">Plate Number</span>
+                      <span className="text-xs sm:text-sm"><LocalizedText>Plate Number</LocalizedText></span>
                     </TableHead>
                     <TableHead className="min-w-[120px] hidden sm:table-cell">
-                      <span className="text-xs sm:text-sm">Trailer Number</span>
+                      <span className="text-xs sm:text-sm"><LocalizedText>Trailer Number</LocalizedText></span>
                     </TableHead>
                     <TableHead className="min-w-[140px]">
-                      <span className="text-xs sm:text-sm">Driver Name</span>
+                      <span className="text-xs sm:text-sm"><LocalizedText>Driver Name</LocalizedText></span>
                     </TableHead>
                     <TableHead className="min-w-[80px]">
-                      <span className="text-xs sm:text-sm">Status</span>
+                      <span className="text-xs sm:text-sm"><LocalizedText>Status</LocalizedText></span>
                     </TableHead>
                     <TableHead className="min-w-[100px] hidden lg:table-cell">
-                      <span className="text-xs sm:text-sm">Created</span>
+                      <span className="text-xs sm:text-sm"><LocalizedText>Created</LocalizedText></span>
                     </TableHead>
                     <TableHead className="text-right min-w-[100px]">
-                      <span className="text-xs sm:text-sm">Actions</span>
+                      <span className="text-xs sm:text-sm"><LocalizedText>Actions</LocalizedText></span>
                     </TableHead>
                   </TableRow>
                 </TableHeader>
@@ -529,7 +532,7 @@ export default function VehicleManagement() {
                   {filteredVehicles.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={6} className="text-center py-8 text-gray-500">
-                        No vehicles found
+                        <LocalizedText>No vehicles found</LocalizedText>
                       </TableCell>
                     </TableRow>
                   ) : (
@@ -551,7 +554,7 @@ export default function VehicleManagement() {
                               <span className="truncate max-w-20 sm:max-w-none">{vehicle.driverName}</span>
                             </Badge>
                           ) : (
-                            <span className="text-gray-400 text-xs">Unassigned</span>
+                            <span className="text-gray-400 text-xs"><LocalizedText>Unassigned</LocalizedText></span>
                           )}
                         </TableCell>
                         <TableCell>

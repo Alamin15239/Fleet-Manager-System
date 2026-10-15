@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { requireAuth } from '@/lib/auth'
+import { requireRolePermission } from '@/lib/permission-middleware'
 import { ExcelService } from '@/lib/excel-service'
 
 // GET /api/tires/excel-file - Get current Excel export
 export async function GET(request: NextRequest) {
   try {
-    const user = await requireAuth(request)
+    await requireRolePermission(request, 'tire-management', 'read')
     
     const tires = await db.tire.findMany({
       orderBy: { createdAt: 'desc' }
@@ -29,9 +29,11 @@ export async function GET(request: NextRequest) {
     })
   } catch (error) {
     console.error('Error creating Excel file:', error)
+    const message = error instanceof Error ? error.message : ''
+    const status = ['No token provided', 'Invalid token'].includes(message) ? 401 : message === 'Insufficient permissions' ? 403 : 500
     return NextResponse.json(
-      { error: 'Failed to create Excel file' },
-      { status: 500 }
+      { error: status === 403 ? 'Access denied' : status === 401 ? 'Authentication required' : 'Failed to create Excel file' },
+      { status }
     )
   }
 }

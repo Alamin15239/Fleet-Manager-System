@@ -1,4 +1,5 @@
 'use client'
+import { LocalizedText } from '@/components/localized-text'
 
 import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -166,7 +167,7 @@ export function RealTimeActivityFeed({
             </div>
           ) : activities.length === 0 ? (
             <div className="flex items-center justify-center h-32 text-muted-foreground">
-              No activities found
+              <LocalizedText>No activities found</LocalizedText>
             </div>
           ) : (
             <div className="space-y-1">
@@ -181,11 +182,11 @@ export function RealTimeActivityFeed({
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-2">
                         <Badge className={getActionColor(activity.action)}>
-                          {activity.action}
+                          <LocalizedText>{activity.action}</LocalizedText>
                         </Badge>
                         <div className="flex items-center gap-1 text-muted-foreground">
                           {getEntityIcon(activity.entityType)}
-                          <span className="text-xs">{activity.entityType}</span>
+                          <span className="text-xs"><LocalizedText>{activity.entityType}</LocalizedText></span>
                         </div>
                         <Badge variant="outline" className={getRoleColor(activity.user.role)}>
                           {activity.user.role}
@@ -220,7 +221,7 @@ export function RealTimeActivityFeed({
                       {activity.metadata && (
                         <details className="mt-2">
                           <summary className="cursor-pointer text-xs text-blue-600 hover:text-blue-800">
-                            View Details
+                            <LocalizedText>View Details</LocalizedText>
                           </summary>
                           <div className="mt-1 p-2 bg-gray-50 rounded text-xs">
                             <pre className="whitespace-pre-wrap overflow-x-auto">

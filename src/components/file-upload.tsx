@@ -1,4 +1,5 @@
 'use client'
+import { LocalizedText } from '@/components/localized-text'
 
 import { useState, useCallback } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
@@ -7,7 +8,7 @@ import { Progress } from '@/components/ui/progress'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Upload, File, X, Image, FileText, Download, Eye } from 'lucide-react'
-import { toast } from 'sonner'
+import { toast } from '@/lib/localized-toast'
 import { FilePreview } from './file-preview'
 import { useAuth } from '@/contexts/auth-context'
 
@@ -208,14 +209,14 @@ export function FileUpload({
             
             {uploading ? (
               <div className="space-y-4">
-                <p className="text-sm text-gray-600">Uploading file...</p>
+                <p className="text-sm text-gray-600"><LocalizedText>Uploading file...</LocalizedText></p>
                 <Progress value={uploadProgress} className="w-full" />
               </div>
             ) : (
               <div className="space-y-4">
                 <div>
                   <p className="text-lg font-medium text-gray-900">
-                    Drop files here or click to upload
+                    <LocalizedText>Drop files here or click to upload</LocalizedText>
                   </p>
                   <p className="text-sm text-gray-500">
                     Supported formats: Images, PDF, Word, Excel (Max {maxSize}MB)

@@ -1,4 +1,5 @@
 'use client'
+import { LocalizedText } from '@/components/localized-text'
 
 import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -103,7 +104,7 @@ export function FilePreview({ file, trigger, showTrigger = true }: FilePreviewPr
         <div className="flex items-center justify-center bg-gray-100 rounded-lg h-[60vh]">
           <div className="text-center">
             <FileText className="h-16 w-16 text-red-500 mx-auto mb-4" />
-            <p className="text-lg font-medium">PDF Document</p>
+            <p className="text-lg font-medium"><LocalizedText>PDF Document</LocalizedText></p>
             <p className="text-sm text-gray-600 mb-4">{file.originalName}</p>
             <Button onClick={handleDownload}>
               <Download className="h-4 w-4 mr-2" />
@@ -119,7 +120,7 @@ export function FilePreview({ file, trigger, showTrigger = true }: FilePreviewPr
       <div className="flex items-center justify-center bg-gray-100 rounded-lg h-[60vh]">
         <div className="text-center">
           {getFileIcon()}
-          <p className="text-lg font-medium mt-4">Document Preview</p>
+          <p className="text-lg font-medium mt-4"><LocalizedText>Document Preview</LocalizedText></p>
           <p className="text-sm text-gray-600 mb-4">{file.originalName}</p>
           <div className="space-y-2">
             <Badge variant="outline">
@@ -183,7 +184,7 @@ export function FilePreview({ file, trigger, showTrigger = true }: FilePreviewPr
                     size="sm"
                     onClick={resetView}
                   >
-                    Reset
+                    <LocalizedText>Reset</LocalizedText>
                   </Button>
                 </>
               )}
@@ -212,22 +213,22 @@ export function FilePreview({ file, trigger, showTrigger = true }: FilePreviewPr
         <div className="border-t pt-4">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
             <div>
-              <span className="font-medium">Size:</span>
+              <span className="font-medium"><LocalizedText>Size:</LocalizedText></span>
               <p className="text-gray-600">{formatFileSize(file.size)}</p>
             </div>
             <div>
-              <span className="font-medium">Type:</span>
+              <span className="font-medium"><LocalizedText>Type:</LocalizedText></span>
               <p className="text-gray-600">{file.type}</p>
             </div>
             <div>
-              <span className="font-medium">Uploaded:</span>
+              <span className="font-medium"><LocalizedText>Uploaded:</LocalizedText></span>
               <p className="text-gray-600">
                 {new Date(file.uploadedAt).toLocaleDateString()}
               </p>
             </div>
             <div>
-              <span className="font-medium">Status:</span>
-              <p className="text-gray-600">Available</p>
+              <span className="font-medium"><LocalizedText>Status:</LocalizedText></span>
+              <p className="text-gray-600"><LocalizedText>Available</LocalizedText></p>
             </div>
           </div>
         </div>

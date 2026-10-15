@@ -1,4 +1,5 @@
 'use client'
+import { LocalizedText } from '@/components/localized-text'
 
 import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -6,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Download, Upload, FileSpreadsheet, CheckCircle, AlertCircle } from 'lucide-react'
-import { toast } from 'sonner'
+import { toast } from '@/lib/localized-toast'
 
 export default function TireExcelIntegration() {
   const [importing, setImporting] = useState(false)
@@ -116,9 +117,9 @@ export default function TireExcelIntegration() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-2">
-            <h3 className="font-medium">Excel File Access</h3>
+            <h3 className="font-medium"><LocalizedText>Excel File Access</LocalizedText></h3>
             <p className="text-sm text-muted-foreground">
-              Download current Excel file (auto-updated)
+              <LocalizedText>Download current Excel file (auto-updated)</LocalizedText>
             </p>
             <div className="space-y-2">
               <Button 
@@ -170,9 +171,9 @@ export default function TireExcelIntegration() {
           </div>
 
           <div className="space-y-2">
-            <h3 className="font-medium">Import from Excel</h3>
+            <h3 className="font-medium"><LocalizedText>Import from Excel</LocalizedText></h3>
             <p className="text-sm text-muted-foreground">
-              Upload Excel file to add tires
+              <LocalizedText>Upload Excel file to add tires</LocalizedText>
             </p>
             <div className="relative">
               <Input
@@ -192,7 +193,7 @@ export default function TireExcelIntegration() {
         </div>
 
         <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
-          <h4 className="font-medium text-blue-900 mb-2">Excel Format Requirements:</h4>
+          <h4 className="font-medium text-blue-900 mb-2"><LocalizedText>Excel Format Requirements:</LocalizedText></h4>
           <ul className="text-sm text-blue-800 space-y-1">
             <li>• Tire Size (required)</li>
             <li>• Manufacturer (required)</li>

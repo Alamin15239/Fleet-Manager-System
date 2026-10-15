@@ -1,4 +1,5 @@
 'use client';
+import { LocalizedText } from '@/components/localized-text'
 
 import React, { Component, ReactNode } from 'react';
 import { AlertCircle } from 'lucide-react';
@@ -37,7 +38,7 @@ export class ErrorBoundary extends Component<Props, State> {
         <div className="flex items-center justify-center min-h-[400px] p-4">
           <div className="text-center space-y-4">
             <AlertCircle className="w-12 h-12 text-red-500 mx-auto" />
-            <h2 className="text-xl font-semibold">Something went wrong</h2>
+            <h2 className="text-xl font-semibold"><LocalizedText>Something went wrong</LocalizedText></h2>
             <p className="text-muted-foreground">
               {this.state.error?.message || 'An unexpected error occurred'}
             </p>

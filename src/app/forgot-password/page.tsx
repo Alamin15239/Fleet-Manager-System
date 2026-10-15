@@ -1,4 +1,5 @@
 'use client'
+import { LocalizedText } from '@/components/localized-text'
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -8,7 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Truck, Shield, Mail, Loader2, ArrowLeft, CheckCircle } from 'lucide-react'
-import { toast } from 'sonner'
+import { toast } from '@/lib/localized-toast'
 import Link from 'next/link'
 
 export default function ForgotPasswordPage() {
@@ -58,7 +59,7 @@ export default function ForgotPasswordPage() {
                 <CheckCircle className="h-16 w-16 text-green-600" />
               </div>
               <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-                Check Your Email
+                <LocalizedText>Check Your Email</LocalizedText>
               </h2>
               <p className="text-gray-600 dark:text-gray-400 mb-4">
                 We've sent password reset instructions to {email}
@@ -90,19 +91,19 @@ export default function ForgotPasswordPage() {
             </div>
           </div>
           <h1 className="mt-6 text-3xl font-bold text-gray-900 dark:text-white">
-            Reset Password
+            <LocalizedText>Reset Password</LocalizedText>
           </h1>
           <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-            Enter your email to receive reset instructions
+            <LocalizedText>Enter your email to receive reset instructions</LocalizedText>
           </p>
         </div>
 
         {/* Forgot Password Card */}
         <Card>
           <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl text-center">Forgot Password</CardTitle>
+            <CardTitle className="text-2xl text-center"><LocalizedText>Forgot Password</LocalizedText></CardTitle>
             <CardDescription className="text-center">
-              We'll send you a link to reset your password
+              <LocalizedText>We'll send you a link to reset your password</LocalizedText>
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -114,7 +115,7 @@ export default function ForgotPasswordPage() {
               )}
 
               <div className="space-y-2">
-                <Label htmlFor="email">Email Address</Label>
+                <Label htmlFor="email"><LocalizedText>Email Address</LocalizedText></Label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                   <Input

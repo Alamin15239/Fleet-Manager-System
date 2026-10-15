@@ -1,4 +1,5 @@
 'use client'
+import { LocalizedText } from '@/components/localized-text'
 
 import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -11,7 +12,7 @@ import { Badge } from '@/components/ui/badge'
 import { Loader2, Plus, CheckCircle, AlertCircle, Search, Truck, User, Package, Database } from 'lucide-react'
 import { apiPost, apiGet } from '@/lib/api'
 import { useDebounce } from '@/hooks/use-debounce'
-import { toast } from 'sonner'
+import { toast } from '@/lib/localized-toast'
 import { PermissionGuard, usePermissions } from '@/components/permission-guard'
 
 interface Vehicle {
@@ -309,12 +310,12 @@ export default function TireManagementForm() {
           {loadingRecent ? (
             <div className="flex items-center justify-center py-4">
               <Loader2 className="h-5 w-5 animate-spin text-purple-600" />
-              <span className="ml-2 text-purple-700">Loading recent tires...</span>
+              <span className="ml-2 text-purple-700"><LocalizedText>Loading recent tires...</LocalizedText></span>
             </div>
           ) : recentTires.length === 0 ? (
             <div className="text-center py-4 text-gray-500">
               <Package className="h-8 w-8 mx-auto text-gray-300 mb-2" />
-              <p className="text-sm">No tires added yet</p>
+              <p className="text-sm"><LocalizedText>No tires added yet</LocalizedText></p>
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-64 overflow-y-auto">
@@ -384,7 +385,7 @@ export default function TireManagementForm() {
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="plateNumber" className="font-medium text-blue-700 text-sm">
-                      Truck Plate Number
+                      <LocalizedText>Truck Plate Number</LocalizedText>
                     </Label>
                     <div className="relative">
                       <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -419,14 +420,14 @@ export default function TireManagementForm() {
                         </div>
                       )}
                     </div>
-                    <p className="text-xs text-blue-600">Optional - Search or enter truck plate number</p>
+                    <p className="text-xs text-blue-600"><LocalizedText>Optional - Search or enter truck plate number</LocalizedText></p>
                   </div>
 
 
 
                   <div className="space-y-2">
                     <Label htmlFor="quantity" className="font-medium text-blue-700 text-sm">
-                      Quantity
+                      <LocalizedText>Quantity</LocalizedText>
                     </Label>
                     <Input
                       id="quantity"
@@ -437,12 +438,12 @@ export default function TireManagementForm() {
                       onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) || 1 })}
                       className="border-blue-300 focus:border-blue-500 bg-white"
                     />
-                    <p className="text-xs text-blue-600">Number of tires</p>
+                    <p className="text-xs text-blue-600"><LocalizedText>Number of tires</LocalizedText></p>
                   </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="truckTireSize" className="font-medium text-blue-700 text-sm">
-                      Tire Size
+                      <LocalizedText>Tire Size</LocalizedText>
                     </Label>
                     <Input
                       id="truckTireSize"
@@ -451,14 +452,14 @@ export default function TireManagementForm() {
                       onChange={(e) => setFormData({ ...formData, tireSize: e.target.value })}
                       className="border-blue-300 focus:border-blue-500 bg-white"
                     />
-                    <p className="text-xs text-blue-600">Tire size for truck</p>
+                    <p className="text-xs text-blue-600"><LocalizedText>Tire size for truck</LocalizedText></p>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
                   <div className="space-y-2">
                     <Label htmlFor="truckManufacturer" className="font-medium text-blue-700 text-sm">
-                      Manufacturer
+                      <LocalizedText>Manufacturer</LocalizedText>
                     </Label>
                     <Input
                       id="truckManufacturer"
@@ -467,32 +468,32 @@ export default function TireManagementForm() {
                       onChange={(e) => setFormData({ ...formData, manufacturer: e.target.value })}
                       className="border-blue-300 focus:border-blue-500 bg-white"
                     />
-                    <p className="text-xs text-blue-600">Tire manufacturer for truck</p>
+                    <p className="text-xs text-blue-600"><LocalizedText>Tire manufacturer for truck</LocalizedText></p>
                   </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="truckOrigin" className="font-medium text-blue-700 text-sm">
-                      Origin
+                      <LocalizedText>Origin</LocalizedText>
                     </Label>
                     <Select value={formData.origin} onValueChange={(value) => setFormData({ ...formData, origin: value })}>
                       <SelectTrigger className="border-blue-300 focus:border-blue-500 bg-white">
                         <SelectValue placeholder="Select origin" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="CHINESE">Chinese</SelectItem>
-                        <SelectItem value="SAUDI">Saudi</SelectItem>
-                        <SelectItem value="JAPANESE">Japanese</SelectItem>
-                        <SelectItem value="EUROPEAN">European</SelectItem>
-                        <SelectItem value="AMERICAN">American</SelectItem>
-                        <SelectItem value="OTHER">Other</SelectItem>
+                        <SelectItem value="CHINESE"><LocalizedText>Chinese</LocalizedText></SelectItem>
+                        <SelectItem value="SAUDI"><LocalizedText>Saudi</LocalizedText></SelectItem>
+                        <SelectItem value="JAPANESE"><LocalizedText>Japanese</LocalizedText></SelectItem>
+                        <SelectItem value="EUROPEAN"><LocalizedText>European</LocalizedText></SelectItem>
+                        <SelectItem value="AMERICAN"><LocalizedText>American</LocalizedText></SelectItem>
+                        <SelectItem value="OTHER"><LocalizedText>Other</LocalizedText></SelectItem>
                       </SelectContent>
                     </Select>
-                    <p className="text-xs text-blue-600">Country of manufacture</p>
+                    <p className="text-xs text-blue-600"><LocalizedText>Country of manufacture</LocalizedText></p>
                   </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="truckSerialNumber" className="font-medium text-blue-700 text-sm">
-                      Serial Number
+                      <LocalizedText>Serial Number</LocalizedText>
                     </Label>
                     <Input
                       id="truckSerialNumber"
@@ -501,7 +502,7 @@ export default function TireManagementForm() {
                       onChange={(e) => setFormData({ ...formData, serialNumber: e.target.value })}
                       className="border-blue-300 focus:border-blue-500 bg-white"
                     />
-                    <p className="text-xs text-blue-600">Tire serial number (optional)</p>
+                    <p className="text-xs text-blue-600"><LocalizedText>Tire serial number (optional)</LocalizedText></p>
                   </div>
                 </div>
 
@@ -509,7 +510,7 @@ export default function TireManagementForm() {
                   <div className="flex items-center gap-2 mb-2">
                     <User className="h-4 w-4 text-blue-700" />
                     <Label htmlFor="driverName" className="font-medium text-blue-800">
-                      Truck Driver
+                      <LocalizedText>Truck Driver</LocalizedText>
                     </Label>
                   </div>
                   <Input
@@ -524,7 +525,7 @@ export default function TireManagementForm() {
                   />
 
                   <p className="text-xs text-blue-700 mt-1">
-                    Enter the truck driver's name
+                    <LocalizedText>Enter the truck driver's name</LocalizedText>
                   </p>
                 </div>
               </div>
@@ -539,7 +540,7 @@ export default function TireManagementForm() {
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="trailerNumber" className="font-medium text-orange-700 text-sm">
-                      Trailer Number
+                      <LocalizedText>Trailer Number</LocalizedText>
                     </Label>
                     <div className="relative">
                       <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -580,12 +581,12 @@ export default function TireManagementForm() {
                         Auto-filled from vehicle data
                       </div>
                     )}
-                    <p className="text-xs text-orange-600">Optional - Search or enter trailer number</p>
+                    <p className="text-xs text-orange-600"><LocalizedText>Optional - Search or enter trailer number</LocalizedText></p>
                   </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="trailerQuantity" className="font-medium text-orange-700 text-sm">
-                      Quantity
+                      <LocalizedText>Quantity</LocalizedText>
                     </Label>
                     <Input
                       id="trailerQuantity"
@@ -596,12 +597,12 @@ export default function TireManagementForm() {
                       onChange={(e) => setFormData({ ...formData, trailerQuantity: parseInt(e.target.value) || 0 })}
                       className="border-orange-300 focus:border-orange-500 bg-white"
                     />
-                    <p className="text-xs text-orange-600">Number of trailer tires</p>
+                    <p className="text-xs text-orange-600"><LocalizedText>Number of trailer tires</LocalizedText></p>
                   </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="trailerTireSize" className="font-medium text-orange-700 text-sm">
-                      Tire Size
+                      <LocalizedText>Tire Size</LocalizedText>
                     </Label>
                     <Input
                       id="trailerTireSize"
@@ -610,14 +611,14 @@ export default function TireManagementForm() {
                       onChange={(e) => setFormData({ ...formData, trailerTireSize: e.target.value })}
                       className="border-orange-300 focus:border-orange-500 bg-white"
                     />
-                    <p className="text-xs text-orange-600">Tire size for trailer</p>
+                    <p className="text-xs text-orange-600"><LocalizedText>Tire size for trailer</LocalizedText></p>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
                   <div className="space-y-2">
                     <Label htmlFor="trailerManufacturer" className="font-medium text-orange-700 text-sm">
-                      Manufacturer
+                      <LocalizedText>Manufacturer</LocalizedText>
                     </Label>
                     <Input
                       id="trailerManufacturer"
@@ -626,31 +627,31 @@ export default function TireManagementForm() {
                       onChange={(e) => setFormData({ ...formData, trailerManufacturer: e.target.value })}
                       className="border-orange-300 focus:border-orange-500 bg-white"
                     />
-                    <p className="text-xs text-orange-600">Tire manufacturer for trailer</p>
+                    <p className="text-xs text-orange-600"><LocalizedText>Tire manufacturer for trailer</LocalizedText></p>
                   </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="trailerOrigin" className="font-medium text-orange-700 text-sm">
-                      Origin
+                      <LocalizedText>Origin</LocalizedText>
                     </Label>
                     <Select value={formData.trailerOrigin} onValueChange={(value) => setFormData({ ...formData, trailerOrigin: value })}>
                       <SelectTrigger className="border-orange-300 focus:border-orange-500 bg-white">
                         <SelectValue placeholder="Select origin" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="CHINESE">Chinese</SelectItem>
-                        <SelectItem value="JAPANESE">Japanese</SelectItem>
-                        <SelectItem value="EUROPEAN">European</SelectItem>
-                        <SelectItem value="AMERICAN">American</SelectItem>
-                        <SelectItem value="OTHER">Other</SelectItem>
+                        <SelectItem value="CHINESE"><LocalizedText>Chinese</LocalizedText></SelectItem>
+                        <SelectItem value="JAPANESE"><LocalizedText>Japanese</LocalizedText></SelectItem>
+                        <SelectItem value="EUROPEAN"><LocalizedText>European</LocalizedText></SelectItem>
+                        <SelectItem value="AMERICAN"><LocalizedText>American</LocalizedText></SelectItem>
+                        <SelectItem value="OTHER"><LocalizedText>Other</LocalizedText></SelectItem>
                       </SelectContent>
                     </Select>
-                    <p className="text-xs text-orange-600">Country of manufacture</p>
+                    <p className="text-xs text-orange-600"><LocalizedText>Country of manufacture</LocalizedText></p>
                   </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="trailerSerialNumber" className="font-medium text-orange-700 text-sm">
-                      Serial Number
+                      <LocalizedText>Serial Number</LocalizedText>
                     </Label>
                     <Input
                       id="trailerSerialNumber"
@@ -659,7 +660,7 @@ export default function TireManagementForm() {
                       onChange={(e) => setFormData({ ...formData, trailerSerialNumber: e.target.value })}
                       className="border-orange-300 focus:border-orange-500 bg-white"
                     />
-                    <p className="text-xs text-orange-600">Tire serial number (optional)</p>
+                    <p className="text-xs text-orange-600"><LocalizedText>Tire serial number (optional)</LocalizedText></p>
                   </div>
                 </div>
 
@@ -686,7 +687,7 @@ export default function TireManagementForm() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="createdAt" className="font-medium text-gray-700 text-sm">
-                      Date & Time
+                      <LocalizedText>Date & Time</LocalizedText>
                     </Label>
                     <Input
                       id="createdAt"
@@ -695,11 +696,11 @@ export default function TireManagementForm() {
                       onChange={(e) => setFormData({ ...formData, createdAt: e.target.value })}
                       className="border-gray-200 focus:border-gray-400"
                     />
-                    <p className="text-xs text-gray-500">When the tires were added</p>
+                    <p className="text-xs text-gray-500"><LocalizedText>When the tires were added</LocalizedText></p>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="notes" className="font-medium text-gray-700 text-sm">
-                      Additional Notes
+                      <LocalizedText>Additional Notes</LocalizedText>
                     </Label>
                     <Input
                       id="notes"
@@ -708,7 +709,7 @@ export default function TireManagementForm() {
                       onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                       className="border-gray-200 focus:border-gray-400"
                     />
-                    <p className="text-xs text-gray-500">Optional notes or special instructions</p>
+                    <p className="text-xs text-gray-500"><LocalizedText>Optional notes or special instructions</LocalizedText></p>
                   </div>
                 </div>
               </div>
@@ -753,20 +754,20 @@ export default function TireManagementForm() {
               Matching Tires from Database
             </CardTitle>
             <p className="text-green-600 text-sm">
-              Existing tires that match your search criteria
+              <LocalizedText>Existing tires that match your search criteria</LocalizedText>
             </p>
           </CardHeader>
           <CardContent className="pt-6">
             {loadingTires ? (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="h-6 w-6 animate-spin text-green-600" />
-                <span className="ml-2 text-green-700">Searching tires...</span>
+                <span className="ml-2 text-green-700"><LocalizedText>Searching tires...</LocalizedText></span>
               </div>
             ) : matchingTires.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
                 <Database className="h-12 w-12 mx-auto text-gray-300 mb-3" />
-                <p className="font-medium">No matching tires found</p>
-                <p className="text-sm">No existing tires match your current search criteria</p>
+                <p className="font-medium"><LocalizedText>No matching tires found</LocalizedText></p>
+                <p className="text-sm"><LocalizedText>No existing tires match your current search criteria</LocalizedText></p>
               </div>
             ) : (
               <div className="space-y-3 max-h-96 overflow-y-auto">

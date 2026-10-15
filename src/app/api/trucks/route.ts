@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { requireAuth, requireManager } from '@/lib/auth'
+import { requireRolePermission } from '@/lib/permission-middleware'
 import { logUserActivity } from '@/lib/activity-tracking'
 import { logEntityChange } from '@/lib/audit-logging'
 
@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
   try {
     // Skip database connection test for trucks API
 
-    const user = await requireAuth(request)
+    const user = await requireRolePermission(request, 'trucks', 'read')
     
     // Log activity
     await logUserActivity({
@@ -101,6 +101,9 @@ export async function GET(request: NextRequest) {
         { status: 401 }
       )
     }
+    if (error instanceof Error && error.message === 'Insufficient permissions') {
+      return NextResponse.json({ error: 'Access denied' }, { status: 403 })
+    }
     return NextResponse.json({ success: false, error: 'Unable to load trucks. Please try again.' }, { status: 503 })
   }
 }
@@ -108,7 +111,7 @@ export async function GET(request: NextRequest) {
 // POST create new truck
 export async function POST(request: NextRequest) {
   try {
-    const user = await requireManager(request)
+    const user = await requireRolePermission(request, 'trucks', 'create')
     const body = await request.json()
 
     if (!body || typeof body !== 'object' || Array.isArray(body)) {

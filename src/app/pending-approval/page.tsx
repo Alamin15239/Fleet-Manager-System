@@ -1,4 +1,5 @@
 'use client'
+import { LocalizedText } from '@/components/localized-text'
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
@@ -59,10 +60,10 @@ export default function PendingApprovalPage() {
             </div>
           </div>
           <h1 className="mt-6 text-3xl font-bold text-gray-900 dark:text-white">
-            Account Pending Approval
+            <LocalizedText>Account Pending Approval</LocalizedText>
           </h1>
           <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-            Your account is waiting for administrator approval
+            <LocalizedText>Your account is waiting for administrator approval</LocalizedText>
           </p>
         </div>
 
@@ -74,7 +75,7 @@ export default function PendingApprovalPage() {
               Approval Required
             </CardTitle>
             <CardDescription className="text-center">
-              Your account has been created but requires administrator approval before you can access the system
+              <LocalizedText>Your account has been created but requires administrator approval before you can access the system</LocalizedText>
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -86,7 +87,7 @@ export default function PendingApprovalPage() {
                   <p className="text-sm font-medium text-gray-900 dark:text-white">
                     {user?.name || 'User'}
                   </p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">Full Name</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400"><LocalizedText>Full Name</LocalizedText></p>
                 </div>
               </div>
               
@@ -96,7 +97,7 @@ export default function PendingApprovalPage() {
                   <p className="text-sm font-medium text-gray-900 dark:text-white">
                     {user?.email || 'user@example.com'}
                   </p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">Email Address</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400"><LocalizedText>Email Address</LocalizedText></p>
                 </div>
               </div>
               
@@ -106,7 +107,7 @@ export default function PendingApprovalPage() {
                   <p className="text-sm font-medium text-gray-900 dark:text-white">
                     {user?.role || 'USER'}
                   </p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">Role</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400"><LocalizedText>Role</LocalizedText></p>
                 </div>
               </div>
             </div>
@@ -117,10 +118,10 @@ export default function PendingApprovalPage() {
                 <Clock className="h-5 w-5 text-yellow-600" />
                 <div>
                   <p className="text-sm font-medium text-yellow-900 dark:text-yellow-100">
-                    Pending Approval
+                    <LocalizedText>Pending Approval</LocalizedText>
                   </p>
                   <p className="text-xs text-yellow-700 dark:text-yellow-300">
-                    Your account is currently under review by an administrator
+                    <LocalizedText>Your account is currently under review by an administrator</LocalizedText>
                   </p>
                 </div>
               </div>
@@ -151,7 +152,7 @@ export default function PendingApprovalPage() {
                 onClick={handleLogout} 
                 className="w-full"
               >
-                Logout
+                <LocalizedText>Logout</LocalizedText>
               </Button>
             </div>
 
@@ -171,7 +172,7 @@ export default function PendingApprovalPage() {
           <CardContent className="pt-6">
             <div className="text-center">
               <h3 className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-2">
-                What happens next?
+                <LocalizedText>What happens next?</LocalizedText>
               </h3>
               <div className="space-y-1 text-xs text-blue-700 dark:text-blue-300">
                 <p>• An administrator will review your account request</p>

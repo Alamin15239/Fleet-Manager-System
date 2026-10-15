@@ -1,4 +1,5 @@
 'use client';
+import { LocalizedText } from '@/components/localized-text'
 
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -8,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Truck, Shield, Mail, Loader2, CheckCircle, RefreshCw } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '@/lib/localized-toast';
 import Link from 'next/link';
 
 function VerifyOTPContent() {
@@ -120,10 +121,10 @@ function VerifyOTPContent() {
                 <CheckCircle className="h-16 w-16 text-green-600" />
               </div>
               <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-                Email Verified Successfully!
+                <LocalizedText>Email Verified Successfully!</LocalizedText>
               </h2>
               <p className="text-gray-600 dark:text-gray-400 mb-4">
-                Your email has been verified. Please wait for admin approval to access the system.
+                <LocalizedText>Your email has been verified. Please wait for admin approval to access the system.</LocalizedText>
               </p>
               <Button onClick={() => router.push('/pending-approval')}>
                 Continue
@@ -147,17 +148,17 @@ function VerifyOTPContent() {
             </div>
           </div>
           <h1 className="mt-6 text-3xl font-bold text-gray-900 dark:text-white">
-            Verify Your Email
+            <LocalizedText>Verify Your Email</LocalizedText>
           </h1>
           <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-            Enter the 6-digit OTP sent to your email
+            <LocalizedText>Enter the 6-digit OTP sent to your email</LocalizedText>
           </p>
         </div>
 
         {/* OTP Verification Card */}
         <Card>
           <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl text-center">Enter OTP</CardTitle>
+            <CardTitle className="text-2xl text-center"><LocalizedText>Enter OTP</LocalizedText></CardTitle>
             <CardDescription className="text-center">
               We sent a 6-digit code to <strong>{email}</strong>
             </CardDescription>
@@ -171,7 +172,7 @@ function VerifyOTPContent() {
               )}
 
               <div className="space-y-2">
-                <Label htmlFor="otp">6-Digit OTP</Label>
+                <Label htmlFor="otp"><LocalizedText>6-Digit OTP</LocalizedText></Label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                   <Input
@@ -208,7 +209,7 @@ function VerifyOTPContent() {
 
             <div className="mt-6 text-center">
               <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                Didn't receive the OTP?
+                <LocalizedText>Didn't receive the OTP?</LocalizedText>
               </p>
               <Button
                 variant="outline"
@@ -242,7 +243,7 @@ function VerifyOTPContent() {
                   href="/signup"
                   className="font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
                 >
-                  Sign up again
+                  <LocalizedText>Sign up again</LocalizedText>
                 </Link>
               </p>
             </div>
@@ -254,7 +255,7 @@ function VerifyOTPContent() {
           <CardContent className="pt-6">
             <div className="text-center">
               <h3 className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-2">
-                OTP Information
+                <LocalizedText>OTP Information</LocalizedText>
               </h3>
               <div className="space-y-1 text-xs text-blue-700 dark:text-blue-300">
                 <p>• OTP is valid for 10 minutes</p>

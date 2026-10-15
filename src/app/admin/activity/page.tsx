@@ -1,4 +1,5 @@
 'use client';
+import { LocalizedText } from '@/components/localized-text'
 
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -31,7 +32,7 @@ import {
 import { format } from 'date-fns';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { Bar, BarChart, Line, LineChart, XAxis, YAxis, CartesianGrid, Pie, PieChart as RechartsPieChart, Cell, Legend, ResponsiveContainer, Area, AreaChart } from 'recharts';
-import { toast } from 'sonner';
+import { toast } from '@/lib/localized-toast';
 
 interface UserActivity {
   id: string;
@@ -410,7 +411,7 @@ export default function AdminActivityPage() {
             <Activity className="h-8 w-8 text-blue-600" />
             Activity Monitoring
           </h1>
-          <p className="text-muted-foreground">Track user activities, login history, and generate reports</p>
+          <p className="text-muted-foreground"><LocalizedText>Track user activities, login history, and generate reports</LocalizedText></p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={handleRefresh} disabled={refreshing}>
@@ -447,13 +448,13 @@ export default function AdminActivityPage() {
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
             <div>
-              <label className="text-sm font-medium mb-2 block">User</label>
+              <label className="text-sm font-medium mb-2 block"><LocalizedText>User</LocalizedText></label>
               <Select value={filters.userId} onValueChange={(value) => setFilters(prev => ({ ...prev, userId: value }))}>
                 <SelectTrigger>
                   <SelectValue placeholder="All users" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All users</SelectItem>
+                  <SelectItem value="all"><LocalizedText>All users</LocalizedText></SelectItem>
                   {users.map((user) => (
                     <SelectItem key={user.id} value={user.id}>
                       {user.name || user.email}
@@ -466,38 +467,38 @@ export default function AdminActivityPage() {
             {activeTab === 'activities' && (
               <>
                 <div>
-                  <label className="text-sm font-medium mb-2 block">Action</label>
+                  <label className="text-sm font-medium mb-2 block"><LocalizedText>Action</LocalizedText></label>
                   <Select value={filters.action} onValueChange={(value) => setFilters(prev => ({ ...prev, action: value }))}>
                     <SelectTrigger>
                       <SelectValue placeholder="All actions" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">All actions</SelectItem>
-                      <SelectItem value="CREATE">Create</SelectItem>
-                      <SelectItem value="UPDATE">Update</SelectItem>
-                      <SelectItem value="DELETE">Delete</SelectItem>
-                      <SelectItem value="LOGIN">Login</SelectItem>
-                      <SelectItem value="LOGOUT">Logout</SelectItem>
-                      <SelectItem value="VIEW">View</SelectItem>
-                      <SelectItem value="EXPORT">Export</SelectItem>
-                      <SelectItem value="IMPORT">Import</SelectItem>
+                      <SelectItem value="all"><LocalizedText>All actions</LocalizedText></SelectItem>
+                      <SelectItem value="CREATE"><LocalizedText>Create</LocalizedText></SelectItem>
+                      <SelectItem value="UPDATE"><LocalizedText>Update</LocalizedText></SelectItem>
+                      <SelectItem value="DELETE"><LocalizedText>Delete</LocalizedText></SelectItem>
+                      <SelectItem value="LOGIN"><LocalizedText>Login</LocalizedText></SelectItem>
+                      <SelectItem value="LOGOUT"><LocalizedText>Logout</LocalizedText></SelectItem>
+                      <SelectItem value="VIEW"><LocalizedText>View</LocalizedText></SelectItem>
+                      <SelectItem value="EXPORT"><LocalizedText>Export</LocalizedText></SelectItem>
+                      <SelectItem value="IMPORT"><LocalizedText>Import</LocalizedText></SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 
                 <div>
-                  <label className="text-sm font-medium mb-2 block">Entity Type</label>
+                  <label className="text-sm font-medium mb-2 block"><LocalizedText>Entity Type</LocalizedText></label>
                   <Select value={filters.entityType} onValueChange={(value) => setFilters(prev => ({ ...prev, entityType: value }))}>
                     <SelectTrigger>
                       <SelectValue placeholder="All entities" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">All entities</SelectItem>
-                      <SelectItem value="TRUCK">Truck</SelectItem>
-                      <SelectItem value="MAINTENANCE_RECORD">Maintenance Record</SelectItem>
-                      <SelectItem value="USER">User</SelectItem>
-                      <SelectItem value="SETTINGS">Settings</SelectItem>
-                      <SelectItem value="USER_SESSION">User Session</SelectItem>
+                      <SelectItem value="all"><LocalizedText>All entities</LocalizedText></SelectItem>
+                      <SelectItem value="TRUCK"><LocalizedText>Truck</LocalizedText></SelectItem>
+                      <SelectItem value="MAINTENANCE_RECORD"><LocalizedText>Maintenance Record</LocalizedText></SelectItem>
+                      <SelectItem value="USER"><LocalizedText>User</LocalizedText></SelectItem>
+                      <SelectItem value="SETTINGS"><LocalizedText>Settings</LocalizedText></SelectItem>
+                      <SelectItem value="USER_SESSION"><LocalizedText>User Session</LocalizedText></SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -506,22 +507,22 @@ export default function AdminActivityPage() {
             
             {activeTab === 'login-history' && (
               <div>
-                <label className="text-sm font-medium mb-2 block">Session Status</label>
+                <label className="text-sm font-medium mb-2 block"><LocalizedText>Session Status</LocalizedText></label>
                 <Select value={filters.isActive} onValueChange={(value) => setFilters(prev => ({ ...prev, isActive: value }))}>
                   <SelectTrigger>
                     <SelectValue placeholder="All sessions" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All sessions</SelectItem>
-                    <SelectItem value="true">Active</SelectItem>
-                    <SelectItem value="false">Inactive</SelectItem>
+                    <SelectItem value="all"><LocalizedText>All sessions</LocalizedText></SelectItem>
+                    <SelectItem value="true"><LocalizedText>Active</LocalizedText></SelectItem>
+                    <SelectItem value="false"><LocalizedText>Inactive</LocalizedText></SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             )}
             
             <div>
-              <label className="text-sm font-medium mb-2 block">Start Date</label>
+              <label className="text-sm font-medium mb-2 block"><LocalizedText>Start Date</LocalizedText></label>
               <Input
                 type="date"
                 value={filters.startDate}
@@ -530,7 +531,7 @@ export default function AdminActivityPage() {
             </div>
             
             <div>
-              <label className="text-sm font-medium mb-2 block">End Date</label>
+              <label className="text-sm font-medium mb-2 block"><LocalizedText>End Date</LocalizedText></label>
               <Input
                 type="date"
                 value={filters.endDate}
@@ -555,7 +556,7 @@ export default function AdminActivityPage() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Activities</CardTitle>
+            <CardTitle className="text-sm font-medium"><LocalizedText>Total Activities</LocalizedText></CardTitle>
             <Activity className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -568,7 +569,7 @@ export default function AdminActivityPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Users</CardTitle>
+            <CardTitle className="text-sm font-medium"><LocalizedText>Active Users</LocalizedText></CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -581,7 +582,7 @@ export default function AdminActivityPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Security Score</CardTitle>
+            <CardTitle className="text-sm font-medium"><LocalizedText>Security Score</LocalizedText></CardTitle>
             <Shield className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -597,7 +598,7 @@ export default function AdminActivityPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Top Action</CardTitle>
+            <CardTitle className="text-sm font-medium"><LocalizedText>Top Action</LocalizedText></CardTitle>
             <BarChart3 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -636,8 +637,8 @@ export default function AdminActivityPage() {
           <div className="grid gap-6 md:grid-cols-2">
             <Card>
               <CardHeader>
-                <CardTitle>Activity Trends</CardTitle>
-                <CardDescription>Daily activity over the last 7 days</CardDescription>
+                <CardTitle><LocalizedText>Activity Trends</LocalizedText></CardTitle>
+                <CardDescription><LocalizedText>Daily activity over the last 7 days</LocalizedText></CardDescription>
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
@@ -654,8 +655,8 @@ export default function AdminActivityPage() {
 
             <Card>
               <CardHeader>
-                <CardTitle>Top Actions</CardTitle>
-                <CardDescription>Most frequent user actions</CardDescription>
+                <CardTitle><LocalizedText>Top Actions</LocalizedText></CardTitle>
+                <CardDescription><LocalizedText>Most frequent user actions</LocalizedText></CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
@@ -685,8 +686,8 @@ export default function AdminActivityPage() {
           <div className="grid gap-6 md:grid-cols-2">
             <Card>
               <CardHeader>
-                <CardTitle>Most Active Users</CardTitle>
-                <CardDescription>Users with highest activity</CardDescription>
+                <CardTitle><LocalizedText>Most Active Users</LocalizedText></CardTitle>
+                <CardDescription><LocalizedText>Users with highest activity</LocalizedText></CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
@@ -711,8 +712,8 @@ export default function AdminActivityPage() {
 
             <Card>
               <CardHeader>
-                <CardTitle>IP Address Analysis</CardTitle>
-                <CardDescription>Most frequent IP addresses</CardDescription>
+                <CardTitle><LocalizedText>IP Address Analysis</LocalizedText></CardTitle>
+                <CardDescription><LocalizedText>Most frequent IP addresses</LocalizedText></CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
@@ -734,9 +735,9 @@ export default function AdminActivityPage() {
         <TabsContent value="activities" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>User Activities</CardTitle>
+              <CardTitle><LocalizedText>User Activities</LocalizedText></CardTitle>
               <CardDescription>
-                Track all user actions including create, update, delete operations
+                <LocalizedText>Track all user actions including create, update, delete operations</LocalizedText>
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -744,13 +745,13 @@ export default function AdminActivityPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>User</TableHead>
-                      <TableHead>Action</TableHead>
-                      <TableHead>Entity Type</TableHead>
-                      <TableHead>Entity Name</TableHead>
-                      <TableHead>IP Address</TableHead>
-                      <TableHead>Date & Time</TableHead>
-                      <TableHead>Risk</TableHead>
+                      <TableHead><LocalizedText>User</LocalizedText></TableHead>
+                      <TableHead><LocalizedText>Action</LocalizedText></TableHead>
+                      <TableHead><LocalizedText>Entity Type</LocalizedText></TableHead>
+                      <TableHead><LocalizedText>Entity Name</LocalizedText></TableHead>
+                      <TableHead><LocalizedText>IP Address</LocalizedText></TableHead>
+                      <TableHead><LocalizedText>Date & Time</LocalizedText></TableHead>
+                      <TableHead><LocalizedText>Risk</LocalizedText></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -768,8 +769,8 @@ export default function AdminActivityPage() {
                         <TableCell colSpan={7} className="text-center py-8">
                           <div className="flex flex-col items-center gap-2">
                             <Activity className="h-8 w-8 text-gray-300" />
-                            <p className="text-muted-foreground">No activities found</p>
-                            <p className="text-sm text-muted-foreground">Try adjusting your filters</p>
+                            <p className="text-muted-foreground"><LocalizedText>No activities found</LocalizedText></p>
+                            <p className="text-sm text-muted-foreground"><LocalizedText>Try adjusting your filters</LocalizedText></p>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -793,11 +794,11 @@ export default function AdminActivityPage() {
                             </TableCell>
                             <TableCell>
                               <Badge className={getActionColor(activity.action)}>
-                                {activity.action}
+                                <LocalizedText>{activity.action}</LocalizedText>
                               </Badge>
                             </TableCell>
                             <TableCell>
-                              <Badge variant="outline">{activity.entityType}</Badge>
+                              <Badge variant="outline"><LocalizedText>{activity.entityType}</LocalizedText></Badge>
                             </TableCell>
                             <TableCell className="max-w-xs truncate">
                               {activity.entityName || '-'}
@@ -848,9 +849,9 @@ export default function AdminActivityPage() {
         <TabsContent value="login-history" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Login History</CardTitle>
+              <CardTitle><LocalizedText>Login History</LocalizedText></CardTitle>
               <CardDescription>
-                Track user login/logout times and session durations
+                <LocalizedText>Track user login/logout times and session durations</LocalizedText>
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -858,13 +859,13 @@ export default function AdminActivityPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>User</TableHead>
-                      <TableHead>Login Time</TableHead>
-                      <TableHead>Logout Time</TableHead>
-                      <TableHead>Session Duration</TableHead>
-                      <TableHead>IP Address</TableHead>
-                      <TableHead>Device Info</TableHead>
-                      <TableHead>Status</TableHead>
+                      <TableHead><LocalizedText>User</LocalizedText></TableHead>
+                      <TableHead><LocalizedText>Login Time</LocalizedText></TableHead>
+                      <TableHead><LocalizedText>Logout Time</LocalizedText></TableHead>
+                      <TableHead><LocalizedText>Session Duration</LocalizedText></TableHead>
+                      <TableHead><LocalizedText>IP Address</LocalizedText></TableHead>
+                      <TableHead><LocalizedText>Device Info</LocalizedText></TableHead>
+                      <TableHead><LocalizedText>Status</LocalizedText></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -882,8 +883,8 @@ export default function AdminActivityPage() {
                         <TableCell colSpan={7} className="text-center py-8">
                           <div className="flex flex-col items-center gap-2">
                             <Clock className="h-8 w-8 text-gray-300" />
-                            <p className="text-muted-foreground">No login history found</p>
-                            <p className="text-sm text-muted-foreground">Try adjusting your filters</p>
+                            <p className="text-muted-foreground"><LocalizedText>No login history found</LocalizedText></p>
+                            <p className="text-sm text-muted-foreground"><LocalizedText>Try adjusting your filters</LocalizedText></p>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -937,7 +938,7 @@ export default function AdminActivityPage() {
                           </TableCell>
                           <TableCell>
                             <div className="text-xs text-muted-foreground">
-                              Browser info not available
+                              <LocalizedText>Browser info not available</LocalizedText>
                             </div>
                           </TableCell>
                           <TableCell>
@@ -967,8 +968,8 @@ export default function AdminActivityPage() {
           <div className="grid gap-6 md:grid-cols-2">
             <Card>
               <CardHeader>
-                <CardTitle>Activity Distribution</CardTitle>
-                <CardDescription>Actions performed by users</CardDescription>
+                <CardTitle><LocalizedText>Activity Distribution</LocalizedText></CardTitle>
+                <CardDescription><LocalizedText>Actions performed by users</LocalizedText></CardDescription>
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
@@ -996,8 +997,8 @@ export default function AdminActivityPage() {
 
             <Card>
               <CardHeader>
-                <CardTitle>User Activity Comparison</CardTitle>
-                <CardDescription>Activity levels by user</CardDescription>
+                <CardTitle><LocalizedText>User Activity Comparison</LocalizedText></CardTitle>
+                <CardDescription><LocalizedText>Activity levels by user</LocalizedText></CardDescription>
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>

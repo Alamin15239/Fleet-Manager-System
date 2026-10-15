@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { requireAuth, requireManager } from '@/lib/auth'
+import { requireRolePermission } from '@/lib/permission-middleware'
 
 // GET single truck by ID
 export async function GET(
@@ -8,7 +8,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireAuth(request)
+    await requireRolePermission(request, 'trucks', 'read')
     const { id } = await params;
     const truck = await db.truck.findUnique({
       where: { 
@@ -47,9 +47,10 @@ export async function GET(
   } catch (error) {
     console.error('Error fetching truck:', error)
     const unauthorized = error instanceof Error && ['No token provided', 'Invalid token'].includes(error.message)
+    const forbidden = error instanceof Error && error.message === 'Insufficient permissions'
     return NextResponse.json(
-      { error: unauthorized ? 'Authentication required' : 'Failed to fetch truck' },
-      { status: unauthorized ? 401 : 500 }
+      { error: unauthorized ? 'Authentication required' : forbidden ? 'Access denied' : 'Failed to fetch truck' },
+      { status: unauthorized ? 401 : forbidden ? 403 : 500 }
     )
   }
 }
@@ -60,7 +61,7 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireManager(request)
+    await requireRolePermission(request, 'trucks', 'update')
     const { id } = await params;
     const body = await request.json()
 
@@ -176,7 +177,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireManager(request)
+    await requireRolePermission(request, 'trucks', 'delete')
     const { id } = await params;
     // Check if truck exists
     const truck = await db.truck.findUnique({

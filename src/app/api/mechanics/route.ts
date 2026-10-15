@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { requireAuth, requireManager } from '@/lib/auth'
+import { requireRolePermission } from '@/lib/permission-middleware'
 
 export async function GET(request: NextRequest) {
   try {
-    await requireAuth(request)
+    await requireRolePermission(request, 'mechanics', 'read')
     const { searchParams } = new URL(request.url)
     const includeInactive = searchParams.get('includeInactive') === 'true'
     const includeCount = searchParams.get('includeCount') === 'true'
@@ -62,16 +62,17 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('Error fetching mechanics:', error)
     const unauthorized = error instanceof Error && ['No token provided', 'Invalid token'].includes(error.message)
+    const forbidden = error instanceof Error && error.message === 'Insufficient permissions'
     return NextResponse.json(
-      { error: unauthorized ? 'Authentication required' : 'Failed to fetch mechanics' },
-      { status: unauthorized ? 401 : 503 }
+      { error: unauthorized ? 'Authentication required' : forbidden ? 'Access denied' : 'Failed to fetch mechanics' },
+      { status: unauthorized ? 401 : forbidden ? 403 : 503 }
     )
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    await requireManager(request)
+    await requireRolePermission(request, 'mechanics', 'create')
     const body = await request.json()
     const { name, email, phone, specialty, isActive } = body
 

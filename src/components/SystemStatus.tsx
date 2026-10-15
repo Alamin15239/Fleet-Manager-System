@@ -1,4 +1,5 @@
 'use client';
+import { LocalizedText } from '@/components/localized-text'
 
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -97,13 +98,13 @@ export default function SystemStatus() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'operational':
-        return <Badge className="bg-green-100 text-green-800">Operational</Badge>;
+        return <Badge className="bg-green-100 text-green-800"><LocalizedText>Operational</LocalizedText></Badge>;
       case 'warning':
-        return <Badge className="bg-yellow-100 text-yellow-800">Warning</Badge>;
+        return <Badge className="bg-yellow-100 text-yellow-800"><LocalizedText>Warning</LocalizedText></Badge>;
       case 'error':
-        return <Badge className="bg-red-100 text-red-800">Error</Badge>;
+        return <Badge className="bg-red-100 text-red-800"><LocalizedText>Error</LocalizedText></Badge>;
       default:
-        return <Badge className="bg-gray-100 text-gray-800">Unknown</Badge>;
+        return <Badge className="bg-gray-100 text-gray-800"><LocalizedText>Unknown</LocalizedText></Badge>;
     }
   };
 
@@ -126,7 +127,7 @@ export default function SystemStatus() {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>System Status</CardTitle>
+          <CardTitle><LocalizedText>System Status</LocalizedText></CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-center h-32">
@@ -141,7 +142,7 @@ export default function SystemStatus() {
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>System Status</CardTitle>
+          <CardTitle><LocalizedText>System Status</LocalizedText></CardTitle>
         </CardHeader>
         <CardContent>
           {systemStatus ? (
@@ -150,7 +151,7 @@ export default function SystemStatus() {
                 <div className="flex items-center justify-between p-3 border rounded-lg">
                   <div className="flex items-center gap-2">
                     {getStatusIcon(systemStatus.checks.authentication.status)}
-                    <span className="font-medium">Authentication</span>
+                    <span className="font-medium"><LocalizedText>Authentication</LocalizedText></span>
                   </div>
                   {getStatusBadge(systemStatus.checks.authentication.status)}
                 </div>
@@ -158,7 +159,7 @@ export default function SystemStatus() {
                 <div className="flex items-center justify-between p-3 border rounded-lg">
                   <div className="flex items-center gap-2">
                     {getStatusIcon(systemStatus.checks.database.status)}
-                    <span className="font-medium">Database</span>
+                    <span className="font-medium"><LocalizedText>Database</LocalizedText></span>
                   </div>
                   {getStatusBadge(systemStatus.checks.database.status)}
                 </div>
@@ -166,7 +167,7 @@ export default function SystemStatus() {
                 <div className="flex items-center justify-between p-3 border rounded-lg">
                   <div className="flex items-center gap-2">
                     {getStatusIcon(systemStatus.checks.fileStorage.status)}
-                    <span className="font-medium">File Storage</span>
+                    <span className="font-medium"><LocalizedText>File Storage</LocalizedText></span>
                   </div>
                   {getStatusBadge(systemStatus.checks.fileStorage.status)}
                 </div>
@@ -174,21 +175,21 @@ export default function SystemStatus() {
                 <div className="flex items-center justify-between p-3 border rounded-lg">
                   <div className="flex items-center gap-2">
                     {getStatusIcon(systemStatus.checks.reportGeneration.status)}
-                    <span className="font-medium">Report Generation</span>
+                    <span className="font-medium"><LocalizedText>Report Generation</LocalizedText></span>
                   </div>
                   {getStatusBadge(systemStatus.checks.reportGeneration.status)}
                 </div>
               </div>
             </div>
           ) : (
-            <div className="text-center text-gray-500">Unable to load system status</div>
+            <div className="text-center text-gray-500"><LocalizedText>Unable to load system status</LocalizedText></div>
           )}
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle>Recent Activity</CardTitle>
+          <CardTitle><LocalizedText>Recent Activity</LocalizedText></CardTitle>
         </CardHeader>
         <CardContent>
           {activities.length > 0 ? (
@@ -208,8 +209,8 @@ export default function SystemStatus() {
           ) : (
             <div className="text-center py-8 text-gray-500">
               <Clock className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-              <p className="text-sm">No recent activities</p>
-              <p className="text-xs text-gray-400">Activities will appear here as users interact with the system</p>
+              <p className="text-sm"><LocalizedText>No recent activities</LocalizedText></p>
+              <p className="text-xs text-gray-400"><LocalizedText>Activities will appear here as users interact with the system</LocalizedText></p>
             </div>
           )}
         </CardContent>

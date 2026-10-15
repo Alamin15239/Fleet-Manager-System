@@ -1,4 +1,6 @@
 'use client'
+import { LocalizedText } from '@/components/localized-text'
+import { useLanguage } from '@/contexts/language-context'
 
 import { useState, useEffect, useRef } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -10,10 +12,11 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Download, FileText, BarChart3, Filter, Search, Calendar, Truck, User, Settings } from 'lucide-react'
-import { toast } from 'sonner'
+import { toast } from '@/lib/localized-toast'
 import { formatCurrency } from '@/lib/currency'
 import { apiGet } from '@/lib/api'
 import { createMaintenancePdf, createMaintenanceWorkbook } from '@/lib/maintenance-report-export'
+import { usePermissions } from '@/contexts/permissions-context'
 
 interface MaintenanceRecord {
   id: string
@@ -114,6 +117,9 @@ const emptyReportSummary: ReportSummary = {
 }
 
 export default function ReportsPage() {
+  const { t } = useLanguage()
+  const { canAccess, loading: permissionsLoading } = usePermissions()
+  const canViewReports = canAccess('reports')
   const maintenanceRequestId = useRef(0)
   const [maintenance, setMaintenance] = useState<MaintenanceRecord[]>([])
   const [summary, setSummary] = useState<ReportSummary>(emptyReportSummary)
@@ -138,19 +144,24 @@ export default function ReportsPage() {
   const [reportError, setReportError] = useState<string | null>(null)
 
   useEffect(() => {
+    if (permissionsLoading || !canViewReports) return
     fetchTrucks()
     fetchTrailers()
     fetchMechanics()
-  }, [])
+  }, [permissionsLoading, canViewReports])
 
   useEffect(() => {
+    if (permissionsLoading || !canViewReports) {
+      if (!permissionsLoading) setLoading(false)
+      return
+    }
     const requestId = ++maintenanceRequestId.current
     const timer = window.setTimeout(() => { void fetchMaintenance(requestId) }, searchTerm ? 250 : 0)
     return () => {
       window.clearTimeout(timer)
       if (maintenanceRequestId.current === requestId) maintenanceRequestId.current += 1
     }
-  }, [startDate, endDate, searchTerm, statusFilter, serviceTypeFilter, truckFilter, trailerFilter, mechanicFilter])
+  }, [permissionsLoading, canViewReports, startDate, endDate, searchTerm, statusFilter, serviceTypeFilter, truckFilter, trailerFilter, mechanicFilter])
 
   const fetchMaintenance = async (requestId: number) => {
     try {
@@ -294,7 +305,7 @@ export default function ReportsPage() {
       if (format === 'pdf') {
         previewWindow = window.open('', '_blank')
         if (!previewWindow) throw new Error('Allow pop-ups to preview the PDF report.')
-        previewWindow.document.write('<title>Preparing report</title><p style="font-family:Arial;padding:24px">Preparing your report…</p>')
+        previewWindow.document.write(`<title>${t('Preparing report')}</title><p style="font-family:Arial;padding:24px">${t('Preparing your report…')}</p>`)
         const blob = await createMaintenancePdf(filteredMaintenance, `${startDate || 'All time'} to ${endDate || 'Current'}`)
         const url = URL.createObjectURL(blob)
         previewWindow.location.href = url
@@ -348,6 +359,18 @@ export default function ReportsPage() {
     downloadBlob(workbook, `maintenance-report-${new Date().toISOString().slice(0, 10)}.xlsx`)
   }
 
+  if (permissionsLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900" />
+      </div>
+    )
+  }
+
+  if (!canViewReports) {
+    return <div className="container mx-auto p-6"><Card><CardContent className="p-6 text-muted-foreground"><LocalizedText>You do not have permission to view reports.</LocalizedText></CardContent></Card></div>
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -379,8 +402,8 @@ export default function ReportsPage() {
       <section className="overflow-hidden rounded-2xl border bg-gradient-to-br from-slate-950 via-slate-900 to-emerald-950 text-white shadow-sm">
         <div className="flex flex-col gap-6 p-5 sm:p-7 lg:flex-row lg:items-end lg:justify-between">
           <div className="space-y-4">
-            <div className="flex items-center gap-3"><span className="rounded-xl bg-white/10 p-3"><FileText className="h-6 w-6"/></span><div><p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-300">Fleet insights</p><h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Maintenance Reports</h1></div></div>
-            <p className="max-w-2xl text-sm text-slate-300">Review truck and trailer maintenance history, workshop job cards, and fleet costs in one report.</p>
+            <div className="flex items-center gap-3"><span className="rounded-xl bg-white/10 p-3"><FileText className="h-6 w-6"/></span><div><p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-300"><LocalizedText>Fleet insights</LocalizedText></p><h1 className="text-2xl font-bold tracking-tight sm:text-3xl"><LocalizedText>Maintenance Reports</LocalizedText></h1></div></div>
+            <p className="max-w-2xl text-sm text-slate-300"><LocalizedText>Review truck and trailer maintenance history, workshop job cards, and fleet costs in one report.</LocalizedText></p>
             <div className="flex flex-wrap gap-2 text-xs"><Badge className="border-white/15 bg-white/10 text-white hover:bg-white/10">{trucks.length} trucks</Badge><Badge className="border-white/15 bg-white/10 text-white hover:bg-white/10">{trailers.length} trailers</Badge><Badge className="border-white/15 bg-white/10 text-white hover:bg-white/10">{filteredMaintenance.length} matching records</Badge><span className="self-center text-slate-300">{selectionActive ? `${selectedRecords.length} selected` : 'All matching records included'}</span></div>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
@@ -423,7 +446,7 @@ export default function ReportsPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <Label>Start Date</Label>
+                  <Label><LocalizedText>Start Date</LocalizedText></Label>
                   <Input
                     type="date"
                     value={startDate}
@@ -431,7 +454,7 @@ export default function ReportsPage() {
                   />
                 </div>
                 <div>
-                  <Label>End Date</Label>
+                  <Label><LocalizedText>End Date</LocalizedText></Label>
                   <Input
                     type="date"
                     value={endDate}
@@ -450,14 +473,14 @@ export default function ReportsPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <Label>Format</Label>
+                  <Label><LocalizedText>Format</LocalizedText></Label>
                   <Select value={format} onValueChange={(value: 'pdf' | 'excel') => setFormat(value)}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="pdf">PDF Report</SelectItem>
-                      <SelectItem value="excel">Excel Spreadsheet</SelectItem>
+                      <SelectItem value="pdf"><LocalizedText>PDF Report</LocalizedText></SelectItem>
+                      <SelectItem value="excel"><LocalizedText>Excel Spreadsheet</LocalizedText></SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -465,13 +488,13 @@ export default function ReportsPage() {
                   <Label>Select Records ({selectionActive ? selectedRecords.length : 'all'} selected)</Label>
                   <div className="flex gap-2 flex-wrap">
                     <Button variant="outline" size="sm" onClick={selectAll}>
-                      Select All
+                      <LocalizedText>Select All</LocalizedText>
                     </Button>
                     <Button variant="outline" size="sm" onClick={selectSearched}>
-                      Select Filtered
+                      <LocalizedText>Select Filtered</LocalizedText>
                     </Button>
                     <Button variant="outline" size="sm" onClick={clearSelection}>
-                      Clear
+                      <LocalizedText>Clear</LocalizedText>
                     </Button>
                   </div>
                 </div>
@@ -489,7 +512,7 @@ export default function ReportsPage() {
             <CardContent>
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 <div className="space-y-2">
-                  <Label>Search</Label>
+                  <Label><LocalizedText>Search</LocalizedText></Label>
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                     <Input
@@ -501,38 +524,38 @@ export default function ReportsPage() {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label>Status</Label>
+                  <Label><LocalizedText>Status</LocalizedText></Label>
                   <Select value={statusFilter} onValueChange={setStatusFilter}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">All Status</SelectItem>
-                      <SelectItem value="OPEN">Open</SelectItem>
-                      <SelectItem value="COMPLETED">Completed</SelectItem>
-                      <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
-                      <SelectItem value="SCHEDULED">Scheduled</SelectItem>
-                      <SelectItem value="CANCELLED">Cancelled</SelectItem>
+                      <SelectItem value="all"><LocalizedText>All Status</LocalizedText></SelectItem>
+                      <SelectItem value="OPEN"><LocalizedText>Open</LocalizedText></SelectItem>
+                      <SelectItem value="COMPLETED"><LocalizedText>Completed</LocalizedText></SelectItem>
+                      <SelectItem value="IN_PROGRESS"><LocalizedText>In Progress</LocalizedText></SelectItem>
+                      <SelectItem value="SCHEDULED"><LocalizedText>Scheduled</LocalizedText></SelectItem>
+                      <SelectItem value="CANCELLED"><LocalizedText>Cancelled</LocalizedText></SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Service Type</Label>
+                  <Label><LocalizedText>Service Type</LocalizedText></Label>
                   <Select value={serviceTypeFilter} onValueChange={setServiceTypeFilter}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">All Services</SelectItem>
-                      <SelectItem value="oil">Oil Changes</SelectItem>
-                      <SelectItem value="brake">Brake Service</SelectItem>
-                      <SelectItem value="tire">Tire Service</SelectItem>
-                      <SelectItem value="engine">Engine Service</SelectItem>
+                      <SelectItem value="all"><LocalizedText>All Services</LocalizedText></SelectItem>
+                      <SelectItem value="oil"><LocalizedText>Oil Changes</LocalizedText></SelectItem>
+                      <SelectItem value="brake"><LocalizedText>Brake Service</LocalizedText></SelectItem>
+                      <SelectItem value="tire"><LocalizedText>Tire Service</LocalizedText></SelectItem>
+                      <SelectItem value="engine"><LocalizedText>Engine Service</LocalizedText></SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Trucks (select any number)</Label>
+                  <Label><LocalizedText>Trucks (select any number)</LocalizedText></Label>
                   <div className="max-h-40 space-y-2 overflow-y-auto rounded-md border p-2">
                     <Input aria-label="Search trucks" placeholder="Search trucks…" value={truckSearch} onChange={event => setTruckSearch(event.target.value)} className="h-8"/>
                     <div className="flex gap-2"><Button type="button" size="sm" variant="ghost" onClick={() => setVisibleVehicleSelection('truck', true)}>Select shown</Button><Button type="button" size="sm" variant="ghost" onClick={() => setTruckFilter([])}>Clear</Button><span className="ml-auto self-center text-xs text-muted-foreground">{truckFilter.length}/{trucks.length}</span></div>
@@ -540,11 +563,11 @@ export default function ReportsPage() {
                       <Checkbox checked={truckFilter.includes(truck.id)} onCheckedChange={checked => setTruckFilter(prev => checked ? [...prev, truck.id] : prev.filter(id => id !== truck.id))} />
                       <span>{truck.licensePlate} - {truck.year} {truck.make} {truck.model}</span>
                     </label>)}
-                    {visibleTrucks.length === 0 && <p className="py-2 text-center text-xs text-muted-foreground">No trucks match that search.</p>}
+                    {visibleTrucks.length === 0 && <p className="py-2 text-center text-xs text-muted-foreground"><LocalizedText>No trucks match that search.</LocalizedText></p>}
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label>Trailers (select any number)</Label>
+                  <Label><LocalizedText>Trailers (select any number)</LocalizedText></Label>
                   <div className="max-h-40 space-y-2 overflow-y-auto rounded-md border p-2">
                     <Input aria-label="Search trailers" placeholder="Search trailer number…" value={trailerSearch} onChange={event => setTrailerSearch(event.target.value)} className="h-8"/>
                     <div className="flex gap-2"><Button type="button" size="sm" variant="ghost" onClick={() => setVisibleVehicleSelection('trailer', true)}>Select shown</Button><Button type="button" size="sm" variant="ghost" onClick={() => setTrailerFilter([])}>Clear</Button><span className="ml-auto self-center text-xs text-muted-foreground">{trailerFilter.length}/{trailers.length}</span></div>
@@ -552,17 +575,17 @@ export default function ReportsPage() {
                       <Checkbox checked={trailerFilter.includes(trailer.id)} onCheckedChange={checked => setTrailerFilter(prev => checked ? [...prev, trailer.id] : prev.filter(id => id !== trailer.id))} />
                       <span>Trailer {trailer.number}</span>
                     </label>)}
-                    {visibleTrailers.length === 0 && <p className="py-2 text-center text-xs text-muted-foreground">No trailers match that search.</p>}
+                    {visibleTrailers.length === 0 && <p className="py-2 text-center text-xs text-muted-foreground"><LocalizedText>No trailers match that search.</LocalizedText></p>}
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label>Mechanic</Label>
+                  <Label><LocalizedText>Mechanic</LocalizedText></Label>
                   <Select value={mechanicFilter} onValueChange={setMechanicFilter}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">All Mechanics</SelectItem>
+                      <SelectItem value="all"><LocalizedText>All Mechanics</LocalizedText></SelectItem>
                       {mechanics.map((mechanic) => (
                         <SelectItem key={mechanic.id} value={mechanic.id}>
                           {mechanic.name}
@@ -580,7 +603,7 @@ export default function ReportsPage() {
                   <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Records</CardTitle>
+                <CardTitle className="text-sm font-medium"><LocalizedText>Total Records</LocalizedText></CardTitle>
                 <FileText className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
@@ -589,14 +612,14 @@ export default function ReportsPage() {
             </Card>
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Open Job Cards</CardTitle>
+                <CardTitle className="text-sm font-medium"><LocalizedText>Open Job Cards</LocalizedText></CardTitle>
                 <FileText className="h-4 w-4 text-amber-600" />
               </CardHeader>
               <CardContent><div className="text-2xl font-bold">{summary.openCount}</div></CardContent>
             </Card>
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Cost</CardTitle>
+                <CardTitle className="text-sm font-medium"><LocalizedText>Total Cost</LocalizedText></CardTitle>
                 <BarChart3 className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
@@ -604,12 +627,12 @@ export default function ReportsPage() {
                 <p className="text-xs text-muted-foreground">
                   Parts: {formatCurrency(summary.totalPartsCost)} | Labor: {formatCurrency(summary.totalLaborCost)}
                 </p>
-                <p className="mt-1 text-xs text-muted-foreground">Includes maintenance history and recorded job card costs.</p>
+                <p className="mt-1 text-xs text-muted-foreground"><LocalizedText>Includes maintenance history and recorded job card costs.</LocalizedText></p>
               </CardContent>
             </Card>
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Average Cost</CardTitle>
+                <CardTitle className="text-sm font-medium"><LocalizedText>Average Cost</LocalizedText></CardTitle>
                 <BarChart3 className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
@@ -618,7 +641,7 @@ export default function ReportsPage() {
             </Card>
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Completed</CardTitle>
+                <CardTitle className="text-sm font-medium"><LocalizedText>Completed</LocalizedText></CardTitle>
                 <Calendar className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
@@ -633,7 +656,7 @@ export default function ReportsPage() {
           <div className="grid gap-6 md:grid-cols-2">
             <Card>
               <CardHeader>
-                <CardTitle>Service Type Breakdown</CardTitle>
+                <CardTitle><LocalizedText>Service Type Breakdown</LocalizedText></CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
@@ -652,7 +675,7 @@ export default function ReportsPage() {
 
             <Card>
               <CardHeader>
-                <CardTitle>Top Mechanics</CardTitle>
+                <CardTitle><LocalizedText>Top Mechanics</LocalizedText></CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
@@ -677,27 +700,27 @@ export default function ReportsPage() {
         <TabsContent value="preview">
           <Card>
             <CardHeader>
-              <CardTitle>Maintenance Records Preview</CardTitle>
+              <CardTitle><LocalizedText>Maintenance Records Preview</LocalizedText></CardTitle>
               <CardDescription>
                 {filteredMaintenance.length} records found
                 {selectionActive && ` (${selectedRecords.length} selected for report)`}
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {maintenance.length === 0 ? <div className="rounded-xl border border-dashed bg-muted/20 px-5 py-12 text-center"><div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-muted"><FileText className="h-6 w-6 text-muted-foreground"/></div><h3 className="font-semibold">No matching maintenance activity</h3><p className="mx-auto mt-1 max-w-lg text-sm text-muted-foreground">Reports include maintenance entries and workshop job cards for your trucks and trailers. Clear date, vehicle, status, or search filters to see more records.</p><Button className="mt-4" variant="outline" onClick={() => { setStartDate(''); setEndDate(''); setSearchTerm(''); setStatusFilter('all'); setServiceTypeFilter('all'); setTruckFilter([]); setTrailerFilter([]); setMechanicFilter('all') }}>Reset filters</Button></div> :
+              {maintenance.length === 0 ? <div className="rounded-xl border border-dashed bg-muted/20 px-5 py-12 text-center"><div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-muted"><FileText className="h-6 w-6 text-muted-foreground"/></div><h3 className="font-semibold"><LocalizedText>No matching maintenance activity</LocalizedText></h3><p className="mx-auto mt-1 max-w-lg text-sm text-muted-foreground"><LocalizedText>Reports include maintenance entries and workshop job cards for your trucks and trailers. Clear date, vehicle, status, or search filters to see more records.</LocalizedText></p><Button className="mt-4" variant="outline" onClick={() => { setStartDate(''); setEndDate(''); setSearchTerm(''); setStatusFilter('all'); setServiceTypeFilter('all'); setTruckFilter([]); setTrailerFilter([]); setMechanicFilter('all') }}>Reset filters</Button></div> :
               <div className="max-h-[65vh] overflow-auto">
                 <table className="w-full min-w-[920px] border-collapse border border-gray-300">
                   <thead>
                     <tr className="bg-gray-100">
-                      <th className="border border-gray-300 p-2 text-left">Select</th>
-                      <th className="border border-gray-300 p-2 text-left">Record</th>
-                      <th className="border border-gray-300 p-2 text-left">Date</th>
-                      <th className="border border-gray-300 p-2 text-left">Vehicle</th>
-                      <th className="border border-gray-300 p-2 text-left">Driver</th>
-                      <th className="border border-gray-300 p-2 text-left">Service</th>
-                      <th className="border border-gray-300 p-2 text-left">Mechanic</th>
-                      <th className="border border-gray-300 p-2 text-left">Cost</th>
-                      <th className="border border-gray-300 p-2 text-left">Status</th>
+                      <th className="border border-gray-300 p-2 text-left"><LocalizedText>Select</LocalizedText></th>
+                      <th className="border border-gray-300 p-2 text-left"><LocalizedText>Record</LocalizedText></th>
+                      <th className="border border-gray-300 p-2 text-left"><LocalizedText>Date</LocalizedText></th>
+                      <th className="border border-gray-300 p-2 text-left"><LocalizedText>Vehicle</LocalizedText></th>
+                      <th className="border border-gray-300 p-2 text-left"><LocalizedText>Driver</LocalizedText></th>
+                      <th className="border border-gray-300 p-2 text-left"><LocalizedText>Service</LocalizedText></th>
+                      <th className="border border-gray-300 p-2 text-left"><LocalizedText>Mechanic</LocalizedText></th>
+                      <th className="border border-gray-300 p-2 text-left"><LocalizedText>Cost</LocalizedText></th>
+                      <th className="border border-gray-300 p-2 text-left"><LocalizedText>Status</LocalizedText></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -711,7 +734,7 @@ export default function ReportsPage() {
                               onCheckedChange={() => toggleRecord(record.id)}
                             />
                           </td>
-                          <td className="border border-gray-300 p-2">{record.jobNumber ? <div><Badge variant="outline">Workshop Job Card</Badge><p className="mt-1 text-xs text-muted-foreground">{record.jobNumber}</p></div> : <Badge variant="secondary">Maintenance</Badge>}</td>
+                          <td className="border border-gray-300 p-2">{record.jobNumber ? <div><Badge variant="outline"><LocalizedText>Workshop Job Card</LocalizedText></Badge><p className="mt-1 text-xs text-muted-foreground">{record.jobNumber}</p></div> : <Badge variant="secondary"><LocalizedText>Maintenance</LocalizedText></Badge>}</td>
                           <td className="border border-gray-300 p-2">
                             {new Date(record.datePerformed).toLocaleDateString()}
                           </td>

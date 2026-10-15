@@ -1,4 +1,5 @@
 'use client'
+import { LocalizedText } from '@/components/localized-text'
 
 import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -9,7 +10,7 @@ import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 
 import { Truck, Shield, Mail, Loader2, Clock, Lock } from 'lucide-react'
-import { toast } from 'sonner'
+import { toast } from '@/lib/localized-toast'
 import { useAuth } from '@/contexts/auth-context'
 import { useLanguage } from '@/contexts/language-context'
 import { TruckLoader } from '@/components/ui/truck-loader'
@@ -198,7 +199,7 @@ export default function LoginPage() {
           <CardHeader className="space-y-1">
             <CardTitle className="text-2xl text-center">{t('auth.signIn')}</CardTitle>
             <CardDescription className="text-center">
-              Choose your preferred login method
+              <LocalizedText>Choose your preferred login method</LocalizedText>
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -236,7 +237,7 @@ export default function LoginPage() {
               )}
 
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="email"><LocalizedText>Email</LocalizedText></Label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                   <Input
@@ -254,7 +255,7 @@ export default function LoginPage() {
               {loginMethod === 'password' ? (
                 <>
                   <div className="space-y-2">
-                    <Label htmlFor="password">Password</Label>
+                    <Label htmlFor="password"><LocalizedText>Password</LocalizedText></Label>
                     <div className="relative">
                       <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                       <Input
@@ -310,7 +311,7 @@ export default function LoginPage() {
                   ) : (
                     <>
                       <div className="space-y-2">
-                        <Label htmlFor="otp">One-Time Password</Label>
+                        <Label htmlFor="otp"><LocalizedText>One-Time Password</LocalizedText></Label>
                         <Input
                           id="otp"
                           type="text"
@@ -365,7 +366,7 @@ export default function LoginPage() {
                     href="/forgot-password"
                     className="font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
                   >
-                    Forgot your password?
+                    <LocalizedText>Forgot your password?</LocalizedText>
                   </Link>
                 </p>
               )}
@@ -375,7 +376,7 @@ export default function LoginPage() {
                   href="/signup"
                   className="font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
                 >
-                  Sign up
+                  <LocalizedText>Sign up</LocalizedText>
                 </Link>
               </p>
             </div>
@@ -387,7 +388,7 @@ export default function LoginPage() {
           <CardContent className="pt-6">
             <div className="text-center">
               <h3 className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-2">
-                OTP Authentication
+                <LocalizedText>OTP Authentication</LocalizedText>
               </h3>
               <div className="space-y-1 text-xs text-blue-700 dark:text-blue-300">
                 <p>• Choose between password or OTP login</p>

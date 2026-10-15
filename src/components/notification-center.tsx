@@ -1,4 +1,5 @@
 'use client'
+import { LocalizedText } from '@/components/localized-text'
 
 import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -157,7 +158,7 @@ export function NotificationCenter({ className = '' }: NotificationCenterProps) 
               <div className="flex items-center gap-2">
                 {unreadCount > 0 && (
                   <Button variant="ghost" size="sm" onClick={markAllAsRead}>
-                    Mark all read
+                    <LocalizedText>Mark all read</LocalizedText>
                   </Button>
                 )}
                 <Button variant="ghost" size="sm" onClick={() => setIsOpen(false)}>
@@ -205,7 +206,7 @@ export function NotificationCenter({ className = '' }: NotificationCenterProps) 
                             <div className="flex items-center gap-1">
                               {notification.actionUrl && (
                                 <Button variant="ghost" size="sm" className="h-6 px-2 text-xs">
-                                  View
+                                  <LocalizedText>View</LocalizedText>
                                 </Button>
                               )}
                               {!notification.read && (
@@ -236,7 +237,7 @@ export function NotificationCenter({ className = '' }: NotificationCenterProps) 
               ) : (
                 <div className="p-8 text-center text-gray-500">
                   <Bell className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                  <p>No notifications</p>
+                  <p><LocalizedText>No notifications</LocalizedText></p>
                 </div>
               )}
             </ScrollArea>

@@ -1,4 +1,5 @@
 'use client'
+import { LocalizedText } from '@/components/localized-text'
 
 import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -161,8 +162,8 @@ export default function TireReportsSimple() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <div>
-          <h2 className="text-2xl font-bold">Tire Analytics & Reports</h2>
-          <p className="text-muted-foreground">Fleet tire statistics and insights</p>
+          <h2 className="text-2xl font-bold"><LocalizedText>Tire Analytics & Reports</LocalizedText></h2>
+          <p className="text-muted-foreground"><LocalizedText>Fleet tire statistics and insights</LocalizedText></p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={generateReport} disabled={loading}>
@@ -181,12 +182,12 @@ export default function TireReportsSimple() {
       {/* Date Range */}
       <Card>
         <CardHeader>
-          <CardTitle>Report Period</CardTitle>
+          <CardTitle><LocalizedText>Report Period</LocalizedText></CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <Label>Start Date</Label>
+              <Label><LocalizedText>Start Date</LocalizedText></Label>
               <Input
                 type="date"
                 value={dateRange.start}
@@ -194,7 +195,7 @@ export default function TireReportsSimple() {
               />
             </div>
             <div>
-              <Label>End Date</Label>
+              <Label><LocalizedText>End Date</LocalizedText></Label>
               <Input
                 type="date"
                 value={dateRange.end}
@@ -203,7 +204,7 @@ export default function TireReportsSimple() {
             </div>
           </div>
           <Button onClick={generateReport} className="mt-4" disabled={loading}>
-            Update Report
+            <LocalizedText>Update Report</LocalizedText>
           </Button>
         </CardContent>
       </Card>
@@ -230,7 +231,7 @@ export default function TireReportsSimple() {
                 <div className="flex items-center">
                   <Package className="h-8 w-8 text-blue-500" />
                   <div className="ml-4">
-                    <p className="text-sm font-medium text-muted-foreground">Total Tires</p>
+                    <p className="text-sm font-medium text-muted-foreground"><LocalizedText>Total Tires</LocalizedText></p>
                     <p className="text-2xl font-bold">{reportData.totalTires}</p>
                   </div>
                 </div>
@@ -242,7 +243,7 @@ export default function TireReportsSimple() {
                 <div className="flex items-center">
                   <Truck className="h-8 w-8 text-green-500" />
                   <div className="ml-4">
-                    <p className="text-sm font-medium text-muted-foreground">Vehicles</p>
+                    <p className="text-sm font-medium text-muted-foreground"><LocalizedText>Vehicles</LocalizedText></p>
                     <p className="text-2xl font-bold">{reportData.totalVehicles}</p>
                   </div>
                 </div>
@@ -254,7 +255,7 @@ export default function TireReportsSimple() {
                 <div className="flex items-center">
                   <TrendingUp className="h-8 w-8 text-orange-500" />
                   <div className="ml-4">
-                    <p className="text-sm font-medium text-muted-foreground">Truck Tires</p>
+                    <p className="text-sm font-medium text-muted-foreground"><LocalizedText>Truck Tires</LocalizedText></p>
                     <p className="text-2xl font-bold">{reportData.vehicleTypeStats.trucks}</p>
                   </div>
                 </div>
@@ -266,7 +267,7 @@ export default function TireReportsSimple() {
                 <div className="flex items-center">
                   <PieChart className="h-8 w-8 text-purple-500" />
                   <div className="ml-4">
-                    <p className="text-sm font-medium text-muted-foreground">Trailer Tires</p>
+                    <p className="text-sm font-medium text-muted-foreground"><LocalizedText>Trailer Tires</LocalizedText></p>
                     <p className="text-2xl font-bold">{reportData.vehicleTypeStats.trailers}</p>
                   </div>
                 </div>
@@ -279,7 +280,7 @@ export default function TireReportsSimple() {
             {/* Top Manufacturers */}
             <Card>
               <CardHeader>
-                <CardTitle>Top Tire Manufacturers</CardTitle>
+                <CardTitle><LocalizedText>Top Tire Manufacturers</LocalizedText></CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
@@ -302,7 +303,7 @@ export default function TireReportsSimple() {
             {/* Origin Breakdown */}
             <Card>
               <CardHeader>
-                <CardTitle>Tire Origins</CardTitle>
+                <CardTitle><LocalizedText>Tire Origins</LocalizedText></CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
@@ -326,13 +327,13 @@ export default function TireReportsSimple() {
           {/* Vehicle Type Distribution */}
           <Card>
             <CardHeader>
-              <CardTitle>Fleet Distribution</CardTitle>
+              <CardTitle><LocalizedText>Fleet Distribution</LocalizedText></CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div className="text-center p-6 bg-blue-50 rounded-lg">
                   <Truck className="h-12 w-12 text-blue-500 mx-auto mb-2" />
-                  <h3 className="text-lg font-semibold">Truck Tires</h3>
+                  <h3 className="text-lg font-semibold"><LocalizedText>Truck Tires</LocalizedText></h3>
                   <p className="text-3xl font-bold text-blue-600">{reportData.vehicleTypeStats.trucks}</p>
                   <p className="text-sm text-muted-foreground">
                     {Math.round((reportData.vehicleTypeStats.trucks / reportData.totalTires) * 100)}% of fleet
@@ -340,7 +341,7 @@ export default function TireReportsSimple() {
                 </div>
                 <div className="text-center p-6 bg-orange-50 rounded-lg">
                   <Package className="h-12 w-12 text-orange-500 mx-auto mb-2" />
-                  <h3 className="text-lg font-semibold">Trailer Tires</h3>
+                  <h3 className="text-lg font-semibold"><LocalizedText>Trailer Tires</LocalizedText></h3>
                   <p className="text-3xl font-bold text-orange-600">{reportData.vehicleTypeStats.trailers}</p>
                   <p className="text-sm text-muted-foreground">
                     {Math.round((reportData.vehicleTypeStats.trailers / reportData.totalTires) * 100)}% of fleet

@@ -1,4 +1,5 @@
 'use client'
+import { LocalizedText } from '@/components/localized-text'
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
@@ -30,7 +31,7 @@ import { useLanguage } from '@/contexts/language-context'
 import { LanguageToggle } from '@/components/language-toggle'
 import { TruckLoader } from '@/components/ui/truck-loader'
 
-const getNavigation = (t: (key: string) => string, language: string) => [
+const getNavigation = (t: (key: string) => string) => [
   { 
     name: t('nav.dashboard'), 
     href: '/', 
@@ -46,14 +47,14 @@ const getNavigation = (t: (key: string) => string, language: string) => [
     action: 'read'
   },
   { 
-    name: language === 'ar' ? 'بطاقات أوامر العمل' : 'Workshop Job Cards',
+    name: t('nav.jobCards'),
     href: '/job-cards',
     icon: Wrench,
     resource: 'maintenance',
     action: 'read'
   },
   { 
-    name: 'Oil Changes', 
+    name: t('nav.oilChanges'),
     href: '/oil-changes', 
     icon: Droplets,
     resource: 'maintenance',
@@ -75,7 +76,7 @@ const getNavigation = (t: (key: string) => string, language: string) => [
     action: 'read'
   },
   { 
-    name: language === 'ar' ? 'المقطورات' : 'Trailers', 
+    name: t('nav.trailers'),
     href: '/trailers', 
     icon: Truck,
     resource: 'trailers',
@@ -137,7 +138,10 @@ export function Navigation({ userRole = 'USER' }: NavigationProps) {
   const { isSidebarOpen, toggleSidebar, closeSidebar } = useSidebar()
   const { t, language } = useLanguage()
   
-  const navigation = getNavigation(t, language)
+  const navigation = getNavigation(t)
+  const isArabic = language === 'ar'
+  const navPosition = isArabic ? 'right-0 border-l' : 'left-0 border-r'
+  const collapsedMobileTransform = isArabic ? 'translate-x-full' : '-translate-x-full'
 
   const handleLogout = () => {
     logout()
@@ -146,8 +150,8 @@ export function Navigation({ userRole = 'USER' }: NavigationProps) {
   if (isLoading) {
     return (
       <nav className={cn(
-        'fixed inset-y-0 left-0 z-50 flex w-72 flex-col overflow-y-auto bg-sidebar border-r border-sidebar-border transition-transform duration-300 md:sticky md:inset-x-auto md:top-0 md:bottom-auto md:z-auto md:h-dvh md:shrink-0 md:translate-x-0 md:transition-[width] md:duration-300',
-        isSidebarOpen ? 'translate-x-0 md:w-64' : '-translate-x-full md:w-16'
+        `fixed inset-y-0 ${navPosition} z-50 flex w-72 flex-col overflow-y-auto bg-sidebar border-sidebar-border transition-transform duration-300 md:sticky md:inset-x-auto md:top-0 md:bottom-auto md:z-auto md:h-dvh md:shrink-0 md:translate-x-0 md:transition-[width] md:duration-300`,
+        isSidebarOpen ? 'translate-x-0 md:w-64' : `${collapsedMobileTransform} md:w-16`
       )}>
         <div className="flex-1 flex items-center justify-center">
           <TruckLoader size="sm" />
@@ -158,8 +162,8 @@ export function Navigation({ userRole = 'USER' }: NavigationProps) {
 
   return (
     <nav className={cn(
-      'fixed inset-y-0 left-0 z-50 flex w-72 flex-col overflow-y-auto bg-sidebar border-r border-sidebar-border transition-transform duration-300 md:sticky md:inset-x-auto md:top-0 md:bottom-auto md:z-auto md:h-dvh md:shrink-0 md:translate-x-0 md:transition-[width] md:duration-300',
-      isSidebarOpen ? 'translate-x-0 md:w-64' : '-translate-x-full md:w-16'
+        `fixed inset-y-0 ${navPosition} z-50 flex w-72 flex-col overflow-y-auto bg-sidebar ${isArabic ? 'border-l' : 'border-r'} border-sidebar-border transition-transform duration-300 md:sticky md:inset-x-auto md:top-0 md:bottom-auto md:z-auto md:h-dvh md:shrink-0 md:translate-x-0 md:transition-[width] md:duration-300`,
+      isSidebarOpen ? 'translate-x-0 md:w-64' : `${collapsedMobileTransform} md:w-16`
     )}>
       <div className={cn(
         'flex items-center border-b border-sidebar-border',
@@ -168,7 +172,7 @@ export function Navigation({ userRole = 'USER' }: NavigationProps) {
         {isSidebarOpen ? (
           <div className="flex items-center gap-2">
             <Truck className="h-6 w-6 text-primary" />
-            <h1 className="text-xl font-bold text-sidebar-foreground">Fleet Manager</h1>
+            <h1 className="text-xl font-bold text-sidebar-foreground"><LocalizedText>Fleet Manager</LocalizedText></h1>
           </div>
         ) : (
           <Truck className="h-6 w-6 text-primary" />
@@ -210,7 +214,7 @@ export function Navigation({ userRole = 'USER' }: NavigationProps) {
                 >
                   <item.icon className={cn(
                     'h-5 w-5',
-                    isSidebarOpen ? 'mr-3' : ''
+                    isSidebarOpen ? 'me-3' : ''
                   )} />
                   {isSidebarOpen && (
                     <div className="flex items-center justify-between w-full">
@@ -240,7 +244,7 @@ export function Navigation({ userRole = 'USER' }: NavigationProps) {
               >
                 <item.icon className={cn(
                   'h-5 w-5',
-                  isSidebarOpen ? 'mr-3' : ''
+                  isSidebarOpen ? 'me-3' : ''
                 )} />
                 {isSidebarOpen && item.name}
               </Link>
@@ -255,10 +259,10 @@ export function Navigation({ userRole = 'USER' }: NavigationProps) {
           <>
             <div className="mb-3 px-3">
               <p className="text-sm font-medium text-sidebar-foreground truncate">
-                {user?.name || user?.email || 'User'}
+                {user?.name || user?.email || t('User')}
               </p>
               <p className="text-xs text-sidebar-foreground/70">
-                {user?.role || 'USER'}
+                {user?.role ? t(user.role) : t('User')}
               </p>
             </div>
             <Button 

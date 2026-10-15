@@ -1,4 +1,5 @@
 'use client'
+import { LocalizedText } from '@/components/localized-text'
 
 import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -135,13 +136,13 @@ export function UserActivityMonitor({ className }: UserActivityMonitorProps) {
                 <SelectValue placeholder="Action" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Actions</SelectItem>
-                <SelectItem value="LOGIN">Login</SelectItem>
-                <SelectItem value="LOGOUT">Logout</SelectItem>
-                <SelectItem value="REGISTER">Register</SelectItem>
-                <SelectItem value="CREATE">Create</SelectItem>
-                <SelectItem value="UPDATE">Update</SelectItem>
-                <SelectItem value="DELETE">Delete</SelectItem>
+                <SelectItem value=""><LocalizedText>All Actions</LocalizedText></SelectItem>
+                <SelectItem value="LOGIN"><LocalizedText>Login</LocalizedText></SelectItem>
+                <SelectItem value="LOGOUT"><LocalizedText>Logout</LocalizedText></SelectItem>
+                <SelectItem value="REGISTER"><LocalizedText>Register</LocalizedText></SelectItem>
+                <SelectItem value="CREATE"><LocalizedText>Create</LocalizedText></SelectItem>
+                <SelectItem value="UPDATE"><LocalizedText>Update</LocalizedText></SelectItem>
+                <SelectItem value="DELETE"><LocalizedText>Delete</LocalizedText></SelectItem>
               </SelectContent>
             </Select>
             <Select value={filters.entityType} onValueChange={(value) => setFilters(prev => ({ ...prev, entityType: value }))}>
@@ -149,11 +150,11 @@ export function UserActivityMonitor({ className }: UserActivityMonitorProps) {
                 <SelectValue placeholder="Entity Type" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Types</SelectItem>
-                <SelectItem value="USER">User</SelectItem>
-                <SelectItem value="TRUCK">Truck</SelectItem>
-                <SelectItem value="MAINTENANCE">Maintenance</SelectItem>
-                <SelectItem value="TIRE">Tire</SelectItem>
+                <SelectItem value=""><LocalizedText>All Types</LocalizedText></SelectItem>
+                <SelectItem value="USER"><LocalizedText>User</LocalizedText></SelectItem>
+                <SelectItem value="TRUCK"><LocalizedText>Truck</LocalizedText></SelectItem>
+                <SelectItem value="MAINTENANCE"><LocalizedText>Maintenance</LocalizedText></SelectItem>
+                <SelectItem value="TIRE"><LocalizedText>Tire</LocalizedText></SelectItem>
               </SelectContent>
             </Select>
             <Input
@@ -171,9 +172,9 @@ export function UserActivityMonitor({ className }: UserActivityMonitorProps) {
           {/* Activities List */}
           <div className="space-y-4">
             {loading ? (
-              <div className="text-center py-8">Loading activities...</div>
+              <div className="text-center py-8"><LocalizedText>Loading activities...</LocalizedText></div>
             ) : activities.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">No activities found</div>
+              <div className="text-center py-8 text-gray-500"><LocalizedText>No activities found</LocalizedText></div>
             ) : (
               activities.map((activity) => (
                 <Card key={activity.id} className="border-l-4 border-l-blue-500">
@@ -182,10 +183,10 @@ export function UserActivityMonitor({ className }: UserActivityMonitorProps) {
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-2">
                           <Badge className={getActionColor(activity.action)}>
-                            {activity.action}
+                            <LocalizedText>{activity.action}</LocalizedText>
                           </Badge>
                           <Badge variant="outline">
-                            {activity.entityType}
+                            <LocalizedText>{activity.entityType}</LocalizedText>
                           </Badge>
                           <Badge className={getRoleColor(activity.user.role)}>
                             {activity.user.role}
@@ -204,7 +205,7 @@ export function UserActivityMonitor({ className }: UserActivityMonitorProps) {
                           <div className="flex items-center gap-2">
                             <Monitor className="h-4 w-4 text-gray-500" />
                             <div>
-                              <div className="font-medium">Device</div>
+                              <div className="font-medium"><LocalizedText>Device</LocalizedText></div>
                               <div className="text-gray-500">{activity.deviceInfo}</div>
                               <div className="text-xs text-gray-400">IP: {activity.ipAddress}</div>
                             </div>
@@ -213,7 +214,7 @@ export function UserActivityMonitor({ className }: UserActivityMonitorProps) {
                           <div className="flex items-center gap-2">
                             <MapPin className="h-4 w-4 text-gray-500" />
                             <div>
-                              <div className="font-medium">Location</div>
+                              <div className="font-medium"><LocalizedText>Location</LocalizedText></div>
                               <div className="text-gray-500">{activity.locationInfo}</div>
                             </div>
                           </div>
@@ -221,7 +222,7 @@ export function UserActivityMonitor({ className }: UserActivityMonitorProps) {
                           <div className="flex items-center gap-2">
                             <Clock className="h-4 w-4 text-gray-500" />
                             <div>
-                              <div className="font-medium">Time</div>
+                              <div className="font-medium"><LocalizedText>Time</LocalizedText></div>
                               <div className="text-gray-500">
                                 {format(new Date(activity.timestamp), 'MMM dd, yyyy HH:mm')}
                               </div>
@@ -232,14 +233,14 @@ export function UserActivityMonitor({ className }: UserActivityMonitorProps) {
                         
                         {activity.entityName && (
                           <div className="mt-2 text-sm">
-                            <span className="font-medium">Target:</span> {activity.entityName}
+                            <span className="font-medium"><LocalizedText>Target:</LocalizedText></span> {activity.entityName}
                           </div>
                         )}
                         
                         {activity.metadata && (
                           <details className="mt-2">
                             <summary className="cursor-pointer text-sm font-medium text-gray-600">
-                              Additional Details
+                              <LocalizedText>Additional Details</LocalizedText>
                             </summary>
                             <pre className="mt-2 text-xs bg-gray-50 p-2 rounded overflow-auto">
                               {JSON.stringify(activity.metadata, null, 2)}

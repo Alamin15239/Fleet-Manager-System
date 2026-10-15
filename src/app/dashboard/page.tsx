@@ -1,4 +1,5 @@
 'use client'
+import { LocalizedText } from '@/components/localized-text'
 
 import { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -32,7 +33,8 @@ import { WelcomeScreen } from '@/components/welcome-screen'
 import { EnhancedLoading } from '@/components/enhanced-loading'
 import { QuickStats } from '@/components/quick-stats'
 import { apiGet } from '@/lib/api'
-import { toast } from 'sonner'
+import { toast } from '@/lib/localized-toast'
+import { usePermissions } from '@/contexts/permissions-context'
 
 interface DashboardStats {
   totalTrucks: number
@@ -83,6 +85,8 @@ export default function DashboardPage() {
   const [loadError, setLoadError] = useState(false)
   const [currentUser, setCurrentUser] = useState<any>(null)
   const router = useRouter()
+  const { canAccess, loading: permissionsLoading } = usePermissions()
+  const canViewDashboard = canAccess('dashboard')
 
   useEffect(() => {
     // Get current user info
@@ -97,8 +101,8 @@ export default function DashboardPage() {
   }, [])
 
   useEffect(() => {
-    fetchDashboardStats()
-  }, [])
+    if (!permissionsLoading && canViewDashboard) fetchDashboardStats()
+  }, [permissionsLoading, canViewDashboard])
 
   const fetchDashboardStats = async (showRefreshing = false) => {
     setLoadError(false)
@@ -153,6 +157,9 @@ export default function DashboardPage() {
     }
   }
 
+  if (permissionsLoading) return <EnhancedLoading />
+  if (!canViewDashboard) return <div className="container mx-auto p-6"><Card><CardContent className="p-6 text-muted-foreground"><LocalizedText>You do not have permission to view the dashboard.</LocalizedText></CardContent></Card></div>
+
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex justify-between items-center">
@@ -161,7 +168,7 @@ export default function DashboardPage() {
             <Activity className="h-8 w-8 text-blue-600" />
             Fleet Maintenance Dashboard
           </h1>
-          <p className="text-muted-foreground">Monitor and manage your truck fleet maintenance</p>
+          <p className="text-muted-foreground"><LocalizedText>Monitor and manage your truck fleet maintenance</LocalizedText></p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={handleRefresh} disabled={refreshing}>
@@ -237,7 +244,7 @@ export default function DashboardPage() {
       ) : loadError ? (
         <Card>
           <CardContent className="flex flex-col items-center gap-3 py-10 text-center">
-            <p className="text-muted-foreground">Dashboard data could not be loaded. Check the database connection and try again.</p>
+            <p className="text-muted-foreground"><LocalizedText>Dashboard data could not be loaded. Check the database connection and try again.</LocalizedText></p>
             <Button variant="outline" onClick={() => fetchDashboardStats()}>Retry</Button>
           </CardContent>
         </Card>
@@ -246,10 +253,10 @@ export default function DashboardPage() {
       ) : (
         <Tabs defaultValue="overview" className="space-y-6">
           <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="analytics">Analytics</TabsTrigger>
-            <TabsTrigger value="alerts">Alerts</TabsTrigger>
-            <TabsTrigger value="reports">Reports</TabsTrigger>
+            <TabsTrigger value="overview"><LocalizedText>Overview</LocalizedText></TabsTrigger>
+            <TabsTrigger value="analytics"><LocalizedText>Analytics</LocalizedText></TabsTrigger>
+            <TabsTrigger value="alerts"><LocalizedText>Alerts</LocalizedText></TabsTrigger>
+            <TabsTrigger value="reports"><LocalizedText>Reports</LocalizedText></TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
@@ -264,7 +271,7 @@ export default function DashboardPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    {Object.entries(stats.maintenanceByType).length === 0 ? <p className="text-sm text-muted-foreground">No maintenance records in this period.</p> : Object.entries(stats.maintenanceByType).map(([type, count]) => (
+                    {Object.entries(stats.maintenanceByType).length === 0 ? <p className="text-sm text-muted-foreground"><LocalizedText>No maintenance records in this period.</LocalizedText></p> : Object.entries(stats.maintenanceByType).map(([type, count]) => (
                       <div key={type} className="flex justify-between items-center">
                         <span className="text-sm font-medium">{type}</span>
                         <div className="flex items-center gap-2">
@@ -291,7 +298,7 @@ export default function DashboardPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    {Object.entries(stats.maintenanceByStatus).length === 0 ? <p className="text-sm text-muted-foreground">No maintenance records in this period.</p> : Object.entries(stats.maintenanceByStatus).map(([status, count]) => (
+                    {Object.entries(stats.maintenanceByStatus).length === 0 ? <p className="text-sm text-muted-foreground"><LocalizedText>No maintenance records in this period.</LocalizedText></p> : Object.entries(stats.maintenanceByStatus).map(([status, count]) => (
                       <div key={status} className="flex justify-between items-center">
                         <span className="text-sm font-medium">{status}</span>
                         <div className="flex items-center gap-2">
@@ -325,7 +332,7 @@ export default function DashboardPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {stats.topMechanics.length === 0 ? <p className="text-sm text-muted-foreground">Mechanic analytics are not available yet.</p> : stats.topMechanics.map((mechanic, index) => (
+                  {stats.topMechanics.length === 0 ? <p className="text-sm text-muted-foreground"><LocalizedText>Mechanic analytics are not available yet.</LocalizedText></p> : stats.topMechanics.map((mechanic, index) => (
                     <div key={mechanic.name} className="flex items-center justify-between p-3 rounded-lg border">
                       <div className="flex items-center gap-3">
                         <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold ${
@@ -340,7 +347,7 @@ export default function DashboardPage() {
                       </div>
                       <div className="text-right">
                         <div className="font-bold">{formatCurrency(mechanic.cost)}</div>
-                        <div className="text-sm text-muted-foreground">Total value</div>
+                        <div className="text-sm text-muted-foreground"><LocalizedText>Total value</LocalizedText></div>
                       </div>
                     </div>
                   ))}
@@ -362,15 +369,15 @@ export default function DashboardPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Vehicle</TableHead>
-                      <TableHead>Alert Type</TableHead>
-                      <TableHead>Severity</TableHead>
-                      <TableHead>Due Date</TableHead>
-                      <TableHead>Actions</TableHead>
+                      <TableHead><LocalizedText>Vehicle</LocalizedText></TableHead>
+                      <TableHead><LocalizedText>Alert Type</LocalizedText></TableHead>
+                      <TableHead><LocalizedText>Severity</LocalizedText></TableHead>
+                      <TableHead><LocalizedText>Due Date</LocalizedText></TableHead>
+                      <TableHead><LocalizedText>Actions</LocalizedText></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {stats.predictiveAlerts.length === 0 ? <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground">No active predictive alerts.</TableCell></TableRow> : stats.predictiveAlerts.map((alert) => (
+                    {stats.predictiveAlerts.length === 0 ? <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground"><LocalizedText>No active predictive alerts.</LocalizedText></TableCell></TableRow> : stats.predictiveAlerts.map((alert) => (
                       <TableRow key={alert.id}>
                         <TableCell className="font-medium">{alert.vehicle}</TableCell>
                         <TableCell>{alert.type}</TableCell>
@@ -399,24 +406,24 @@ export default function DashboardPage() {
               <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => router.push('/reports')}>
                 <CardContent className="p-6 text-center">
                   <Download className="h-12 w-12 mx-auto mb-2 text-blue-600" />
-                  <h3 className="font-semibold">Maintenance Reports</h3>
-                  <p className="text-sm text-muted-foreground">Generate detailed maintenance reports</p>
+                  <h3 className="font-semibold"><LocalizedText>Maintenance Reports</LocalizedText></h3>
+                  <p className="text-sm text-muted-foreground"><LocalizedText>Generate detailed maintenance reports</LocalizedText></p>
                 </CardContent>
               </Card>
 
               <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => router.push('/oil-changes')}>
                 <CardContent className="p-6 text-center">
                   <Activity className="h-12 w-12 mx-auto mb-2 text-green-600" />
-                  <h3 className="font-semibold">Oil Change Reports</h3>
-                  <p className="text-sm text-muted-foreground">Track oil change history</p>
+                  <h3 className="font-semibold"><LocalizedText>Oil Change Reports</LocalizedText></h3>
+                  <p className="text-sm text-muted-foreground"><LocalizedText>Track oil change history</LocalizedText></p>
                 </CardContent>
               </Card>
 
               <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => router.push('/tire-management')}>
                 <CardContent className="p-6 text-center">
                   <Truck className="h-12 w-12 mx-auto mb-2 text-orange-600" />
-                  <h3 className="font-semibold">Tire Reports</h3>
-                  <p className="text-sm text-muted-foreground">Tire inventory and usage reports</p>
+                  <h3 className="font-semibold"><LocalizedText>Tire Reports</LocalizedText></h3>
+                  <p className="text-sm text-muted-foreground"><LocalizedText>Tire inventory and usage reports</LocalizedText></p>
                 </CardContent>
               </Card>
             </div>
@@ -429,7 +436,7 @@ export default function DashboardPage() {
         <div className="grid gap-4 md:grid-cols-2">
           <Card>
             <CardHeader>
-              <CardTitle>Recent Trucks</CardTitle>
+              <CardTitle><LocalizedText>Recent Trucks</LocalizedText></CardTitle>
             </CardHeader>
             <CardContent>
               {stats.recentTrucks.length > 0 ? (
@@ -448,7 +455,7 @@ export default function DashboardPage() {
                 </div>
               ) : (
                 <div className="text-center py-4 text-muted-foreground">
-                  No trucks added yet
+                  <LocalizedText>No trucks added yet</LocalizedText>
                 </div>
               )}
             </CardContent>
@@ -456,8 +463,8 @@ export default function DashboardPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Recent Maintenance Records</CardTitle>
-              <CardDescription>Latest service activities</CardDescription>
+              <CardTitle><LocalizedText>Recent Maintenance Records</LocalizedText></CardTitle>
+              <CardDescription><LocalizedText>Latest service activities</LocalizedText></CardDescription>
             </CardHeader>
             <CardContent>
               {stats.recentMaintenance.length > 0 ? (
@@ -481,7 +488,7 @@ export default function DashboardPage() {
                 </div>
               ) : (
                 <div className="text-center py-4 text-muted-foreground">
-                  No maintenance records found
+                  <LocalizedText>No maintenance records found</LocalizedText>
                 </div>
               )}
             </CardContent>

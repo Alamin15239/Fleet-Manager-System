@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { requireAuth, requireManager } from '@/lib/auth'
+import { requireRolePermission } from '@/lib/permission-middleware'
 import { cleanJobCardPayload } from '@/lib/job-card-validation'
 
 export async function GET(request: NextRequest) {
   try {
-    await requireAuth(request)
+    await requireRolePermission(request, 'maintenance', 'read')
     const [jobCards, settings] = await Promise.all([db.workshopJobCard.findMany({
       include: {
         truck: { select: { id: true, make: true, model: true, year: true, vin: true, licensePlate: true, currentMileage: true } },
@@ -17,13 +17,13 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ jobCards, company: settings })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to fetch job cards'
-    return NextResponse.json({ error: message }, { status: message.includes('token') ? 401 : 500 })
+    return NextResponse.json({ error: message }, { status: message.includes('token') ? 401 : message === 'Insufficient permissions' ? 403 : 500 })
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const user = await requireManager(request)
+    const user = await requireRolePermission(request, 'maintenance', 'create')
     const data = cleanJobCardPayload(await request.json())
     const vehicleExists = data.truckId
       ? await db.truck.findFirst({ where: { id: data.truckId, isDeleted: false, status: { not: 'INACTIVE' } }, select: { id: true } })

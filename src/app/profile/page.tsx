@@ -1,4 +1,5 @@
 'use client'
+import { LocalizedText } from '@/components/localized-text'
 
 import { useState, useEffect, useRef } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -202,8 +203,8 @@ export default function ProfilePage() {
     return (
       <div className="container mx-auto p-6">
         <div className="text-center">
-          <h1 className="text-2xl font-bold mb-4">Profile not found</h1>
-          <p className="text-muted-foreground">Unable to load profile data</p>
+          <h1 className="text-2xl font-bold mb-4"><LocalizedText>Profile not found</LocalizedText></h1>
+          <p className="text-muted-foreground"><LocalizedText>Unable to load profile data</LocalizedText></p>
         </div>
       </div>
     )
@@ -213,8 +214,8 @@ export default function ProfilePage() {
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Profile</h1>
-          <p className="text-muted-foreground">Manage your account information</p>
+          <h1 className="text-3xl font-bold tracking-tight"><LocalizedText>Profile</LocalizedText></h1>
+          <p className="text-muted-foreground"><LocalizedText>Manage your account information</LocalizedText></p>
         </div>
         {!isEditing && (
           <Button onClick={() => setIsEditing(true)}>
@@ -228,8 +229,8 @@ export default function ProfilePage() {
         {/* Profile Card */}
         <Card className="md:col-span-1">
           <CardHeader>
-            <CardTitle>Profile Picture</CardTitle>
-            <CardDescription>Your profile photo</CardDescription>
+            <CardTitle><LocalizedText>Profile Picture</LocalizedText></CardTitle>
+            <CardDescription><LocalizedText>Your profile photo</LocalizedText></CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col items-center space-y-4">
             <ProfilePicture size="xl" editable={true} className="mb-4" />
@@ -268,7 +269,7 @@ export default function ProfilePage() {
         {/* Profile Information */}
         <Card className="md:col-span-2">
           <CardHeader>
-            <CardTitle>Profile Information</CardTitle>
+            <CardTitle><LocalizedText>Profile Information</LocalizedText></CardTitle>
             <CardDescription>
               {isEditing ? 'Edit your profile information' : 'View your profile information'}
             </CardDescription>
@@ -278,7 +279,7 @@ export default function ProfilePage() {
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="name">Full Name</Label>
+                    <Label htmlFor="name"><LocalizedText>Full Name</LocalizedText></Label>
                     <Input
                       id="name"
                       value={formData.name}
@@ -287,7 +288,7 @@ export default function ProfilePage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="phone">Phone Number</Label>
+                    <Label htmlFor="phone"><LocalizedText>Phone Number</LocalizedText></Label>
                     <Input
                       id="phone"
                       value={formData.phone}
@@ -298,7 +299,7 @@ export default function ProfilePage() {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="department">Department</Label>
+                    <Label htmlFor="department"><LocalizedText>Department</LocalizedText></Label>
                     <Input
                       id="department"
                       value={formData.department}
@@ -307,7 +308,7 @@ export default function ProfilePage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="title">Job Title</Label>
+                    <Label htmlFor="title"><LocalizedText>Job Title</LocalizedText></Label>
                     <Input
                       id="title"
                       value={formData.title}
@@ -317,7 +318,7 @@ export default function ProfilePage() {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="bio">Bio</Label>
+                  <Label htmlFor="bio"><LocalizedText>Bio</LocalizedText></Label>
                   <Textarea
                     id="bio"
                     value={formData.bio}
@@ -336,7 +337,7 @@ export default function ProfilePage() {
                     Save Changes
                   </Button>
                   <Button variant="outline" onClick={handleCancel}>
-                    Cancel
+                    <LocalizedText>Cancel</LocalizedText>
                   </Button>
                 </div>
               </div>
@@ -344,14 +345,14 @@ export default function ProfilePage() {
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium text-muted-foreground">Full Name</Label>
+                    <Label className="text-sm font-medium text-muted-foreground"><LocalizedText>Full Name</LocalizedText></Label>
                     <div className="flex items-center space-x-2">
                       <User className="h-4 w-4 text-muted-foreground" />
                       <span>{profile.name || 'Not provided'}</span>
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium text-muted-foreground">Email</Label>
+                    <Label className="text-sm font-medium text-muted-foreground"><LocalizedText>Email</LocalizedText></Label>
                     <div className="flex items-center space-x-2">
                       <Mail className="h-4 w-4 text-muted-foreground" />
                       <span>{profile.email}</span>
@@ -360,14 +361,14 @@ export default function ProfilePage() {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium text-muted-foreground">Phone</Label>
+                    <Label className="text-sm font-medium text-muted-foreground"><LocalizedText>Phone</LocalizedText></Label>
                     <div className="flex items-center space-x-2">
                       <Phone className="h-4 w-4 text-muted-foreground" />
                       <span>{profile.phone || 'Not provided'}</span>
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium text-muted-foreground">Role</Label>
+                    <Label className="text-sm font-medium text-muted-foreground"><LocalizedText>Role</LocalizedText></Label>
                     <Badge className={getRoleColor(profile.role)}>
                       {profile.role}
                     </Badge>
@@ -375,14 +376,14 @@ export default function ProfilePage() {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium text-muted-foreground">Department</Label>
+                    <Label className="text-sm font-medium text-muted-foreground"><LocalizedText>Department</LocalizedText></Label>
                     <div className="flex items-center space-x-2">
                       <Building className="h-4 w-4 text-muted-foreground" />
                       <span>{profile.department || 'Not provided'}</span>
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium text-muted-foreground">Job Title</Label>
+                    <Label className="text-sm font-medium text-muted-foreground"><LocalizedText>Job Title</LocalizedText></Label>
                     <div className="flex items-center space-x-2">
                       <Briefcase className="h-4 w-4 text-muted-foreground" />
                       <span>{profile.title || 'Not provided'}</span>
@@ -391,7 +392,7 @@ export default function ProfilePage() {
                 </div>
                 {profile.bio && (
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium text-muted-foreground">Bio</Label>
+                    <Label className="text-sm font-medium text-muted-foreground"><LocalizedText>Bio</LocalizedText></Label>
                     <p className="text-sm">{profile.bio}</p>
                   </div>
                 )}
@@ -404,8 +405,8 @@ export default function ProfilePage() {
       {/* Account Status */}
       <Card>
         <CardHeader>
-          <CardTitle>Account Status</CardTitle>
-          <CardDescription>Your account verification and approval status</CardDescription>
+          <CardTitle><LocalizedText>Account Status</LocalizedText></CardTitle>
+          <CardDescription><LocalizedText>Your account verification and approval status</LocalizedText></CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { requireAuth, requireManager } from '@/lib/auth'
+import { requireRolePermission } from '@/lib/permission-middleware'
 import { vehicleSchema, vehicleQuerySchema } from '@/lib/validations/vehicle'
 import { ZodError } from 'zod'
 
 // GET /api/vehicles - Get all vehicles
 export async function GET(request: NextRequest) {
   try {
-    await requireAuth(request)
+    await requireRolePermission(request, 'trucks', 'read')
     const { searchParams } = new URL(request.url)
     
     // Parse query parameters directly
@@ -68,9 +68,10 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('Error fetching vehicles:', error)
     const unauthorized = error instanceof Error && ['No token provided', 'Invalid token'].includes(error.message)
+    const forbidden = error instanceof Error && error.message === 'Insufficient permissions'
     return NextResponse.json(
-      { error: unauthorized ? 'Authentication required' : 'Failed to fetch vehicles' },
-      { status: unauthorized ? 401 : 500 }
+      { error: unauthorized ? 'Authentication required' : forbidden ? 'Access denied' : 'Failed to fetch vehicles' },
+      { status: unauthorized ? 401 : forbidden ? 403 : 500 }
     )
   }
 }
@@ -78,7 +79,7 @@ export async function GET(request: NextRequest) {
 // POST /api/vehicles - Create new vehicle
 export async function POST(request: NextRequest) {
   try {
-    await requireManager(request)
+    await requireRolePermission(request, 'trucks', 'create')
     const body = await request.json()
     
     // Validate input data

@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { requireManager } from '@/lib/auth'
+import { requireRolePermission } from '@/lib/permission-middleware'
 import { cleanJobCardPayload } from '@/lib/job-card-validation'
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    await requireManager(request)
+    await requireRolePermission(request, 'maintenance', 'update')
     const { id } = await params
     const data = cleanJobCardPayload(await request.json())
     const vehicleExists = data.truckId

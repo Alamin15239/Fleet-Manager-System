@@ -5,6 +5,7 @@ import * as SelectPrimitive from "@radix-ui/react-select"
 import { CheckIcon, ChevronDownIcon, ChevronUpIcon } from "lucide-react"
 
 import { cn } from "@/lib/utils"
+import { useLanguage } from '@/contexts/language-context'
 
 function Select({
   ...props
@@ -19,9 +20,17 @@ function SelectGroup({
 }
 
 function SelectValue({
+  placeholder,
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.Value>) {
-  return <SelectPrimitive.Value data-slot="select-value" {...props} />
+  const { t } = useLanguage()
+  return (
+    <SelectPrimitive.Value
+      data-slot="select-value"
+      placeholder={typeof placeholder === 'string' ? t(placeholder) : placeholder}
+      {...props}
+    />
+  )
 }
 
 function SelectTrigger({
@@ -103,6 +112,8 @@ function SelectItem({
   children,
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.Item>) {
+  const { t } = useLanguage()
+
   return (
     <SelectPrimitive.Item
       data-slot="select-item"
@@ -117,7 +128,9 @@ function SelectItem({
           <CheckIcon className="size-4" />
         </SelectPrimitive.ItemIndicator>
       </span>
-      <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>
+      <SelectPrimitive.ItemText>
+        {typeof children === 'string' ? t(children) : children}
+      </SelectPrimitive.ItemText>
     </SelectPrimitive.Item>
   )
 }

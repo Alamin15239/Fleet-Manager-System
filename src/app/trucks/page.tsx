@@ -1,4 +1,5 @@
 'use client'
+import { LocalizedText } from '@/components/localized-text'
 
 import { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -10,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { Truck, Plus, Edit, Eye, Trash2, Wrench, AlertTriangle, TrendingUp, Search, Filter, RefreshCw, Download, Calendar } from 'lucide-react'
-import { toast } from 'sonner'
+import { toast } from '@/lib/localized-toast'
 import { usePermissions } from '@/contexts/permissions-context'
 import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api'
 import { useLanguage } from '@/contexts/language-context'
@@ -629,7 +630,7 @@ export default function TrucksPage() {
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="driverName" className="text-right">
-                  Driver Name
+                  <LocalizedText>Driver Name</LocalizedText>
                 </Label>
                 <Input
                   id="driverName"
@@ -793,7 +794,7 @@ export default function TrucksPage() {
               </div>
 
               <div>
-                <Label className="text-sm font-medium text-gray-500">Driver Name</Label>
+                <Label className="text-sm font-medium text-gray-500"><LocalizedText>Driver Name</LocalizedText></Label>
                 <p className="text-sm text-gray-600">
                   {selectedTruck.driverName || 'No driver assigned'}
                 </p>
@@ -853,10 +854,10 @@ export default function TrucksPage() {
                 <SelectValue placeholder="Filter by status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="ALL">All Status</SelectItem>
-                <SelectItem value="ACTIVE">Active</SelectItem>
-                <SelectItem value="MAINTENANCE">Maintenance</SelectItem>
-                <SelectItem value="INACTIVE">Inactive</SelectItem>
+                <SelectItem value="ALL"><LocalizedText>All Status</LocalizedText></SelectItem>
+                <SelectItem value="ACTIVE"><LocalizedText>Active</LocalizedText></SelectItem>
+                <SelectItem value="MAINTENANCE"><LocalizedText>Maintenance</LocalizedText></SelectItem>
+                <SelectItem value="INACTIVE"><LocalizedText>Inactive</LocalizedText></SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -888,7 +889,7 @@ export default function TrucksPage() {
                   <TableHead>{t('trucks.vin')}</TableHead>
                   <TableHead>{t('trucks.vehicle')}</TableHead>
                   <TableHead>{t('trucks.licensePlate')}</TableHead>
-                  <TableHead>Driver</TableHead>
+                  <TableHead><LocalizedText>Driver</LocalizedText></TableHead>
                   <TableHead>{t('trucks.mileage')}</TableHead>
                   <TableHead>{t('table.status')}</TableHead>
                   <TableHead className="text-right">{t('table.actions')}</TableHead>
@@ -900,7 +901,7 @@ export default function TrucksPage() {
                     <TableCell colSpan={7} className="text-center py-8">
                       <div className="flex flex-col items-center gap-2">
                         <Truck className="h-12 w-12 text-muted-foreground" />
-                        <p className="text-lg font-medium">No trucks found</p>
+                        <p className="text-lg font-medium"><LocalizedText>No trucks found</LocalizedText></p>
                         <p className="text-sm text-muted-foreground">
                           {searchTerm || statusFilter !== 'ALL' 
                             ? 'Try adjusting your search or filters'

@@ -1,4 +1,5 @@
 'use client'
+import { LocalizedText } from '@/components/localized-text'
 
 import { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -11,7 +12,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Search, Settings, User as UserIcon, Shield } from 'lucide-react'
-import { toast } from 'sonner'
+import { toast } from '@/lib/localized-toast'
 import { Permission, defaultPermissions, adminPermissions, managerPermissions } from '@/lib/permissions'
 
 interface User {
@@ -194,8 +195,8 @@ export default function PermissionsSettingsPage() {
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">User Permissions</h1>
-          <p className="text-muted-foreground">Manage user access and permissions</p>
+          <h1 className="text-3xl font-bold tracking-tight"><LocalizedText>User Permissions</LocalizedText></h1>
+          <p className="text-muted-foreground"><LocalizedText>Manage user access and permissions</LocalizedText></p>
         </div>
       </div>
 
@@ -206,7 +207,7 @@ export default function PermissionsSettingsPage() {
             Users and Permissions
           </CardTitle>
           <CardDescription>
-            Configure access permissions for each user. Admin users have full access by default.
+            <LocalizedText>Configure access permissions for each user. Admin users have full access by default.</LocalizedText>
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -227,11 +228,11 @@ export default function PermissionsSettingsPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>User</TableHead>
-                <TableHead>Role</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Permissions</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead><LocalizedText>User</LocalizedText></TableHead>
+                <TableHead><LocalizedText>Role</LocalizedText></TableHead>
+                <TableHead><LocalizedText>Status</LocalizedText></TableHead>
+                <TableHead><LocalizedText>Permissions</LocalizedText></TableHead>
+                <TableHead className="text-right"><LocalizedText>Actions</LocalizedText></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -248,7 +249,7 @@ export default function PermissionsSettingsPage() {
                   </TableCell>
                   <TableCell>
                     <Badge variant={user.role === 'ADMIN' ? 'destructive' : user.role === 'MANAGER' ? 'default' : 'secondary'}>
-                      {user.role}
+                      <LocalizedText>{user.role}</LocalizedText>
                     </Badge>
                   </TableCell>
                   <TableCell>
@@ -286,22 +287,22 @@ export default function PermissionsSettingsPage() {
               Edit Permissions - {editingUser?.name}
             </DialogTitle>
             <DialogDescription>
-              Configure access permissions for this user
+              <LocalizedText>Configure access permissions for this user</LocalizedText>
             </DialogDescription>
           </DialogHeader>
           
           <div className="space-y-6">
             {/* Role Selection */}
             <div className="grid grid-cols-2 items-center gap-4">
-              <Label htmlFor="role">Role</Label>
+              <Label htmlFor="role"><LocalizedText>Role</LocalizedText></Label>
               <Select value={selectedRole} onValueChange={handleRoleChange}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select role" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="ADMIN">Admin</SelectItem>
-                  <SelectItem value="MANAGER">Manager</SelectItem>
-                  <SelectItem value="MECHANIC">Mechanic</SelectItem>
+                  <SelectItem value="ADMIN"><LocalizedText>Admin</LocalizedText></SelectItem>
+                  <SelectItem value="MANAGER"><LocalizedText>Manager</LocalizedText></SelectItem>
+                  <SelectItem value="MECHANIC"><LocalizedText>Mechanic</LocalizedText></SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -338,7 +339,7 @@ export default function PermissionsSettingsPage() {
               Cancel
             </Button>
             <Button onClick={handleSavePermissions}>
-              Save Permissions
+              <LocalizedText>Save Permissions</LocalizedText>
             </Button>
           </DialogFooter>
         </DialogContent>

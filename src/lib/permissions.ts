@@ -36,7 +36,7 @@ export interface Permission {
 
 export interface SettingsPermissions {
   rolePermissions: Record<string, Permission>
-  userPermissions: Record<string, Permission>
+  userPermissions: Record<string, Partial<Permission>>
 }
 
 export const defaultPermissions: Permission = {
@@ -187,6 +187,99 @@ export const defaultSettingsPermissions = {
   userPermissions: {}
 }
 
+const emptyPermissions: Permission = {
+  canViewDashboard: false,
+  canViewTrucks: false,
+  canAddTrucks: false,
+  canEditTrucks: false,
+  canDeleteTrucks: false,
+  canViewMaintenance: false,
+  canAddMaintenance: false,
+  canEditMaintenance: false,
+  canDeleteMaintenance: false,
+  canViewMechanics: false,
+  canAddMechanics: false,
+  canEditMechanics: false,
+  canDeleteMechanics: false,
+  canViewTireManagement: false,
+  canAddTireManagement: false,
+  canEditTireManagement: false,
+  canDeleteTireManagement: false,
+  canViewTrailers: false,
+  canAddTrailers: false,
+  canEditTrailers: false,
+  canDeleteTrailers: false,
+  canViewReports: false,
+  canViewUsers: false,
+  canManageUsers: false,
+  canViewProfile: false,
+  canEditProfile: false,
+  canViewSettings: false,
+  canManageSettings: false,
+  canViewAdmin: false,
+  canManageAdmin: false,
+  canViewAdvancedAnalytics: false
+}
+
+const arrayPermissionFields: Record<string, Record<string, keyof Permission>> = {
+  dashboard: { read: 'canViewDashboard' },
+  trucks: {
+    read: 'canViewTrucks', create: 'canAddTrucks', update: 'canEditTrucks', delete: 'canDeleteTrucks'
+  },
+  maintenance: {
+    read: 'canViewMaintenance', create: 'canAddMaintenance', update: 'canEditMaintenance', delete: 'canDeleteMaintenance'
+  },
+  mechanics: {
+    read: 'canViewMechanics', create: 'canAddMechanics', update: 'canEditMechanics', delete: 'canDeleteMechanics'
+  },
+  'tire-management': {
+    read: 'canViewTireManagement', create: 'canAddTireManagement', update: 'canEditTireManagement', delete: 'canDeleteTireManagement'
+  },
+  trailers: {
+    read: 'canViewTrailers', create: 'canAddTrailers', update: 'canEditTrailers', delete: 'canDeleteTrailers'
+  },
+  profile: { read: 'canViewProfile', update: 'canEditProfile' },
+  reports: { read: 'canViewReports' },
+  users: { read: 'canViewUsers', create: 'canManageUsers', update: 'canManageUsers', delete: 'canManageUsers' },
+  settings: { read: 'canViewSettings', update: 'canManageSettings' },
+  admin: { read: 'canViewAdmin', update: 'canManageAdmin' },
+  'advanced-analytics': { read: 'canViewAdvancedAnalytics' }
+}
+
+/** Convert legacy resource/action arrays to the boolean shape used by PermissionManager. */
+export function normalizeRolePermissions(value: unknown): Permission {
+  if (!Array.isArray(value)) {
+    const normalized = { ...emptyPermissions, ...(value && typeof value === 'object' ? value as Partial<Permission> : {}) }
+    if (normalized.canManageUsers) normalized.canViewUsers = true
+    return normalized
+  }
+
+  const normalized = { ...emptyPermissions }
+  for (const entry of value) {
+    if (!entry || typeof entry !== 'object') continue
+    const { resource, actions } = entry as { resource?: unknown; actions?: unknown }
+    if (typeof resource !== 'string' || !Array.isArray(actions)) continue
+    const fields = arrayPermissionFields[resource]
+    if (!fields) continue
+
+    for (const [action, field] of Object.entries(fields)) {
+      normalized[field] = actions.includes(action)
+    }
+  }
+  if (normalized.canManageUsers) normalized.canViewUsers = true
+  return normalized
+}
+
+/** Keep object overrides partial; legacy arrays remain complete permission sets. */
+export function normalizePermissionOverrides(value: unknown): Partial<Permission> {
+  if (Array.isArray(value)) return normalizeRolePermissions(value)
+  if (value && typeof value === 'object') {
+    const normalized = value as Partial<Permission>
+    return normalized.canManageUsers ? { ...normalized, canViewUsers: true } : normalized
+  }
+  return {}
+}
+
 export class PermissionManager {
   private userRole: string
   private userId: string
@@ -205,21 +298,34 @@ export class PermissionManager {
   }
 
   private getEffectivePermissions(): Permission {
+    if (this.userRole === 'ADMIN') return adminPermissions
+
+    const rolePermissions = this.getRolePermissions()
+
     // First check if user has specific permissions in settings
-    if (this.settingsPermissions?.userPermissions?.[this.userId]) {
+    const settingsUserPermissions = this.settingsPermissions?.userPermissions?.[this.userId]
+    if (settingsUserPermissions && Object.keys(settingsUserPermissions).length > 0) {
       return {
-        ...this.getRolePermissions(),
-        ...this.settingsPermissions.userPermissions[this.userId]
+        ...rolePermissions,
+        ...normalizePermissionOverrides(settingsUserPermissions)
+      }
+    }
+
+    // Support per-user permissions included in the authenticated user record.
+    if (this.userPermissions && typeof this.userPermissions === 'object' && Object.keys(this.userPermissions).length > 0) {
+      return {
+        ...rolePermissions,
+        ...normalizePermissionOverrides(this.userPermissions)
       }
     }
 
     // Then check if role has custom permissions in settings
     if (this.settingsPermissions?.rolePermissions?.[this.userRole]) {
-      return this.settingsPermissions.rolePermissions[this.userRole]
+      return normalizeRolePermissions(this.settingsPermissions.rolePermissions[this.userRole])
     }
 
     // Fall back to default role permissions
-    return this.getRolePermissions()
+    return rolePermissions
   }
 
   private getRolePermissions(): Permission {

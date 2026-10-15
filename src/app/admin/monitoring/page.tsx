@@ -1,4 +1,5 @@
 'use client'
+import { LocalizedText } from '@/components/localized-text'
 
 import { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -377,8 +378,8 @@ export default function AdminMonitoring() {
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="text-center">
             <Shield className="h-12 w-12 mx-auto mb-4 text-red-600" />
-            <h2 className="text-xl font-semibold mb-2">Access Denied</h2>
-            <p className="text-muted-foreground">Only administrators can view this page.</p>
+            <h2 className="text-xl font-semibold mb-2"><LocalizedText>Access Denied</LocalizedText></h2>
+            <p className="text-muted-foreground"><LocalizedText>Only administrators can view this page.</LocalizedText></p>
           </div>
         </div>
       </div>
@@ -395,7 +396,7 @@ export default function AdminMonitoring() {
             System Monitoring
           </h1>
           <p className="text-muted-foreground">
-            Monitor user activities, audit logs, and system access
+            <LocalizedText>Monitor user activities, audit logs, and system access</LocalizedText>
           </p>
         </div>
         <div className="flex gap-2">
@@ -425,13 +426,13 @@ export default function AdminMonitoring() {
         <CardContent>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-6">
             <div>
-              <label className="text-sm font-medium">User</label>
+              <label className="text-sm font-medium"><LocalizedText>User</LocalizedText></label>
               <Select value={filters.userId} onValueChange={(value) => setFilters({...filters, userId: value})}>
                 <SelectTrigger>
                   <SelectValue placeholder="All users" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All users</SelectItem>
+                  <SelectItem value="all"><LocalizedText>All users</LocalizedText></SelectItem>
                   {users.map((user) => (
                     <SelectItem key={user.id} value={user.id}>
                       {user.name || user.email}
@@ -442,42 +443,42 @@ export default function AdminMonitoring() {
             </div>
 
             <div>
-              <label className="text-sm font-medium">Action</label>
+              <label className="text-sm font-medium"><LocalizedText>Action</LocalizedText></label>
               <Select value={filters.action} onValueChange={(value) => setFilters({...filters, action: value})}>
                 <SelectTrigger>
                   <SelectValue placeholder="All actions" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All actions</SelectItem>
-                  <SelectItem value="CREATE">Create</SelectItem>
-                  <SelectItem value="UPDATE">Update</SelectItem>
-                  <SelectItem value="DELETE">Delete</SelectItem>
-                  <SelectItem value="LOGIN">Login</SelectItem>
-                  <SelectItem value="LOGOUT">Logout</SelectItem>
-                  <SelectItem value="VIEW">View</SelectItem>
+                  <SelectItem value="all"><LocalizedText>All actions</LocalizedText></SelectItem>
+                  <SelectItem value="CREATE"><LocalizedText>Create</LocalizedText></SelectItem>
+                  <SelectItem value="UPDATE"><LocalizedText>Update</LocalizedText></SelectItem>
+                  <SelectItem value="DELETE"><LocalizedText>Delete</LocalizedText></SelectItem>
+                  <SelectItem value="LOGIN"><LocalizedText>Login</LocalizedText></SelectItem>
+                  <SelectItem value="LOGOUT"><LocalizedText>Logout</LocalizedText></SelectItem>
+                  <SelectItem value="VIEW"><LocalizedText>View</LocalizedText></SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div>
-              <label className="text-sm font-medium">Entity Type</label>
+              <label className="text-sm font-medium"><LocalizedText>Entity Type</LocalizedText></label>
               <Select value={filters.entityType} onValueChange={(value) => setFilters({...filters, entityType: value})}>
                 <SelectTrigger>
                   <SelectValue placeholder="All entities" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All entities</SelectItem>
-                  <SelectItem value="TRUCK">Truck</SelectItem>
-                  <SelectItem value="USER">User</SelectItem>
-                  <SelectItem value="MAINTENANCE_RECORD">Maintenance Record</SelectItem>
-                  <SelectItem value="MECHANIC">Mechanic</SelectItem>
-                  <SelectItem value="SETTINGS">Settings</SelectItem>
+                  <SelectItem value="all"><LocalizedText>All entities</LocalizedText></SelectItem>
+                  <SelectItem value="TRUCK"><LocalizedText>Truck</LocalizedText></SelectItem>
+                  <SelectItem value="USER"><LocalizedText>User</LocalizedText></SelectItem>
+                  <SelectItem value="MAINTENANCE_RECORD"><LocalizedText>Maintenance Record</LocalizedText></SelectItem>
+                  <SelectItem value="MECHANIC"><LocalizedText>Mechanic</LocalizedText></SelectItem>
+                  <SelectItem value="SETTINGS"><LocalizedText>Settings</LocalizedText></SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div>
-              <label className="text-sm font-medium">Start Date</label>
+              <label className="text-sm font-medium"><LocalizedText>Start Date</LocalizedText></label>
               <Input
                 type="date"
                 value={filters.startDate}
@@ -486,7 +487,7 @@ export default function AdminMonitoring() {
             </div>
 
             <div>
-              <label className="text-sm font-medium">End Date</label>
+              <label className="text-sm font-medium"><LocalizedText>End Date</LocalizedText></label>
               <Input
                 type="date"
                 value={filters.endDate}
@@ -495,7 +496,7 @@ export default function AdminMonitoring() {
             </div>
 
             <div>
-              <label className="text-sm font-medium">Limit</label>
+              <label className="text-sm font-medium"><LocalizedText>Limit</LocalizedText></label>
               <Select value={filters.limit} onValueChange={(value) => setFilters({...filters, limit: value})}>
                 <SelectTrigger>
                   <SelectValue />
@@ -517,18 +518,18 @@ export default function AdminMonitoring() {
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">System Health</CardTitle>
+              <CardTitle className="text-sm font-medium"><LocalizedText>System Health</LocalizedText></CardTitle>
               <Zap className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">—</div>
-              <p className="text-xs text-muted-foreground mt-2">Health score is not measured by this app.</p>
+              <p className="text-xs text-muted-foreground mt-2"><LocalizedText>Health score is not measured by this app.</LocalizedText></p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Active Users</CardTitle>
+              <CardTitle className="text-sm font-medium"><LocalizedText>Active Users</LocalizedText></CardTitle>
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -541,7 +542,7 @@ export default function AdminMonitoring() {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Active Sessions</CardTitle>
+              <CardTitle className="text-sm font-medium"><LocalizedText>Active Sessions</LocalizedText></CardTitle>
               <Monitor className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -554,7 +555,7 @@ export default function AdminMonitoring() {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Response Time</CardTitle>
+              <CardTitle className="text-sm font-medium"><LocalizedText>Response Time</LocalizedText></CardTitle>
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -576,7 +577,7 @@ export default function AdminMonitoring() {
           <AlertDescription className="text-red-800">
             <strong>{systemStats.criticalAlerts} critical alerts</strong> require immediate attention.
             <Button variant="link" className="p-0 h-auto ml-2 text-red-600">
-              View Details
+              <LocalizedText>View Details</LocalizedText>
             </Button>
           </AlertDescription>
         </Alert>
@@ -618,9 +619,9 @@ export default function AdminMonitoring() {
         <TabsContent value="audit-logs" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Audit Logs</CardTitle>
+              <CardTitle><LocalizedText>Audit Logs</LocalizedText></CardTitle>
               <CardDescription>
-                Track all changes made to system data
+                <LocalizedText>Track all changes made to system data</LocalizedText>
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -633,12 +634,12 @@ export default function AdminMonitoring() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>User</TableHead>
-                        <TableHead>Action</TableHead>
-                        <TableHead>Entity</TableHead>
-                        <TableHead>Changes</TableHead>
-                        <TableHead>IP Address</TableHead>
-                        <TableHead>Date</TableHead>
+                        <TableHead><LocalizedText>User</LocalizedText></TableHead>
+                        <TableHead><LocalizedText>Action</LocalizedText></TableHead>
+                        <TableHead><LocalizedText>Entity</LocalizedText></TableHead>
+                        <TableHead><LocalizedText>Changes</LocalizedText></TableHead>
+                        <TableHead><LocalizedText>IP Address</LocalizedText></TableHead>
+                        <TableHead><LocalizedText>Date</LocalizedText></TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -672,7 +673,7 @@ export default function AdminMonitoring() {
                                   {JSON.stringify(log.changes, null, 2)}
                                 </pre>
                               ) : (
-                                <span className="text-muted-foreground">No changes</span>
+                                <span className="text-muted-foreground"><LocalizedText>No changes</LocalizedText></span>
                               )}
                             </div>
                           </TableCell>
@@ -707,9 +708,9 @@ export default function AdminMonitoring() {
         <TabsContent value="login-history" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Login History</CardTitle>
+              <CardTitle><LocalizedText>Login History</LocalizedText></CardTitle>
               <CardDescription>
-                Track user login and logout times
+                <LocalizedText>Track user login and logout times</LocalizedText>
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -722,12 +723,12 @@ export default function AdminMonitoring() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>User</TableHead>
-                        <TableHead>Login Time</TableHead>
-                        <TableHead>Logout Time</TableHead>
-                        <TableHead>Duration</TableHead>
-                        <TableHead>IP Address</TableHead>
-                        <TableHead>Status</TableHead>
+                        <TableHead><LocalizedText>User</LocalizedText></TableHead>
+                        <TableHead><LocalizedText>Login Time</LocalizedText></TableHead>
+                        <TableHead><LocalizedText>Logout Time</LocalizedText></TableHead>
+                        <TableHead><LocalizedText>Duration</LocalizedText></TableHead>
+                        <TableHead><LocalizedText>IP Address</LocalizedText></TableHead>
+                        <TableHead><LocalizedText>Status</LocalizedText></TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -761,7 +762,7 @@ export default function AdminMonitoring() {
                                 </div>
                               </div>
                             ) : (
-                              <span className="text-muted-foreground">Still logged in</span>
+                              <span className="text-muted-foreground"><LocalizedText>Still logged in</LocalizedText></span>
                             )}
                           </TableCell>
                           <TableCell className="text-sm">
@@ -816,7 +817,7 @@ export default function AdminMonitoring() {
                     <Alert className="border-green-200 bg-green-50">
                       <Zap className="h-4 w-4 text-green-600" />
                       <AlertDescription className="text-green-800">
-                        All systems operating normally.
+                        <LocalizedText>All systems operating normally.</LocalizedText>
                       </AlertDescription>
                     </Alert>
                   )}
@@ -825,25 +826,25 @@ export default function AdminMonitoring() {
                     <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
                       <div className="flex items-center gap-2">
                         <Database className="h-4 w-4 text-blue-600" />
-                        <span className="text-sm font-medium">Database</span>
+                        <span className="text-sm font-medium"><LocalizedText>Database</LocalizedText></span>
                       </div>
-                      <Badge variant="secondary" className="bg-green-100 text-green-800">Healthy</Badge>
+                      <Badge variant="secondary" className="bg-green-100 text-green-800"><LocalizedText>Healthy</LocalizedText></Badge>
                     </div>
                     
                     <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
                       <div className="flex items-center gap-2">
                         <Globe className="h-4 w-4 text-blue-600" />
-                        <span className="text-sm font-medium">API Services</span>
+                        <span className="text-sm font-medium"><LocalizedText>API Services</LocalizedText></span>
                       </div>
-                      <Badge variant="secondary" className="bg-green-100 text-green-800">Online</Badge>
+                      <Badge variant="secondary" className="bg-green-100 text-green-800"><LocalizedText>Online</LocalizedText></Badge>
                     </div>
                     
                     <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
                       <div className="flex items-center gap-2">
                         <Shield className="h-4 w-4 text-blue-600" />
-                        <span className="text-sm font-medium">Security</span>
+                        <span className="text-sm font-medium"><LocalizedText>Security</LocalizedText></span>
                       </div>
-                      <Badge variant="secondary" className="bg-green-100 text-green-800">Secure</Badge>
+                      <Badge variant="secondary" className="bg-green-100 text-green-800"><LocalizedText>Secure</LocalizedText></Badge>
                     </div>
                   </div>
                 </div>

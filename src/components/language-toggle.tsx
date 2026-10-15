@@ -16,7 +16,7 @@ export function LanguageToggle() {
       title={language === 'en' ? 'Switch to Arabic' : 'التبديل إلى الإنجليزية'}
     >
       <Languages className="h-4 w-4" />
-      <span className="sr-only">Toggle language</span>
+      <span className="sr-only">{language === 'en' ? 'Toggle language' : 'تغيير اللغة'}</span>
     </Button>
   )
 }

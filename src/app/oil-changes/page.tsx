@@ -1,4 +1,5 @@
 'use client'
+import { LocalizedText } from '@/components/localized-text'
 
 import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -15,7 +16,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Search, Droplets, Calendar, Truck, User, BarChart3, Plus, Filter, Check, ChevronsUpDown } from 'lucide-react'
 import { apiGet, apiPost } from '@/lib/api'
 import { formatCurrency } from '@/lib/currency'
-import { toast } from 'sonner'
+import { toast } from '@/lib/localized-toast'
 
 interface OilChangeRecord {
   id: string
@@ -286,7 +287,7 @@ export default function OilChangesPage() {
             <Droplets className="h-8 w-8 text-blue-600" />
             Oil Changes
           </h1>
-          <p className="text-muted-foreground">Track and manage all oil change maintenance records</p>
+          <p className="text-muted-foreground"><LocalizedText>Track and manage all oil change maintenance records</LocalizedText></p>
         </div>
         <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
           setIsAddDialogOpen(open)
@@ -303,12 +304,12 @@ export default function OilChangesPage() {
           </DialogTrigger>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Add New Oil Change Record</DialogTitle>
+              <DialogTitle><LocalizedText>Add New Oil Change Record</LocalizedText></DialogTitle>
             </DialogHeader>
             <form onSubmit={handleAddOilChange} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="truckId">Vehicle *</Label>
+                  <Label htmlFor="truckId"><LocalizedText>Vehicle *</LocalizedText></Label>
                   <Popover open={truckSearchOpen} onOpenChange={setTruckSearchOpen}>
                     <PopoverTrigger asChild>
                       <Button
@@ -330,7 +331,7 @@ export default function OilChangesPage() {
                       <Command>
                         <CommandInput placeholder="Search by plate number..." />
                         <CommandList>
-                          <CommandEmpty>No vehicle found.</CommandEmpty>
+                          <CommandEmpty><LocalizedText>No vehicle found.</LocalizedText></CommandEmpty>
                           <CommandGroup>
                             {trucks.map((truck) => (
                               <CommandItem
@@ -361,7 +362,7 @@ export default function OilChangesPage() {
                   </Popover>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="datePerformed">Service Date *</Label>
+                  <Label htmlFor="datePerformed"><LocalizedText>Service Date *</LocalizedText></Label>
                   <Input
                     id="datePerformed"
                     type="date"
@@ -374,7 +375,7 @@ export default function OilChangesPage() {
               
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="currentMileage">Current Mileage</Label>
+                  <Label htmlFor="currentMileage"><LocalizedText>Current Mileage</LocalizedText></Label>
                   <Input 
                     id="currentMileage"
                     type="number" 
@@ -384,7 +385,7 @@ export default function OilChangesPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="oilQuantityLiters">Oil Quantity (Liters)</Label>
+                  <Label htmlFor="oilQuantityLiters"><LocalizedText>Oil Quantity (Liters)</LocalizedText></Label>
                   <Input 
                     id="oilQuantityLiters"
                     type="number" 
@@ -398,7 +399,7 @@ export default function OilChangesPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="partsCost">Parts Cost</Label>
+                  <Label htmlFor="partsCost"><LocalizedText>Parts Cost</LocalizedText></Label>
                   <Input 
                     id="partsCost"
                     type="number" 
@@ -409,7 +410,7 @@ export default function OilChangesPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="laborCost">Labor Cost</Label>
+                  <Label htmlFor="laborCost"><LocalizedText>Labor Cost</LocalizedText></Label>
                   <Input 
                     id="laborCost"
                     type="number" 
@@ -423,13 +424,13 @@ export default function OilChangesPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="mechanicId">Mechanic</Label>
+                  <Label htmlFor="mechanicId"><LocalizedText>Mechanic</LocalizedText></Label>
                   <Select value={selectedMechanic} onValueChange={setSelectedMechanic}>
                     <SelectTrigger id="mechanicId">
                       <SelectValue placeholder="Select mechanic" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="none">No mechanic assigned</SelectItem>
+                      <SelectItem value="none"><LocalizedText>No mechanic assigned</LocalizedText></SelectItem>
                       {mechanics.map((mechanic) => (
                         <SelectItem key={mechanic.id} value={mechanic.id}>
                           {mechanic.name}
@@ -439,7 +440,7 @@ export default function OilChangesPage() {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="driverName">Driver Name</Label>
+                  <Label htmlFor="driverName"><LocalizedText>Driver Name</LocalizedText></Label>
                   <Input 
                     id="driverName"
                     placeholder="Driver name"
@@ -451,7 +452,7 @@ export default function OilChangesPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="oilChangeInterval">Next Change Interval (km)</Label>
+                  <Label htmlFor="oilChangeInterval"><LocalizedText>Next Change Interval (km)</LocalizedText></Label>
                   <Input 
                     id="oilChangeInterval"
                     type="number" 
@@ -461,7 +462,7 @@ export default function OilChangesPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="nextServiceDue">Next Service Due</Label>
+                  <Label htmlFor="nextServiceDue"><LocalizedText>Next Service Due</LocalizedText></Label>
                   <Input 
                     id="nextServiceDue"
                     type="date"
@@ -472,7 +473,7 @@ export default function OilChangesPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
+                <Label htmlFor="description"><LocalizedText>Description</LocalizedText></Label>
                 <Input 
                   id="description"
                   placeholder="Regular oil change service"
@@ -482,7 +483,7 @@ export default function OilChangesPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="notes">Notes</Label>
+                <Label htmlFor="notes"><LocalizedText>Notes</LocalizedText></Label>
                 <Textarea 
                   id="notes"
                   placeholder="Additional notes..." 
@@ -528,7 +529,7 @@ export default function OilChangesPage() {
       <div className="grid gap-4 md:grid-cols-5">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Oil Changes</CardTitle>
+            <CardTitle className="text-sm font-medium"><LocalizedText>Total Oil Changes</LocalizedText></CardTitle>
             <Droplets className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -538,7 +539,7 @@ export default function OilChangesPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Completed</CardTitle>
+            <CardTitle className="text-sm font-medium"><LocalizedText>Completed</LocalizedText></CardTitle>
             <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -550,7 +551,7 @@ export default function OilChangesPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">In Progress</CardTitle>
+            <CardTitle className="text-sm font-medium"><LocalizedText>In Progress</LocalizedText></CardTitle>
             <Truck className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -562,7 +563,7 @@ export default function OilChangesPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Oil Used</CardTitle>
+            <CardTitle className="text-sm font-medium"><LocalizedText>Total Oil Used</LocalizedText></CardTitle>
             <Droplets className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -577,7 +578,7 @@ export default function OilChangesPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Cost</CardTitle>
+            <CardTitle className="text-sm font-medium"><LocalizedText>Total Cost</LocalizedText></CardTitle>
             <Droplets className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -678,10 +679,10 @@ export default function OilChangesPage() {
                 <SelectValue placeholder="Filter by status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="COMPLETED">Completed</SelectItem>
-                <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
-                <SelectItem value="SCHEDULED">Scheduled</SelectItem>
+                <SelectItem value="all"><LocalizedText>All Status</LocalizedText></SelectItem>
+                <SelectItem value="COMPLETED"><LocalizedText>Completed</LocalizedText></SelectItem>
+                <SelectItem value="IN_PROGRESS"><LocalizedText>In Progress</LocalizedText></SelectItem>
+                <SelectItem value="SCHEDULED"><LocalizedText>Scheduled</LocalizedText></SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -700,28 +701,28 @@ export default function OilChangesPage() {
         </CardHeader>
         <CardContent>
           {loading ? (
-            <div className="text-center py-8">Loading oil change records...</div>
+            <div className="text-center py-8"><LocalizedText>Loading oil change records...</LocalizedText></div>
           ) : (
             <div className="rounded-md border overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Service</TableHead>
-                    <TableHead>Vehicle</TableHead>
-                    <TableHead>Odometer</TableHead>
-                    <TableHead>Oil Used</TableHead>
-                    <TableHead>Driver</TableHead>
-                    <TableHead>Mechanic</TableHead>
-                    <TableHead>Cost</TableHead>
-                    <TableHead>Status</TableHead>
+                    <TableHead><LocalizedText>Date</LocalizedText></TableHead>
+                    <TableHead><LocalizedText>Service</LocalizedText></TableHead>
+                    <TableHead><LocalizedText>Vehicle</LocalizedText></TableHead>
+                    <TableHead><LocalizedText>Odometer</LocalizedText></TableHead>
+                    <TableHead><LocalizedText>Oil Used</LocalizedText></TableHead>
+                    <TableHead><LocalizedText>Driver</LocalizedText></TableHead>
+                    <TableHead><LocalizedText>Mechanic</LocalizedText></TableHead>
+                    <TableHead><LocalizedText>Cost</LocalizedText></TableHead>
+                    <TableHead><LocalizedText>Status</LocalizedText></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredRecords.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={9} className="text-center py-8 text-gray-500">
-                        No oil change records found
+                        <LocalizedText>No oil change records found</LocalizedText>
                       </TableCell>
                     </TableRow>
                   ) : (

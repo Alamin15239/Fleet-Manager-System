@@ -1,4 +1,5 @@
 'use client'
+import { LocalizedText } from '@/components/localized-text'
 
 import { useState, useEffect } from 'react'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
@@ -138,7 +139,7 @@ export function MaintenanceJobSelector({ onSelectJobs, selectedJobs = [], childr
       </DialogTrigger>
       <DialogContent className="sm:max-w-[500px] max-h-[90vh]">
         <DialogHeader>
-          <DialogTitle className="text-lg">Select Jobs</DialogTitle>
+          <DialogTitle className="text-lg"><LocalizedText>Select Jobs</LocalizedText></DialogTitle>
         </DialogHeader>
         
         <div className="space-y-3">
@@ -157,7 +158,7 @@ export function MaintenanceJobSelector({ onSelectJobs, selectedJobs = [], childr
               <SelectValue placeholder="All Categories" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Categories</SelectItem>
+              <SelectItem value="all"><LocalizedText>All Categories</LocalizedText></SelectItem>
               {categories.map(category => (
                 <SelectItem key={category} value={category}>
                   {category}
@@ -174,11 +175,11 @@ export function MaintenanceJobSelector({ onSelectJobs, selectedJobs = [], childr
             {loading ? (
               <div className="text-center py-8">
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-900 mx-auto"></div>
-                <p className="mt-2 text-xs text-gray-600">Loading...</p>
+                <p className="mt-2 text-xs text-gray-600"><LocalizedText>Loading...</LocalizedText></p>
               </div>
             ) : filteredJobs.length === 0 ? (
               <div className="text-center py-8">
-                <p className="text-gray-600 text-sm">No jobs found</p>
+                <p className="text-gray-600 text-sm"><LocalizedText>No jobs found</LocalizedText></p>
               </div>
             ) : (
               <div className="divide-y">
@@ -215,7 +216,7 @@ export function MaintenanceJobSelector({ onSelectJobs, selectedJobs = [], childr
                     Selected ({selectedJobs.length})
                   </span>
                   <Button size="sm" onClick={handleConfirmSelection}>
-                    Confirm
+                    <LocalizedText>Confirm</LocalizedText>
                   </Button>
                 </div>
                 <div className="space-y-1">

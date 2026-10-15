@@ -1,4 +1,5 @@
 'use client'
+import { LocalizedText } from '@/components/localized-text'
 
 import { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -16,6 +17,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { format } from 'date-fns'
 import { CalendarIcon, Plus, Edit, Trash2, Search, Filter, Wrench, Clock, DollarSign, AlertTriangle, CheckCircle, XCircle, ClockIcon } from 'lucide-react'
 import { formatCurrency } from '@/lib/currency'
+import { useLanguage } from '@/contexts/language-context'
 
 interface MaintenanceRecord {
   id: string
@@ -102,6 +104,7 @@ interface MaintenanceFormData {
 }
 
 export default function MaintenanceTracking() {
+  const { t } = useLanguage()
   const [maintenanceRecords, setMaintenanceRecords] = useState<MaintenanceRecord[]>([])
   const [filteredRecords, setFilteredRecords] = useState<MaintenanceRecord[]>([])
   const [selectedRecord, setSelectedRecord] = useState<MaintenanceRecord | null>(null)
@@ -554,7 +557,7 @@ export default function MaintenanceTracking() {
   }
 
   const handleDelete = async (recordId: string) => {
-    if (confirm('Are you sure you want to delete this maintenance record?')) {
+    if (confirm(t('Are you sure you want to delete this maintenance record?'))) {
       try {
         const response = await fetch(`/api/maintenance/${recordId}`, {
           method: 'DELETE',
@@ -656,8 +659,8 @@ export default function MaintenanceTracking() {
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Maintenance Tracking</h1>
-          <p className="text-muted-foreground">Track and manage all maintenance activities</p>
+          <h1 className="text-3xl font-bold tracking-tight"><LocalizedText>Maintenance Tracking</LocalizedText></h1>
+          <p className="text-muted-foreground"><LocalizedText>Track and manage all maintenance activities</LocalizedText></p>
         </div>
         <Dialog open={isDialogOpen} onOpenChange={(open) => {
           if (open) {
@@ -688,7 +691,7 @@ export default function MaintenanceTracking() {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="truckId">Truck</Label>
+                  <Label htmlFor="truckId"><LocalizedText>Truck</LocalizedText></Label>
                   <Select value={formData.truckId} onValueChange={(value) => handleInputChange('truckId', value)}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select truck" />
@@ -703,7 +706,7 @@ export default function MaintenanceTracking() {
                   </Select>
                 </div>
                 <div>
-                  <Label htmlFor="serviceType">Service Type</Label>
+                  <Label htmlFor="serviceType"><LocalizedText>Service Type</LocalizedText></Label>
                   <Select value={formData.serviceType} onValueChange={(value) => handleInputChange('serviceType', value)}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select service type" />
@@ -714,14 +717,14 @@ export default function MaintenanceTracking() {
                           {job.name}
                         </SelectItem>
                       ))}
-                      <SelectItem value="Other">Other</SelectItem>
+                      <SelectItem value="Other"><LocalizedText>Other</LocalizedText></SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
               </div>
 
               <div>
-                <Label htmlFor="description">Description</Label>
+                <Label htmlFor="description"><LocalizedText>Description</LocalizedText></Label>
                 <Textarea
                   id="description"
                   value={formData.description}
@@ -732,7 +735,7 @@ export default function MaintenanceTracking() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="datePerformed">Date Performed</Label>
+                  <Label htmlFor="datePerformed"><LocalizedText>Date Performed</LocalizedText></Label>
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button variant="outline" className="w-full justify-start text-left font-normal">
@@ -755,16 +758,16 @@ export default function MaintenanceTracking() {
                   </Popover>
                 </div>
                 <div>
-                  <Label htmlFor="status">Status</Label>
+                  <Label htmlFor="status"><LocalizedText>Status</LocalizedText></Label>
                   <Select value={formData.status} onValueChange={(value) => handleInputChange('status', value as any)}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="SCHEDULED">Scheduled</SelectItem>
-                      <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
-                      <SelectItem value="COMPLETED">Completed</SelectItem>
-                      <SelectItem value="CANCELLED">Cancelled</SelectItem>
+                      <SelectItem value="SCHEDULED"><LocalizedText>Scheduled</LocalizedText></SelectItem>
+                      <SelectItem value="IN_PROGRESS"><LocalizedText>In Progress</LocalizedText></SelectItem>
+                      <SelectItem value="COMPLETED"><LocalizedText>Completed</LocalizedText></SelectItem>
+                      <SelectItem value="CANCELLED"><LocalizedText>Cancelled</LocalizedText></SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -772,7 +775,7 @@ export default function MaintenanceTracking() {
 
               <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <Label htmlFor="partsCost">Parts Cost</Label>
+                  <Label htmlFor="partsCost"><LocalizedText>Parts Cost</LocalizedText></Label>
                   <Input
                     id="partsCost"
                     type="number"
@@ -793,7 +796,7 @@ export default function MaintenanceTracking() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="laborCost">Labor Cost</Label>
+                  <Label htmlFor="laborCost"><LocalizedText>Labor Cost</LocalizedText></Label>
                   <Input
                     id="laborCost"
                     type="number"
@@ -814,7 +817,7 @@ export default function MaintenanceTracking() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="downtimeHours">Downtime (hours)</Label>
+                  <Label htmlFor="downtimeHours"><LocalizedText>Downtime (hours)</LocalizedText></Label>
                   <Input
                     id="downtimeHours"
                     type="number"
@@ -837,7 +840,7 @@ export default function MaintenanceTracking() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="mechanicId">Mechanic</Label>
+                  <Label htmlFor="mechanicId"><LocalizedText>Mechanic</LocalizedText></Label>
                   <Select value={formData.mechanicId} onValueChange={(value) => handleInputChange('mechanicId', value)}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select mechanic" />
@@ -852,7 +855,7 @@ export default function MaintenanceTracking() {
                   </Select>
                 </div>
                 <div>
-                  <Label htmlFor="currentMileage">Current Mileage</Label>
+                  <Label htmlFor="currentMileage"><LocalizedText>Current Mileage</LocalizedText></Label>
                   <Input
                     id="currentMileage"
                     type="number"
@@ -880,11 +883,11 @@ export default function MaintenanceTracking() {
                     checked={formData.isOilChange}
                     onChange={(e) => handleInputChange('isOilChange', e.target.checked)}
                   />
-                  <Label htmlFor="isOilChange">Oil Change</Label>
+                  <Label htmlFor="isOilChange"><LocalizedText>Oil Change</LocalizedText></Label>
                 </div>
                 {formData.isOilChange && (
                   <div>
-                    <Label htmlFor="oilChangeInterval">Oil Change Interval (miles)</Label>
+                    <Label htmlFor="oilChangeInterval"><LocalizedText>Oil Change Interval (miles)</LocalizedText></Label>
                     <Input
                       id="oilChangeInterval"
                       type="number"
@@ -906,7 +909,7 @@ export default function MaintenanceTracking() {
               </div>
 
               <div>
-                <Label htmlFor="nextServiceDue">Next Service Due</Label>
+                <Label htmlFor="nextServiceDue"><LocalizedText>Next Service Due</LocalizedText></Label>
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button variant="outline" className="w-full justify-start text-left font-normal">
@@ -931,7 +934,7 @@ export default function MaintenanceTracking() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="failureMode">Failure Mode (if applicable)</Label>
+                  <Label htmlFor="failureMode"><LocalizedText>Failure Mode (if applicable)</LocalizedText></Label>
                   <Input
                     id="failureMode"
                     value={formData.failureMode}
@@ -940,7 +943,7 @@ export default function MaintenanceTracking() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="rootCause">Root Cause (if applicable)</Label>
+                  <Label htmlFor="rootCause"><LocalizedText>Root Cause (if applicable)</LocalizedText></Label>
                   <Input
                     id="rootCause"
                     value={formData.rootCause}
@@ -951,7 +954,7 @@ export default function MaintenanceTracking() {
               </div>
 
               <div>
-                <Label htmlFor="notes">Notes</Label>
+                <Label htmlFor="notes"><LocalizedText>Notes</LocalizedText></Label>
                 <Textarea
                   id="notes"
                   value={formData.notes}
@@ -977,7 +980,7 @@ export default function MaintenanceTracking() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Trucks</CardTitle>
+            <CardTitle className="text-sm font-medium"><LocalizedText>Total Trucks</LocalizedText></CardTitle>
             <Wrench className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -990,52 +993,52 @@ export default function MaintenanceTracking() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Upcoming Maintenance</CardTitle>
+            <CardTitle className="text-sm font-medium"><LocalizedText>Upcoming Maintenance</LocalizedText></CardTitle>
             <Clock className="h-4 w-4 text-yellow-600" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-yellow-600">{getUpcomingMaintenance()}</div>
             <p className="text-xs text-muted-foreground">
-              Due within 30 days
+              <LocalizedText>Due within 30 days</LocalizedText>
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Overdue Repairs</CardTitle>
+            <CardTitle className="text-sm font-medium"><LocalizedText>Overdue Repairs</LocalizedText></CardTitle>
             <AlertTriangle className="h-4 w-4 text-red-600" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-red-600">{getOverdueMaintenance()}</div>
             <p className="text-xs text-muted-foreground">
-              Require immediate attention
+              <LocalizedText>Require immediate attention</LocalizedText>
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Monthly Maintenance Cost</CardTitle>
+            <CardTitle className="text-sm font-medium"><LocalizedText>Monthly Maintenance Cost</LocalizedText></CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatCurrency(calculateMonthlyCost())}</div>
             <p className="text-xs text-muted-foreground">
-              Average monthly cost
+              <LocalizedText>Average monthly cost</LocalizedText>
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Cost (6mo)</CardTitle>
+            <CardTitle className="text-sm font-medium"><LocalizedText>Total Cost (6mo)</LocalizedText></CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatCurrency(calculateSixMonthCost())}</div>
             <p className="text-xs text-muted-foreground">
-              Last 6 months
+              <LocalizedText>Last 6 months</LocalizedText>
             </p>
           </CardContent>
         </Card>
@@ -1045,20 +1048,20 @@ export default function MaintenanceTracking() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Records</CardTitle>
+            <CardTitle className="text-sm font-medium"><LocalizedText>Total Records</LocalizedText></CardTitle>
             <Wrench className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.total}</div>
             <p className="text-xs text-muted-foreground">
-              Maintenance records
+              <LocalizedText>Maintenance records</LocalizedText>
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Completed</CardTitle>
+            <CardTitle className="text-sm font-medium"><LocalizedText>Completed</LocalizedText></CardTitle>
             <CheckCircle className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent>
@@ -1071,33 +1074,33 @@ export default function MaintenanceTracking() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">In Progress</CardTitle>
+            <CardTitle className="text-sm font-medium"><LocalizedText>In Progress</LocalizedText></CardTitle>
             <ClockIcon className="h-4 w-4 text-blue-600" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-blue-600">{stats.inProgress}</div>
             <p className="text-xs text-muted-foreground">
-              Currently being serviced
+              <LocalizedText>Currently being serviced</LocalizedText>
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Predictive</CardTitle>
+            <CardTitle className="text-sm font-medium"><LocalizedText>Predictive</LocalizedText></CardTitle>
             <AlertTriangle className="h-4 w-4 text-orange-600" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-orange-600">{stats.predicted}</div>
             <p className="text-xs text-muted-foreground">
-              AI-predicted maintenance
+              <LocalizedText>AI-predicted maintenance</LocalizedText>
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Cost</CardTitle>
+            <CardTitle className="text-sm font-medium"><LocalizedText>Total Cost</LocalizedText></CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -1130,11 +1133,11 @@ export default function MaintenanceTracking() {
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="COMPLETED">Completed</SelectItem>
-                <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
-                <SelectItem value="SCHEDULED">Scheduled</SelectItem>
-                <SelectItem value="CANCELLED">Cancelled</SelectItem>
+                <SelectItem value="all"><LocalizedText>All Status</LocalizedText></SelectItem>
+                <SelectItem value="COMPLETED"><LocalizedText>Completed</LocalizedText></SelectItem>
+                <SelectItem value="IN_PROGRESS"><LocalizedText>In Progress</LocalizedText></SelectItem>
+                <SelectItem value="SCHEDULED"><LocalizedText>Scheduled</LocalizedText></SelectItem>
+                <SelectItem value="CANCELLED"><LocalizedText>Cancelled</LocalizedText></SelectItem>
               </SelectContent>
             </Select>
             <Select value={truckFilter} onValueChange={setTruckFilter}>
@@ -1142,7 +1145,7 @@ export default function MaintenanceTracking() {
                 <SelectValue placeholder="Truck" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Trucks</SelectItem>
+                <SelectItem value="all"><LocalizedText>All Trucks</LocalizedText></SelectItem>
                 {trucks.map((truck) => (
                   <SelectItem key={truck.id} value={truck.id}>
                     {truck.licensePlate}
@@ -1156,10 +1159,10 @@ export default function MaintenanceTracking() {
                 <SelectValue placeholder="Date Range" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Dates</SelectItem>
-                <SelectItem value="today">Today</SelectItem>
-                <SelectItem value="week">Last 7 Days</SelectItem>
-                <SelectItem value="month">Last 30 Days</SelectItem>
+                <SelectItem value="all"><LocalizedText>All Dates</LocalizedText></SelectItem>
+                <SelectItem value="today"><LocalizedText>Today</LocalizedText></SelectItem>
+                <SelectItem value="week"><LocalizedText>Last 7 Days</LocalizedText></SelectItem>
+                <SelectItem value="month"><LocalizedText>Last 30 Days</LocalizedText></SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -1169,7 +1172,7 @@ export default function MaintenanceTracking() {
       {/* Maintenance Records Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Maintenance Records</CardTitle>
+          <CardTitle><LocalizedText>Maintenance Records</LocalizedText></CardTitle>
           <CardDescription>
             Showing {filteredRecords.length} maintenance record{filteredRecords.length !== 1 ? 's' : ''}
           </CardDescription>
@@ -1179,13 +1182,13 @@ export default function MaintenanceTracking() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Service</TableHead>
-                  <TableHead>Vehicle</TableHead>
-                  <TableHead>Mechanic</TableHead>
-                  <TableHead>Cost</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Actions</TableHead>
+                  <TableHead><LocalizedText>Date</LocalizedText></TableHead>
+                  <TableHead><LocalizedText>Service</LocalizedText></TableHead>
+                  <TableHead><LocalizedText>Vehicle</LocalizedText></TableHead>
+                  <TableHead><LocalizedText>Mechanic</LocalizedText></TableHead>
+                  <TableHead><LocalizedText>Cost</LocalizedText></TableHead>
+                  <TableHead><LocalizedText>Status</LocalizedText></TableHead>
+                  <TableHead><LocalizedText>Actions</LocalizedText></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -1212,12 +1215,12 @@ export default function MaintenanceTracking() {
                               {record.description.split(',').length > 2 && '...'}
                             </div>
                           ) : (
-                            <span className="text-gray-400">No description</span>
+                            <span className="text-gray-400"><LocalizedText>No description</LocalizedText></span>
                           )}
                         </div>
                         {record.wasPredicted && (
                           <Badge variant="outline" className="text-xs mt-1">
-                            AI Predicted
+                            <LocalizedText>AI Predicted</LocalizedText>
                           </Badge>
                         )}
                       </div>
@@ -1283,7 +1286,7 @@ export default function MaintenanceTracking() {
           {filteredRecords.length === 0 && (
             <div className="text-center py-8">
               <Wrench className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-semibold mb-2">No maintenance records found</h3>
+              <h3 className="text-lg font-semibold mb-2"><LocalizedText>No maintenance records found</LocalizedText></h3>
               <p className="text-muted-foreground mb-4">
                 {searchTerm || statusFilter !== 'all' || truckFilter !== 'all' || dateFilter !== 'all'
                   ? 'Try adjusting your filters to see more records.'
@@ -1302,7 +1305,7 @@ export default function MaintenanceTracking() {
       {selectedRecord && (
         <Card>
           <CardHeader>
-            <CardTitle>Maintenance Record Details</CardTitle>
+            <CardTitle><LocalizedText>Maintenance Record Details</LocalizedText></CardTitle>
             <CardDescription>
               {selectedRecord.serviceType} - {selectedRecord.truck?.licensePlate}
             </CardDescription>
@@ -1310,36 +1313,36 @@ export default function MaintenanceTracking() {
           <CardContent>
             <Tabs defaultValue="overview" className="space-y-4">
               <TabsList>
-                <TabsTrigger value="overview">Overview</TabsTrigger>
-                <TabsTrigger value="details">Details</TabsTrigger>
-                <TabsTrigger value="analysis">Analysis</TabsTrigger>
+                <TabsTrigger value="overview"><LocalizedText>Overview</LocalizedText></TabsTrigger>
+                <TabsTrigger value="details"><LocalizedText>Details</LocalizedText></TabsTrigger>
+                <TabsTrigger value="analysis"><LocalizedText>Analysis</LocalizedText></TabsTrigger>
               </TabsList>
 
               <TabsContent value="overview" className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   <Card>
                     <CardHeader className="pb-3">
-                      <CardTitle className="text-sm font-medium">Basic Information</CardTitle>
+                      <CardTitle className="text-sm font-medium"><LocalizedText>Basic Information</LocalizedText></CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-2">
                       <div className="flex justify-between">
-                        <span className="text-sm text-muted-foreground">Service Type:</span>
+                        <span className="text-sm text-muted-foreground"><LocalizedText>Service Type:</LocalizedText></span>
                         <span className="text-sm font-medium">{selectedRecord.serviceType}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-sm text-muted-foreground">Status:</span>
+                        <span className="text-sm text-muted-foreground"><LocalizedText>Status:</LocalizedText></span>
                         <Badge className={getStatusColor(selectedRecord.status)}>
                           {selectedRecord.status.replace('_', ' ')}
                         </Badge>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-sm text-muted-foreground">Date Performed:</span>
+                        <span className="text-sm text-muted-foreground"><LocalizedText>Date Performed:</LocalizedText></span>
                         <span className="text-sm font-medium">
                           {format(new Date(selectedRecord.datePerformed), 'MMM dd, yyyy')}
                         </span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-sm text-muted-foreground">Mechanic:</span>
+                        <span className="text-sm text-muted-foreground"><LocalizedText>Mechanic:</LocalizedText></span>
                         <span className="text-sm font-medium">{selectedRecord.mechanicName || 'Unassigned'}</span>
                       </div>
                     </CardContent>
@@ -1347,23 +1350,23 @@ export default function MaintenanceTracking() {
 
                   <Card>
                     <CardHeader className="pb-3">
-                      <CardTitle className="text-sm font-medium">Cost Information</CardTitle>
+                      <CardTitle className="text-sm font-medium"><LocalizedText>Cost Information</LocalizedText></CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-2">
                       <div className="flex justify-between">
-                        <span className="text-sm text-muted-foreground">Parts Cost:</span>
+                        <span className="text-sm text-muted-foreground"><LocalizedText>Parts Cost:</LocalizedText></span>
                         <span className="text-sm font-medium">{formatCurrency(selectedRecord.partsCost)}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-sm text-muted-foreground">Labor Cost:</span>
+                        <span className="text-sm text-muted-foreground"><LocalizedText>Labor Cost:</LocalizedText></span>
                         <span className="text-sm font-medium">{formatCurrency(selectedRecord.laborCost)}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-sm text-muted-foreground">Total Cost:</span>
+                        <span className="text-sm text-muted-foreground"><LocalizedText>Total Cost:</LocalizedText></span>
                         <span className="text-sm font-medium">{formatCurrency(selectedRecord.totalCost)}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-sm text-muted-foreground">Downtime:</span>
+                        <span className="text-sm text-muted-foreground"><LocalizedText>Downtime:</LocalizedText></span>
                         <span className="text-sm font-medium">{selectedRecord.downtimeHours || 0} hours</span>
                       </div>
                     </CardContent>
@@ -1371,27 +1374,27 @@ export default function MaintenanceTracking() {
 
                   <Card>
                     <CardHeader className="pb-3">
-                      <CardTitle className="text-sm font-medium">Vehicle Information</CardTitle>
+                      <CardTitle className="text-sm font-medium"><LocalizedText>Vehicle Information</LocalizedText></CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-2">
                       <div className="flex justify-between">
-                        <span className="text-sm text-muted-foreground">License Plate:</span>
+                        <span className="text-sm text-muted-foreground"><LocalizedText>License Plate:</LocalizedText></span>
                         <span className="text-sm font-medium">{selectedRecord.truck?.licensePlate}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-sm text-muted-foreground">Vehicle:</span>
+                        <span className="text-sm text-muted-foreground"><LocalizedText>Vehicle:</LocalizedText></span>
                         <span className="text-sm font-medium">
                           {selectedRecord.truck?.year} {selectedRecord.truck?.make} {selectedRecord.truck?.model}
                         </span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-sm text-muted-foreground">Mileage:</span>
+                        <span className="text-sm text-muted-foreground"><LocalizedText>Mileage:</LocalizedText></span>
                         <span className="text-sm font-medium">
                           {selectedRecord.currentMileage?.toLocaleString() || 'N/A'} mi
                         </span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-sm text-muted-foreground">Next Service:</span>
+                        <span className="text-sm text-muted-foreground"><LocalizedText>Next Service:</LocalizedText></span>
                         <span className="text-sm font-medium">
                           {selectedRecord.nextServiceDue ? 
                             format(new Date(selectedRecord.nextServiceDue), 'MMM dd, yyyy') : 
@@ -1407,29 +1410,29 @@ export default function MaintenanceTracking() {
               <TabsContent value="details" className="space-y-4">
                 <Card>
                   <CardHeader>
-                    <CardTitle>Detailed Information</CardTitle>
+                    <CardTitle><LocalizedText>Detailed Information</LocalizedText></CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     {selectedRecord.description && (
                       <div>
-                        <h4 className="font-medium mb-2">Description</h4>
+                        <h4 className="font-medium mb-2"><LocalizedText>Description</LocalizedText></h4>
                         <p className="text-sm text-muted-foreground">{selectedRecord.description}</p>
                       </div>
                     )}
                     
                     {selectedRecord.notes && (
                       <div>
-                        <h4 className="font-medium mb-2">Notes</h4>
+                        <h4 className="font-medium mb-2"><LocalizedText>Notes</LocalizedText></h4>
                         <p className="text-sm text-muted-foreground">{selectedRecord.notes}</p>
                       </div>
                     )}
 
                     {selectedRecord.isOilChange && (
                       <div>
-                        <h4 className="font-medium mb-2">Oil Change Details</h4>
+                        <h4 className="font-medium mb-2"><LocalizedText>Oil Change Details</LocalizedText></h4>
                         <div className="grid grid-cols-2 gap-4 text-sm">
                           <div>
-                            <span className="text-muted-foreground">Oil Change Interval:</span>
+                            <span className="text-muted-foreground"><LocalizedText>Oil Change Interval:</LocalizedText></span>
                             <span className="ml-2 font-medium">
                               {selectedRecord.oilChangeInterval?.toLocaleString() || 'N/A'} miles
                             </span>
@@ -1440,14 +1443,14 @@ export default function MaintenanceTracking() {
 
                     {selectedRecord.failureMode && (
                       <div>
-                        <h4 className="font-medium mb-2">Failure Analysis</h4>
+                        <h4 className="font-medium mb-2"><LocalizedText>Failure Analysis</LocalizedText></h4>
                         <div className="grid grid-cols-2 gap-4 text-sm">
                           <div>
-                            <span className="text-muted-foreground">Failure Mode:</span>
+                            <span className="text-muted-foreground"><LocalizedText>Failure Mode:</LocalizedText></span>
                             <span className="ml-2 font-medium">{selectedRecord.failureMode}</span>
                           </div>
                           <div>
-                            <span className="text-muted-foreground">Root Cause:</span>
+                            <span className="text-muted-foreground"><LocalizedText>Root Cause:</LocalizedText></span>
                             <span className="ml-2 font-medium">{selectedRecord.rootCause || 'N/A'}</span>
                           </div>
                         </div>
@@ -1455,15 +1458,15 @@ export default function MaintenanceTracking() {
                     )}
 
                     <div>
-                      <h4 className="font-medium mb-2">Predictive Information</h4>
+                      <h4 className="font-medium mb-2"><LocalizedText>Predictive Information</LocalizedText></h4>
                       <div className="grid grid-cols-2 gap-4 text-sm">
                         <div>
-                          <span className="text-muted-foreground">Was Predicted:</span>
+                          <span className="text-muted-foreground"><LocalizedText>Was Predicted:</LocalizedText></span>
                           <span className="ml-2 font-medium">{selectedRecord.wasPredicted ? 'Yes' : 'No'}</span>
                         </div>
                         {selectedRecord.wasPredicted && (
                           <div>
-                            <span className="text-muted-foreground">Prediction ID:</span>
+                            <span className="text-muted-foreground"><LocalizedText>Prediction ID:</LocalizedText></span>
                             <span className="ml-2 font-medium">{selectedRecord.predictionId || 'N/A'}</span>
                           </div>
                         )}
@@ -1476,27 +1479,27 @@ export default function MaintenanceTracking() {
               <TabsContent value="analysis" className="space-y-4">
                 <Card>
                   <CardHeader>
-                    <CardTitle>Maintenance Analysis</CardTitle>
+                    <CardTitle><LocalizedText>Maintenance Analysis</LocalizedText></CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <h4 className="font-medium mb-2">Cost Analysis</h4>
+                        <h4 className="font-medium mb-2"><LocalizedText>Cost Analysis</LocalizedText></h4>
                         <div className="space-y-2 text-sm">
                           <div className="flex justify-between">
-                            <span className="text-muted-foreground">Parts Cost Percentage:</span>
+                            <span className="text-muted-foreground"><LocalizedText>Parts Cost Percentage:</LocalizedText></span>
                             <span className="font-medium">
                               {((selectedRecord.partsCost / selectedRecord.totalCost) * 100).toFixed(1)}%
                             </span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-muted-foreground">Labor Cost Percentage:</span>
+                            <span className="text-muted-foreground"><LocalizedText>Labor Cost Percentage:</LocalizedText></span>
                             <span className="font-medium">
                               {((selectedRecord.laborCost / selectedRecord.totalCost) * 100).toFixed(1)}%
                             </span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-muted-foreground">Cost per Hour:</span>
+                            <span className="text-muted-foreground"><LocalizedText>Cost per Hour:</LocalizedText></span>
                             <span className="font-medium">
                               {selectedRecord.downtimeHours ? formatCurrency(selectedRecord.totalCost / selectedRecord.downtimeHours) : 'N/A'}
                             </span>
@@ -1505,22 +1508,22 @@ export default function MaintenanceTracking() {
                       </div>
 
                       <div>
-                        <h4 className="font-medium mb-2">Efficiency Metrics</h4>
+                        <h4 className="font-medium mb-2"><LocalizedText>Efficiency Metrics</LocalizedText></h4>
                         <div className="space-y-2 text-sm">
                           <div className="flex justify-between">
-                            <span className="text-muted-foreground">Downtime Impact:</span>
+                            <span className="text-muted-foreground"><LocalizedText>Downtime Impact:</LocalizedText></span>
                             <span className="font-medium">
                               {selectedRecord.downtimeHours ? `${selectedRecord.downtimeHours} hours` : 'N/A'}
                             </span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-muted-foreground">Predictive Success:</span>
+                            <span className="text-muted-foreground"><LocalizedText>Predictive Success:</LocalizedText></span>
                             <span className="font-medium">
                               {selectedRecord.wasPredicted ? 'Successful' : 'Not Applicable'}
                             </span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-muted-foreground">Maintenance Type:</span>
+                            <span className="text-muted-foreground"><LocalizedText>Maintenance Type:</LocalizedText></span>
                             <span className="font-medium">
                               {selectedRecord.isOilChange ? 'Preventive' : 
                                selectedRecord.failureMode ? 'Corrective' : 'Scheduled'}
@@ -1532,7 +1535,7 @@ export default function MaintenanceTracking() {
 
                     {selectedRecord.wasPredicted && (
                       <div>
-                        <h4 className="font-medium mb-2">Predictive Maintenance Insights</h4>
+                        <h4 className="font-medium mb-2"><LocalizedText>Predictive Maintenance Insights</LocalizedText></h4>
                         <div className="bg-blue-50 p-4 rounded-lg">
                           <p className="text-sm text-blue-800">
                             This maintenance was predicted by the AI system, demonstrating the effectiveness of 
@@ -1543,7 +1546,7 @@ export default function MaintenanceTracking() {
                     )}
 
                     <div>
-                      <h4 className="font-medium mb-2">Recommendations</h4>
+                      <h4 className="font-medium mb-2"><LocalizedText>Recommendations</LocalizedText></h4>
                       <div className="space-y-2">
                         {selectedRecord.status === 'COMPLETED' && (
                           <div className="bg-green-50 p-3 rounded-lg">
