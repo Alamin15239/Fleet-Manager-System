@@ -24,7 +24,8 @@ export async function POST(request: NextRequest) {
           data: {
             isDeleted: false,
             deletedAt: null,
-            deletedBy: null
+            deletedBy: null,
+            isActive: true
           },
           select: {
             id: true,

@@ -16,6 +16,8 @@ import { useRealtimeUsers } from '@/hooks/use-realtime-users'
 import { useAuth } from '@/contexts/auth-context'
 import { usePermissions } from '@/contexts/permissions-context'
 import { useLanguage } from '@/contexts/language-context'
+import { apiPost } from '@/lib/api'
+import { toast } from '@/lib/localized-toast'
 
 interface User {
   id: string
@@ -23,6 +25,7 @@ interface User {
   name: string | null
   role: 'ADMIN' | 'MANAGER' | 'USER'
   isActive: boolean
+  isApproved: boolean
   createdAt: string
   updatedAt: string
 }
@@ -53,6 +56,7 @@ export default function UsersPage() {
   const [dbHealth, setDbHealth] = useState<any>(null)
   const [showDebug, setShowDebug] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+  const [processingUserId, setProcessingUserId] = useState<string | null>(null)
 
   useEffect(() => {
     checkDbHealth()
@@ -116,6 +120,28 @@ export default function UsersPage() {
     )
     if (!confirmed) return
     await deleteUser(userId)
+  }
+
+  const handleReactivateOrApprove = async (user: User) => {
+    if (processingUserId) return
+    setProcessingUserId(user.id)
+    try {
+      if (!user.isApproved) {
+        if (!isAdmin) return
+        const response = await apiPost('/api/admin/users/approve', { userId: user.id, approved: true })
+        const result = await response.json().catch(() => ({}))
+        if (!response.ok) throw new Error(result.error || 'Failed to approve user')
+        toast.success('User approved and activated')
+      } else {
+        const success = await updateUser(user.id, { isActive: true })
+        if (!success) return
+      }
+      await refresh()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to reactivate user')
+    } finally {
+      setProcessingUserId(null)
+    }
   }
 
   const resetForm = () => {
@@ -373,15 +399,29 @@ export default function UsersPage() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <Badge variant={user.isActive ? 'default' : 'secondary'}>
-                        {user.isActive ? 'Active' : 'Inactive'}
-                      </Badge>
+                      <div className="flex flex-col items-start gap-1">
+                        <Badge variant={user.isActive ? 'default' : 'secondary'}>
+                          {user.isActive ? 'Active' : 'Inactive'}
+                        </Badge>
+                        {!user.isApproved && <Badge variant="outline" className="text-amber-700"><LocalizedText>Pending approval</LocalizedText></Badge>}
+                      </div>
                     </TableCell>
                     <TableCell>
                       {new Date(user.createdAt).toLocaleDateString()}
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
+                        {canUpdate('users') && (user.isApproved ? !user.isActive : isAdmin) && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleReactivateOrApprove(user)}
+                            disabled={processingUserId !== null}
+                          >
+                            <RefreshCw className={`h-4 w-4 ${processingUserId === user.id ? 'animate-spin' : ''}`} />
+                            <span className="ml-2"><LocalizedText>{user.isApproved ? 'Reactivate' : 'Approve & Activate'}</LocalizedText></span>
+                          </Button>
+                        )}
                         {canUpdate('users') && (isAdmin || user.role === 'USER') && (
                           <Button variant="outline" size="sm" onClick={() => handleEdit(user)}>
                             <Edit className="h-4 w-4" />

@@ -8,7 +8,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { userId, approved } = body
 
-    if (!userId || approved === undefined) {
+    if (!userId || typeof approved !== 'boolean') {
       return NextResponse.json(
         { error: 'User ID and approval status are required' },
         { status: 400 }
@@ -31,7 +31,8 @@ export async function POST(request: NextRequest) {
     const updatedUser = await db.user.update({
       where: { id: userId },
       data: {
-        isApproved: approved
+        isApproved: approved,
+        isActive: approved
       },
       select: {
         id: true,

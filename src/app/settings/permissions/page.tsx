@@ -14,6 +14,7 @@ import { Switch } from '@/components/ui/switch'
 import { Search, Settings, User as UserIcon, Shield } from 'lucide-react'
 import { toast } from '@/lib/localized-toast'
 import { Permission, defaultPermissions, adminPermissions, managerPermissions } from '@/lib/permissions'
+import { apiGet, apiPut } from '@/lib/api'
 
 interface User {
   id: string
@@ -44,9 +45,9 @@ const permissionGroups: PermissionGroup[] = [
     description: 'Manage truck fleet'
   },
   {
-    name: 'Maintenance',
+    name: 'Job Cards & Maintenance',
     permissions: ['canViewMaintenance', 'canAddMaintenance', 'canEditMaintenance', 'canDeleteMaintenance'],
-    description: 'Maintenance records and scheduling'
+    description: 'Maintenance records, workshop job cards, oil changes and scheduling'
   },
   {
     name: 'Mechanics',
@@ -54,14 +55,34 @@ const permissionGroups: PermissionGroup[] = [
     description: 'Manage mechanics and assignments'
   },
   {
+    name: 'Tire Management',
+    permissions: ['canViewTireManagement', 'canAddTireManagement', 'canEditTireManagement', 'canDeleteTireManagement'],
+    description: 'Tire inventory and management'
+  },
+  {
+    name: 'Trailers',
+    permissions: ['canViewTrailers', 'canAddTrailers', 'canEditTrailers', 'canDeleteTrailers'],
+    description: 'Trailer records and fleet actions'
+  },
+  {
     name: 'Reports',
     permissions: ['canViewReports'],
     description: 'Access to reports and analytics'
   },
   {
+    name: 'Advanced Analytics',
+    permissions: ['canViewAdvancedAnalytics'],
+    description: 'Access to fleet analytics'
+  },
+  {
     name: 'User Management',
     permissions: ['canViewUsers', 'canManageUsers'],
     description: 'View and manage users'
+  },
+  {
+    name: 'Profile',
+    permissions: ['canViewProfile', 'canEditProfile'],
+    description: 'View and update the user profile'
   },
   {
     name: 'Settings',
@@ -90,7 +111,7 @@ export default function PermissionsSettingsPage() {
 
   const fetchUsers = async () => {
     try {
-      const response = await fetch('/api/users')
+      const response = await apiGet('/api/users')
       if (response.ok) {
         const data = await response.json()
         setUsers(data)
@@ -150,15 +171,9 @@ export default function PermissionsSettingsPage() {
     if (!editingUser) return
 
     try {
-      const response = await fetch(`/api/users/${editingUser.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          role: selectedRole,
-          permissions: userPermissions
-        })
+      const response = await apiPut(`/api/users/${editingUser.id}`, {
+        role: selectedRole,
+        permissions: userPermissions
       })
 
       if (response.ok) {
@@ -302,7 +317,7 @@ export default function PermissionsSettingsPage() {
                 <SelectContent>
                   <SelectItem value="ADMIN"><LocalizedText>Admin</LocalizedText></SelectItem>
                   <SelectItem value="MANAGER"><LocalizedText>Manager</LocalizedText></SelectItem>
-                  <SelectItem value="MECHANIC"><LocalizedText>Mechanic</LocalizedText></SelectItem>
+                  <SelectItem value="USER"><LocalizedText>User</LocalizedText></SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -320,8 +335,9 @@ export default function PermissionsSettingsPage() {
                       <div key={permission} className="flex items-center space-x-2">
                         <Switch
                           id={permission}
-                          checked={userPermissions[permission]}
+                          checked={selectedRole === 'ADMIN' ? true : userPermissions[permission]}
                           onCheckedChange={(checked) => handlePermissionToggle(permission, checked)}
+                          disabled={selectedRole === 'ADMIN' || group.name === 'Admin'}
                         />
                         <Label htmlFor={permission} className="text-sm">
                           {getPermissionLabel(permission)}

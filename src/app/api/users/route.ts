@@ -9,12 +9,14 @@ export async function GET(request: NextRequest) {
     await requireRolePermission(request, 'users', 'read')
 
     const users = await db.user.findMany({
+      where: { isDeleted: false },
       select: {
         id: true,
         email: true,
         name: true,
         role: true,
         isActive: true,
+        isApproved: true,
         createdAt: true,
         updatedAt: true
       }

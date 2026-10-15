@@ -341,6 +341,10 @@ export class PermissionManager {
 
   hasPermission(resource: string, action: string): boolean {
     const permissions = this.getEffectivePermissions()
+
+    // Admin pages also use admin-only APIs, so role settings must not grant
+    // partial access that the server will reject.
+    if (resource === 'admin' && this.userRole !== 'ADMIN') return false
     
     switch (resource) {
       case 'dashboard':
@@ -470,12 +474,15 @@ export function hasPermission(permissions: Permission, permission: keyof Permiss
 export function canAccessPage(permissions: Permission, page: string): boolean {
   switch (page) {
     case '/':
+    case '/dashboard':
       return permissions.canViewDashboard
     case '/trucks':
       return permissions.canViewTrucks
     case '/maintenance':
       return permissions.canViewMaintenance
     case '/job-cards':
+      return permissions.canViewMaintenance
+    case '/oil-changes':
       return permissions.canViewMaintenance
     case '/mechanics':
       return permissions.canViewMechanics
@@ -488,8 +495,10 @@ export function canAccessPage(permissions: Permission, page: string): boolean {
     case '/users':
       return permissions.canViewUsers
     case '/settings':
+    case '/settings/permissions':
       return permissions.canViewSettings
     case '/admin':
+    case '/admin/activity':
       return permissions.canViewAdmin
     case '/advanced-analytics':
       return permissions.canViewAdvancedAnalytics

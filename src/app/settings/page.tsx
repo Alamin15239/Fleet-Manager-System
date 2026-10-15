@@ -18,7 +18,7 @@ import SystemUtilities from '@/components/system-utilities'
 import { toast } from '@/lib/localized-toast'
 import { useAuth } from '@/contexts/auth-context'
 import { usePermissions } from '@/contexts/permissions-context'
-import { defaultSettingsPermissions, defaultRolePermissions, normalizeRolePermissions } from '@/lib/permissions'
+import { defaultSettingsPermissions, defaultRolePermissions, normalizeRolePermissions, Permission } from '@/lib/permissions'
 import { apiGet, apiPut } from '@/lib/api'
 
 interface SettingsData {
@@ -140,6 +140,44 @@ const roleDefinitions = {
   }
 }
 
+const rolePermissionSections: { title: string; description: string; permissions: { field: keyof Permission; label: string }[] }[] = [
+  { title: 'Dashboard', description: 'Access to the main dashboard', permissions: [{ field: 'canViewDashboard', label: 'View dashboard' }] },
+  { title: 'Trucks', description: 'Truck fleet records and actions', permissions: [
+    { field: 'canViewTrucks', label: 'View trucks' }, { field: 'canAddTrucks', label: 'Add trucks' },
+    { field: 'canEditTrucks', label: 'Edit trucks' }, { field: 'canDeleteTrucks', label: 'Delete trucks' }
+  ] },
+  { title: 'Job Cards, Oil Changes & Maintenance', description: 'These pages share the maintenance records permission and API access.', permissions: [
+    { field: 'canViewMaintenance', label: 'View job cards, oil changes and maintenance' }, { field: 'canAddMaintenance', label: 'Create records' },
+    { field: 'canEditMaintenance', label: 'Edit records' }, { field: 'canDeleteMaintenance', label: 'Delete records' }
+  ] },
+  { title: 'Mechanics', description: 'Mechanic records and assignments', permissions: [
+    { field: 'canViewMechanics', label: 'View mechanics' }, { field: 'canAddMechanics', label: 'Add mechanics' },
+    { field: 'canEditMechanics', label: 'Edit mechanics' }, { field: 'canDeleteMechanics', label: 'Delete mechanics' }
+  ] },
+  { title: 'Tire Management', description: 'Tire inventory and management actions', permissions: [
+    { field: 'canViewTireManagement', label: 'View tire management' }, { field: 'canAddTireManagement', label: 'Add tire records' },
+    { field: 'canEditTireManagement', label: 'Edit tire records' }, { field: 'canDeleteTireManagement', label: 'Delete tire records' }
+  ] },
+  { title: 'Trailers', description: 'Trailer fleet records and actions', permissions: [
+    { field: 'canViewTrailers', label: 'View trailers' }, { field: 'canAddTrailers', label: 'Add trailers' },
+    { field: 'canEditTrailers', label: 'Edit trailers' }, { field: 'canDeleteTrailers', label: 'Delete trailers' }
+  ] },
+  { title: 'Reports', description: 'Maintenance and tire reports', permissions: [{ field: 'canViewReports', label: 'View and generate reports' }] },
+  { title: 'Advanced Analytics', description: 'Fleet analytics dashboard', permissions: [{ field: 'canViewAdvancedAnalytics', label: 'View advanced analytics' }] },
+  { title: 'Users', description: 'User accounts and access management', permissions: [
+    { field: 'canViewUsers', label: 'View users' }, { field: 'canManageUsers', label: 'Create, edit and delete users' }
+  ] },
+  { title: 'Profile', description: 'Personal account and profile page', permissions: [
+    { field: 'canViewProfile', label: 'View profile' }, { field: 'canEditProfile', label: 'Edit profile' }
+  ] },
+  { title: 'Settings', description: 'System settings page', permissions: [
+    { field: 'canViewSettings', label: 'View settings' }, { field: 'canManageSettings', label: 'Change settings' }
+  ] },
+  { title: 'Admin & Activity', description: 'These pages are restricted to Admin roles.', permissions: [
+    { field: 'canViewAdmin', label: 'View admin pages' }, { field: 'canManageAdmin', label: 'Manage admin functions' }
+  ] }
+]
+
 export default function SettingsPage() {
   const { isAdmin } = useAuth()
   const { canAccess, canUpdate, refreshPermissions } = usePermissions()
@@ -249,23 +287,8 @@ export default function SettingsPage() {
     }
   }
 
-  const rolePermissionFields: Record<string, string[]> = {
-    dashboard: ['canViewDashboard'],
-    trucks: ['canViewTrucks', 'canAddTrucks', 'canEditTrucks'],
-    'trucks-delete': ['canDeleteTrucks'],
-    maintenance: ['canViewMaintenance', 'canAddMaintenance', 'canEditMaintenance'],
-    'maintenance-delete': ['canDeleteMaintenance'],
-    reports: ['canViewReports'],
-    users: ['canViewUsers'],
-    'users-manage': ['canManageUsers'],
-    settings: ['canViewSettings'],
-    'settings-manage': ['canManageSettings']
-  }
-
-  const updateRolePermission = (role: string, permissionType: string, enabled: boolean) => {
+  const updateRolePermission = (role: string, field: keyof Permission, enabled: boolean) => {
     if (!settings) return
-    const fields = rolePermissionFields[permissionType]
-    if (!fields) return
 
     const currentRolePermissions = settings.rolePermissions || defaultSettingsPermissions.rolePermissions
     const rolePermissions = Object.fromEntries(
@@ -278,14 +301,33 @@ export default function SettingsPage() {
       ...(rolePermissions[role] || normalizeRolePermissions(defaultRolePermissions[role as keyof typeof defaultRolePermissions]))
     }
 
-    for (const field of fields) {
-      nextRolePermissions[field as keyof typeof nextRolePermissions] = enabled
+    const viewFieldByAction: Partial<Record<keyof Permission, keyof Permission>> = {
+      canAddTrucks: 'canViewTrucks', canEditTrucks: 'canViewTrucks', canDeleteTrucks: 'canViewTrucks',
+      canAddMaintenance: 'canViewMaintenance', canEditMaintenance: 'canViewMaintenance', canDeleteMaintenance: 'canViewMaintenance',
+      canAddMechanics: 'canViewMechanics', canEditMechanics: 'canViewMechanics', canDeleteMechanics: 'canViewMechanics',
+      canAddTireManagement: 'canViewTireManagement', canEditTireManagement: 'canViewTireManagement', canDeleteTireManagement: 'canViewTireManagement',
+      canAddTrailers: 'canViewTrailers', canEditTrailers: 'canViewTrailers', canDeleteTrailers: 'canViewTrailers',
+      canEditProfile: 'canViewProfile', canManageSettings: 'canViewSettings', canManageAdmin: 'canViewAdmin'
+    }
+    const actionsByViewField: Partial<Record<keyof Permission, (keyof Permission)[]>> = {
+      canViewTrucks: ['canAddTrucks', 'canEditTrucks', 'canDeleteTrucks'],
+      canViewMaintenance: ['canAddMaintenance', 'canEditMaintenance', 'canDeleteMaintenance'],
+      canViewMechanics: ['canAddMechanics', 'canEditMechanics', 'canDeleteMechanics'],
+      canViewTireManagement: ['canAddTireManagement', 'canEditTireManagement', 'canDeleteTireManagement'],
+      canViewTrailers: ['canAddTrailers', 'canEditTrailers', 'canDeleteTrailers'],
+      canViewProfile: ['canEditProfile'], canViewSettings: ['canManageSettings'], canViewAdmin: ['canManageAdmin']
+    }
+    nextRolePermissions[field] = enabled
+    const requiredViewField = viewFieldByAction[field]
+    if (enabled && requiredViewField) nextRolePermissions[requiredViewField] = true
+    if (!enabled && actionsByViewField[field]) {
+      for (const actionField of actionsByViewField[field]!) nextRolePermissions[actionField] = false
     }
     // Managing users requires access to the user list so the grant is usable.
-    if (permissionType === 'users-manage' && enabled) {
+    if (field === 'canManageUsers' && enabled) {
       nextRolePermissions.canViewUsers = true
     }
-    if (permissionType === 'users' && !enabled) {
+    if (field === 'canViewUsers' && !enabled) {
       nextRolePermissions.canManageUsers = false
     }
     rolePermissions[role] = nextRolePermissions
@@ -293,16 +335,14 @@ export default function SettingsPage() {
     updateSettings('rolePermissions', rolePermissions)
   }
 
-  const hasPermission = (role: string, permissionType: string): boolean => {
+  const hasPermission = (role: string, field: keyof Permission): boolean => {
     if (!settings) return false
-    const fields = rolePermissionFields[permissionType]
-    if (!fields) return false
 
     const rolePermissions = settings.rolePermissions || defaultSettingsPermissions.rolePermissions
     const permissions = normalizeRolePermissions(
       rolePermissions[role] || defaultRolePermissions[role as keyof typeof defaultRolePermissions]
     )
-    return fields.every((field) => permissions[field as keyof typeof permissions] === true)
+    return permissions[field] === true
   }
 
   const handleSave = async () => {
@@ -834,13 +874,21 @@ export default function SettingsPage() {
           <TabsContent value="roles" className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Shield className="h-5 w-5" />
-                  Role Permissions
-                </CardTitle>
-                <CardDescription>
-                  <LocalizedText>Configure what each role can do in the system. Admin users always have full access.</LocalizedText>
-                </CardDescription>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Shield className="h-5 w-5" />
+                    Role Permissions
+                  </CardTitle>
+                  <CardDescription className="mt-1">
+                    <LocalizedText>Configure access for every app area. Admin users always have full access.</LocalizedText>
+                  </CardDescription>
+                </div>
+                <Button onClick={handleSave} disabled={!canUpdate('settings') || !hasChanges || saving}>
+                  <Save className="h-4 w-4 mr-2" />
+                  <LocalizedText>{saving ? 'Saving...' : 'Save Role Permissions'}</LocalizedText>
+                </Button>
+              </div>
               </CardHeader>
               <CardContent className="space-y-6">
                 {/* Role Overview */}
@@ -867,248 +915,42 @@ export default function SettingsPage() {
                 {/* Permission Matrix */}
                 <div className="space-y-6">
                   <h3 className="text-lg font-semibold"><LocalizedText>Configure Permissions</LocalizedText></h3>
-                  
-                  {/* Dashboard Permissions */}
-                  <Card>
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-base flex items-center gap-2">
-                        <Settings className="h-4 w-4" />
-                        Dashboard Access
-                      </CardTitle>
-                      <CardDescription className="text-sm">
-                        <LocalizedText>Control who can view the main dashboard</LocalizedText>
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="pt-0">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {Object.entries(roleDefinitions).map(([roleKey, role]) => (
-                          <div key={roleKey} className="flex items-center justify-between p-3 border rounded-lg">
-                            <div className="flex items-center gap-2">
-                              <role.icon className="h-4 w-4" />
-                              <span className="font-medium text-sm"><LocalizedText>{role.name}</LocalizedText></span>
+                  {rolePermissionSections.map((section) => (
+                    <Card key={section.title}>
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-base"><LocalizedText>{section.title}</LocalizedText></CardTitle>
+                        <CardDescription className="text-sm"><LocalizedText>{section.description}</LocalizedText></CardDescription>
+                      </CardHeader>
+                      <CardContent className="pt-0">
+                        <div className="overflow-x-auto">
+                          <div className="min-w-[620px]">
+                            <div className="grid grid-cols-[minmax(220px,1fr)_repeat(3,minmax(110px,1fr))] items-center gap-3 border-b px-2 pb-2 text-xs font-semibold uppercase text-muted-foreground">
+                              <span><LocalizedText>Permission</LocalizedText></span>
+                              {Object.entries(roleDefinitions).map(([roleKey, role]) => (
+                                <span key={roleKey} className="text-center"><LocalizedText>{role.name}</LocalizedText></span>
+                              ))}
                             </div>
-                            <Switch
-                              checked={hasPermission(roleKey, 'dashboard')}
-                              onCheckedChange={(checked) => updateRolePermission(roleKey, 'dashboard', checked)}
-                              disabled={roleKey === 'ADMIN'} // Admin always has access
-                            />
+                            {section.permissions.map(({ field, label }) => (
+                              <div key={field} className="grid grid-cols-[minmax(220px,1fr)_repeat(3,minmax(110px,1fr))] items-center gap-3 border-b last:border-0 px-2 py-3">
+                                <span className="text-sm"><LocalizedText>{label}</LocalizedText></span>
+                                {Object.keys(roleDefinitions).map((roleKey) => (
+                                  <div key={roleKey} className="flex justify-center">
+                                    <Switch
+                                      aria-label={`${roleKey} ${label}`}
+                                      checked={roleKey === 'ADMIN' ? true : (field === 'canViewAdmin' || field === 'canManageAdmin') ? false : hasPermission(roleKey, field)}
+                                      onCheckedChange={(enabled) => updateRolePermission(roleKey, field, enabled)}
+                                      disabled={roleKey === 'ADMIN' || field === 'canViewAdmin' || field === 'canManageAdmin'}
+                                    />
+                                  </div>
+                                ))}
+                              </div>
+                            ))}
                           </div>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  {/* Truck Management */}
-                  <Card>
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-base flex items-center gap-2">
-                        <Settings className="h-4 w-4" />
-                        Truck Management
-                      </CardTitle>
-                      <CardDescription className="text-sm">
-                        <LocalizedText>Control who can manage trucks</LocalizedText>
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="pt-0 space-y-4">
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        {Object.entries(roleDefinitions).map(([roleKey, role]) => (
-                          <div key={roleKey} className="space-y-2">
-                            <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/50">
-                              <div className="flex items-center gap-2">
-                                <role.icon className="h-4 w-4" />
-                                <span className="font-medium"><LocalizedText>{role.name}</LocalizedText></span>
-                              </div>
-                            </div>
-                            <div className="space-y-2 ml-4">
-                              <div className="flex items-center justify-between">
-                                <span className="text-sm"><LocalizedText>View Trucks</LocalizedText></span>
-                                <Switch
-                                  checked={hasPermission(roleKey, 'trucks')}
-                                  onCheckedChange={(checked) => updateRolePermission(roleKey, 'trucks', checked)}
-                                  disabled={roleKey === 'ADMIN'}
-                                />
-                              </div>
-                              <div className="flex items-center justify-between">
-                                <span className="text-sm"><LocalizedText>Delete Trucks</LocalizedText></span>
-                                <Switch
-                                  checked={hasPermission(roleKey, 'trucks-delete')}
-                                  onCheckedChange={(checked) => updateRolePermission(roleKey, 'trucks-delete', checked)}
-                                  disabled={roleKey === 'ADMIN'}
-                                />
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  {/* Maintenance Management */}
-                  <Card>
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-base flex items-center gap-2">
-                        <Wrench className="h-4 w-4" />
-                        Maintenance Management
-                      </CardTitle>
-                      <CardDescription className="text-sm">
-                        <LocalizedText>Control who can manage maintenance records</LocalizedText>
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="pt-0 space-y-4">
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        {Object.entries(roleDefinitions).map(([roleKey, role]) => (
-                          <div key={roleKey} className="space-y-2">
-                            <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/50">
-                              <div className="flex items-center gap-2">
-                                <role.icon className="h-4 w-4" />
-                                <span className="font-medium"><LocalizedText>{role.name}</LocalizedText></span>
-                              </div>
-                            </div>
-                            <div className="space-y-2 ml-4">
-                              <div className="flex items-center justify-between">
-                                <span className="text-sm"><LocalizedText>Manage Maintenance</LocalizedText></span>
-                                <Switch
-                                  checked={hasPermission(roleKey, 'maintenance')}
-                                  onCheckedChange={(checked) => updateRolePermission(roleKey, 'maintenance', checked)}
-                                  disabled={roleKey === 'ADMIN'}
-                                />
-                              </div>
-                              <div className="flex items-center justify-between">
-                                <span className="text-sm"><LocalizedText>Delete Records</LocalizedText></span>
-                                <Switch
-                                  checked={hasPermission(roleKey, 'maintenance-delete')}
-                                  onCheckedChange={(checked) => updateRolePermission(roleKey, 'maintenance-delete', checked)}
-                                  disabled={roleKey === 'ADMIN'}
-                                />
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  {/* Reports Access */}
-                  <Card>
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-base flex items-center gap-2">
-                        <Settings className="h-4 w-4" />
-                        Reports Access
-                      </CardTitle>
-                      <CardDescription className="text-sm">
-                        <LocalizedText>Control who can view and create reports</LocalizedText>
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="pt-0">
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        {Object.entries(roleDefinitions).map(([roleKey, role]) => (
-                          <div key={roleKey} className="flex items-center justify-between p-3 border rounded-lg">
-                            <div className="flex items-center gap-2">
-                              <role.icon className="h-4 w-4" />
-                              <span className="font-medium"><LocalizedText>{role.name}</LocalizedText></span>
-                            </div>
-                            <Switch
-                              checked={hasPermission(roleKey, 'reports')}
-                              onCheckedChange={(checked) => updateRolePermission(roleKey, 'reports', checked)}
-                              disabled={roleKey === 'ADMIN'}
-                            />
-                          </div>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  {/* User Management */}
-                  <Card>
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-base flex items-center gap-2">
-                        <Users className="h-4 w-4" />
-                        User Management
-                      </CardTitle>
-                      <CardDescription className="text-sm">
-                        <LocalizedText>Control who can manage users</LocalizedText>
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="pt-0 space-y-4">
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        {Object.entries(roleDefinitions).map(([roleKey, role]) => (
-                          <div key={roleKey} className="space-y-2">
-                            <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/50">
-                              <div className="flex items-center gap-2">
-                                <role.icon className="h-4 w-4" />
-                                <span className="font-medium"><LocalizedText>{role.name}</LocalizedText></span>
-                              </div>
-                            </div>
-                            <div className="space-y-2 ml-4">
-                              <div className="flex items-center justify-between">
-                                <span className="text-sm"><LocalizedText>View Users</LocalizedText></span>
-                                <Switch
-                                  checked={hasPermission(roleKey, 'users')}
-                                  onCheckedChange={(checked) => updateRolePermission(roleKey, 'users', checked)}
-                                  disabled={roleKey === 'ADMIN'}
-                                />
-                              </div>
-                              <div className="flex items-center justify-between">
-                                <span className="text-sm"><LocalizedText>Manage Users</LocalizedText></span>
-                                <Switch
-                                  checked={hasPermission(roleKey, 'users-manage')}
-                                  onCheckedChange={(checked) => updateRolePermission(roleKey, 'users-manage', checked)}
-                                  disabled={roleKey === 'ADMIN'}
-                                />
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  {/* Settings Access */}
-                  <Card>
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-base flex items-center gap-2">
-                        <Settings className="h-4 w-4" />
-                        Settings Access
-                      </CardTitle>
-                      <CardDescription className="text-sm">
-                        <LocalizedText>Control who can change settings</LocalizedText>
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="pt-0 space-y-4">
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        {Object.entries(roleDefinitions).map(([roleKey, role]) => (
-                          <div key={roleKey} className="space-y-2">
-                            <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/50">
-                              <div className="flex items-center gap-2">
-                                <role.icon className="h-4 w-4" />
-                                <span className="font-medium"><LocalizedText>{role.name}</LocalizedText></span>
-                              </div>
-                            </div>
-                            <div className="space-y-2 ml-4">
-                              <div className="flex items-center justify-between">
-                                <span className="text-sm"><LocalizedText>View Settings</LocalizedText></span>
-                                <Switch
-                                  checked={hasPermission(roleKey, 'settings')}
-                                  onCheckedChange={(checked) => updateRolePermission(roleKey, 'settings', checked)}
-                                  disabled={roleKey === 'ADMIN'}
-                                />
-                              </div>
-                              <div className="flex items-center justify-between">
-                                <span className="text-sm"><LocalizedText>Change Settings</LocalizedText></span>
-                                <Switch
-                                  checked={hasPermission(roleKey, 'settings-manage')}
-                                  onCheckedChange={(checked) => updateRolePermission(roleKey, 'settings-manage', checked)}
-                                  disabled={roleKey === 'ADMIN'}
-                                />
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
                 </div>
-
                 {/* Quick Summary */}
                 <Card className="bg-blue-50 border-blue-200">
                   <CardHeader className="pb-3">

@@ -7,6 +7,7 @@ interface User {
   name: string | null
   role: 'ADMIN' | 'MANAGER' | 'USER'
   isActive: boolean
+  isApproved: boolean
   createdAt: string
   updatedAt: string
 }
