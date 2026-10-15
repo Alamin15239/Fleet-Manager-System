@@ -146,7 +146,9 @@ export async function applyWorkbookChange(tx: any, change: Change, userId: strin
       driverName: text(row, 'Driver'),
       quantity: numberValue(row, 'Quantity', { required: true, integer: true, minimum: 0 })!,
       serialNumber: text(row, 'Serial Number'),
-      manufacturer: text(row, 'Manufacturer', true)!,
+      // Older/source tire rows may not include a manufacturer. Keep that field
+      // blank rather than rejecting the row or inventing a manufacturer value.
+      manufacturer: String(row.Manufacturer ?? '').trim(),
       origin: tireOrigin(row.Origin),
       notes: text(row, 'Notes'),
       ...(dateValue(row, 'Date') ? { createdAt: dateValue(row, 'Date')! } : {})
