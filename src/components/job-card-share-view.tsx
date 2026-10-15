@@ -9,7 +9,7 @@ import { downloadJobCardPdf } from '@/lib/job-card-pdf'
 
 export default function JobCardShareView() {
   const params = useParams<{ id: string }>()
-  const id = String(params.id || '')
+  const id = String(params?.id || '')
   const previewRef = useRef<HTMLIFrameElement>(null)
   const [documentHtml, setDocumentHtml] = useState('')
   const [jobNumber, setJobNumber] = useState('Job card')

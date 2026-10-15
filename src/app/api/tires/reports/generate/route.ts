@@ -7,10 +7,6 @@ export async function GET(request: NextRequest) {
     // Use custom JWT authentication
     await requireRolePermission(request, 'reports', 'read')
     
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-    
     // Debug: Check total tire count first
     const totalTireCount = await db.tire.count()
     console.log(`Total tires in database: ${totalTireCount}`)

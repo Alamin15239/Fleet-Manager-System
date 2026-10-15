@@ -29,14 +29,12 @@ export async function apiFetch(url: string, options: RequestInit = {}) {
     console.log('API Fetch - Running on server side, no localStorage available')
   }
   
-  const headers = {
-    'Content-Type': 'application/json',
-    ...options.headers,
-  }
+  const headers = new Headers(options.headers)
+  if (!headers.has('Content-Type')) headers.set('Content-Type', 'application/json')
 
   // Add authorization header if token exists
   if (token) {
-    headers['Authorization'] = `Bearer ${token}`
+    headers.set('Authorization', `Bearer ${token}`)
     console.log('API Fetch - Authorization header added')
   } else {
     console.log('API Fetch - No token available, request will be unauthenticated')

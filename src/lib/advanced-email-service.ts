@@ -1,4 +1,4 @@
-import { Resend } from 'resend'
+import { Resend, type CreateBatchOptions, type CreateEmailOptions } from 'resend'
 
 interface EmailData {
   id: string
@@ -44,14 +44,19 @@ export class AdvancedEmailService {
     scheduledAt?: string
   }) {
     try {
-      const { data, error } = await this.getResend().emails.send({
+      const content = params.html !== undefined
+        ? { html: params.html, ...(params.text !== undefined ? { text: params.text } : {}) }
+        : params.text !== undefined ? { text: params.text } : null
+      if (!content) throw new Error('Email HTML or text content is required')
+
+      const emailOptions: CreateEmailOptions = {
         from: params.from,
         to: Array.isArray(params.to) ? params.to : [params.to],
         subject: params.subject,
-        html: params.html,
-        text: params.text,
-        scheduledAt: params.scheduledAt
-      })
+        ...content,
+        ...(params.scheduledAt !== undefined ? { scheduledAt: params.scheduledAt } : {})
+      }
+      const { data, error } = await this.getResend().emails.send(emailOptions)
 
       if (error) {
         throw new Error(`Failed to send email: ${error.message}`)
@@ -67,7 +72,14 @@ export class AdvancedEmailService {
   // Send batch emails
   async sendBatchEmails(emails: BatchEmailRequest[]) {
     try {
-      const { data, error } = await this.getResend().batch.send(emails)
+      const payload: CreateBatchOptions = emails.map(email => {
+        const content = email.html !== undefined
+          ? { html: email.html, ...(email.text !== undefined ? { text: email.text } : {}) }
+          : email.text !== undefined ? { text: email.text } : null
+        if (!content) throw new Error('Each email needs HTML or text content')
+        return { from: email.from, to: email.to, subject: email.subject, ...content }
+      })
+      const { data, error } = await this.getResend().batch.send(payload)
 
       if (error) {
         throw new Error(`Failed to send batch emails: ${error.message}`)
@@ -99,7 +111,8 @@ export class AdvancedEmailService {
   // Update scheduled email
   async updateEmail(emailId: string, params: { scheduledAt?: string }) {
     try {
-      const { data, error } = await this.getResend().emails.update(emailId, params)
+      if (!params.scheduledAt) throw new Error('A new scheduled time is required')
+      const { data, error } = await this.getResend().emails.update({ id: emailId, scheduledAt: params.scheduledAt })
 
       if (error) {
         throw new Error(`Failed to update email: ${error.message}`)

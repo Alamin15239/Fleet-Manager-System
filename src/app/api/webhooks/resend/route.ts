@@ -30,7 +30,7 @@ function verifyWebhookSignature(payload: string, signature: string, secret: stri
 
 export async function POST(request: NextRequest) {
   try {
-    const headersList = headers()
+    const headersList = await headers()
     const signature = headersList.get('resend-signature')
     const webhookSecret = process.env.RESEND_WEBHOOK_SECRET
 

@@ -137,11 +137,12 @@ export async function PUT(
 
     let email: string | undefined
     if (body.email !== undefined) {
-      email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : ''
+      const candidateEmail = typeof body.email === 'string' ? body.email.trim().toLowerCase() : ''
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-      if (!emailRegex.test(email)) {
+      if (!emailRegex.test(candidateEmail)) {
         return NextResponse.json({ error: 'Invalid email format' }, { status: 400 })
       }
+      email = candidateEmail
 
       const userWithEmail = await db.user.findUnique({
         where: { email },

@@ -66,8 +66,9 @@ class RealtimeSync {
       
       console.log(`✅ Synced ${filename} to production`);
     } catch (error) {
-      console.error(`❌ Sync failed for ${filename}:`, error);
-      this.io.emit('sync-error', { filename, error: error.message });
+      const message = error instanceof Error ? error.message : String(error)
+      console.error(`❌ Sync failed for ${filename}:`, message);
+      this.io.emit('sync-error', { filename, error: message });
     }
   }
 
@@ -98,7 +99,7 @@ class RealtimeSync {
           await this.deployToProduction();
           socket.emit('api-synced', { success: true });
         } catch (error) {
-          socket.emit('api-sync-error', { error: error.message });
+          socket.emit('api-sync-error', { error: error instanceof Error ? error.message : String(error) });
         }
       });
     });

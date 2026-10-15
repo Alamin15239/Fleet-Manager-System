@@ -49,7 +49,7 @@ export async function generatePDF(documentId: string, content: string, title: st
       </html>
     `;
 
-    await page.setContent(html, { waitUntil: 'networkidle0' });
+    await page.setContent(html, { waitUntil: 'load' });
     
     const pdf = await page.pdf({
       format: 'A4',

@@ -109,7 +109,7 @@ export function SystemPerformanceCharts() {
     }, 300000)
     
     return () => clearInterval(interval)
-  }, [timeRange])
+  }, [])
 
   const formatTooltipValue = (value: number, name: string) => {
     switch (name) {
