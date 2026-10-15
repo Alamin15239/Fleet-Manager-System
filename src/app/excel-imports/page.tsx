@@ -17,11 +17,13 @@ type WorkbookChange = {
   entityType: string
   operation: 'CREATE' | 'UPDATE'
   rowData: Record<string, unknown>
+  currentAppData: Record<string, unknown> | null
   changes: Record<string, { from: unknown; to: unknown }> | null
   status: string
   error: string | null
   detectedAt: string
   canApply: boolean
+  canResolveWorkbookValue: boolean
 }
 
 function showValue(value: unknown) {
@@ -37,6 +39,8 @@ export default function ExcelImportsPage() {
   const [activeId, setActiveId] = useState<string | null>(null)
   const [watchError, setWatchError] = useState<string | null>(null)
   const [bulkConfirmOpen, setBulkConfirmOpen] = useState(false)
+  const [bulkMode, setBulkMode] = useState<'pending' | 'conflicts'>('pending')
+  const [conflictToResolve, setConflictToResolve] = useState<WorkbookChange | null>(null)
   const [bulkProgress, setBulkProgress] = useState<{ complete: number; total: number } | null>(null)
 
   const loadChanges = useCallback(async () => {
@@ -76,10 +80,14 @@ export default function ExcelImportsPage() {
   }
 
   const eligibleChanges = changes.filter(change => change.status === 'PENDING' && change.canApply)
-  const excludedChanges = changes.length - eligibleChanges.length
+  const resolvableConflicts = changes.filter(change => change.status === 'CONFLICT' && change.canResolveWorkbookValue)
+  const bulkEligibleChanges = bulkMode === 'conflicts' ? resolvableConflicts : eligibleChanges
+  const sameStatusChanges = changes.filter(change => change.status === (bulkMode === 'conflicts' ? 'CONFLICT' : 'PENDING'))
+  const excludedChanges = sameStatusChanges.length - bulkEligibleChanges.length
 
   const applyAllChanges = async () => {
-    const ids = eligibleChanges.map(change => change.id)
+    const resolveConflicts = bulkMode === 'conflicts'
+    const ids = bulkEligibleChanges.map(change => change.id)
     if (!ids.length) return
     setBulkConfirmOpen(false)
     setActiveId('bulk')
@@ -93,7 +101,9 @@ export default function ExcelImportsPage() {
     try {
       for (let index = 0; index < ids.length; index += 20) {
         const batch = ids.slice(index, index + 20)
-        const response = await apiPost('/api/integrations/onedrive/imports', { action: 'apply-all', ids: batch })
+        const response = await apiPost('/api/integrations/onedrive/imports', {
+          action: resolveConflicts ? 'resolve-conflicts' : 'apply-all', ids: batch
+        })
         const data = await response.json()
         if (!response.ok) throw new Error(data.error || 'Could not apply workbook changes.')
         failed += data.failedCount || 0
@@ -111,6 +121,8 @@ export default function ExcelImportsPage() {
         toast.warning('Some workbook changes remain. Refresh and review the remaining rows.')
       } else if (workbookSync === false) {
         toast.success('All eligible changes were applied. Workbook sync is queued; retry Sync Now if it does not finish.')
+      } else if (resolveConflicts) {
+        toast.success('Workbook values were applied to the eligible conflicts.')
       } else {
         toast.success('Bulk apply finished. All eligible changes were applied.')
       }
@@ -122,6 +134,23 @@ export default function ExcelImportsPage() {
     } finally {
       setActiveId(null)
       setBulkProgress(null)
+    }
+  }
+
+  const resolveWorkbookConflict = async (change: WorkbookChange) => {
+    setActiveId(change.id)
+    try {
+      const response = await apiPost('/api/integrations/onedrive/imports', { id: change.id, action: 'resolve-workbook' })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'Could not apply workbook values.')
+      if (data.workbookSync === false) toast.success('Workbook values were applied. Sync is waiting for the remaining changes to be reviewed.')
+      else toast.success('Workbook values were applied after role and validation checks.')
+      await loadChanges()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not apply workbook values.')
+      await loadChanges()
+    } finally {
+      setActiveId(null)
     }
   }
 
@@ -174,9 +203,15 @@ export default function ExcelImportsPage() {
         </div>
         <div className="flex flex-wrap gap-2">
           {eligibleChanges.length > 0 && (
-            <Button onClick={() => setBulkConfirmOpen(true)} disabled={loading || activeId !== null}>
+            <Button onClick={() => { setBulkMode('pending'); setBulkConfirmOpen(true) }} disabled={loading || activeId !== null}>
               {activeId === 'bulk' ? <Loader2 className="me-2 h-4 w-4 animate-spin" /> : <CheckCheck className="me-2 h-4 w-4" />}
               {activeId === 'bulk' && bulkProgress ? <><LocalizedText>Applying changes</LocalizedText> {bulkProgress.complete}/{bulkProgress.total}</> : <LocalizedText>Apply all eligible shown</LocalizedText>}
+            </Button>
+          )}
+          {resolvableConflicts.length > 0 && (
+            <Button variant="destructive" onClick={() => { setBulkMode('conflicts'); setBulkConfirmOpen(true) }} disabled={loading || activeId !== null}>
+              {activeId === 'bulk' && bulkMode === 'conflicts' ? <Loader2 className="me-2 h-4 w-4 animate-spin" /> : <CheckCheck className="me-2 h-4 w-4" />}
+              <LocalizedText>Use workbook values for conflicts</LocalizedText>
             </Button>
           )}
           <Button variant="outline" onClick={scanWorkbook} disabled={loading || activeId !== null}>
@@ -226,6 +261,12 @@ export default function ExcelImportsPage() {
                         <LocalizedText>{change.canApply ? 'Apply change' : 'Role cannot apply'}</LocalizedText>
                       </Button>
                     )}
+                    {change.status === 'CONFLICT' && change.canResolveWorkbookValue && (
+                      <Button size="sm" variant="destructive" onClick={() => setConflictToResolve(change)} disabled={activeId !== null}>
+                        {activeId === change.id ? <Loader2 className="me-2 h-4 w-4 animate-spin" /> : <Check className="me-2 h-4 w-4" />}
+                        <LocalizedText>Use workbook value</LocalizedText>
+                      </Button>
+                    )}
                     {isAdmin && (
                       <Button size="sm" variant="outline" onClick={() => void dismissChange(change)} disabled={activeId !== null}>
                         <X className="me-2 h-4 w-4" /><LocalizedText>Dismiss</LocalizedText>
@@ -240,15 +281,16 @@ export default function ExcelImportsPage() {
                   <h3 className="mb-2 text-sm font-semibold"><LocalizedText>Complete workbook row</LocalizedText></h3>
                   {Object.keys(change.rowData).length > 0 ? (
                     <div className="overflow-x-auto rounded-md border">
-                      <table className="w-full min-w-[620px] text-sm">
-                        <thead className="bg-muted/50 text-left"><tr><th className="p-2"><LocalizedText>Field</LocalizedText></th><th className="p-2"><LocalizedText>Workbook value</LocalizedText></th><th className="p-2"><LocalizedText>Change</LocalizedText></th></tr></thead>
+                      <table className="w-full min-w-[820px] text-sm">
+                        <thead className="bg-muted/50 text-left"><tr><th className="p-2"><LocalizedText>Field</LocalizedText></th><th className="p-2"><LocalizedText>Workbook value</LocalizedText></th><th className="p-2"><LocalizedText>Current app value</LocalizedText></th><th className="p-2"><LocalizedText>Last synced value</LocalizedText></th></tr></thead>
                         <tbody>{Object.entries(change.rowData).map(([field, value]) => {
                           const diff = change.changes?.[field]
                           return (
                             <tr key={field} className={`border-t align-top ${diff ? 'bg-amber-50/70 dark:bg-amber-950/20' : ''}`}>
                               <td className="whitespace-nowrap p-2 font-medium">{field}{diff && <Badge variant="outline" className="ms-2"><LocalizedText>Changed</LocalizedText></Badge>}</td>
                               <td className="max-w-[36rem] break-words p-2">{showValue(value)}</td>
-                              <td className="max-w-[24rem] break-words p-2 text-muted-foreground">{diff ? <><LocalizedText>Previous app value</LocalizedText>: {showValue(diff.from)}</> : <LocalizedText>Unchanged in workbook</LocalizedText>}</td>
+                              <td className="max-w-[36rem] break-words p-2">{change.currentAppData ? showValue(change.currentAppData[field]) : <LocalizedText>{change.operation === 'CREATE' ? 'New record' : 'Current app record unavailable'}</LocalizedText>}</td>
+                              <td className="max-w-[24rem] break-words p-2 text-muted-foreground">{diff ? showValue(diff.from) : '—'}</td>
                             </tr>
                           )
                         })}</tbody>
@@ -267,20 +309,50 @@ export default function ExcelImportsPage() {
       <AlertDialog open={bulkConfirmOpen} onOpenChange={setBulkConfirmOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle><LocalizedText>Apply all eligible workbook changes?</LocalizedText></AlertDialogTitle>
+            <AlertDialogTitle><LocalizedText>{bulkMode === 'conflicts' ? 'Use workbook values for all eligible conflicts?' : 'Apply all eligible workbook changes?'}</LocalizedText></AlertDialogTitle>
             <AlertDialogDescription>
-              <LocalizedText>It will apply the complete rows displayed on this page after checking each one against your role and the app’s validation rules.</LocalizedText>
+              <LocalizedText>{bulkMode === 'conflicts' ? 'This replaces the app values for the conflicting fields with workbook values. Each full row is shown on this page.' : 'It will apply the complete rows displayed on this page after checking each one against your role and the app’s validation rules.'}</LocalizedText>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="space-y-1 rounded-md border bg-muted/30 p-3 text-sm">
-            <p><strong>{eligibleChanges.length}</strong> <LocalizedText>eligible pending rows will be applied.</LocalizedText></p>
-            {excludedChanges > 0 && <p className="text-muted-foreground"><strong>{excludedChanges}</strong> <LocalizedText>rows are excluded because of conflicts, permissions, or status.</LocalizedText></p>}
-            <p className="text-muted-foreground"><LocalizedText>Conflicts and rows outside your permissions will be skipped. Any row that fails app validation will remain pending with an error for review.</LocalizedText></p>
+            <p><strong>{bulkEligibleChanges.length}</strong> <LocalizedText>{bulkMode === 'conflicts' ? 'eligible conflicts will use workbook values.' : 'eligible pending rows will be applied.'}</LocalizedText></p>
+            {excludedChanges > 0 && <p className="text-muted-foreground"><strong>{excludedChanges}</strong> <LocalizedText>rows of this type are excluded by permissions or conflict details.</LocalizedText></p>}
+            <p className="text-muted-foreground"><LocalizedText>{bulkMode === 'conflicts' ? 'Unsafe conflicts and rows outside your permissions will be skipped. Any row that fails app validation will remain in conflict with an error for review.' : 'Conflicts and rows outside your permissions will be skipped. Any row that fails app validation will remain pending with an error for review.'}</LocalizedText></p>
           </div>
           <AlertDialogFooter>
             <AlertDialogCancel><LocalizedText>Cancel</LocalizedText></AlertDialogCancel>
             <AlertDialogAction onClick={(event) => { event.preventDefault(); void applyAllChanges() }}>
-              <LocalizedText>Apply eligible rows</LocalizedText>
+              <LocalizedText>{bulkMode === 'conflicts' ? 'Use workbook values' : 'Apply eligible rows'}</LocalizedText>
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={Boolean(conflictToResolve)} onOpenChange={(open) => { if (!open) setConflictToResolve(null) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle><LocalizedText>Replace conflicting app fields with workbook values?</LocalizedText></AlertDialogTitle>
+            <AlertDialogDescription><LocalizedText>Only the changed workbook fields listed below will replace their current app values. The record will be checked against your role and app validation rules.</LocalizedText></AlertDialogDescription>
+          </AlertDialogHeader>
+          {conflictToResolve && (
+            <div className="max-h-64 space-y-2 overflow-y-auto rounded-md border p-3 text-sm">
+              {Object.keys(conflictToResolve.changes || {}).map(field => (
+                <div key={field} className="grid gap-1 border-b pb-2 last:border-0 sm:grid-cols-3">
+                  <strong>{field}</strong>
+                  <span><LocalizedText>Workbook</LocalizedText>: {showValue(conflictToResolve.rowData[field])}</span>
+                  <span><LocalizedText>Current app</LocalizedText>: {showValue(conflictToResolve.currentAppData?.[field])}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel><LocalizedText>Cancel</LocalizedText></AlertDialogCancel>
+            <AlertDialogAction onClick={(event) => {
+              event.preventDefault()
+              if (conflictToResolve) void resolveWorkbookConflict(conflictToResolve)
+              setConflictToResolve(null)
+            }}>
+              <LocalizedText>Use workbook value</LocalizedText>
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
