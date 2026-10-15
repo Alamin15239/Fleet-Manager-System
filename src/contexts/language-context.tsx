@@ -977,6 +977,7 @@ const phraseTranslations: Record<string, string> = {
   'Operation completed successfully': 'اكتملت العملية بنجاح',
   'Are you sure?': 'هل أنت متأكد؟',
   'Save Changes': 'حفظ التغييرات',
+  'Saving...': 'جارٍ الحفظ...',
   'Fleet Management': 'إدارة الأسطول',
   'Manage your truck fleet': 'أدِر أسطول الشاحنات',
   'Trailer Management': 'إدارة المقطورات',

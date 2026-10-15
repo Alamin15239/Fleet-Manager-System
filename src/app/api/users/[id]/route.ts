@@ -135,6 +135,31 @@ export async function PUT(
       return NextResponse.json({ error: 'Only administrators can change elevated roles or account permissions' }, { status: 403 })
     }
 
+    let email: string | undefined
+    if (body.email !== undefined) {
+      email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : ''
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      if (!emailRegex.test(email)) {
+        return NextResponse.json({ error: 'Invalid email format' }, { status: 400 })
+      }
+
+      const userWithEmail = await db.user.findUnique({
+        where: { email },
+        select: { id: true }
+      })
+      if (userWithEmail && userWithEmail.id !== id) {
+        return NextResponse.json({ error: 'User with this email already exists' }, { status: 409 })
+      }
+    }
+
+    let password: string | undefined
+    if (body.password !== undefined && body.password !== '') {
+      if (typeof body.password !== 'string' || body.password.length < 8) {
+        return NextResponse.json({ error: 'Password must be at least 8 characters long' }, { status: 400 })
+      }
+      password = body.password
+    }
+
     // Prevent self-deactivation
     if (body.isActive === false && id === caller.id) {
       return NextResponse.json(
@@ -153,11 +178,13 @@ export async function PUT(
     }
 
     const updatedUser = await updateUser(id, {
+      email,
       name: body.name,
       role: body.role,
       isActive: body.isActive,
       isApproved: body.isApproved,
-      permissions: body.permissions
+      permissions: body.permissions,
+      password
     })
 
     // Broadcast real-time update (if socket.io is available)
@@ -188,6 +215,9 @@ export async function PUT(
     }
     if (error instanceof Error && ['No token provided', 'Invalid token'].includes(error.message)) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+    }
+    if (typeof error === 'object' && error !== null && 'code' in error && error.code === 'P2002') {
+      return NextResponse.json({ error: 'User with this email already exists' }, { status: 409 })
     }
 
     return NextResponse.json(

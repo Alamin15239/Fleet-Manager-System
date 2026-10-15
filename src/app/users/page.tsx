@@ -52,6 +52,7 @@ export default function UsersPage() {
   })
   const [dbHealth, setDbHealth] = useState<any>(null)
   const [showDebug, setShowDebug] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
 
   useEffect(() => {
     checkDbHealth()
@@ -80,14 +81,20 @@ export default function UsersPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
-    const success = editingUser 
-      ? await updateUser(editingUser.id, formData)
-      : await createUser(formData)
-    
-    if (success) {
-      setIsDialogOpen(false)
-      resetForm()
+
+    if (isSaving) return
+    setIsSaving(true)
+    try {
+      const success = editingUser
+        ? await updateUser(editingUser.id, formData)
+        : await createUser(formData)
+
+      if (success) {
+        setIsDialogOpen(false)
+        resetForm()
+      }
+    } finally {
+      setIsSaving(false)
     }
   }
 
@@ -258,11 +265,11 @@ export default function UsersPage() {
                 <Label htmlFor="isActive"><LocalizedText>Active Account</LocalizedText></Label>
               </div>
               <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
+                <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)} disabled={isSaving}>
                   Cancel
                 </Button>
-                <Button type="submit">
-                  {editingUser ? 'Update User' : 'Create User'}
+                <Button type="submit" disabled={isSaving}>
+                  {isSaving ? 'Saving...' : editingUser ? 'Update User' : 'Create User'}
                 </Button>
               </DialogFooter>
             </form>

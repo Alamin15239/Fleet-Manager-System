@@ -131,7 +131,10 @@ export const useRealtimeUsers = (enabled = true) => {
   const updateUser = useCallback(async (userId: string, userData: any) => {
     try {
       const token = localStorage.getItem('authToken')
-      if (!token) return false
+      if (!token) {
+        toast.error('Authentication required')
+        return false
+      }
 
       const response = await fetch(`/api/users/${userId}`, {
         method: 'PUT',

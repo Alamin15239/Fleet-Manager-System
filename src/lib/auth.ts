@@ -252,16 +252,24 @@ export async function createUser(userData: {
 }
 
 export async function updateUser(userId: string, updateData: {
+  email?: string
   name?: string
   role?: string
   isActive?: boolean
   isApproved?: boolean
   permissions?: any
+  password?: string
 }) {
   try {
+    const { password, ...userFields } = updateData
+    const data: Record<string, unknown> = { ...userFields }
+    if (password) {
+      data.password = await hashPassword(password)
+    }
+
     const user = await db.user.update({
       where: { id: userId },
-      data: updateData as any,
+      data: data as any,
       select: {
         id: true,
         email: true,
