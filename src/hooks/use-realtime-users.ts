@@ -12,6 +12,10 @@ interface User {
   updatedAt: string
 }
 
+type CreateUserResult =
+  | { success: true }
+  | { success: false; error: string }
+
 export const useRealtimeUsers = (enabled = true) => {
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
@@ -99,12 +103,13 @@ export const useRealtimeUsers = (enabled = true) => {
     }
   }, [fetchUsers])
 
-  const createUser = useCallback(async (userData: any) => {
+  const createUser = useCallback(async (userData: any): Promise<CreateUserResult> => {
     try {
       const token = localStorage.getItem('authToken')
       if (!token) {
-        toast.error('Authentication required. Please sign in again.')
-        return false
+        const message = 'Authentication required. Please sign in again.'
+        toast.error(message)
+        return { success: false, error: message }
       }
 
       const response = await fetch('/api/users', {
@@ -126,16 +131,18 @@ export const useRealtimeUsers = (enabled = true) => {
         }
         toast.success(result.message || 'User created successfully')
         void fetchUsers()
-        return true
+        return { success: true }
       } else {
         const error = await response.json().catch(() => ({}))
-        toast.error(error.error || `Failed to create user (${response.status})`)
-        return false
+        const message = error.error || `Failed to create user (${response.status})`
+        toast.error(message)
+        return { success: false, error: message }
       }
     } catch (error) {
       console.error('Error creating user:', error)
-      toast.error(error instanceof Error ? error.message : 'Failed to create user')
-      return false
+      const message = error instanceof Error ? error.message : 'Failed to create user'
+      toast.error(message)
+      return { success: false, error: message }
     }
   }, [fetchUsers])
 

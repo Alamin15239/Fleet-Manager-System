@@ -56,6 +56,7 @@ export default function UsersPage() {
   const [dbHealth, setDbHealth] = useState<any>(null)
   const [showDebug, setShowDebug] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+  const [formError, setFormError] = useState<string | null>(null)
   const [processingUserId, setProcessingUserId] = useState<string | null>(null)
 
   useEffect(() => {
@@ -88,15 +89,23 @@ export default function UsersPage() {
 
     if (isSaving) return
     setIsSaving(true)
+    setFormError(null)
     try {
-      const success = editingUser
-        ? await updateUser(editingUser.id, formData)
-        : await createUser(formData)
+      let success: boolean
+      if (editingUser) {
+        success = await updateUser(editingUser.id, formData)
+      } else {
+        const result = await createUser(formData)
+        success = result.success
+        if (!result.success) setFormError(result.error)
+      }
 
       if (success) {
         setIsDialogOpen(false)
         resetForm()
       }
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : 'Unable to save this user. Please try again.')
     } finally {
       setIsSaving(false)
     }
@@ -151,6 +160,7 @@ export default function UsersPage() {
 
   const resetForm = () => {
     setEditingUser(null)
+    setFormError(null)
     setFormData({
       email: '',
       name: '',
@@ -243,6 +253,11 @@ export default function UsersPage() {
                 }
               </DialogDescription>
             </DialogHeader>
+            {formError && (
+              <Alert className="border-destructive text-destructive" role="alert">
+                <AlertDescription>{formError}</AlertDescription>
+              </Alert>
+            )}
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="email"><LocalizedText>Email</LocalizedText></Label>
@@ -282,8 +297,13 @@ export default function UsersPage() {
                   type="password"
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  minLength={8}
+                  autoComplete="new-password"
                   required={!editingUser}
                 />
+                {!editingUser && (
+                  <p className="text-xs text-muted-foreground"><LocalizedText>Password must be at least 8 characters long.</LocalizedText></p>
+                )}
               </div>
               <div className="flex items-center space-x-2">
                 <input
