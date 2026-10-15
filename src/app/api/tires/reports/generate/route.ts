@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireRolePermission } from '@/lib/permission-middleware'
 import { db } from '@/lib/db'
-import { TIRE_ANALYTICS_ORIGINS } from '@/lib/tire-analytics'
 
 export async function GET(request: NextRequest) {
   try {
@@ -43,10 +42,9 @@ export async function GET(request: NextRequest) {
       driverName
     })
 
-    // Match Tire Analytics: count OUT QTY for recognized origins only.
+    // Match Tire Analytics: count every positive OUT QTY regardless of origin.
     const where: any = {
-      quantity: { gt: 0 },
-      origin: { in: [...TIRE_ANALYTICS_ORIGINS], mode: 'insensitive' }
+      quantity: { gt: 0 }
     }
     
     // Parse dates
@@ -79,11 +77,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (origin) {
-      // Keep the recognized-origin constraint in place. Selecting OTHER or an
-      // invalid value therefore yields no report rows instead of reintroducing it.
-      where.AND = [
-        { origin: { equals: origin, mode: 'insensitive' } }
-      ]
+      where.origin = { equals: origin, mode: 'insensitive' }
     }
 
     if (plateNumbers.length === 1) {
