@@ -128,7 +128,7 @@ export default function TireManagementForm() {
 
   const fetchRecentTires = async () => {
     try {
-      const response = await apiGet('/api/tires?limit=10')
+      const response = await apiGet('/api/tires?limit=10&positiveQuantityOnly=true')
       if (response.ok) {
         const data = await response.json()
         setRecentTires(data.tires || [])

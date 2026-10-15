@@ -31,6 +31,7 @@ export async function GET(request: NextRequest) {
     const tireSize = searchParams.get('tireSize')?.trim() || null
     const dateFrom = searchParams.get('dateFrom')?.trim() || searchParams.get('startDate')?.trim() || null
     const dateTo = searchParams.get('dateTo')?.trim() || searchParams.get('endDate')?.trim() || null
+    const positiveQuantityOnly = searchParams.get('positiveQuantityOnly') === 'true'
     const offset = (page - 1) * limit
 
     let whereClause: any = {}
@@ -63,6 +64,10 @@ export async function GET(request: NextRequest) {
 
     if (tireSize) {
       whereClause.tireSize = { contains: tireSize, mode: 'insensitive' }
+    }
+
+    if (positiveQuantityOnly) {
+      whereClause.quantity = { gt: 0 }
     }
 
     if (dateFrom || dateTo) {
