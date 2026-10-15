@@ -120,7 +120,7 @@ export async function POST(request: NextRequest) {
         )
     }
 
-    if (type === 'truck' || type === 'maintenance') await syncOneDriveWorkbookAfterChange()
+    if (type === 'truck' || type === 'maintenance' || type === 'mechanic') await syncOneDriveWorkbookAfterChange()
 
     return NextResponse.json({
       message: `${type} restored successfully`,

@@ -86,6 +86,9 @@ export async function POST(request: NextRequest) {
           partsCost: parseFloat(body.partsCost) || 0,
           laborCost: parseFloat(body.laborCost) || 0,
           totalCost: (parseFloat(body.partsCost) || 0) + (parseFloat(body.laborCost) || 0),
+          mechanicId: body.mechanicId || null,
+          mechanicName: body.mechanicName || null,
+          driverName: body.driverName || null,
           status: body.status || 'COMPLETED'
         }
       })
@@ -101,6 +104,9 @@ export async function POST(request: NextRequest) {
           laborCost: parseFloat(body.laborCost) || 0,
           totalCost: (parseFloat(body.partsCost) || 0) + (parseFloat(body.laborCost) || 0),
           status: body.status || 'COMPLETED',
+          mechanicId: body.mechanicId || null,
+          mechanicName: body.mechanicName || null,
+          driverName: body.driverName || null,
           isOilChange: body.isOilChange || false,
           oilQuantityLiters: body.oilQuantityLiters ? parseFloat(body.oilQuantityLiters) : null,
           oilChangeInterval: body.oilChangeInterval ? parseInt(body.oilChangeInterval) : null,

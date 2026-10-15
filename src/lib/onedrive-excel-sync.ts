@@ -139,7 +139,8 @@ function asExcelValue(value: unknown) {
   return value ?? null
 }
 
-type ExportColumn = { header: string; key: string; width: number }
+type ExportColumn = { header: string; key: string; width: number; numFmt?: string }
+const DATE_TIME_FORMAT = 'dd/mm/yyyy hh:mm'
 
 function addTableSheet(
   workbook: Workbook,
@@ -149,7 +150,11 @@ function addTableSheet(
   records: Record<string, unknown>[]
 ) {
   const sheet = workbook.addWorksheet(name, { views: [{ state: 'frozen', ySplit: 1 }] })
-  sheet.columns = columns.map(column => ({ key: column.key, width: column.width }))
+  sheet.columns = columns.map(column => ({
+    key: column.key,
+    width: column.width,
+    ...(column.numFmt ? { style: { numFmt: column.numFmt } } : {})
+  }))
   if (records.length) {
     sheet.addTable({
       name: tableName,
@@ -166,6 +171,12 @@ function addTableSheet(
     sheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F4E78' } }
     sheet.autoFilter = { from: 'A1', to: `${String.fromCharCode(64 + columns.length)}1` }
   }
+  columns.forEach((column, index) => {
+    if (!column.numFmt) return
+    for (let rowNumber = 2; rowNumber <= records.length + 1; rowNumber++) {
+      sheet.getCell(rowNumber, index + 1).numFmt = column.numFmt
+    }
+  })
   sheet.getRow(1).height = 24
   sheet.getRow(1).alignment = { vertical: 'middle', wrapText: true }
   return sheet
@@ -175,8 +186,8 @@ async function createFleetWorkbook() {
   const [trucks, trailers, truckMaintenance, trailerMaintenance, oilChanges, tires, jobCards] = await Promise.all([
     db.truck.findMany({ where: { isDeleted: false }, orderBy: { licensePlate: 'asc' } }),
     db.trailer.findMany({ where: { isDeleted: false }, orderBy: { number: 'asc' } }),
-    db.maintenanceRecord.findMany({ where: { isDeleted: false }, include: { truck: { select: { licensePlate: true, make: true, model: true } } }, orderBy: { datePerformed: 'desc' } }),
-    db.trailerMaintenanceRecord.findMany({ where: { isDeleted: false }, include: { trailer: { select: { number: true } } }, orderBy: { datePerformed: 'desc' } }),
+    db.maintenanceRecord.findMany({ where: { isDeleted: false }, include: { truck: { select: { licensePlate: true, make: true, model: true } }, mechanic: { select: { name: true } } }, orderBy: { datePerformed: 'desc' } }),
+    db.trailerMaintenanceRecord.findMany({ where: { isDeleted: false }, include: { trailer: { select: { number: true } }, mechanic: { select: { name: true } } }, orderBy: { datePerformed: 'desc' } }),
     db.maintenanceRecord.findMany({
       where: {
         isDeleted: false,
@@ -185,7 +196,7 @@ async function createFleetWorkbook() {
           { serviceType: { contains: 'oil', mode: 'insensitive' } }
         ]
       },
-      include: { truck: { select: { licensePlate: true, make: true, model: true } } },
+      include: { truck: { select: { licensePlate: true, make: true, model: true } }, mechanic: { select: { name: true } } },
       orderBy: { datePerformed: 'desc' }
     }),
     db.tire.findMany({ orderBy: { createdAt: 'desc' } }),
@@ -196,9 +207,37 @@ async function createFleetWorkbook() {
   workbook.creator = 'Fleet Manager'
   workbook.subject = 'One-way live export from Fleet Manager'
   workbook.title = ONEDRIVE_WORKBOOK_NAME
-  workbook.created = new Date()
-  workbook.modified = new Date()
+  const syncedAt = new Date()
+  workbook.created = syncedAt
+  workbook.modified = syncedAt
   workbook.calcProperties.fullCalcOnLoad = true
+
+  const truckLastUpdated = new Map(trucks.map(truck => [truck.id, truck.updatedAt]))
+  const trailerLastUpdated = new Map(trailers.map(trailer => [trailer.id, trailer.updatedAt]))
+  const updateLastActivity = (activity: Map<string, Date>, key: string | null | undefined, updatedAt: Date) => {
+    if (!key) return
+    const previous = activity.get(key)
+    if (!previous || updatedAt > previous) activity.set(key, updatedAt)
+  }
+  for (const record of truckMaintenance) updateLastActivity(truckLastUpdated, record.truckId, record.updatedAt)
+  for (const record of trailerMaintenance) updateLastActivity(trailerLastUpdated, record.trailerId, record.updatedAt)
+  for (const record of jobCards) {
+    updateLastActivity(truckLastUpdated, record.truckId, record.updatedAt)
+    updateLastActivity(trailerLastUpdated, record.trailerId, record.updatedAt)
+  }
+
+  const truckIdByPlate = new Map(trucks.map(truck => [truck.licensePlate, truck.id]))
+  const trailerIdByNumber = new Map(trailers.map(trailer => [trailer.number, trailer.id]))
+  for (const tire of tires) {
+    updateLastActivity(truckLastUpdated, tire.plateNumber ? truckIdByPlate.get(tire.plateNumber) : undefined, tire.updatedAt)
+    updateLastActivity(trailerLastUpdated, tire.trailerNumber ? trailerIdByNumber.get(tire.trailerNumber) : undefined, tire.updatedAt)
+  }
+
+  const latestOilChangeByTruck = new Map<string, typeof oilChanges[number]>()
+  for (const record of oilChanges) {
+    const existing = latestOilChangeByTruck.get(record.truckId)
+    if (!existing || record.datePerformed > existing.datePerformed) latestOilChangeByTruck.set(record.truckId, record)
+  }
 
   const recordCounts = {
     Trucks: trucks.length,
@@ -212,8 +251,8 @@ async function createFleetWorkbook() {
   addTableSheet(workbook, 'Sync Summary', 'SyncSummary', [
     { header: 'Data', key: 'data', width: 24 },
     { header: 'Records Exported', key: 'count', width: 22 },
-    { header: 'Workbook Updated', key: 'updatedAt', width: 28 }
-  ], Object.entries(recordCounts).map(([data, count]) => ({ data, count, updatedAt: workbook.modified })))
+    { header: 'Workbook Updated', key: 'updatedAt', width: 28, numFmt: DATE_TIME_FORMAT }
+  ], Object.entries(recordCounts).map(([data, count]) => ({ data, count, updatedAt: syncedAt })))
 
   addTableSheet(workbook, 'Trucks', 'Trucks', [
     { header: 'Truck Number', key: 'truckNumber', width: 18 }, { header: 'VIN', key: 'vin', width: 24 },
@@ -221,61 +260,81 @@ async function createFleetWorkbook() {
     { header: 'Year', key: 'year', width: 10 }, { header: 'Driver', key: 'driver', width: 22 },
     { header: 'Mileage (km)', key: 'mileage', width: 16 }, { header: 'Status', key: 'status', width: 16 },
     { header: 'Health Score', key: 'healthScore', width: 14 }, { header: 'Risk Level', key: 'riskLevel', width: 14 },
-    { header: 'Last Oil Change', key: 'lastOilChange', width: 20 }, { header: 'Next Oil Change', key: 'nextOilChange', width: 20 },
-    { header: 'Last Updated', key: 'updatedAt', width: 20 }
-  ], trucks.map(row => ({ truckNumber: row.licensePlate, vin: row.vin, make: row.make, model: row.model, year: row.year, driver: row.driverName, mileage: row.currentMileage, status: row.status, healthScore: row.healthScore, riskLevel: row.riskLevel, lastOilChange: row.lastOilChange, nextOilChange: row.nextOilChange, updatedAt: row.updatedAt })))
+    { header: 'Last Oil Change', key: 'lastOilChange', width: 20, numFmt: DATE_TIME_FORMAT }, { header: 'Next Oil Change', key: 'nextOilChange', width: 20, numFmt: DATE_TIME_FORMAT },
+    { header: 'Last Updated', key: 'updatedAt', width: 22, numFmt: DATE_TIME_FORMAT }
+  ], trucks.map(row => {
+    const latestOilChange = latestOilChangeByTruck.get(row.id)
+    const useLatestOilChange = Boolean(latestOilChange && (!row.lastOilChange || latestOilChange.datePerformed >= row.lastOilChange))
+    return {
+      truckNumber: row.licensePlate,
+      vin: row.vin,
+      make: row.make,
+      model: row.model,
+      year: row.year,
+      driver: row.driverName,
+      mileage: row.currentMileage,
+      status: row.status,
+      healthScore: row.healthScore,
+      riskLevel: row.riskLevel,
+      lastOilChange: useLatestOilChange ? latestOilChange?.datePerformed : row.lastOilChange,
+      nextOilChange: useLatestOilChange ? (latestOilChange?.nextServiceDue || row.nextOilChange) : row.nextOilChange,
+      updatedAt: truckLastUpdated.get(row.id) || row.updatedAt
+    }
+  }))
 
   addTableSheet(workbook, 'Trailers', 'Trailers', [
     { header: 'Trailer Number', key: 'number', width: 20 }, { header: 'Driver', key: 'driver', width: 22 },
     { header: 'Status', key: 'status', width: 16 }, { header: 'Health Score', key: 'healthScore', width: 14 },
-    { header: 'Risk Level', key: 'riskLevel', width: 14 }, { header: 'Last Inspection', key: 'lastInspection', width: 20 },
-    { header: 'Next Inspection', key: 'nextInspection', width: 20 }, { header: 'Last Updated', key: 'updatedAt', width: 20 }
-  ], trailers.map(row => ({ number: row.number, driver: row.driverName, status: row.status, healthScore: row.healthScore, riskLevel: row.riskLevel, lastInspection: row.lastInspection, nextInspection: row.nextInspection, updatedAt: row.updatedAt })))
+    { header: 'Risk Level', key: 'riskLevel', width: 14 }, { header: 'Last Inspection', key: 'lastInspection', width: 20, numFmt: DATE_TIME_FORMAT },
+    { header: 'Next Inspection', key: 'nextInspection', width: 20, numFmt: DATE_TIME_FORMAT }, { header: 'Last Updated', key: 'updatedAt', width: 22, numFmt: DATE_TIME_FORMAT }
+  ], trailers.map(row => ({ number: row.number, driver: row.driverName, status: row.status, healthScore: row.healthScore, riskLevel: row.riskLevel, lastInspection: row.lastInspection, nextInspection: row.nextInspection, updatedAt: trailerLastUpdated.get(row.id) || row.updatedAt })))
 
   const maintenanceRows = [
-    ...truckMaintenance.map(row => ({ id: row.id, assetType: 'Truck', asset: row.truck.licensePlate, date: row.datePerformed, serviceType: row.serviceType, description: row.description, status: row.status, partsCost: row.partsCost, laborCost: row.laborCost, totalCost: row.totalCost, mechanic: row.mechanicName, driver: row.driverName, nextServiceDue: row.nextServiceDue, notes: row.notes, updatedAt: row.updatedAt })),
-    ...trailerMaintenance.map(row => ({ id: row.id, assetType: 'Trailer', asset: row.trailer.number, date: row.datePerformed, serviceType: row.serviceType, description: row.description, status: row.status, partsCost: row.partsCost, laborCost: row.laborCost, totalCost: row.totalCost, mechanic: row.mechanicName, driver: row.driverName, nextServiceDue: row.nextServiceDue, notes: row.notes, updatedAt: row.updatedAt }))
+    ...truckMaintenance.map(row => ({ id: row.id, assetType: 'Truck', asset: row.truck.licensePlate, date: row.datePerformed, serviceType: row.serviceType, description: row.description, status: row.status, partsCost: row.partsCost, laborCost: row.laborCost, totalCost: row.totalCost, mechanic: row.mechanic?.name || row.mechanicName, driver: row.driverName, nextServiceDue: row.nextServiceDue, notes: row.notes, updatedAt: row.updatedAt })),
+    ...trailerMaintenance.map(row => ({ id: row.id, assetType: 'Trailer', asset: row.trailer.number, date: row.datePerformed, serviceType: row.serviceType, description: row.description, status: row.status, partsCost: row.partsCost, laborCost: row.laborCost, totalCost: row.totalCost, mechanic: row.mechanic?.name || row.mechanicName, driver: row.driverName, nextServiceDue: row.nextServiceDue, notes: row.notes, updatedAt: row.updatedAt }))
   ].sort((a, b) => b.date.getTime() - a.date.getTime())
   const maintenanceColumns = [
     { header: 'Record ID', key: 'id', width: 28 }, { header: 'Asset Type', key: 'assetType', width: 14 },
-    { header: 'Truck / Trailer', key: 'asset', width: 20 }, { header: 'Service Date', key: 'date', width: 20 },
+    { header: 'Truck / Trailer', key: 'asset', width: 20 }, { header: 'Service Date', key: 'date', width: 20, numFmt: DATE_TIME_FORMAT },
     { header: 'Service Type', key: 'serviceType', width: 24 }, { header: 'Description', key: 'description', width: 42 },
     { header: 'Status', key: 'status', width: 16 }, { header: 'Parts Cost', key: 'partsCost', width: 14 },
     { header: 'Labor Cost', key: 'laborCost', width: 14 }, { header: 'Total Cost', key: 'totalCost', width: 14 },
     { header: 'Mechanic', key: 'mechanic', width: 22 }, { header: 'Driver', key: 'driver', width: 22 },
-    { header: 'Next Service Due', key: 'nextServiceDue', width: 20 }, { header: 'Notes', key: 'notes', width: 36 },
-    { header: 'Last Updated', key: 'updatedAt', width: 20 }
+    { header: 'Next Service Due', key: 'nextServiceDue', width: 20, numFmt: DATE_TIME_FORMAT }, { header: 'Notes', key: 'notes', width: 36 },
+    { header: 'Last Updated', key: 'updatedAt', width: 22, numFmt: DATE_TIME_FORMAT }
   ]
   addTableSheet(workbook, 'Maintenance', 'MaintenanceRecords', maintenanceColumns, maintenanceRows)
 
   addTableSheet(workbook, 'Oil Changes', 'OilChanges', [
     { header: 'Truck Number', key: 'truck', width: 20 }, { header: 'Truck', key: 'vehicle', width: 28 },
-    { header: 'Service Date', key: 'date', width: 20 }, { header: 'Mileage (km)', key: 'mileage', width: 16 },
+    { header: 'Driver', key: 'driver', width: 22 }, { header: 'Service Date', key: 'date', width: 20, numFmt: DATE_TIME_FORMAT }, { header: 'Mileage (km)', key: 'mileage', width: 16 },
     { header: 'Oil Quantity (L)', key: 'quantity', width: 18 }, { header: 'Interval (km)', key: 'interval', width: 16 },
-    { header: 'Next Service Due', key: 'nextDue', width: 20 }, { header: 'Parts Cost', key: 'partsCost', width: 14 },
+    { header: 'Next Service Due', key: 'nextDue', width: 20, numFmt: DATE_TIME_FORMAT }, { header: 'Parts Cost', key: 'partsCost', width: 14 },
     { header: 'Labor Cost', key: 'laborCost', width: 14 }, { header: 'Total Cost', key: 'totalCost', width: 14 },
-    { header: 'Mechanic', key: 'mechanic', width: 22 }, { header: 'Notes', key: 'notes', width: 36 }
-  ], oilChanges.map(row => ({ truck: row.truck.licensePlate, vehicle: `${row.truck.make} ${row.truck.model}`.trim(), date: row.datePerformed, mileage: row.currentMileage, quantity: row.oilQuantityLiters, interval: row.oilChangeInterval, nextDue: row.nextServiceDue, partsCost: row.partsCost, laborCost: row.laborCost, totalCost: row.totalCost, mechanic: row.mechanicName, notes: row.notes })))
+    { header: 'Mechanic', key: 'mechanic', width: 22 }, { header: 'Notes', key: 'notes', width: 36 },
+    { header: 'Last Updated', key: 'updatedAt', width: 22, numFmt: DATE_TIME_FORMAT }
+  ], oilChanges.map(row => ({ truck: row.truck.licensePlate, vehicle: `${row.truck.make} ${row.truck.model}`.trim(), driver: row.driverName, date: row.datePerformed, mileage: row.currentMileage, quantity: row.oilQuantityLiters, interval: row.oilChangeInterval, nextDue: row.nextServiceDue, partsCost: row.partsCost, laborCost: row.laborCost, totalCost: row.totalCost, mechanic: row.mechanic?.name || row.mechanicName, notes: row.notes, updatedAt: row.updatedAt })))
 
   addTableSheet(workbook, 'Tires', 'Tires', [
     { header: 'Tire Size', key: 'tireSize', width: 18 }, { header: 'Truck Number', key: 'truck', width: 20 },
     { header: 'Trailer Number', key: 'trailer', width: 20 }, { header: 'Driver', key: 'driver', width: 22 },
     { header: 'Quantity', key: 'quantity', width: 12 }, { header: 'Serial Number', key: 'serial', width: 30 },
     { header: 'Manufacturer', key: 'manufacturer', width: 20 }, { header: 'Origin', key: 'origin', width: 16 },
-    { header: 'Date', key: 'date', width: 20 }, { header: 'Notes', key: 'notes', width: 36 }
-  ], tires.map(row => ({ tireSize: row.tireSize, truck: row.plateNumber, trailer: row.trailerNumber, driver: row.driverName, quantity: row.quantity, serial: row.serialNumber, manufacturer: row.manufacturer, origin: row.origin, date: row.createdAt, notes: row.notes })))
+    { header: 'Date', key: 'date', width: 20, numFmt: DATE_TIME_FORMAT }, { header: 'Notes', key: 'notes', width: 36 },
+    { header: 'Last Updated', key: 'updatedAt', width: 22, numFmt: DATE_TIME_FORMAT }
+  ], tires.map(row => ({ tireSize: row.tireSize, truck: row.plateNumber, trailer: row.trailerNumber, driver: row.driverName, quantity: row.quantity, serial: row.serialNumber, manufacturer: row.manufacturer, origin: row.origin, date: row.createdAt, notes: row.notes, updatedAt: row.updatedAt })))
 
   addTableSheet(workbook, 'Job Cards', 'WorkshopJobCards', [
-    { header: 'Job Number', key: 'jobNumber', width: 20 }, { header: 'Service Date', key: 'serviceDate', width: 20 },
+    { header: 'Job Number', key: 'jobNumber', width: 20 }, { header: 'Service Date', key: 'serviceDate', width: 20, numFmt: DATE_TIME_FORMAT },
     { header: 'Truck Number', key: 'truck', width: 20 }, { header: 'Trailer Number', key: 'trailer', width: 20 },
     { header: 'Service Type', key: 'serviceType', width: 24 }, { header: 'Priority', key: 'priority', width: 14 },
     { header: 'Status', key: 'status', width: 16 }, { header: 'Odometer (km)', key: 'odometer', width: 16 },
     { header: 'Reported Issue', key: 'issue', width: 40 }, { header: 'Technician', key: 'technician', width: 22 },
     { header: 'Driver', key: 'driver', width: 22 }, { header: 'Parts Cost', key: 'partsCost', width: 14 },
     { header: 'Labor Cost', key: 'laborCost', width: 14 }, { header: 'Total Cost', key: 'totalCost', width: 14 },
-    { header: 'Next Service Odometer', key: 'nextOdometer', width: 22 }, { header: 'Next Service Date', key: 'nextDate', width: 20 },
+    { header: 'Next Service Odometer', key: 'nextOdometer', width: 22 }, { header: 'Next Service Date', key: 'nextDate', width: 20, numFmt: DATE_TIME_FORMAT },
     { header: 'Work Items', key: 'items', width: 48 }, { header: 'Checklist', key: 'checklist', width: 42 },
-    { header: 'Notes', key: 'notes', width: 36 }, { header: 'Last Updated', key: 'updatedAt', width: 20 }
+    { header: 'Notes', key: 'notes', width: 36 }, { header: 'Last Updated', key: 'updatedAt', width: 22, numFmt: DATE_TIME_FORMAT }
   ], jobCards.map(row => ({ jobNumber: row.jobNumber, serviceDate: row.serviceDate, truck: row.truck?.licensePlate, trailer: row.trailer?.number, serviceType: row.serviceType, priority: row.priority, status: row.status, odometer: row.odometerKm, issue: row.reportedIssue, technician: row.technicianName, driver: row.driverName, partsCost: row.partsCost, laborCost: row.laborCost, totalCost: row.totalCost, nextOdometer: row.nextServiceOdometer, nextDate: row.nextServiceDate, items: row.items, checklist: row.checklist, notes: row.notes, updatedAt: row.updatedAt })))
 
   return { bytes: Buffer.from(await workbook.xlsx.writeBuffer()), recordCounts }
