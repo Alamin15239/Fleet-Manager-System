@@ -41,7 +41,7 @@ interface UserFormData {
 export default function UsersPage() {
   const { t } = useLanguage()
   const { user: currentUser } = useAuth()
-  const { canAccess, canCreate, canUpdate, canDelete } = usePermissions()
+  const { canAccess, canCreate, canUpdate, canDelete, refreshPermissions } = usePermissions()
   const isAdmin = currentUser?.role === 'ADMIN'
   const { users, loading, error, deleteUser, createUser, updateUser, refresh } = useRealtimeUsers(canAccess('users'))
   const [isDialogOpen, setIsDialogOpen] = useState(false)
@@ -144,6 +144,11 @@ export default function UsersPage() {
     }
   }
 
+  const handleRefreshUsers = async () => {
+    await refreshPermissions()
+    await refresh()
+  }
+
   const resetForm = () => {
     setEditingUser(null)
     setFormData({
@@ -204,7 +209,7 @@ export default function UsersPage() {
         <div className="flex gap-2">
           <Button
             variant="outline"
-            onClick={refresh}
+            onClick={handleRefreshUsers}
             disabled={loading}
           >
             <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />

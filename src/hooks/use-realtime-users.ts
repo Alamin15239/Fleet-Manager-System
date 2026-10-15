@@ -44,7 +44,8 @@ export const useRealtimeUsers = (enabled = true) => {
       })
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
+        const responseError = await response.json().catch(() => ({}))
+        throw new Error(responseError.error || `Request failed (${response.status})`)
       }
 
       const data = await response.json()
@@ -163,6 +164,8 @@ export const useRealtimeUsers = (enabled = true) => {
     }
   }, [fetchUsers])
 
+  const refresh = useCallback(() => fetchUsers(true), [fetchUsers])
+
   // Auto-refresh every 10 seconds
   useEffect(() => {
     if (!enabled) {
@@ -187,6 +190,6 @@ export const useRealtimeUsers = (enabled = true) => {
     deleteUser,
     createUser,
     updateUser,
-    refresh: () => fetchUsers(true)
+    refresh
   }
 }

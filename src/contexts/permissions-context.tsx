@@ -16,13 +16,13 @@ interface PermissionsContextType {
   canUpdate: (resource: string) => boolean
   canDelete: (resource: string) => boolean
   canExport: (resource: string) => boolean
-  refreshPermissions: () => void
+  refreshPermissions: () => Promise<void>
 }
 
 const PermissionsContext = createContext<PermissionsContextType | undefined>(undefined)
 
 export function PermissionsProvider({ children }: { children: ReactNode }) {
-  const { user } = useAuth()
+  const { user, updateUser } = useAuth()
   const [permissionManager, setPermissionManager] = useState<PermissionManager | null>(null)
   const [settingsPermissions, setSettingsPermissions] = useState<SettingsPermissions | null>(null)
   const [loading, setLoading] = useState(true)
@@ -30,7 +30,27 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
   const fetchPermissions = async () => {
     setLoading(true)
     try {
-      const response = await apiGet('/api/settings')
+      const [profileResponse, response] = await Promise.all([
+        apiGet('/api/auth/me'),
+        apiGet('/api/settings')
+      ])
+      let effectiveUser = user
+
+      if (profileResponse.ok) {
+        const profileData = await profileResponse.json()
+        const freshUser = profileData.user
+        if (freshUser && (!user ||
+          user.id !== freshUser.id ||
+          user.role !== freshUser.role ||
+          user.isActive !== freshUser.isActive ||
+          user.isApproved !== freshUser.isApproved ||
+          JSON.stringify(Object.entries(user.permissions || {}).sort(([a], [b]) => a.localeCompare(b))) !==
+            JSON.stringify(Object.entries(freshUser.permissions || {}).sort(([a], [b]) => a.localeCompare(b))))) {
+          updateUser(freshUser)
+        }
+        if (freshUser) effectiveUser = freshUser
+      }
+
       if (response.ok) {
         const settings = await response.json()
         const storedRolePermissions = settings.rolePermissions || {
@@ -55,11 +75,11 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
         
         setSettingsPermissions(permissions)
         
-        if (user) {
+        if (effectiveUser) {
           const manager = new PermissionManager(
-            user.role,
-            user.id,
-            user.permissions
+            effectiveUser.role,
+            effectiveUser.id,
+            effectiveUser.permissions
           )
           manager.setSettingsPermissions(permissions)
           setPermissionManager(manager)
@@ -137,8 +157,8 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
     return permissionManager.canExport(resource)
   }
 
-  const refreshPermissions = () => {
-    fetchPermissions()
+  const refreshPermissions = async () => {
+    await fetchPermissions()
   }
 
   return (
