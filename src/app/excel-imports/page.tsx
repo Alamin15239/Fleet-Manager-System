@@ -93,8 +93,8 @@ export default function ExcelImportsPage() {
       const response = await apiPost('/api/integrations/onedrive/imports', { action: 'scan' })
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || 'Could not scan the workbook.')
-      if (data.baselineInitializationNeeded) toast.error('Sync the workbook once in Settings → Excel Sync before importing Excel changes.')
-      else if (data.queued > 0) toast.success(`Found ${data.queued} workbook change(s) for review.`)
+      if (data.queued > 0) toast.success(`Found ${data.queued} workbook change(s) for review.`)
+      else if (data.baselineInitializationNeeded) toast.info('No differences found. Use Sync Now in Settings → Excel Sync to initialize workbook imports.')
       else toast.success('Workbook checked. No new changes were found.')
       await loadChanges()
     } catch (error) {

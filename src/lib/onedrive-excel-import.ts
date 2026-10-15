@@ -94,9 +94,6 @@ export async function captureOneDriveWorkbookChanges() {
     const headers = sheet?.getRow(1).values as unknown[] | undefined
     return Array.isArray(headers) && headers.slice(1).some(value => String(normalizeCell(value) || '').trim() === 'App Baseline')
   })
-  if (!baselineReady) {
-    return { scanned: 0, queued: 0, unchanged: false, baselineInitializationNeeded: true }
-  }
 
   let scanned = 0
   let queued = 0
@@ -149,7 +146,7 @@ export async function captureOneDriveWorkbookChanges() {
       if (recordId && baseline && String(baseline['Record ID'] || '').trim() !== recordId) {
         conflictReason = 'The row ID does not match its saved baseline. Restore the app-generated workbook metadata before importing it.'
       }
-      if (recordId && Object.prototype.hasOwnProperty.call(rowData, 'App Baseline') && !baseline) {
+      if (baselineReady && recordId && Object.prototype.hasOwnProperty.call(rowData, 'App Baseline') && !baseline) {
         conflictReason = 'This row is missing its saved baseline. Sync the workbook from the app before importing it.'
       }
 
@@ -191,7 +188,13 @@ export async function captureOneDriveWorkbookChanges() {
       const changes: Record<string, { from: unknown; to: unknown }> = {}
       const conflictingFields: string[] = []
       if (canonical) {
-        const headers = new Set([...Object.keys(canonical), ...Object.keys(rowData)])
+        // With no saved baseline, only compare columns that actually exist in the
+        // incoming workbook. Older workbook layouts may not contain every field
+        // in the current app export, and treating absent columns as blank could
+        // stage accidental data-clearing updates during initial setup.
+        const headers = baseline
+          ? new Set([...Object.keys(canonical), ...Object.keys(rowData)])
+          : new Set(Object.keys(rowData))
         for (const header of headers) {
           if (!header || IGNORED_COLUMNS.has(header)) continue
           const before = normalizeCell(canonical[header])
@@ -256,5 +259,5 @@ export async function captureOneDriveWorkbookChanges() {
   }
 
   await db.oneDriveIntegration.update({ where: { id: 'primary' }, data: { lastWorkbookHash: sourceHash } })
-  return { scanned, queued, unchanged: false }
+  return { scanned, queued, unchanged: false, baselineInitializationNeeded: !baselineReady }
 }

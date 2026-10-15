@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
       const subscription = await ensureOneDriveChangeSubscription()
       if (subscription.enabled) {
         const scan = await captureOneDriveWorkbookChanges()
-        if (scan.baselineInitializationNeeded) watchError = 'Sync the workbook once to initialize safe Excel imports.'
+        if (scan.baselineInitializationNeeded && scan.queued === 0) watchError = 'No workbook changes are waiting for review. Use Sync Now to initialize safe Excel imports.'
       }
       else watchError = 'Connect OneDrive and create the live workbook to receive edits.'
     } catch (error) {

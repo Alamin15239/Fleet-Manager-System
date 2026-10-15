@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
       try {
         await ensureOneDriveChangeSubscription()
         const scan = await captureOneDriveWorkbookChanges()
-        if (scan.baselineInitializationNeeded) importWatchError = 'Sync the workbook once to initialize safe Excel imports.'
+        if (scan.baselineInitializationNeeded && scan.queued === 0) importWatchError = 'No workbook changes are waiting for review. Use Sync Now to initialize safe Excel imports.'
       } catch (error) {
         importWatchError = error instanceof Error ? error.message : 'Could not check workbook changes.'
       }
