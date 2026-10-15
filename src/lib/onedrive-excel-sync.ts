@@ -186,12 +186,43 @@ function addTableSheet(
 
 function getWorkbookSyncUrl() {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL ||
-    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null)
-  if (!baseUrl) return null
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://fleetmaintenance.site')
   const url = new URL('/settings', baseUrl)
   url.searchParams.set('tab', 'onedrive')
   url.searchParams.set('excelSync', '1')
   return url.toString()
+}
+
+function addWorkbookSyncSheet(workbook: Workbook) {
+  const sheet = workbook.addWorksheet('Sync Now', { views: [{ showGridLines: false }] })
+  sheet.columns = [{ width: 24 }, { width: 24 }, { width: 24 }, { width: 24 }]
+  sheet.mergeCells('A1:D1')
+  const title = sheet.getCell('A1')
+  title.value = 'Fleet Manager Live Data'
+  title.font = { bold: true, size: 18, color: { argb: 'FF0F172A' } }
+  title.alignment = { horizontal: 'center', vertical: 'middle' }
+  sheet.getRow(1).height = 38
+
+  sheet.mergeCells('A3:D5')
+  const button = sheet.getCell('A3')
+  button.value = {
+    text: '↻  SYNC NOW',
+    hyperlink: getWorkbookSyncUrl(),
+    tooltip: 'Open Fleet Manager and sync the latest data'
+  }
+  button.font = { bold: true, color: { argb: 'FFFFFFFF' }, underline: true, size: 18 }
+  button.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2563EB' } }
+  button.alignment = { horizontal: 'center', vertical: 'middle' }
+  for (const rowNumber of [3, 4, 5]) sheet.getRow(rowNumber).height = 28
+
+  sheet.mergeCells('A7:D8')
+  const instructions = sheet.getCell('A7')
+  instructions.value = 'Click the button to open Fleet Manager and run a secure sync. An administrator must be signed in. If this workbook is open in Excel, the app may publish a refreshed copy.'
+  instructions.font = { size: 12, color: { argb: 'FF334155' } }
+  instructions.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }
+  instructions.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEFF6FF' } }
+  sheet.getRow(7).height = 32
+  sheet.getRow(8).height = 32
 }
 
 async function createFleetWorkbook() {
@@ -223,6 +254,9 @@ async function createFleetWorkbook() {
   workbook.created = syncedAt
   workbook.modified = syncedAt
   workbook.calcProperties.fullCalcOnLoad = true
+
+  addWorkbookSyncSheet(workbook)
+  workbook.views = [{ x: 0, y: 0, width: 10000, height: 20000, firstSheet: 0, activeTab: 0, visibility: 'visible' }]
 
   const truckLastUpdated = new Map(trucks.map(truck => [truck.id, truck.updatedAt]))
   const trailerLastUpdated = new Map(trailers.map(trailer => [trailer.id, trailer.updatedAt]))
@@ -268,17 +302,13 @@ async function createFleetWorkbook() {
 
   const syncButton = syncSummary.getCell('A1')
   const syncUrl = getWorkbookSyncUrl()
-  syncButton.value = syncUrl
-    ? { text: '↻  Sync Now', hyperlink: syncUrl, tooltip: 'Open Fleet Manager and sync the latest data' }
-    : '↻  Sync Now'
+  syncButton.value = { text: '↻  Sync Now', hyperlink: syncUrl, tooltip: 'Open Fleet Manager and sync the latest data' }
   syncButton.font = { bold: true, color: { argb: 'FFFFFFFF' }, underline: true, size: 12 }
   syncButton.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2563EB' } }
   syncButton.alignment = { horizontal: 'center', vertical: 'middle' }
   syncSummary.mergeCells('B1:C1')
   const syncInstructions = syncSummary.getCell('B1')
-  syncInstructions.value = syncUrl
-    ? 'Click Sync Now to open Fleet Manager and start a secure sync. If this file is open, a fresh copy may be created.'
-    : 'Sync Now is available when the app URL is configured.'
+  syncInstructions.value = 'Click Sync Now to open Fleet Manager and start a secure sync. If this file is open, a fresh copy may be created.'
   syncInstructions.font = { color: { argb: 'FF334155' }, italic: true }
   syncInstructions.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEFF6FF' } }
   syncInstructions.alignment = { horizontal: 'left', vertical: 'middle', wrapText: true }
