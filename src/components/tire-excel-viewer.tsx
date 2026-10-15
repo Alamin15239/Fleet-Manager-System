@@ -36,7 +36,7 @@ export default function TireExcelViewer() {
   const fetchTires = async () => {
     setLoading(true)
     try {
-      const response = await apiGet('/api/tires?limit=1000')
+      const response = await apiGet('/api/tires?limit=1000&positiveQuantityOnly=true')
       if (!response.ok) throw new Error(`Request failed (${response.status})`)
 
       const data = await response.json()
