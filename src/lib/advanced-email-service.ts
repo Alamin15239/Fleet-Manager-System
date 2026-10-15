@@ -20,14 +20,18 @@ interface BatchEmailRequest {
 }
 
 export class AdvancedEmailService {
-  private resend: Resend
+  private resend: Resend | null = null
 
-  constructor() {
+  private getResend(): Resend {
+    if (this.resend) return this.resend
+
     const apiKey = process.env.RESEND_API_KEY
     if (!apiKey) {
       throw new Error('RESEND_API_KEY is required')
     }
+
     this.resend = new Resend(apiKey)
+    return this.resend
   }
 
   // Send single email
@@ -40,7 +44,7 @@ export class AdvancedEmailService {
     scheduledAt?: string
   }) {
     try {
-      const { data, error } = await this.resend.emails.send({
+      const { data, error } = await this.getResend().emails.send({
         from: params.from,
         to: Array.isArray(params.to) ? params.to : [params.to],
         subject: params.subject,
@@ -63,7 +67,7 @@ export class AdvancedEmailService {
   // Send batch emails
   async sendBatchEmails(emails: BatchEmailRequest[]) {
     try {
-      const { data, error } = await this.resend.batch.send(emails)
+      const { data, error } = await this.getResend().batch.send(emails)
 
       if (error) {
         throw new Error(`Failed to send batch emails: ${error.message}`)
@@ -79,7 +83,7 @@ export class AdvancedEmailService {
   // Retrieve email by ID
   async getEmail(emailId: string): Promise<EmailData> {
     try {
-      const { data, error } = await this.resend.emails.get(emailId)
+      const { data, error } = await this.getResend().emails.get(emailId)
 
       if (error) {
         throw new Error(`Failed to retrieve email: ${error.message}`)
@@ -95,7 +99,7 @@ export class AdvancedEmailService {
   // Update scheduled email
   async updateEmail(emailId: string, params: { scheduledAt?: string }) {
     try {
-      const { data, error } = await this.resend.emails.update(emailId, params)
+      const { data, error } = await this.getResend().emails.update(emailId, params)
 
       if (error) {
         throw new Error(`Failed to update email: ${error.message}`)
@@ -111,7 +115,7 @@ export class AdvancedEmailService {
   // Cancel scheduled email
   async cancelEmail(emailId: string) {
     try {
-      const { data, error } = await this.resend.emails.cancel(emailId)
+      const { data, error } = await this.getResend().emails.cancel(emailId)
 
       if (error) {
         throw new Error(`Failed to cancel email: ${error.message}`)

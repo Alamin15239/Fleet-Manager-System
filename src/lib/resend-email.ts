@@ -3,8 +3,6 @@ import { SHA256 } from 'crypto-js'
 import { randomBytes, randomInt } from 'crypto'
 import { db } from '@/lib/db'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
-
 interface EmailConfig {
   from: string
   apiKey: string
@@ -12,6 +10,7 @@ interface EmailConfig {
 
 class ResendEmailService {
   private config: EmailConfig
+  private resend: Resend | null = null
 
   constructor() {
     this.config = {
@@ -24,6 +23,16 @@ class ResendEmailService {
     } else {
       console.log('✅ Resend email service initialized')
     }
+  }
+
+  private getResend(): Resend {
+    if (this.resend) return this.resend
+    if (!this.config.apiKey) {
+      throw new Error('Email delivery is not configured')
+    }
+
+    this.resend = new Resend(this.config.apiKey)
+    return this.resend
   }
 
   // Generate a secure 6-digit OTP
@@ -69,7 +78,7 @@ class ResendEmailService {
         throw new Error('Email delivery is not configured')
       }
 
-      const { data, error } = await resend.emails.send({
+      const { data, error } = await this.getResend().emails.send({
         from: this.config.from,
         to: email,
         subject: '🔐 Your OTP for Fleet Manager Login',
@@ -159,7 +168,7 @@ class ResendEmailService {
         throw new Error('Verification email service is not configured')
       }
 
-      const { data, error } = await resend.emails.send({
+      const { data, error } = await this.getResend().emails.send({
         from: this.config.from,
         to: email,
         subject: '📧 Verify Your Email Address - Fleet Manager',
@@ -244,7 +253,7 @@ class ResendEmailService {
         throw new Error('Password reset email service is not configured')
       }
 
-      const { data, error } = await resend.emails.send({
+      const { data, error } = await this.getResend().emails.send({
         from: this.config.from,
         to: email,
         subject: '🔐 Reset Your Password - Fleet Manager',

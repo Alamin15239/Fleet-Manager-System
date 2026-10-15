@@ -1226,7 +1226,7 @@ const phraseTranslations: Record<string, string> = {
   'Daily activity over the last 7 days': 'النشاط اليومي خلال آخر 7 أيام',
   'Dashboard data could not be loaded. Check the database connection and try again.': 'تعذر تحميل بيانات لوحة التحكم. تحقق من اتصال قاعدة البيانات ثم أعد المحاولة.',
   'Detailed Information': 'معلومات مفصلة',
-  'Didn't receive the OTP?': 'لم يصلك رمز التحقق؟',
+  'Didn\'t receive the OTP?': 'لم يصلك رمز التحقق؟',
   'Document Preview': 'معاينة المستند',
   'Drop files here or click to upload': 'أفلت الملفات هنا أو انقر لرفعها',
   'Email Verified Successfully!': 'تم التحقق من البريد الإلكتروني بنجاح!',
