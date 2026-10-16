@@ -133,7 +133,7 @@ export function Header() {
   }
 
   return (
-    <header className="sticky top-0 z-30 flex shrink-0 items-center justify-between gap-2 border-b border-border bg-background px-3 py-2.5 sm:px-4 sm:py-3">
+    <header className="sticky top-0 z-30 flex shrink-0 items-center justify-between gap-2 border-b border-border/70 bg-background/90 px-3 py-2.5 shadow-sm shadow-slate-950/[0.025] backdrop-blur-md sm:px-4 sm:py-3">
       <div className="flex items-center gap-1 sm:gap-3">
         {/* Sidebar Toggle Button */}
         <Button
@@ -158,7 +158,7 @@ export function Header() {
         </Button>
       </div>
 
-      <div className="flex items-center space-x-4">
+      <div className="flex items-center gap-1.5 sm:gap-2">
   
 
         {/* Theme Toggle */}
@@ -167,7 +167,7 @@ export function Header() {
         {/* Notifications */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="sm" className="relative h-11 w-11 p-2 sm:h-9 sm:w-9">
+            <Button variant="ghost" size="sm" aria-label={t('Notifications')} title={t('Notifications')} className="relative h-11 w-11 rounded-xl p-2 sm:h-9 sm:w-9">
               <Bell className="h-4 w-4" />
               {unreadCount > 0 && (
                 <Badge 
@@ -179,7 +179,7 @@ export function Header() {
               )}
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-80">
+          <DropdownMenuContent align="end" className="w-80 max-w-[calc(100vw-1rem)]">
             <DropdownMenuLabel className="flex items-center justify-between">
               <span>{t('Notifications')}</span>
               {unreadCount > 0 && (
@@ -245,7 +245,7 @@ export function Header() {
         {/* User Profile */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="relative h-11 w-11 rounded-full p-0 sm:h-9 sm:w-9">
+            <Button variant="ghost" aria-label={t('Open profile')} title={t('Open profile')} className="relative h-11 w-11 rounded-xl p-0 sm:h-9 sm:w-9">
               <ProfilePicture size="md" />
             </Button>
           </DropdownMenuTrigger>
