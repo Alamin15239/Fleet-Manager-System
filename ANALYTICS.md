@@ -1,135 +1,27 @@
-# Vercel Analytics & Speed Insights Setup
+# Application analytics and telemetry
 
-This Fleet Manager System includes Vercel Analytics and Speed Insights for comprehensive performance monitoring and user behavior tracking.
+Last reviewed: 16 October 2026.
 
-## 🚀 Features Enabled
+## Enabled telemetry
 
-### Vercel Analytics
-- **User Behavior Tracking**: Track page views, user interactions, and custom events
-- **Real-time Data**: Monitor user activity in real-time
-- **Custom Events**: Track fleet-specific actions like truck additions, maintenance scheduling
-- **Conversion Tracking**: Monitor key business metrics
+The root application layout loads:
 
-### Speed Insights
-- **Core Web Vitals**: Monitor LCP, FID, CLS, and other performance metrics
-- **Real User Monitoring**: Track actual user experience data
-- **Performance Alerts**: Get notified of performance regressions
-- **Optimization Insights**: Receive recommendations for performance improvements
+- Vercel Analytics for web usage metrics.
+- Vercel Speed Insights for performance metrics.
+- Microsoft Clarity using a tag embedded in the client component at src/components/clarity-analytics.tsx.
 
-## 📊 Custom Analytics Events
+The Clarity component currently identifies signed-in sessions using the application user ID and sends the user’s role, email address, and name as custom session metadata. This is personal data shared with Microsoft Clarity and must be reflected in the Company privacy notice. There is no in-app analytics opt-out control at present. Do not add further identifying attributes without a privacy review.
 
-The system tracks the following custom events:
+Activity and audit tracking also records IP address and user-agent/device information in applicable operations. The activity tracker can call ip-api.com to derive approximate location from an IP address. This is separate from Vercel Analytics and Clarity.
 
-- `truck_added` - When a new truck is added to the fleet
-- `maintenance_scheduled` - When maintenance is scheduled
-- `tire_added` - When tires are added to inventory
-- `report_generated` - When reports are generated
-- `user_login` - User authentication events
-- `dashboard_viewed` - Dashboard page views
-- `email_sent` - Email notifications sent
+## Configuration and access
 
-## 🔧 Configuration
+Vercel Analytics and Speed Insights are rendered in src/app/layout.tsx and use the deployment’s Vercel project configuration. Clarity’s tag is currently configured in src/components/clarity-analytics.tsx. Analytics dashboards are managed in the corresponding provider consoles.
 
-### Environment Variables
-```env
-# Optional: Custom Analytics ID
-NEXT_PUBLIC_VERCEL_ANALYTICS_ID="your-vercel-analytics-id"
-VERCEL_ANALYTICS_ID="your-vercel-analytics-id"
-```
+## Privacy and interpretation
 
-### Vercel.json Configuration
-```json
-{
-  "analytics": {
-    "enable": true
-  },
-  "speedInsights": {
-    "enable": true
-  }
-}
-```
+Telemetry metrics are not fleet source records and should not be used as operational truth. See docs/privacy-policy.md for the current account, operational data, telemetry, provider, and transfer disclosures. The app does not currently expose an in-app analytics consent or opt-out control.
 
-## 📈 Usage
+## Troubleshooting
 
-### Automatic Tracking
-Analytics and Speed Insights are automatically enabled for all pages through the root layout.
-
-### Custom Event Tracking
-```typescript
-import { analytics } from '@/lib/analytics';
-
-// Track truck addition
-analytics.trackTruckAdded({
-  make: 'Ford',
-  model: 'F-150',
-  year: 2024
-});
-
-// Track maintenance scheduling
-analytics.trackMaintenanceScheduled({
-  serviceType: 'Oil Change',
-  cost: 150
-});
-```
-
-## 🎯 Key Metrics Monitored
-
-### Performance Metrics
-- **Largest Contentful Paint (LCP)**: Loading performance
-- **First Input Delay (FID)**: Interactivity
-- **Cumulative Layout Shift (CLS)**: Visual stability
-- **First Contentful Paint (FCP)**: Perceived loading speed
-
-### Business Metrics
-- Fleet management operations
-- User engagement patterns
-- Report generation frequency
-- Maintenance scheduling trends
-- System usage analytics
-
-## 📱 Dashboard Access
-
-### Vercel Analytics Dashboard
-1. Go to your Vercel project dashboard
-2. Click on the "Analytics" tab
-3. View real-time and historical data
-
-### Speed Insights Dashboard
-1. Go to your Vercel project dashboard
-2. Click on the "Speed Insights" tab
-3. Monitor Core Web Vitals and performance trends
-
-## 🔍 Monitoring & Alerts
-
-### Performance Alerts
-- Automatic alerts for Core Web Vitals regressions
-- Email notifications for performance issues
-- Real-time monitoring of user experience
-
-### Custom Alerts
-Set up custom alerts for:
-- High error rates
-- Slow page load times
-- Unusual traffic patterns
-- Business metric thresholds
-
-## 🛠️ Troubleshooting
-
-### Analytics Not Showing Data
-1. Verify analytics are enabled in vercel.json
-2. Check environment variables
-3. Ensure proper deployment to Vercel
-4. Wait 24-48 hours for initial data collection
-
-### Speed Insights Issues
-1. Confirm Speed Insights component is in layout
-2. Check browser console for errors
-3. Verify Vercel deployment status
-4. Test with different browsers/devices
-
-## 📚 Resources
-
-- [Vercel Analytics Documentation](https://vercel.com/docs/analytics)
-- [Speed Insights Documentation](https://vercel.com/docs/speed-insights)
-- [Core Web Vitals Guide](https://web.dev/vitals/)
-- [Custom Events Tracking](https://vercel.com/docs/analytics/custom-events)
+If telemetry is missing, confirm the production deployment is using the expected Vercel project and domain, then review provider dashboards and browser network errors. Do not paste telemetry secrets or private user information into a public issue.

@@ -882,6 +882,8 @@ const translations = {
 // Exact UI copy used by screens that have not yet moved to semantic translation keys.
 // Keep record values (names, plates, descriptions, notes) out of this map.
 const phraseTranslations: Record<string, string> = {
+  'User Guide': 'دليل المستخدم',
+  'User Agreement': 'اتفاقية المستخدم',
   'Fleet Manager': 'إدارة الأسطول',
   'TRANSPORT OPERATIONS': 'عمليات النقل',
   'Instance Uptime': 'مدة تشغيل النسخة',

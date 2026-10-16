@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Truck, Shield, Mail, Lock, User, Building, Loader2, CheckCircle } from 'lucide-react'
 import { toast } from '@/lib/localized-toast'
 import Link from 'next/link'
+import { LegalDocumentLinks } from '@/components/legal-document-links'
 
 export default function SignupPage() {
   const [formData, setFormData] = useState({
@@ -314,6 +315,8 @@ export default function SignupPage() {
             </div>
           </CardContent>
         </Card>
+
+        <LegalDocumentLinks />
 
         {/* Info Card */}
         <Card className="bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800">

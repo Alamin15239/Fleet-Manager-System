@@ -1,98 +1,36 @@
-# Contributing to Fleet Manager System
+# Contributing
 
-Thank you for your interest in contributing! This document provides guidelines for contributing to the project.
+This repository contains the Fleet Manager application operated at fleetmaintenance.site.
 
-## Getting Started
+## Development setup
 
-1. Fork the repository
-2. Clone your fork: `git clone https://github.com/your-username/fleet-manager-system.git`
-3. Create a branch: `git checkout -b feature/your-feature-name`
-4. Make your changes
-5. Test your changes: `npm test`
-6. Commit your changes: `git commit -m 'Add some feature'`
-7. Push to the branch: `git push origin feature/your-feature-name`
-8. Open a Pull Request
+Requirements: Node.js 20+, npm, and PostgreSQL.
 
-## Development Setup
+1. Fork or clone [Alamin15239/Fleet-Manager-System](https://github.com/Alamin15239/Fleet-Manager-System).
+2. Install dependencies with npm install.
+3. Copy .env.example to .env.local and configure a local PostgreSQL DATABASE_URL and strong local secrets.
+4. Run npm run db:generate and npm run db:push.
+5. Start with npm run dev.
 
-```bash
-# Install dependencies
-npm install
+Keep local secrets out of commits. Do not connect development work to the production database.
 
-# Start Docker services
-npm run docker:up
+## Implementation guidance
 
-# Run database migrations
-npm run db:migrate
+- Follow the existing Next.js App Router and TypeScript patterns.
+- Keep server-side authorization checks in place for every protected read or write. Hiding a link in the interface is not a substitute for API authorization.
+- Keep UI copy compatible with the app’s English and Arabic language setting.
+- Preserve the existing PostgreSQL/Prisma model conventions and validate imported workbook values on the server.
+- Treat fleet, driver, job-card, account, and audit data as sensitive.
+- Update the user guide or deployment documentation when behavior or configuration changes.
 
-# Start development server
-npm run dev
-```
+## Before opening a change
 
-## Code Standards
+Review the affected flows and run the checks relevant to your change. The repository defines npm run type-check, npm run lint, and npm test. Avoid including unrelated generated files or environment values.
 
-### TypeScript
-- Use TypeScript for all new code
-- Enable strict mode
-- Avoid `any` types
-- Use proper type definitions
+## Pull requests and issues
 
-### Code Style
-- Follow existing code style
-- Use ESLint: `npm run lint`
-- Format code before committing
-- Write meaningful variable names
+Describe the user impact, changed routes or models, deployment requirements, and verification performed. For database schema changes, include migration or rollout notes. Do not include personal data, tokens, database URLs, screenshots containing private records, or secrets in issue content.
 
-### Testing
-- Write tests for new features
-- Maintain test coverage above 80%
-- Run tests before committing: `npm test`
-- Test edge cases
+## Security reports
 
-### Commits
-- Use conventional commit messages
-- Format: `type(scope): description`
-- Types: feat, fix, docs, style, refactor, test, chore
-- Example: `feat(trucks): add bulk import feature`
-
-## Pull Request Process
-
-1. Update documentation if needed
-2. Add tests for new features
-3. Ensure all tests pass
-4. Update CHANGELOG.md
-5. Request review from maintainers
-6. Address review feedback
-7. Squash commits if requested
-
-## Code Review Guidelines
-
-- Be respectful and constructive
-- Focus on code, not the person
-- Explain reasoning for suggestions
-- Approve when satisfied
-
-## Bug Reports
-
-Include:
-- Clear description
-- Steps to reproduce
-- Expected vs actual behavior
-- Screenshots if applicable
-- Environment details
-
-## Feature Requests
-
-Include:
-- Clear use case
-- Expected behavior
-- Mockups if applicable
-- Potential implementation approach
-
-## Questions?
-
-- Open a discussion on GitHub
-- Join our Discord community
-- Email: support@fleetmanager.com
-
-Thank you for contributing!
+Do not report security vulnerabilities in a public issue. Follow SECURITY.md.

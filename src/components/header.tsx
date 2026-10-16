@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { useSidebar } from '@/contexts/sidebar-context'
 import { useAuth } from '@/contexts/auth-context'
 import { ProfilePicture } from '@/components/profile-picture'
-import { Menu, X, PanelLeftClose, PanelLeftOpen, Bell, CheckCircle, AlertTriangle, Info, Settings, LogOut, User } from 'lucide-react'
+import { Menu, X, PanelLeftClose, PanelLeftOpen, Bell, CheckCircle, AlertTriangle, Info, Settings, LogOut, User, BookOpen, ShieldCheck, FileText } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { ThemeToggle } from '@/components/theme-toggle'
 
@@ -282,6 +282,18 @@ export function Header() {
               <DropdownMenuItem onClick={() => router.push('/settings')}>
                 <Settings className="me-2 h-4 w-4" />
                 <span>{t('Settings')}</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => router.push('/help')}>
+                <BookOpen className="me-2 h-4 w-4" />
+                <span>{t('User Guide')}</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => router.push('/privacy')}>
+                <ShieldCheck className="me-2 h-4 w-4" />
+                <span>{t('Privacy Policy')}</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => router.push('/agreement')}>
+                <FileText className="me-2 h-4 w-4" />
+                <span>{t('User Agreement')}</span>
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />

@@ -1,224 +1,66 @@
 # Deployment Guide
 
-> Live domain: https://fleetmaintenance.site (Vercel + Neon Postgres + Resend)
-> Production database setup: `npx prisma db push` against `DATABASE_URL`, then `npm run db:setup-vercel`
+The production application is hosted at [fleetmaintenance.site](https://fleetmaintenance.site). This repository uses Next.js 15, Prisma, and PostgreSQL. The current Vercel build command is npm run vercel-build; it pushes the Prisma schema, generates the client, and builds Next.js.
 
-## Prerequisites
+## Required production configuration
 
-- Node.js 20+
-- PostgreSQL 14+
-- Redis (optional, for caching)
-- Domain name with SSL certificate
+Set secrets in the hosting provider, never in source control:
 
-## Environment Setup
+| Variable | Use |
+| --- | --- |
+| DATABASE_URL | PostgreSQL connection URL |
+| JWT_SECRET | Application token signing; use a long random secret |
+| NEXTAUTH_URL | Canonical app URL where required by auth configuration |
+| NEXTAUTH_SECRET | NextAuth-related configuration |
+| NEXT_PUBLIC_APP_URL | Canonical HTTPS origin used for links and OAuth callbacks |
 
-1. Copy production environment file:
-```bash
-cp .env.production.example .env.production
-```
+Optional services:
 
-2. Update all environment variables with production values
+| Variables | Use |
+| --- | --- |
+| RESEND_API_KEY, EMAIL_FROM, RESEND_DOMAIN | Email delivery |
+| CRON_SECRET | Authorizes scheduled API routes; required for notification cron and workbook import watcher |
+| MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET | Microsoft Entra app registration for OneDrive |
+| MICROSOFT_TOKEN_ENCRYPTION_KEY | Stable server-side key used to encrypt the stored OneDrive refresh token |
 
-## Database Setup
+Changing MICROSOFT_TOKEN_ENCRYPTION_KEY makes the saved OneDrive refresh token unreadable; an administrator must reconnect the account. Register the production callback as https://fleetmaintenance.site/api/integrations/onedrive/callback (change the origin if the deployment URL changes). Never expose Microsoft secrets in a NEXT_PUBLIC_ variable.
 
-1. Create production database:
-```bash
-createdb fleet_management
-```
+## Database and build
 
-2. Run migrations:
-```bash
-npm run db:migrate:deploy
-```
+The Prisma datasource is PostgreSQL. For local schema updates, configure a development PostgreSQL URL, then run:
 
-3. Generate Prisma client:
-```bash
-npm run db:generate
-```
+    npm run db:generate
+    npm run db:push
 
-## Docker Deployment
+The Vercel build command runs prisma db push. Review schema changes and ensure the production database URL is correctly scoped before deploying.
 
-### Build Image
-```bash
-docker build -t fleet-manager:latest .
-```
+## Vercel scheduled tasks
 
-### Run Container
-```bash
-docker run -d \
-  --name fleet-manager \
-  -p 3000:3000 \
-  --env-file .env.production \
-  fleet-manager:latest
-```
+vercel.json configures two daily jobs:
 
-### With Docker Compose
-```bash
-docker-compose -f docker-compose.prod.yml up -d
-```
+| Route | UTC schedule | Purpose |
+| --- | --- | --- |
+| /api/cron/onedrive-import-watch | 03:00 | Renew/check the OneDrive workbook change watcher and scan for missed workbook changes |
+| /api/cron/notifications | 04:00 | Run maintenance notification checks |
 
-## Vercel Deployment
+Both routes require Authorization: Bearer <CRON_SECRET>. The notification schedule targets 07:00 in Riyadh. Hosting plans can execute a scheduled job within a time window, so this should not be treated as an exact-time or real-time alert.
 
-1. Install Vercel CLI:
-```bash
-npm i -g vercel
-```
+## OneDrive setup
 
-2. Login to Vercel:
-```bash
-vercel login
-```
+Connect OneDrive from Settings → Excel Sync after the Microsoft app registration and environment variables are set. See [Personal OneDrive Excel sync](docs/onedrive-excel-sync.md) for the delegated scopes, redirect URI, and user workflow. Workbook changes are staged for review and checked against the applying user’s permissions; see [Workbook imports](docs/onedrive-workbook-imports.md).
 
-3. Deploy:
-```bash
-vercel --prod
-```
+## Email setup
 
-4. Set environment variables in Vercel dashboard
+Configure the sender and Resend credentials in the deployment environment. Notification settings must enable email for email delivery. The test-notification control sends a test to the signed-in account. Automated maintenance alert emails are sent to active, approved administrators. Delivery depends on valid provider configuration.
 
-## Traditional Server Deployment
+## Production checklist
 
-### Using PM2
+- Confirm all environment variables and production scopes.
+- Confirm DATABASE_URL points to the intended PostgreSQL database.
+- Confirm the Vercel domain and Microsoft redirect URI match.
+- Set a strong CRON_SECRET and redeploy.
+- Confirm email and OneDrive integrations from Settings.
+- Confirm the production build and scheduled jobs in Vercel deployment logs.
+- Maintain a separate backup and restore process appropriate for the Company’s records.
 
-1. Install PM2:
-```bash
-npm install -g pm2
-```
-
-2. Build application:
-```bash
-npm run build
-```
-
-3. Start with PM2:
-```bash
-pm2 start npm --name "fleet-manager" -- start
-pm2 save
-pm2 startup
-```
-
-### Using Nginx
-
-1. Install Nginx:
-```bash
-sudo apt install nginx
-```
-
-2. Configure Nginx:
-```nginx
-server {
-    listen 80;
-    server_name fleetmaintenance.site;
-
-    location / {
-        proxy_pass http://localhost:3000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_cache_bypass $http_upgrade;
-    }
-}
-```
-
-3. Enable SSL with Let's Encrypt:
-```bash
-sudo certbot --nginx -d fleetmaintenance.site
-```
-
-## Post-Deployment
-
-1. Run database backup:
-```bash
-npm run db:backup
-```
-
-2. Set up cron job for automated backups:
-```bash
-crontab -e
-# Add: 0 2 * * * cd /path/to/app && npm run db:backup
-```
-
-3. Monitor application logs:
-```bash
-pm2 logs fleet-manager
-# or
-docker logs -f fleet-manager
-```
-
-## Health Checks
-
-Test endpoints:
-- `GET /api/health` - Application health
-- `GET /api/db-health` - Database connectivity
-
-## Rollback
-
-### Docker
-```bash
-docker stop fleet-manager
-docker run -d --name fleet-manager fleet-manager:previous-tag
-```
-
-### PM2
-```bash
-pm2 stop fleet-manager
-git checkout previous-commit
-npm run build
-pm2 restart fleet-manager
-```
-
-## Monitoring
-
-1. Set up Sentry for error tracking
-2. Configure uptime monitoring (UptimeRobot, Pingdom)
-3. Set up log aggregation (Datadog, LogRocket)
-4. Monitor database performance
-
-## Security Checklist
-
-- [ ] All secrets in environment variables
-- [ ] SSL/TLS enabled
-- [ ] Database backups configured
-- [ ] Rate limiting enabled
-- [ ] CORS configured properly
-- [ ] Security headers set
-- [ ] Regular dependency updates
-- [ ] Firewall rules configured
-
-## Performance Optimization
-
-1. Enable Redis caching
-2. Configure CDN for static assets
-3. Enable database connection pooling
-4. Set up load balancing for high traffic
-5. Monitor and optimize slow queries
-
-## Troubleshooting
-
-### Database Connection Issues
-```bash
-# Check PostgreSQL status
-sudo systemctl status postgresql
-
-# Test connection
-psql $DATABASE_URL
-```
-
-### Application Won't Start
-```bash
-# Check logs
-pm2 logs fleet-manager
-
-# Verify environment variables
-printenv | grep DATABASE_URL
-```
-
-### High Memory Usage
-```bash
-# Monitor resources
-pm2 monit
-
-# Restart application
-pm2 restart fleet-manager
-```
+Do not print secret values in support requests or logs.

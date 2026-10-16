@@ -1,19 +1,20 @@
 # Role-checked Excel workbook imports
 
-The OneDrive workbook now supports inbound edits through a review queue. Each exported row carries hidden IDs and a hidden last-synced baseline so app-side edits are not mistaken for workbook edits. The app watches the connected personal OneDrive, compares visible row values with that baseline, and stages changed or new rows. It never imports worksheet row deletions.
+Workbook edits can flow back to Fleet Manager through the Excel Changes review queue. They are staged first; the app does not blindly trust workbook rows.
 
 ## Deployment setup
 
-The existing Microsoft app registration and delegated `Files.ReadWrite` permission are used. The Vercel deployment also needs a random `CRON_SECRET` environment variable in Production so the daily `/api/cron/onedrive-import-watch` job can renew the Microsoft Graph subscription. After setting it, redeploy. The app's existing `NEXT_PUBLIC_APP_URL` must be the public HTTPS origin.
+Use the OneDrive app registration in docs/onedrive-excel-sync.md. Production also requires CRON_SECRET for the scheduled /api/cron/onedrive-import-watch route. Set NEXT_PUBLIC_APP_URL to the deployed HTTPS origin and redeploy.
 
-The Vercel build runs `prisma db push`, which creates the new review queue table and OneDrive notification columns. Open **Settings → Excel Sync** once as an admin after deployment; this creates or renews the OneDrive folder subscription. Click **Sync Now** once to initialize an existing workbook with hidden row IDs and baselines. This first sync establishes the app's current records as the starting point; after that, workbook edits are imported for role-checked review. The daily job renews the subscription and scans for missed file notifications.
+The production build updates the Prisma schema. An administrator should open Settings → Excel Sync after deployment and use Sync Now to ensure the workbook contains current hidden row identifiers and matching baselines. The watcher receives Microsoft Graph change notifications and has a daily scan to recover missed notifications.
 
 ## User workflow
 
-1. Edit a row or add a row in one of the workbook tabs: Trucks, Trailers, Maintenance, Oil Changes, Tires, or Job Cards.
-2. OneDrive notifies the app. A user can also select **Excel Changes → Check workbook now** to request a scan.
-3. The app shows the changed fields or new row on **Excel Changes**.
-4. The signed-in user's current role and per-user permissions are checked by the server when **Apply change** is selected. The data is validated before it is saved and audited with the applying user.
-5. Once all pending changes are applied or dismissed, the app republishes the workbook with refreshed hidden record IDs and row baselines for reliable future matching.
+1. Edit an existing row or add a row in Trucks, Trailers, Maintenance, Oil Changes, Tires, or Job Cards in the connected workbook.
+2. The app receives a OneDrive notification or a scheduled scan finds the edit. An authorized user can also open Excel Changes and select Check workbook now.
+3. Review the complete row, changed fields, current app values, validation result, and conflict details.
+4. Apply one eligible change or use the bulk apply action for eligible pending changes. The server checks the applying user’s current role and permissions and validates each row.
+5. Resolve eligible app-versus-workbook conflicts separately after reviewing the complete row. Invalid values and permission-denied rows cannot be bulk-applied.
+6. Once pending edits are resolved, Fleet Manager republishes current app records to refresh the workbook baseline.
 
-If the same app record changed after the workbook edit was detected, the row is marked as a conflict. An admin can dismiss it after resolving the difference. Pending and conflicted changes prevent the app from overwriting the edited workbook. Deleting a row in Excel never deletes an app record.
+Deleting a worksheet row does not delete an app record. Conflicts and pending workbook edits prevent silent replacement of the workbook. If the app update is queued or fails, review Settings → Excel Sync and retry Sync Now.

@@ -15,6 +15,7 @@ import { useAuth } from '@/contexts/auth-context'
 import { useLanguage } from '@/contexts/language-context'
 import { TruckLoader } from '@/components/ui/truck-loader'
 import Link from 'next/link'
+import { LegalDocumentLinks } from '@/components/legal-document-links'
 
 function SearchParamsHandler() {
   const searchParams = useSearchParams()
@@ -382,6 +383,8 @@ export default function LoginPage() {
             </div>
           </CardContent>
         </Card>
+
+        <LegalDocumentLinks />
 
         {/* Info Card */}
         <Card className="bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800">
