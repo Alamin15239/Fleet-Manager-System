@@ -14,17 +14,16 @@ import { useLanguage } from '@/contexts/language-context'
 import { TruckLoader } from '@/components/ui/truck-loader'
 import {
   Activity,
+  Caravan,
   ChartNoAxesCombined,
   ChevronLeft,
   ChevronRight,
   CircleDot,
   ClipboardCheck,
-  Container,
   Droplets,
   FileBarChart,
   FileSpreadsheet,
   Gauge,
-  LockKeyhole,
   LogOut,
   Settings,
   Shield,
@@ -38,6 +37,8 @@ type NavItem = {
   name: string
   href: string
   icon: typeof Gauge
+  iconColor: string
+  iconBackground: string
   resource: string
   action: string
 }
@@ -46,40 +47,40 @@ const getNavigationGroups = (t: (key: string) => string) => [
   {
     label: 'Workspace',
     items: [
-      { name: t('nav.dashboard'), href: '/', icon: Gauge, resource: 'dashboard', action: 'read' },
+      { name: t('nav.dashboard'), href: '/', icon: Gauge, iconColor: 'text-violet-600 dark:text-violet-400', iconBackground: 'bg-violet-500/10', resource: 'dashboard', action: 'read' },
     ],
   },
   {
     label: 'Fleet',
     items: [
-      { name: t('nav.trucks'), href: '/trucks', icon: Truck, resource: 'trucks', action: 'read' },
-      { name: t('nav.trailers'), href: '/trailers', icon: Container, resource: 'trailers', action: 'read' },
-      { name: t('nav.tires'), href: '/tire-management', icon: CircleDot, resource: 'tire-management', action: 'read' },
+      { name: t('nav.trucks'), href: '/trucks', icon: Truck, iconColor: 'text-blue-600 dark:text-blue-400', iconBackground: 'bg-blue-500/10', resource: 'trucks', action: 'read' },
+      { name: t('nav.trailers'), href: '/trailers', icon: Caravan, iconColor: 'text-orange-600 dark:text-orange-400', iconBackground: 'bg-orange-500/10', resource: 'trailers', action: 'read' },
+      { name: t('nav.tires'), href: '/tire-management', icon: CircleDot, iconColor: 'text-amber-600 dark:text-amber-400', iconBackground: 'bg-amber-500/10', resource: 'tire-management', action: 'read' },
     ],
   },
   {
     label: 'Workshop',
     items: [
-      { name: t('nav.jobCards'), href: '/job-cards', icon: ClipboardCheck, resource: 'maintenance', action: 'read' },
-      { name: t('nav.oilChanges'), href: '/oil-changes', icon: Droplets, resource: 'maintenance', action: 'read' },
-      { name: t('nav.mechanics'), href: '/mechanics', icon: Wrench, resource: 'mechanics', action: 'read' },
+      { name: t('nav.jobCards'), href: '/job-cards', icon: ClipboardCheck, iconColor: 'text-emerald-600 dark:text-emerald-400', iconBackground: 'bg-emerald-500/10', resource: 'maintenance', action: 'read' },
+      { name: t('nav.oilChanges'), href: '/oil-changes', icon: Droplets, iconColor: 'text-cyan-600 dark:text-cyan-400', iconBackground: 'bg-cyan-500/10', resource: 'maintenance', action: 'read' },
+      { name: t('nav.mechanics'), href: '/mechanics', icon: Wrench, iconColor: 'text-rose-600 dark:text-rose-400', iconBackground: 'bg-rose-500/10', resource: 'mechanics', action: 'read' },
     ],
   },
   {
     label: 'Insights',
     items: [
-      { name: t('nav.analytics'), href: '/advanced-analytics', icon: ChartNoAxesCombined, resource: 'advanced-analytics', action: 'read' },
-      { name: t('nav.reports'), href: '/reports', icon: FileBarChart, resource: 'reports', action: 'read' },
-      { name: t('nav.excelImports'), href: '/excel-imports', icon: FileSpreadsheet, resource: 'excel-imports', action: 'read' },
+      { name: t('nav.analytics'), href: '/advanced-analytics', icon: ChartNoAxesCombined, iconColor: 'text-fuchsia-600 dark:text-fuchsia-400', iconBackground: 'bg-fuchsia-500/10', resource: 'advanced-analytics', action: 'read' },
+      { name: t('nav.reports'), href: '/reports', icon: FileBarChart, iconColor: 'text-indigo-600 dark:text-indigo-400', iconBackground: 'bg-indigo-500/10', resource: 'reports', action: 'read' },
+      { name: t('nav.excelImports'), href: '/excel-imports', icon: FileSpreadsheet, iconColor: 'text-green-600 dark:text-green-400', iconBackground: 'bg-green-500/10', resource: 'excel-imports', action: 'read' },
     ],
   },
   {
     label: 'Administration',
     items: [
-      { name: t('nav.users'), href: '/users', icon: Users, resource: 'users', action: 'read' },
-      { name: t('nav.profile'), href: '/profile', icon: User, resource: 'profile', action: 'read' },
-      { name: t('nav.settings'), href: '/settings', icon: Settings, resource: 'settings', action: 'read' },
-      { name: t('nav.admin'), href: '/admin', icon: Shield, resource: 'admin', action: 'read' },
+      { name: t('nav.users'), href: '/users', icon: Users, iconColor: 'text-purple-600 dark:text-purple-400', iconBackground: 'bg-purple-500/10', resource: 'users', action: 'read' },
+      { name: t('nav.profile'), href: '/profile', icon: User, iconColor: 'text-sky-600 dark:text-sky-400', iconBackground: 'bg-sky-500/10', resource: 'profile', action: 'read' },
+      { name: t('nav.settings'), href: '/settings', icon: Settings, iconColor: 'text-slate-600 dark:text-slate-300', iconBackground: 'bg-slate-500/10', resource: 'settings', action: 'read' },
+      { name: t('nav.admin'), href: '/admin', icon: Shield, iconColor: 'text-red-600 dark:text-red-400', iconBackground: 'bg-red-500/10', resource: 'admin', action: 'read' },
     ],
   },
 ]
@@ -98,6 +99,13 @@ export function Navigation({ userRole = 'USER' }: NavigationProps) {
   const navPosition = isArabic ? 'right-0 border-l' : 'left-0 border-r'
   const hiddenTransform = isArabic ? 'translate-x-full' : '-translate-x-full'
   const groups = getNavigationGroups(t)
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) =>
+        user?.role === 'ADMIN' || userRole === 'ADMIN' || hasPermission(item.resource, item.action),
+      ),
+    }))
+    .filter((group) => group.items.length > 0)
 
   const sidebarClassName = cn(
     'fixed inset-y-0 z-50 flex w-[min(19rem,86vw)] flex-col border-sidebar-border bg-sidebar text-sidebar-foreground shadow-2xl shadow-black/10 transition-[width,transform] duration-300 ease-out md:sticky md:inset-x-auto md:top-0 md:z-auto md:h-dvh md:w-64 md:shrink-0 md:translate-x-0 md:shadow-none',
@@ -180,29 +188,9 @@ export function Navigation({ userRole = 'USER' }: NavigationProps) {
             )}
             <div className="space-y-1">
               {group.items.map((item: NavItem) => {
-                const hasAccess = user?.role === 'ADMIN' || userRole === 'ADMIN' || hasPermission(item.resource, item.action)
                 const isActive = item.href === '/'
                   ? pathname === '/'
                   : pathname === item.href || (pathname ?? '').startsWith(`${item.href}/`)
-                const iconColor = isActive ? 'text-sky-600 dark:text-sky-300' : 'text-sidebar-foreground/55 group-hover:text-sidebar-foreground'
-
-                if (!hasAccess) {
-                  return (
-                    <div
-                      key={item.href}
-                      aria-disabled="true"
-                      className={cn(
-                        'flex min-h-10 items-center gap-3 rounded-xl px-3 text-[13px] font-medium text-sidebar-foreground/35',
-                        !isSidebarOpen && 'justify-center px-2',
-                      )}
-                      title={!isSidebarOpen ? `${item.name} (${t('message.accessDenied')})` : undefined}
-                    >
-                      <item.icon className="h-[1.05rem] w-[1.05rem] shrink-0" />
-                      {isSidebarOpen && <span className="min-w-0 flex-1 truncate">{item.name}</span>}
-                      {isSidebarOpen && <LockKeyhole className="h-3.5 w-3.5 shrink-0" />}
-                    </div>
-                  )
-                }
 
                 return (
                   <Link
@@ -222,9 +210,10 @@ export function Navigation({ userRole = 'USER' }: NavigationProps) {
                     {isActive && <span className="absolute inset-y-2 start-0 w-[3px] rounded-full bg-sky-500" />}
                     <span className={cn(
                       'flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition-colors',
-                      isActive ? 'bg-sky-500/10' : 'group-hover:bg-sidebar-accent',
+                      item.iconBackground,
+                      'group-hover:brightness-95 dark:group-hover:brightness-125',
                     )}>
-                      <item.icon className={cn('h-[1.05rem] w-[1.05rem]', iconColor)} strokeWidth={isActive ? 2.2 : 1.9} />
+                      <item.icon className={cn('h-[1.05rem] w-[1.05rem]', item.iconColor)} strokeWidth={isActive ? 2.2 : 1.9} />
                     </span>
                     {isSidebarOpen && <span className="min-w-0 flex-1 truncate">{item.name}</span>}
                     {isSidebarOpen && isActive && <Activity className="h-3.5 w-3.5 shrink-0 text-sky-500" />}
