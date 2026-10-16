@@ -126,17 +126,45 @@
   background: color-mix(in oklab, var(--primary) 22%, transparent);
 }
 
-.container.mx-auto.p-6 {
+.container.mx-auto {
   width: 100%;
-  max-width: 96rem;
+  margin-inline: auto;
   padding: clamp(1rem, 2.2vw, 1.75rem);
 }
 
-.container.mx-auto.p-6 h1 {
+.container.mx-auto > div[class~="justify-between"] {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid color-mix(in oklab, var(--border) 75%, transparent);
+}
+
+.container.mx-auto > div[class~="justify-between"] > :first-child h1 {
   max-width: 100%;
   overflow-wrap: anywhere;
   font-size: clamp(1.5rem, 3vw, 1.875rem);
   line-height: 1.2;
+  letter-spacing: -0.025em;
+}
+
+.container.mx-auto > div[class~="justify-between"] > :first-child {
+  min-width: 0;
+  flex: 1 1 16rem;
+}
+
+.container.mx-auto > div[class~="justify-between"] > :last-child {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.min-h-screen.flex.items-center.justify-center {
+  min-height: 100dvh;
+  padding-block: 1.25rem;
 }
 
 /* Screen-only styles */
