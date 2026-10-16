@@ -116,13 +116,16 @@ export function ProfilePicture({ size = 'md', editable = false, className = '' }
       </Avatar>
       
       {editable && (
-        <div className="absolute -bottom-1 -right-1">
+        <div className="absolute -bottom-1 -end-1">
           <Button
+            type="button"
             size="sm"
             variant="outline"
-            className="h-8 w-8 rounded-full p-0 bg-white border-2 border-white shadow-md"
+            className="h-8 w-8 rounded-full border-2 border-background bg-background p-0 text-foreground shadow-md ring-1 ring-border/70 hover:bg-muted"
             onClick={() => fileInputRef.current?.click()}
             disabled={uploading}
+            title={t('Change profile picture')}
+            aria-label={t('Change profile picture')}
           >
             {uploading ? (
               <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-primary"></div>
@@ -134,13 +137,16 @@ export function ProfilePicture({ size = 'md', editable = false, className = '' }
       )}
 
       {editable && user?.profileImage && (
-        <div className="absolute -top-1 -right-1">
+        <div className="absolute -top-1 -end-1">
           <Button
+            type="button"
             size="sm"
             variant="destructive"
             className="h-6 w-6 rounded-full p-0"
             onClick={handleRemovePicture}
             disabled={uploading}
+            title={t('Remove profile picture')}
+            aria-label={t('Remove profile picture')}
           >
             <X className="h-3 w-3" />
           </Button>

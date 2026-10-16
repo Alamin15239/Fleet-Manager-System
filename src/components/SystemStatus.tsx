@@ -4,7 +4,7 @@ import { LocalizedText } from '@/components/localized-text'
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle, AlertTriangle, XCircle, Clock } from 'lucide-react';
+import { CheckCircle, AlertTriangle, XCircle, Clock, LockKeyhole } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
 
 interface SystemCheck {
@@ -31,33 +31,51 @@ interface Activity {
 }
 
 export default function SystemStatus() {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const [systemStatus, setSystemStatus] = useState<SystemStatus | null>(null);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchSystemStatus();
+    if (user?.role === 'ADMIN') fetchSystemStatus();
+    else {
+      setStatusMessage('Administrator access required');
+      setLoading(false);
+    }
     if (token) fetchRecentActivity();
     
     // Refresh every 30 seconds
     const interval = setInterval(() => {
-      fetchSystemStatus();
+      if (user?.role === 'ADMIN') fetchSystemStatus();
       if (token) fetchRecentActivity();
     }, 30000);
 
     return () => clearInterval(interval);
-  }, [token]);
+  }, [token, user?.role]);
 
   const fetchSystemStatus = async () => {
+    if (!token) {
+      setStatusMessage('Authentication required');
+      setLoading(false);
+      return;
+    }
     try {
-      const response = await fetch('/api/system/status');
+      const response = await fetch('/api/system/status', {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: 'no-store',
+      });
       if (response.ok) {
         const data = await response.json();
         setSystemStatus(data);
+        setStatusMessage(null);
+      } else {
+        const data = await response.json().catch(() => ({}));
+        setStatusMessage(data.error || `System status request failed (${response.status})`);
       }
     } catch (error) {
       console.error('Error fetching system status:', error);
+      setStatusMessage('Unable to load system status');
     } finally {
       setLoading(false);
     }
@@ -123,6 +141,16 @@ export default function SystemStatus() {
     return `${diffInDays} day${diffInDays > 1 ? 's' : ''} ago`;
   };
 
+  const checks = systemStatus ? [
+    { label: 'Authentication', check: systemStatus.checks.authentication },
+    { label: 'Database', check: systemStatus.checks.database },
+    { label: 'File Storage', check: systemStatus.checks.fileStorage },
+    { label: 'Report Generation', check: systemStatus.checks.reportGeneration },
+  ] : [];
+  const overallStatus = systemStatus?.status === 'healthy'
+    ? 'operational'
+    : systemStatus?.status === 'degraded' ? 'warning' : 'error';
+
   if (loading) {
     return (
       <Card>
@@ -145,44 +173,38 @@ export default function SystemStatus() {
           <CardTitle><LocalizedText>System Status</LocalizedText></CardTitle>
         </CardHeader>
         <CardContent>
-          {systemStatus ? (
+          {user?.role !== 'ADMIN' ? (
+            <div className="flex items-center gap-3 rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+              <LockKeyhole className="h-4 w-4 shrink-0" />
+              <LocalizedText>Administrator access required</LocalizedText>
+            </div>
+          ) : systemStatus ? (
             <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="flex items-center justify-between p-3 border rounded-lg">
-                  <div className="flex items-center gap-2">
-                    {getStatusIcon(systemStatus.checks.authentication.status)}
-                    <span className="font-medium"><LocalizedText>Authentication</LocalizedText></span>
-                  </div>
-                  {getStatusBadge(systemStatus.checks.authentication.status)}
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-muted/20 px-4 py-3">
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground"><LocalizedText>Overall System Health</LocalizedText></p>
+                  <p className="mt-1 text-sm font-semibold"><LocalizedText>{systemStatus.status === 'degraded' ? 'Degraded' : systemStatus.status === 'unhealthy' ? 'Unhealthy' : 'Healthy'}</LocalizedText></p>
                 </div>
-                
-                <div className="flex items-center justify-between p-3 border rounded-lg">
-                  <div className="flex items-center gap-2">
-                    {getStatusIcon(systemStatus.checks.database.status)}
-                    <span className="font-medium"><LocalizedText>Database</LocalizedText></span>
+                {getStatusBadge(overallStatus)}
+                <p className="text-xs text-muted-foreground"><LocalizedText>Last checked</LocalizedText> {new Date(systemStatus.timestamp).toLocaleTimeString()}</p>
+              </div>
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                {checks.map(({ label, check }) => (
+                  <div key={label} className="flex min-w-0 items-start justify-between gap-3 rounded-xl border p-3.5">
+                    <div className="flex min-w-0 items-start gap-2.5">
+                      <span className="mt-0.5">{getStatusIcon(check.status)}</span>
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold"><LocalizedText>{label}</LocalizedText></p>
+                        <p className="mt-1 break-words text-xs leading-5 text-muted-foreground"><LocalizedText>{check.message}</LocalizedText></p>
+                      </div>
+                    </div>
+                    <div className="shrink-0">{getStatusBadge(check.status)}</div>
                   </div>
-                  {getStatusBadge(systemStatus.checks.database.status)}
-                </div>
-                
-                <div className="flex items-center justify-between p-3 border rounded-lg">
-                  <div className="flex items-center gap-2">
-                    {getStatusIcon(systemStatus.checks.fileStorage.status)}
-                    <span className="font-medium"><LocalizedText>File Storage</LocalizedText></span>
-                  </div>
-                  {getStatusBadge(systemStatus.checks.fileStorage.status)}
-                </div>
-                
-                <div className="flex items-center justify-between p-3 border rounded-lg">
-                  <div className="flex items-center gap-2">
-                    {getStatusIcon(systemStatus.checks.reportGeneration.status)}
-                    <span className="font-medium"><LocalizedText>Report Generation</LocalizedText></span>
-                  </div>
-                  {getStatusBadge(systemStatus.checks.reportGeneration.status)}
-                </div>
+                ))}
               </div>
             </div>
           ) : (
-            <div className="text-center text-gray-500"><LocalizedText>Unable to load system status</LocalizedText></div>
+            <div className="text-center text-gray-500">{statusMessage || <LocalizedText>Unable to load system status</LocalizedText>}</div>
           )}
         </CardContent>
       </Card>

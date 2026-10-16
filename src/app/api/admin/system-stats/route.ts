@@ -1,6 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/auth'
 import { db } from '@/lib/db'
+import { runSystemHealthChecks } from '@/lib/system-health'
+
+function formatInstanceUptime(totalSeconds: number) {
+  const days = Math.floor(totalSeconds / 86400)
+  const hours = Math.floor((totalSeconds % 86400) / 3600)
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
+  if (days > 0) return `${days}d ${hours}h`
+  if (hours > 0) return `${hours}h ${minutes}m`
+  if (minutes > 0) return `${minutes}m`
+  return '<1m'
+}
 
 export async function GET(request: NextRequest) {
   const startedAt = Date.now()
@@ -31,7 +42,9 @@ export async function GET(request: NextRequest) {
       pendingTrailerMaintenance,
       pendingJobCards,
       totalTires,
-      databaseSizeResult
+      databaseSizeResult,
+      lastBackupRecord,
+      systemHealth
     ] = await Promise.all([
       db.user.count({ where: { isDeleted: false } }),
       db.loginHistory.findMany({
@@ -55,7 +68,13 @@ export async function GET(request: NextRequest) {
       db.trailerMaintenanceRecord.count({ where: { isDeleted: false, status: { in: ['SCHEDULED', 'IN_PROGRESS'] } } }),
       db.workshopJobCard.count({ where: { status: { in: ['OPEN', 'IN_PROGRESS'] } } }),
       db.tire.count(),
-      db.$queryRaw<Array<{ bytes: bigint }>>`SELECT pg_database_size(current_database()) AS bytes`
+      db.$queryRaw<Array<{ bytes: bigint }>>`SELECT pg_database_size(current_database()) AS bytes`,
+      db.auditLog.findFirst({
+        where: { action: 'DATABASE_BACKUP', entityType: 'SYSTEM' },
+        orderBy: { createdAt: 'desc' },
+        select: { createdAt: true },
+      }),
+      runSystemHealthChecks()
     ])
 
     const databaseBytes = Number(databaseSizeResult[0]?.bytes || 0)
@@ -66,7 +85,7 @@ export async function GET(request: NextRequest) {
       activeSessions,
       totalActions,
       criticalAlerts: criticalTrucks + criticalTrailers,
-      systemHealth: null,
+      systemHealth: systemHealth.status === 'healthy' ? 'healthy' : systemHealth.status === 'degraded' ? 'warning' : 'critical',
       responseTime: Date.now() - startedAt,
       totalTrucks,
       activeTrucks,
@@ -76,8 +95,15 @@ export async function GET(request: NextRequest) {
       pendingMaintenance: pendingTruckMaintenance + pendingTrailerMaintenance + pendingJobCards,
       totalTires,
       databaseSize: `${(databaseBytes / (1024 * 1024)).toFixed(1)} MB`,
-      uptime: 'Not available',
-      lastBackup: 'Not recorded'
+      uptime: formatInstanceUptime(process.uptime()),
+      uptimeScope: 'Current server instance',
+      lastBackup: lastBackupRecord?.createdAt.toISOString() || null,
+      environment: process.env.VERCEL_ENV || process.env.NODE_ENV || 'Not available',
+      buildId: process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) || process.env.npm_package_version || 'Not available',
+      lastUpdated: process.env.VERCEL_GIT_COMMIT_TIMESTAMP || null,
+      memoryUsagePercent: process.memoryUsage().heapTotal
+        ? Math.round((process.memoryUsage().heapUsed / process.memoryUsage().heapTotal) * 100)
+        : null,
     }
 
     return NextResponse.json({ stats })

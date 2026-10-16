@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { useSidebar } from '@/contexts/sidebar-context'
 import { useAuth } from '@/contexts/auth-context'
 import { ProfilePicture } from '@/components/profile-picture'
-import { Menu, Bell, CheckCircle, AlertTriangle, Info, Settings, LogOut, User } from 'lucide-react'
+import { Menu, X, PanelLeftClose, PanelLeftOpen, Bell, CheckCircle, AlertTriangle, Info, Settings, LogOut, User } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { ThemeToggle } from '@/components/theme-toggle'
 
@@ -140,9 +140,21 @@ export function Header() {
           variant="ghost"
           size="sm"
           onClick={toggleSidebar}
+          aria-label={t(isSidebarOpen ? 'Close navigation menu' : 'Open navigation menu')}
+          title={t(isSidebarOpen ? 'Close navigation menu' : 'Open navigation menu')}
           className="h-11 w-11 p-2 sm:h-9 sm:w-9"
         >
-          <Menu className="h-4 w-4" />
+          {isSidebarOpen ? (
+            <>
+              <X className="h-4 w-4 md:hidden" />
+              <PanelLeftClose className="hidden h-4 w-4 md:block" />
+            </>
+          ) : (
+            <>
+              <Menu className="h-4 w-4 md:hidden" />
+              <PanelLeftOpen className="hidden h-4 w-4 md:block" />
+            </>
+          )}
         </Button>
       </div>
 

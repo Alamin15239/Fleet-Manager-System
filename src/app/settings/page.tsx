@@ -912,7 +912,7 @@ export default function SettingsPage() {
                 </div>
               </div>
               <div className="flex justify-end border-t pt-4">
-                <Button onClick={saveNotificationSettings} disabled={!canUpdate('settings') || notificationSaving || notificationTesting}>
+                <Button onClick={() => void saveNotificationSettings()} disabled={!canUpdate('settings') || notificationSaving || notificationTesting}>
                   <Save className="h-4 w-4 mr-2" />
                   <LocalizedText>{notificationSaving ? 'Saving...' : 'Save Notification Settings'}</LocalizedText>
                 </Button>

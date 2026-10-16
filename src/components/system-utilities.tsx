@@ -5,17 +5,13 @@ import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Progress } from '@/components/ui/progress'
-import { 
-  Database, 
-  Download, 
-  Upload, 
-  Trash2, 
-  RefreshCw, 
-  Shield, 
+import {
+  Database,
+  Download,
+  Upload,
+  Shield,
   AlertTriangle,
   CheckCircle,
-  Clock,
   HardDrive,
   FileText,
   Settings
@@ -23,53 +19,43 @@ import {
 import { toast } from '@/lib/localized-toast'
 
 export default function SystemUtilities() {
-  const [backupProgress, setBackupProgress] = useState(0)
   const [isBackingUp, setIsBackingUp] = useState(false)
-  const [isRestoring, setIsRestoring] = useState(false)
   const [isCleaning, setIsCleaning] = useState(false)
+
+  const getErrorMessage = async (response: Response, fallback: string) => {
+    const data = await response.json().catch(() => ({}))
+    return data.error || `${fallback} (${response.status})`
+  }
+
+  const downloadResponse = (response: Response, blob: Blob, fallbackName: string) => {
+    const fileName = response.headers.get('Content-Disposition')?.match(/filename="?([^";]+)"?/i)?.[1] || fallbackName
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = fileName
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000)
+  }
 
   const handleBackup = async () => {
     setIsBackingUp(true)
-    setBackupProgress(0)
-    
     try {
-      // Simulate backup progress
-      const interval = setInterval(() => {
-        setBackupProgress(prev => {
-          if (prev >= 100) {
-            clearInterval(interval)
-            return 100
-          }
-          return prev + 10
-        })
-      }, 200)
-
       const token = localStorage.getItem('authToken')
+      if (!token) throw new Error('Authentication required')
       const response = await fetch('/api/admin/backup', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
       })
 
-      if (response.ok) {
-        const blob = await response.blob()
-        const url = window.URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = `fleet-backup-${new Date().toISOString().split('T')[0]}.sql`
-        document.body.appendChild(a)
-        a.click()
-        document.body.removeChild(a)
-        window.URL.revokeObjectURL(url)
-        
-        toast.success('Database backup completed and downloaded')
-      } else {
-        toast.error('Backup failed')
-      }
+      if (!response.ok) throw new Error(await getErrorMessage(response, 'Backup failed'))
+      downloadResponse(response, await response.blob(), `fleet-database-backup-${new Date().toISOString().slice(0, 10)}.json`)
+      toast.success('Database backup completed and downloaded')
     } catch (error) {
-      toast.error('Backup failed')
+      toast.error(error instanceof Error ? error.message : 'Backup failed')
     } finally {
       setIsBackingUp(false)
-      setBackupProgress(0)
     }
   }
 
@@ -78,19 +64,17 @@ export default function SystemUtilities() {
     
     try {
       const token = localStorage.getItem('authToken')
+      if (!token) throw new Error('Authentication required')
       const response = await fetch('/api/admin/cleanup', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
       })
 
-      if (response.ok) {
-        const data = await response.json()
-        toast.success(`Cleanup completed: ${data.message || 'System cleaned'}`)
-      } else {
-        toast.error('Cleanup failed')
-      }
+      if (!response.ok) throw new Error(await getErrorMessage(response, 'Cleanup failed'))
+      const data = await response.json()
+      toast.success(data.message || 'Database statistics refreshed')
     } catch (error) {
-      toast.error('Cleanup failed')
+      toast.error(error instanceof Error ? error.message : 'Cleanup failed')
     } finally {
       setIsCleaning(false)
     }
@@ -99,27 +83,16 @@ export default function SystemUtilities() {
   const handleExportSettings = async () => {
     try {
       const token = localStorage.getItem('authToken')
+      if (!token) throw new Error('Authentication required')
       const response = await fetch('/api/settings/export', {
         headers: { 'Authorization': `Bearer ${token}` }
       })
 
-      if (response.ok) {
-        const blob = await response.blob()
-        const url = window.URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = `fleet-settings-${new Date().toISOString().split('T')[0]}.json`
-        document.body.appendChild(a)
-        a.click()
-        document.body.removeChild(a)
-        window.URL.revokeObjectURL(url)
-        
-        toast.success('Settings exported successfully')
-      } else {
-        toast.error('Export failed')
-      }
+      if (!response.ok) throw new Error(await getErrorMessage(response, 'Export failed'))
+      downloadResponse(response, await response.blob(), `fleet-settings-${new Date().toISOString().slice(0, 10)}.json`)
+      toast.success('Settings exported successfully')
     } catch (error) {
-      toast.error('Export failed')
+      toast.error(error instanceof Error ? error.message : 'Export failed')
     }
   }
 
@@ -128,7 +101,7 @@ export default function SystemUtilities() {
       {/* Backup & Restore */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+            <CardTitle className="flex items-center gap-2">
             <Database className="h-5 w-5" />
             Database Management
           </CardTitle>
@@ -140,14 +113,8 @@ export default function SystemUtilities() {
               <p className="text-sm text-muted-foreground">
                 <LocalizedText>Create a complete backup of your fleet management data</LocalizedText>
               </p>
-              {isBackingUp && (
-                <div className="space-y-2">
-                  <Progress value={backupProgress} className="w-full" />
-                  <p className="text-xs text-muted-foreground">
-                    Backing up... {backupProgress}%
-                  </p>
-                </div>
-              )}
+              <p className="text-xs text-amber-700 dark:text-amber-300"><LocalizedText>This backup contains private account and fleet data. Store it securely.</LocalizedText></p>
+              {isBackingUp && <p className="text-xs text-muted-foreground"><LocalizedText>Preparing a database snapshot...</LocalizedText></p>}
               <Button 
                 onClick={handleBackup}
                 disabled={isBackingUp}
@@ -161,50 +128,12 @@ export default function SystemUtilities() {
             <div className="space-y-3">
               <h4 className="font-semibold text-sm"><LocalizedText>Restore Database</LocalizedText></h4>
               <p className="text-sm text-muted-foreground">
-                <LocalizedText>Restore your database from a backup file</LocalizedText>
+                <LocalizedText>This JSON export cannot be imported as a database snapshot. Use Neon point-in-time recovery to restore production.</LocalizedText>
               </p>
               <div className="space-y-2">
-                <input
-                  type="file"
-                  accept=".sql,.json"
-                  className="hidden"
-                  id="restore-file"
-                  onChange={async (e) => {
-                    const file = e.target.files?.[0]
-                    if (!file) return
-
-                    setIsRestoring(true)
-                    try {
-                      const formData = new FormData()
-                      formData.append('backup', file)
-                      
-                      const token = localStorage.getItem('authToken')
-                      const response = await fetch('/api/admin/restore', {
-                        method: 'POST',
-                        headers: { 'Authorization': `Bearer ${token}` },
-                        body: formData
-                      })
-
-                      if (response.ok) {
-                        toast.success('Database restored successfully')
-                      } else {
-                        toast.error('Restore failed')
-                      }
-                    } catch (error) {
-                      toast.error('Restore failed')
-                    } finally {
-                      setIsRestoring(false)
-                    }
-                  }}
-                />
-                <Button 
-                  variant="outline"
-                  onClick={() => document.getElementById('restore-file')?.click()}
-                  disabled={isRestoring}
-                  className="w-full"
-                >
+                <Button variant="outline" disabled className="w-full">
                   <Upload className="h-4 w-4 mr-2" />
-                  {isRestoring ? 'Restoring...' : 'Upload & Restore'}
+                  <LocalizedText>Neon point-in-time recovery</LocalizedText>
                 </Button>
               </div>
             </div>
@@ -225,7 +154,7 @@ export default function SystemUtilities() {
             <div className="space-y-3">
               <h4 className="font-semibold text-sm"><LocalizedText>Clean System</LocalizedText></h4>
               <p className="text-sm text-muted-foreground">
-                <LocalizedText>Remove temporary files and optimize database</LocalizedText>
+                <LocalizedText>Refresh PostgreSQL query-planning statistics without deleting fleet data.</LocalizedText>
               </p>
               <Button 
                 variant="outline"
@@ -234,7 +163,7 @@ export default function SystemUtilities() {
                 className="w-full"
               >
                 <HardDrive className="h-4 w-4 mr-2" />
-                {isCleaning ? 'Cleaning...' : 'Clean System'}
+                {isCleaning ? 'Optimizing...' : 'Optimize Database'}
               </Button>
             </div>
 
@@ -263,19 +192,16 @@ export default function SystemUtilities() {
                 onClick={async () => {
                   try {
                     const token = localStorage.getItem('authToken')
+                    if (!token) throw new Error('Authentication required')
                     const response = await fetch('/api/admin/health-check', {
                       method: 'POST',
                       headers: { 'Authorization': `Bearer ${token}` }
                     })
-                    
-                    if (response.ok) {
-                      const data = await response.json()
-                      toast.success(`System check completed: ${data.status}`)
-                    } else {
-                      toast.error('System check failed')
-                    }
+                    if (!response.ok) throw new Error(await getErrorMessage(response, 'System check failed'))
+                    const data = await response.json()
+                    toast.success(`System check completed: ${data.status}`)
                   } catch (error) {
-                    toast.error('System check failed')
+                    toast.error(error instanceof Error ? error.message : 'System check failed')
                   }
                 }}
                 className="w-full"
@@ -299,34 +225,31 @@ export default function SystemUtilities() {
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-3">
-              <h4 className="font-semibold text-sm"><LocalizedText>Security Scan</LocalizedText></h4>
+              <h4 className="font-semibold text-sm"><LocalizedText>Security Posture Review</LocalizedText></h4>
               <p className="text-sm text-muted-foreground">
-                <LocalizedText>Check for security vulnerabilities and issues</LocalizedText>
+                <LocalizedText>Review approval status, email verification, JWT configuration, and individual permission overrides.</LocalizedText>
               </p>
               <Button 
                 variant="outline"
                 onClick={async () => {
                   try {
                     const token = localStorage.getItem('authToken')
+                    if (!token) throw new Error('Authentication required')
                     const response = await fetch('/api/admin/security-scan', {
                       method: 'POST',
                       headers: { 'Authorization': `Bearer ${token}` }
                     })
-                    
-                    if (response.ok) {
-                      const data = await response.json()
-                      toast.success(`Security scan completed: ${data.issues || 0} issues found`)
-                    } else {
-                      toast.error('Security scan failed')
-                    }
+                    if (!response.ok) throw new Error(await getErrorMessage(response, 'Security scan failed'))
+                    const data = await response.json()
+                    toast.success(`Security review completed: ${data.issues || 0} findings`)
                   } catch (error) {
-                    toast.error('Security scan failed')
+                    toast.error(error instanceof Error ? error.message : 'Security scan failed')
                   }
                 }}
                 className="w-full"
               >
                 <Shield className="h-4 w-4 mr-2" />
-                Run Security Scan
+                <LocalizedText>Review Access</LocalizedText>
               </Button>
             </div>
 
@@ -340,27 +263,15 @@ export default function SystemUtilities() {
                 onClick={async () => {
                   try {
                     const token = localStorage.getItem('authToken')
+                    if (!token) throw new Error('Authentication required')
                     const response = await fetch('/api/admin/export-logs', {
                       headers: { 'Authorization': `Bearer ${token}` }
                     })
-                    
-                    if (response.ok) {
-                      const blob = await response.blob()
-                      const url = window.URL.createObjectURL(blob)
-                      const a = document.createElement('a')
-                      a.href = url
-                      a.download = `system-logs-${new Date().toISOString().split('T')[0]}.txt`
-                      document.body.appendChild(a)
-                      a.click()
-                      document.body.removeChild(a)
-                      window.URL.revokeObjectURL(url)
-                      
-                      toast.success('Logs exported successfully')
-                    } else {
-                      toast.error('Log export failed')
-                    }
+                    if (!response.ok) throw new Error(await getErrorMessage(response, 'Log export failed'))
+                    downloadResponse(response, await response.blob(), `fleet-system-logs-${new Date().toISOString().slice(0, 10)}.json`)
+                    toast.success('Logs exported successfully')
                   } catch (error) {
-                    toast.error('Log export failed')
+                    toast.error(error instanceof Error ? error.message : 'Log export failed')
                   }
                 }}
                 className="w-full"
@@ -384,7 +295,7 @@ export default function SystemUtilities() {
         <CardContent>
           <div className="space-y-2 text-sm text-amber-700">
             <p>• Always create a backup before performing system maintenance</p>
-            <p>• Database restoration will overwrite all current data</p>
+            <p>• Database restoration must be performed through Neon recovery tools</p>
             <p>• System utilities should only be used by administrators</p>
             <p>• Contact support if you encounter any issues</p>
           </div>
