@@ -1,25 +1,28 @@
 'use client'
 import { LocalizedText } from '@/components/localized-text'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import Link from 'next/link'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
-import { Search, Settings, User as UserIcon, Shield } from 'lucide-react'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Search, Settings, User as UserIcon, Shield, RotateCcw } from 'lucide-react'
 import { toast } from '@/lib/localized-toast'
-import { Permission, defaultPermissions, adminPermissions, managerPermissions } from '@/lib/permissions'
+import { Permission, defaultPermissions, adminPermissions, managerPermissions, normalizePermissionOverrides, normalizeRolePermissions } from '@/lib/permissions'
 import { apiGet, apiPut } from '@/lib/api'
+import { useAuth } from '@/contexts/auth-context'
 
 interface User {
   id: string
   email: string
-  name: string
+  name: string | null
   role: string
   isActive: boolean
   permissions?: any
@@ -97,6 +100,7 @@ const permissionGroups: PermissionGroup[] = [
 ]
 
 export default function PermissionsSettingsPage() {
+  const { user: currentUser, isLoading: authLoading } = useAuth()
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
@@ -104,30 +108,51 @@ export default function PermissionsSettingsPage() {
   const [editingUser, setEditingUser] = useState<User | null>(null)
   const [userPermissions, setUserPermissions] = useState<Permission>(defaultPermissions)
   const [selectedRole, setSelectedRole] = useState<string>('')
+  const [rolePermissionDefaults, setRolePermissionDefaults] = useState<Record<string, Permission>>({
+    ADMIN: adminPermissions,
+    MANAGER: managerPermissions,
+    USER: defaultPermissions
+  })
+  const [saving, setSaving] = useState(false)
 
-  useEffect(() => {
-    fetchUsers()
-  }, [])
-
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     try {
-      const response = await apiGet('/api/users')
-      if (response.ok) {
-        const data = await response.json()
-        setUsers(data)
-      } else {
-        toast.error('Failed to fetch users')
+      const [usersResponse, settingsResponse] = await Promise.all([
+        apiGet('/api/users'),
+        apiGet('/api/settings')
+      ])
+      if (!usersResponse.ok) throw new Error('Failed to fetch users')
+      const usersData = await usersResponse.json()
+      setUsers(Array.isArray(usersData) ? usersData : [])
+
+      if (settingsResponse.ok) {
+        const settings = await settingsResponse.json()
+        const storedRolePermissions = settings.rolePermissions || {}
+        setRolePermissionDefaults({
+          ADMIN: adminPermissions,
+          MANAGER: storedRolePermissions.MANAGER ? normalizeRolePermissions(storedRolePermissions.MANAGER) : managerPermissions,
+          USER: storedRolePermissions.USER ? normalizeRolePermissions(storedRolePermissions.USER) : defaultPermissions
+        })
       }
     } catch (error) {
       console.error('Error fetching users:', error)
-      toast.error('Failed to fetch users')
+      toast.error(error instanceof Error ? error.message : 'Failed to fetch users')
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    if (authLoading) return
+    if (currentUser?.role !== 'ADMIN') {
+      setLoading(false)
+      return
+    }
+    void fetchUsers()
+  }, [authLoading, currentUser?.role, fetchUsers])
 
   const filteredUsers = users.filter(user => {
-    const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    const matchesSearch = (user.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
                          user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          user.role.toLowerCase().includes(searchTerm.toLowerCase())
     return matchesSearch
@@ -135,23 +160,16 @@ export default function PermissionsSettingsPage() {
 
   const handleEditPermissions = (user: User) => {
     setEditingUser(user)
-    const permissions = user.permissions ? 
-      { ...defaultPermissions, ...user.permissions } : 
-      getUserDefaultPermissions(user.role)
+    const roleDefault = getUserDefaultPermissions(user.role)
+    const overrides = normalizePermissionOverrides(user.permissions)
+    const permissions = { ...roleDefault, ...overrides }
     setUserPermissions(permissions)
     setSelectedRole(user.role)
     setIsDialogOpen(true)
   }
 
   const getUserDefaultPermissions = (role: string): Permission => {
-    switch (role) {
-      case 'ADMIN':
-        return adminPermissions
-      case 'MANAGER':
-        return managerPermissions
-      default:
-        return defaultPermissions
-    }
+    return rolePermissionDefaults[role] || defaultPermissions
   }
 
   const handleRoleChange = (role: string) => {
@@ -161,19 +179,48 @@ export default function PermissionsSettingsPage() {
   }
 
   const handlePermissionToggle = (permission: keyof Permission, value: boolean) => {
-    setUserPermissions(prev => ({
-      ...prev,
-      [permission]: value
-    }))
+    const readForAction: Partial<Record<keyof Permission, keyof Permission>> = {
+      canAddTrucks: 'canViewTrucks', canEditTrucks: 'canViewTrucks', canDeleteTrucks: 'canViewTrucks',
+      canAddMaintenance: 'canViewMaintenance', canEditMaintenance: 'canViewMaintenance', canDeleteMaintenance: 'canViewMaintenance',
+      canAddMechanics: 'canViewMechanics', canEditMechanics: 'canViewMechanics', canDeleteMechanics: 'canViewMechanics',
+      canAddTireManagement: 'canViewTireManagement', canEditTireManagement: 'canViewTireManagement', canDeleteTireManagement: 'canViewTireManagement',
+      canAddTrailers: 'canViewTrailers', canEditTrailers: 'canViewTrailers', canDeleteTrailers: 'canViewTrailers',
+      canManageUsers: 'canViewUsers', canEditProfile: 'canViewProfile', canManageSettings: 'canViewSettings', canManageAdmin: 'canViewAdmin'
+    }
+    const actionsForRead: Partial<Record<keyof Permission, (keyof Permission)[]>> = {
+      canViewTrucks: ['canAddTrucks', 'canEditTrucks', 'canDeleteTrucks'],
+      canViewMaintenance: ['canAddMaintenance', 'canEditMaintenance', 'canDeleteMaintenance'],
+      canViewMechanics: ['canAddMechanics', 'canEditMechanics', 'canDeleteMechanics'],
+      canViewTireManagement: ['canAddTireManagement', 'canEditTireManagement', 'canDeleteTireManagement'],
+      canViewTrailers: ['canAddTrailers', 'canEditTrailers', 'canDeleteTrailers'],
+      canViewUsers: ['canManageUsers'], canViewProfile: ['canEditProfile'],
+      canViewSettings: ['canManageSettings'], canViewAdmin: ['canManageAdmin']
+    }
+    setUserPermissions(previous => {
+      const next: Permission = { ...previous, [permission]: value }
+      if (value && readForAction[permission]) next[readForAction[permission]!] = true
+      if (!value && actionsForRead[permission]) {
+        for (const action of actionsForRead[permission]!) next[action] = false
+      }
+      return next
+    })
   }
 
   const handleSavePermissions = async () => {
-    if (!editingUser) return
+    if (!editingUser || saving) return
 
+    const roleDefault = getUserDefaultPermissions(selectedRole)
+    const permissionOverrides = Object.fromEntries(
+      (Object.keys(userPermissions) as (keyof Permission)[])
+        .filter(permission => userPermissions[permission] !== roleDefault[permission])
+        .map(permission => [permission, userPermissions[permission]])
+    ) as Partial<Permission>
+
+    setSaving(true)
     try {
       const response = await apiPut(`/api/users/${editingUser.id}`, {
         role: selectedRole,
-        permissions: userPermissions
+        permissions: permissionOverrides
       })
 
       if (response.ok) {
@@ -187,7 +234,13 @@ export default function PermissionsSettingsPage() {
     } catch (error) {
       console.error('Error updating permissions:', error)
       toast.error('Failed to update permissions')
+    } finally {
+      setSaving(false)
     }
+  }
+
+  const resetToRoleDefaults = () => {
+    setUserPermissions(getUserDefaultPermissions(selectedRole))
   }
 
   const getPermissionLabel = (permission: keyof Permission): string => {
@@ -198,10 +251,22 @@ export default function PermissionsSettingsPage() {
       .trim()
   }
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900"></div>
+      </div>
+    )
+  }
+
+  if (currentUser?.role !== 'ADMIN') {
+    return (
+      <div className="container mx-auto p-6">
+        <Alert>
+          <Shield className="h-4 w-4" />
+          <AlertDescription><LocalizedText>Only administrators can assign per-user permissions.</LocalizedText></AlertDescription>
+        </Alert>
+        <Button asChild variant="outline" className="mt-4"><Link href="/settings"><LocalizedText>Back to Settings</LocalizedText></Link></Button>
       </div>
     )
   }
@@ -274,7 +339,7 @@ export default function PermissionsSettingsPage() {
                   </TableCell>
                   <TableCell>
                     <div className="text-sm text-muted-foreground">
-                      {user.permissions ? 'Custom' : 'Role Default'}
+                      {Object.keys(normalizePermissionOverrides(user.permissions)).length > 0 ? 'Custom access' : 'Role defaults'}
                     </div>
                   </TableCell>
                   <TableCell className="text-right">
@@ -296,13 +361,13 @@ export default function PermissionsSettingsPage() {
 
       {/* Permission Edit Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-[800px] max-h-[80vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-[800px] max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               Edit Permissions - {editingUser?.name}
             </DialogTitle>
             <DialogDescription>
-              <LocalizedText>Configure access permissions for this user</LocalizedText>
+              <LocalizedText>Choose this account’s role and the exact app areas and actions it can access. Admin accounts always keep full access.</LocalizedText>
             </DialogDescription>
           </DialogHeader>
           
@@ -310,7 +375,7 @@ export default function PermissionsSettingsPage() {
             {/* Role Selection */}
             <div className="grid grid-cols-2 items-center gap-4">
               <Label htmlFor="role"><LocalizedText>Role</LocalizedText></Label>
-              <Select value={selectedRole} onValueChange={handleRoleChange}>
+              <Select value={selectedRole} onValueChange={handleRoleChange} disabled={editingUser?.id === currentUser?.id}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select role" />
                 </SelectTrigger>
@@ -320,6 +385,14 @@ export default function PermissionsSettingsPage() {
                   <SelectItem value="USER"><LocalizedText>User</LocalizedText></SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="flex flex-col gap-2 rounded-md border bg-muted/30 p-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm text-muted-foreground"><LocalizedText>Custom switches override the selected role’s defaults for this user only.</LocalizedText></p>
+              <Button type="button" variant="outline" size="sm" onClick={resetToRoleDefaults} disabled={selectedRole === 'ADMIN'}>
+                <RotateCcw className="mr-2 h-4 w-4" />
+                <LocalizedText>Use Role Defaults</LocalizedText>
+              </Button>
             </div>
 
             {/* Permission Groups */}
@@ -337,7 +410,7 @@ export default function PermissionsSettingsPage() {
                           id={permission}
                           checked={selectedRole === 'ADMIN' ? true : userPermissions[permission]}
                           onCheckedChange={(checked) => handlePermissionToggle(permission, checked)}
-                          disabled={selectedRole === 'ADMIN' || group.name === 'Admin'}
+                          disabled={selectedRole === 'ADMIN' || group.name === 'Admin' || editingUser?.id === currentUser?.id && permission === 'canViewAdmin'}
                         />
                         <Label htmlFor={permission} className="text-sm">
                           {getPermissionLabel(permission)}
@@ -351,11 +424,11 @@ export default function PermissionsSettingsPage() {
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+            <Button variant="outline" onClick={() => setIsDialogOpen(false)} disabled={saving}>
               Cancel
             </Button>
-            <Button onClick={handleSavePermissions}>
-              <LocalizedText>Save Permissions</LocalizedText>
+            <Button onClick={handleSavePermissions} disabled={saving}>
+              <LocalizedText>{saving ? 'Saving...' : 'Save Permissions'}</LocalizedText>
             </Button>
           </DialogFooter>
         </DialogContent>

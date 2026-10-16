@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireRolePermission } from '@/lib/permission-middleware'
+import { requireAdmin } from '@/lib/auth'
 import { updateUser, resetPassword } from '@/lib/auth'
+import { isValidPermissionOverrides, normalizePermissionOverrides } from '@/lib/permissions'
 
 // GET single user by ID (admin only)
 export async function GET(
@@ -10,7 +12,10 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    await requireRolePermission(request, 'users', 'read')
+    // This response includes login history, activity logs, and saved
+    // permissions, so it is administrator-only even if list access is granted
+    // to a manager role.
+    await requireAdmin(request)
 
     const user = await db.user.findUnique({
       where: { 
@@ -134,6 +139,13 @@ export async function PUT(
       body.isApproved !== undefined || body.permissions !== undefined)) {
       return NextResponse.json({ error: 'Only administrators can change elevated roles or account permissions' }, { status: 403 })
     }
+    if (id === caller.id && body.role !== undefined && body.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'You cannot remove administrator access from your own account' }, { status: 400 })
+    }
+
+    if (body.permissions !== undefined && !isValidPermissionOverrides(body.permissions)) {
+      return NextResponse.json({ error: 'Permissions must contain only supported permission names and boolean values' }, { status: 400 })
+    }
 
     let email: string | undefined
     if (body.email !== undefined) {
@@ -184,9 +196,30 @@ export async function PUT(
       role: body.role,
       isActive: body.isActive,
       isApproved: body.isApproved,
-      permissions: body.permissions,
+      permissions: body.permissions === undefined ? undefined : normalizePermissionOverrides(body.permissions),
       password
     })
+
+    // Per-user permissions now live on the User record. Remove any older
+    // Settings JSON override for this account so “use role defaults” really
+    // clears custom access instead of silently retaining the legacy value.
+    if (body.permissions !== undefined) {
+      try {
+        const settings = await db.settings.findFirst({ select: { id: true, userPermissions: true } })
+        if (settings?.userPermissions && typeof settings.userPermissions === 'object' && !Array.isArray(settings.userPermissions)) {
+          const remainingUserPermissions = { ...(settings.userPermissions as Record<string, unknown>) }
+          if (Object.prototype.hasOwnProperty.call(remainingUserPermissions, id)) {
+            delete remainingUserPermissions[id]
+            await db.settings.update({
+              where: { id: settings.id },
+              data: { userPermissions: remainingUserPermissions as any }
+            })
+          }
+        }
+      } catch (legacyCleanupError) {
+        console.warn('Could not remove legacy per-user permission override:', legacyCleanupError)
+      }
+    }
 
     // Broadcast real-time update (if socket.io is available)
     try {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { requireAdmin, requireAuth } from '@/lib/auth'
+import { requireAdmin } from '@/lib/auth'
+import { requireRolePermission } from '@/lib/permission-middleware'
 
 // Vehicle data mapping
 const vehicleData = [
@@ -91,7 +92,7 @@ export async function POST(request: NextRequest) {
 // GET /api/vehicles/initialize - Check initialization status
 export async function GET(request: NextRequest) {
   try {
-    await requireAuth(request)
+    await requireRolePermission(request, 'trucks', 'read')
     const count = await db.vehicle.count()
     const vehicles = await db.vehicle.findMany({
       select: {
@@ -109,9 +110,11 @@ export async function GET(request: NextRequest) {
     })
   } catch (error) {
     console.error('Error checking vehicle initialization:', error)
+    const message = error instanceof Error ? error.message : ''
+    const status = ['No token provided', 'Invalid token'].includes(message) ? 401 : message === 'Insufficient permissions' ? 403 : 500
     return NextResponse.json(
-      { error: 'Failed to check vehicle initialization' },
-      { status: 500 }
+      { error: status === 401 ? 'Authentication required' : status === 403 ? 'Access denied' : 'Failed to check vehicle initialization' },
+      { status }
     )
   }
 }

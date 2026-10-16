@@ -72,6 +72,12 @@ export async function GET(request: NextRequest) {
 
     if (user.role !== 'ADMIN') {
       const { bankName, bankAccountName, bankAccountNumber, bankIBAN, ...safeSettings } = responseSettings
+      const storedUserPermissions = safeSettings.userPermissions && typeof safeSettings.userPermissions === 'object'
+        ? safeSettings.userPermissions as Record<string, unknown>
+        : {}
+      safeSettings.userPermissions = Object.prototype.hasOwnProperty.call(storedUserPermissions, user.id)
+        ? { [user.id]: storedUserPermissions[user.id] }
+        : {}
       return NextResponse.json(safeSettings)
     }
 

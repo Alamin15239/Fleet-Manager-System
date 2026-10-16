@@ -3,10 +3,10 @@ import { db } from '@/lib/db'
 import { requireRolePermission } from '@/lib/permission-middleware'
 import { createUser } from '@/lib/auth'
 
-// GET all users (admin only)
+// List accounts for roles granted users:read. Only Admin receives saved permission maps.
 export async function GET(request: NextRequest) {
   try {
-    await requireRolePermission(request, 'users', 'read')
+    const caller = await requireRolePermission(request, 'users', 'read')
 
     const users = await db.user.findMany({
       where: { isDeleted: false },
@@ -17,6 +17,7 @@ export async function GET(request: NextRequest) {
         role: true,
         isActive: true,
         isApproved: true,
+        ...(caller.role === 'ADMIN' ? { permissions: true } : {}),
         createdAt: true,
         updatedAt: true
       }

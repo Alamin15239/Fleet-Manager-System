@@ -2,6 +2,7 @@
 import { LocalizedText } from '@/components/localized-text'
 
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -11,7 +12,7 @@ import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Users, Plus, Edit, Trash2, Shield, UserCheck, UserX, RefreshCw, Bug } from 'lucide-react'
+import { Users, Plus, Edit, Trash2, Shield, UserCheck, UserX, RefreshCw, Bug, KeyRound } from 'lucide-react'
 import { useRealtimeUsers } from '@/hooks/use-realtime-users'
 import { useAuth } from '@/contexts/auth-context'
 import { usePermissions } from '@/contexts/permissions-context'
@@ -211,12 +212,20 @@ export default function UsersPage() {
 
   return (
     <div className="container mx-auto p-6 space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight"><LocalizedText>User Management</LocalizedText></h1>
           <p className="text-muted-foreground"><LocalizedText>Manage user accounts and permissions</LocalizedText></p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap justify-end gap-2">
+          {isAdmin && (
+            <Button asChild variant="outline">
+              <Link href="/settings/permissions">
+                <KeyRound className="h-4 w-4 mr-2" />
+                <LocalizedText>User Permissions</LocalizedText>
+              </Link>
+            </Button>
+          )}
           <Button
             variant="outline"
             onClick={handleRefreshUsers}
@@ -279,7 +288,11 @@ export default function UsersPage() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="role"><LocalizedText>Role</LocalizedText></Label>
-                <Select value={formData.role} onValueChange={(value: any) => setFormData({ ...formData, role: value })}>
+                <Select
+                  value={formData.role}
+                  onValueChange={(value: any) => setFormData({ ...formData, role: value })}
+                  disabled={editingUser?.id === currentUser?.id}
+                >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>

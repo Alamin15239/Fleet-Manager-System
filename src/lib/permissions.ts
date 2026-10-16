@@ -272,12 +272,43 @@ export function normalizeRolePermissions(value: unknown): Permission {
 
 /** Keep object overrides partial; legacy arrays remain complete permission sets. */
 export function normalizePermissionOverrides(value: unknown): Partial<Permission> {
-  if (Array.isArray(value)) return normalizeRolePermissions(value)
-  if (value && typeof value === 'object') {
-    const normalized = value as Partial<Permission>
-    return normalized.canManageUsers ? { ...normalized, canViewUsers: true } : normalized
+  let normalized: Partial<Permission>
+  if (Array.isArray(value)) {
+    normalized = normalizeRolePermissions(value)
+  } else if (value && typeof value === 'object') {
+    const input = value as Record<string, unknown>
+    normalized = {}
+    for (const key of Object.keys(emptyPermissions) as (keyof Permission)[]) {
+      if (typeof input[key] === 'boolean') normalized[key] = input[key]
+    }
+  } else {
+    return {}
   }
-  return {}
+
+  // A user who can change records must also be able to open the corresponding
+  // page and read the records those actions operate on.
+  const actionToRead: [keyof Permission, keyof Permission][] = [
+    ['canAddTrucks', 'canViewTrucks'], ['canEditTrucks', 'canViewTrucks'], ['canDeleteTrucks', 'canViewTrucks'],
+    ['canAddMaintenance', 'canViewMaintenance'], ['canEditMaintenance', 'canViewMaintenance'], ['canDeleteMaintenance', 'canViewMaintenance'],
+    ['canAddMechanics', 'canViewMechanics'], ['canEditMechanics', 'canViewMechanics'], ['canDeleteMechanics', 'canViewMechanics'],
+    ['canAddTireManagement', 'canViewTireManagement'], ['canEditTireManagement', 'canViewTireManagement'], ['canDeleteTireManagement', 'canViewTireManagement'],
+    ['canAddTrailers', 'canViewTrailers'], ['canEditTrailers', 'canViewTrailers'], ['canDeleteTrailers', 'canViewTrailers'],
+    ['canManageUsers', 'canViewUsers'], ['canEditProfile', 'canViewProfile'], ['canManageSettings', 'canViewSettings'],
+    ['canManageAdmin', 'canViewAdmin']
+  ]
+  for (const [action, read] of actionToRead) {
+    if (normalized[action] === true) normalized[read] = true
+    if (normalized[read] === false) normalized[action] = false
+  }
+  return normalized
+}
+
+export function isValidPermissionOverrides(value: unknown): value is Partial<Permission> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false
+  const input = value as Record<string, unknown>
+  return Object.entries(input).every(([key, permission]) =>
+    Object.prototype.hasOwnProperty.call(emptyPermissions, key) && typeof permission === 'boolean'
+  )
 }
 
 export class PermissionManager {
@@ -300,32 +331,21 @@ export class PermissionManager {
   private getEffectivePermissions(): Permission {
     if (this.userRole === 'ADMIN') return adminPermissions
 
-    const rolePermissions = this.getRolePermissions()
-
-    // First check if user has specific permissions in settings
+    // Resolve the role baseline first, then apply legacy Settings overrides and
+    // finally the user's own saved overrides. Per-user restrictions must not
+    // accidentally discard an administrator's role-level configuration.
+    const configuredRolePermissions = this.settingsPermissions?.rolePermissions?.[this.userRole]
+    const rolePermissions = configuredRolePermissions
+      ? normalizeRolePermissions(configuredRolePermissions)
+      : this.getRolePermissions()
     const settingsUserPermissions = this.settingsPermissions?.userPermissions?.[this.userId]
-    if (settingsUserPermissions && Object.keys(settingsUserPermissions).length > 0) {
-      return {
-        ...rolePermissions,
-        ...normalizePermissionOverrides(settingsUserPermissions)
-      }
-    }
+    const userOverrides = normalizePermissionOverrides(this.userPermissions)
 
-    // Support per-user permissions included in the authenticated user record.
-    if (this.userPermissions && typeof this.userPermissions === 'object' && Object.keys(this.userPermissions).length > 0) {
-      return {
-        ...rolePermissions,
-        ...normalizePermissionOverrides(this.userPermissions)
-      }
+    return {
+      ...rolePermissions,
+      ...(settingsUserPermissions ? normalizePermissionOverrides(settingsUserPermissions) : {}),
+      ...userOverrides
     }
-
-    // Then check if role has custom permissions in settings
-    if (this.settingsPermissions?.rolePermissions?.[this.userRole]) {
-      return normalizeRolePermissions(this.settingsPermissions.rolePermissions[this.userRole])
-    }
-
-    // Fall back to default role permissions
-    return rolePermissions
   }
 
   private getRolePermissions(): Permission {

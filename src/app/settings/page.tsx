@@ -2,6 +2,7 @@
 import { LocalizedText } from '@/components/localized-text'
 
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -935,10 +936,15 @@ export default function SettingsPage() {
                     <LocalizedText>Configure access for every app area. Admin users always have full access.</LocalizedText>
                   </CardDescription>
                 </div>
-                <Button onClick={handleSave} disabled={!canUpdate('settings') || !hasChanges || saving}>
-                  <Save className="h-4 w-4 mr-2" />
-                  <LocalizedText>{saving ? 'Saving...' : 'Save Role Permissions'}</LocalizedText>
-                </Button>
+                <div className="flex flex-wrap gap-2">
+                  <Button asChild variant="outline">
+                    <Link href="/settings/permissions"><Users className="mr-2 h-4 w-4" /><LocalizedText>Set Permissions by User</LocalizedText></Link>
+                  </Button>
+                  <Button onClick={handleSave} disabled={!canUpdate('settings') || !hasChanges || saving}>
+                    <Save className="h-4 w-4 mr-2" />
+                    <LocalizedText>{saving ? 'Saving...' : 'Save Role Permissions'}</LocalizedText>
+                  </Button>
+                </div>
               </div>
               </CardHeader>
               <CardContent className="space-y-6">
