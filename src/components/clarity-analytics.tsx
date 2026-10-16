@@ -33,7 +33,7 @@ export function ClarityAnalytics() {
         c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
         t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
         y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
-      })(window, document, "clarity", "script", "t4ma7qs0aj");
+      })(window, document, "clarity", "script", "yyrs1ylk71");
     `
     
     document.head.appendChild(script)
