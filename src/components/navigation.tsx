@@ -14,30 +14,30 @@ import { useLanguage } from '@/contexts/language-context'
 import { TruckLoader } from '@/components/ui/truck-loader'
 import {
   Activity,
-  BarChart3,
+  ChartNoAxesCombined,
   ChevronLeft,
   ChevronRight,
-  ClipboardList,
+  CircleDot,
+  ClipboardCheck,
+  Container,
   Droplets,
+  FileBarChart,
   FileSpreadsheet,
-  FileText,
-  Home,
+  Gauge,
   LockKeyhole,
   LogOut,
   Settings,
   Shield,
   Truck,
   User,
-  UserRoundCog,
   Users,
   Wrench,
-  Zap,
 } from 'lucide-react'
 
 type NavItem = {
   name: string
   href: string
-  icon: typeof Home
+  icon: typeof Gauge
   resource: string
   action: string
 }
@@ -46,30 +46,30 @@ const getNavigationGroups = (t: (key: string) => string) => [
   {
     label: 'Workspace',
     items: [
-      { name: t('nav.dashboard'), href: '/', icon: Home, resource: 'dashboard', action: 'read' },
+      { name: t('nav.dashboard'), href: '/', icon: Gauge, resource: 'dashboard', action: 'read' },
     ],
   },
   {
     label: 'Fleet',
     items: [
       { name: t('nav.trucks'), href: '/trucks', icon: Truck, resource: 'trucks', action: 'read' },
-      { name: t('nav.trailers'), href: '/trailers', icon: ClipboardList, resource: 'trailers', action: 'read' },
-      { name: t('nav.tires'), href: '/tire-management', icon: Zap, resource: 'tire-management', action: 'read' },
+      { name: t('nav.trailers'), href: '/trailers', icon: Container, resource: 'trailers', action: 'read' },
+      { name: t('nav.tires'), href: '/tire-management', icon: CircleDot, resource: 'tire-management', action: 'read' },
     ],
   },
   {
     label: 'Workshop',
     items: [
-      { name: t('nav.jobCards'), href: '/job-cards', icon: Wrench, resource: 'maintenance', action: 'read' },
+      { name: t('nav.jobCards'), href: '/job-cards', icon: ClipboardCheck, resource: 'maintenance', action: 'read' },
       { name: t('nav.oilChanges'), href: '/oil-changes', icon: Droplets, resource: 'maintenance', action: 'read' },
-      { name: t('nav.mechanics'), href: '/mechanics', icon: UserRoundCog, resource: 'mechanics', action: 'read' },
+      { name: t('nav.mechanics'), href: '/mechanics', icon: Wrench, resource: 'mechanics', action: 'read' },
     ],
   },
   {
     label: 'Insights',
     items: [
-      { name: t('nav.analytics'), href: '/advanced-analytics', icon: BarChart3, resource: 'advanced-analytics', action: 'read' },
-      { name: t('nav.reports'), href: '/reports', icon: FileText, resource: 'reports', action: 'read' },
+      { name: t('nav.analytics'), href: '/advanced-analytics', icon: ChartNoAxesCombined, resource: 'advanced-analytics', action: 'read' },
+      { name: t('nav.reports'), href: '/reports', icon: FileBarChart, resource: 'reports', action: 'read' },
       { name: t('nav.excelImports'), href: '/excel-imports', icon: FileSpreadsheet, resource: 'excel-imports', action: 'read' },
     ],
   },
