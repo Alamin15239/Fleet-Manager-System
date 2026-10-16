@@ -223,7 +223,7 @@ export function WelcomeScreen({ userName, userRole }: WelcomeScreenProps) {
                 <h3 className="font-semibold"><LocalizedText>Explore Analytics</LocalizedText></h3>
                 <p className="text-gray-600"><LocalizedText>View reports and analytics to optimize your fleet performance</LocalizedText></p>
               </div>
-              <Button variant="outline" onClick={() => router.push('/analytics')}>
+              <Button variant="outline" onClick={() => router.push('/advanced-analytics')}>
                 View Analytics
               </Button>
             </div>

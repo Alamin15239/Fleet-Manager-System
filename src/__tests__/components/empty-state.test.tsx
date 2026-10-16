@@ -1,10 +1,15 @@
 import { render, screen, fireEvent } from '@testing-library/react';
+import type { ReactElement } from 'react';
 import { EmptyState } from '@/components/empty-state';
 import { Truck } from 'lucide-react';
+import { LanguageProvider } from '@/contexts/language-context';
+
+const renderWithLanguage = (element: ReactElement) =>
+  render(<LanguageProvider>{element}</LanguageProvider>);
 
 describe('EmptyState', () => {
   it('should render title and description', () => {
-    render(
+    renderWithLanguage(
       <EmptyState
         icon={Truck}
         title="No trucks found"
@@ -19,7 +24,7 @@ describe('EmptyState', () => {
   it('should render action button when provided', () => {
     const handleClick = jest.fn();
     
-    render(
+    renderWithLanguage(
       <EmptyState
         icon={Truck}
         title="No trucks found"
@@ -36,7 +41,7 @@ describe('EmptyState', () => {
   });
 
   it('should not render action button when not provided', () => {
-    render(
+    renderWithLanguage(
       <EmptyState
         icon={Truck}
         title="No trucks found"

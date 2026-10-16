@@ -236,7 +236,10 @@ export function Header() {
               </ScrollArea>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-center justify-center text-sm text-primary">
+            <DropdownMenuItem
+              className="text-center justify-center text-sm text-primary"
+              onSelect={() => router.push('/notifications')}
+            >
               {t('View all notifications')}
             </DropdownMenuItem>
           </DropdownMenuContent>

@@ -440,6 +440,7 @@ const translations = {
     'nav.jobCards': 'Workshop Job Cards',
     'nav.oilChanges': 'Oil Changes',
     'nav.trailers': 'Trailers',
+    'nav.notifications': 'Notifications',
     'nav.logout': 'Logout',
   },
   ar: {
@@ -873,6 +874,7 @@ const translations = {
     'nav.jobCards': 'بطاقات أوامر العمل',
     'nav.oilChanges': 'تغيير الزيت',
     'nav.trailers': 'المقطورات',
+    'nav.notifications': 'الإشعارات',
     'nav.logout': 'تسجيل الخروج',
   }
 }
@@ -1202,6 +1204,16 @@ const phraseTranslations: Record<string, string> = {
   'Company': 'الشركة',
   'Currency': 'العملة',
   'Notifications': 'الإشعارات',
+  'Notification history': 'سجل الإشعارات',
+  'Review fleet and system updates.': 'راجع تحديثات الأسطول والنظام.',
+  'Notification filters': 'تصفية الإشعارات',
+  'Unread': 'غير مقروءة',
+  'New': 'جديد',
+  'Mark read': 'تحديد كمقروء',
+  'No unread notifications.': 'لا توجد إشعارات غير مقروءة.',
+  'No notifications yet.': 'لا توجد إشعارات حتى الآن.',
+  'Unable to load notifications.': 'تعذر تحميل الإشعارات.',
+  'Load more': 'تحميل المزيد',
   'System': 'النظام',
   'Activity': 'النشاط',
   'Company Name': 'اسم الشركة',

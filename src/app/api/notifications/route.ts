@@ -2,6 +2,17 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireAuth } from '@/lib/auth'
 
+function getAuthorizationError(error: unknown): NextResponse | null {
+  const message = error instanceof Error ? error.message : ''
+  if (message === 'No token provided' || message === 'Invalid token') {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+  if (message === 'Insufficient permissions') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+  return null
+}
+
 // Helper function to map notification types to frontend types
 function getNotificationType(type: string): 'success' | 'warning' | 'info' {
   switch (type) {
@@ -43,17 +54,24 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const type = searchParams.get('type') // 'oil_change', 'upcoming_maintenance', 'overdue'
     const userId = searchParams.get('userId')
+    const requestedLimit = Number(searchParams.get('limit'))
+    const requestedOffset = Number(searchParams.get('offset'))
+    const take = Number.isInteger(requestedLimit) && requestedLimit > 0
+      ? Math.min(requestedLimit, 100)
+      : 20
+    const skip = Number.isInteger(requestedOffset) && requestedOffset > 0
+      ? Math.min(requestedOffset, 100000)
+      : 0
 
-    let whereClause: any = user.role === 'ADMIN'
-      ? {}
-      : { OR: [{ userId: user.id }, { userId: null }] }
+    let whereClause: any = { OR: [{ userId: user.id }, { userId: null }] }
     
     if (type) {
       whereClause.type = type
     }
     
     if (user.role === 'ADMIN' && userId) {
-      whereClause.userId = userId
+      whereClause = { userId }
+      if (type) whereClause.type = type
     }
 
     const notifications = await db.notification.findMany({
@@ -76,8 +94,9 @@ export async function GET(request: NextRequest) {
           }
         }
       },
-      orderBy: { createdAt: 'desc' },
-      take: 20 // Reduced from 50 to 20 for better performance
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      skip,
+      take
     })
 
     // Format notifications for frontend
@@ -87,6 +106,7 @@ export async function GET(request: NextRequest) {
       title: notification.title,
       message: notification.message,
       time: formatTimeAgo(notification.createdAt),
+      createdAt: notification.createdAt.toISOString(),
       read: notification.isRead,
       truckId: notification.truckId,
       truck: notification.truck
@@ -95,6 +115,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(formattedNotifications)
   } catch (error) {
     console.error('Error fetching notifications:', error)
+    const authorizationError = getAuthorizationError(error)
+    if (authorizationError) return authorizationError
     return NextResponse.json(
       { error: 'Failed to fetch notifications' },
       { status: 500 }
@@ -134,6 +156,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(notification, { status: 201 })
   } catch (error) {
     console.error('Error creating notification:', error)
+    const authorizationError = getAuthorizationError(error)
+    if (authorizationError) return authorizationError
     return NextResponse.json(
       { error: 'Failed to create notification' },
       { status: 500 }
@@ -150,7 +174,10 @@ export async function PATCH(request: NextRequest) {
 
     if (action === 'markAsRead' && notificationId) {
       const result = await db.notification.updateMany({
-        where: { id: notificationId, ...(user.role === 'ADMIN' ? {} : { userId: user.id }) },
+        where: {
+          id: notificationId,
+          OR: [{ userId: user.id }, { userId: null }]
+        },
         data: { isRead: true }
       })
       if (result.count === 0) return NextResponse.json({ error: 'Notification not found' }, { status: 404 })
@@ -159,7 +186,11 @@ export async function PATCH(request: NextRequest) {
 
     if (action === 'markAllAsRead') {
       await db.notification.updateMany({
-        where: { isRead: false, ...(user.role === 'ADMIN' ? {} : { userId: user.id }) },
+        where: {
+          isRead: false,
+          // Global notifications have a shared read flag in the current schema.
+          OR: [{ userId: user.id }, { userId: null }]
+        },
         data: { isRead: true }
       })
       return NextResponse.json({ success: true })
@@ -171,6 +202,8 @@ export async function PATCH(request: NextRequest) {
     )
   } catch (error) {
     console.error('Error updating notification:', error)
+    const authorizationError = getAuthorizationError(error)
+    if (authorizationError) return authorizationError
     return NextResponse.json(
       { error: 'Failed to update notification' },
       { status: 500 }
