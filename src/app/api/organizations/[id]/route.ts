@@ -28,8 +28,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     if (!organization || organization.isPrimary) {
       return NextResponse.json({ error: 'Organization not found' }, { status: 404 })
     }
-    if (organization.status !== 'FAILED') {
-      return NextResponse.json({ error: 'Administrator details can only be changed before retrying a failed setup.' }, { status: 409 })
+    if (organization.status !== 'FAILED' && organization.status !== 'ACTIVE') {
+      return NextResponse.json({ error: 'Wait for organization setup to finish before changing administrator details.' }, { status: 409 })
     }
 
     const ownerName = parsed.data.ownerName
@@ -45,6 +45,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         where: { email: { equals: organization.ownerEmail.trim().toLowerCase(), mode: 'insensitive' } },
         select: { id: true }
       })
+      if (existingOwner) tenantAdminId = existingOwner.id
       if (existingOwner && organization.ownerEmail.trim().toLowerCase() !== ownerEmail) {
         const emailInUse = await tenantDb.user.findFirst({
           where: { email: { equals: ownerEmail, mode: 'insensitive' } },
@@ -53,8 +54,10 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         if (emailInUse && emailInUse.id !== existingOwner.id) {
           return NextResponse.json({ error: 'That email already belongs to another user in this organization.' }, { status: 409 })
         }
-        tenantAdminId = existingOwner.id
       }
+    }
+    if (organization.status === 'ACTIVE' && (!tenantDb || !tenantAdminId)) {
+      return NextResponse.json({ error: 'Could not find the current administrator account in this organization database.' }, { status: 409 })
     }
 
     const previousOwner = { ownerName: organization.ownerName, ownerEmail: organization.ownerEmail }
@@ -64,14 +67,17 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         data: { ownerName, ownerEmail }
       })
       if (tenantAdminId && tenantDb) {
+        const emailChanged = organization.ownerEmail?.trim().toLowerCase() !== ownerEmail
         await tenantDb.user.update({
           where: { id: tenantAdminId },
           data: {
             name: ownerName,
             email: ownerEmail,
-            isEmailVerified: false,
-            otpCode: null,
-            otpExpires: null
+            ...(emailChanged ? {
+              isEmailVerified: false,
+              otpCode: null,
+              otpExpires: null
+            } : {})
           }
         })
       }
@@ -91,7 +97,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     if (typeof error === 'object' && error !== null && 'code' in error && error.code === 'P2002') {
       return NextResponse.json({ error: 'That email already belongs to another user in this organization.' }, { status: 409 })
     }
-    console.error('Failed to update failed organization administrator:', error)
+    console.error('Failed to update organization administrator:', error)
     return NextResponse.json({ error: 'Could not update the organization administrator details.' }, { status: 500 })
   } finally {
     await tenantDb?.$disconnect().catch(() => undefined)

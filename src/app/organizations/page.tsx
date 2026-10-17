@@ -133,7 +133,12 @@ export default function OrganizationsPage() {
       })
       const data = await response.json().catch(() => ({}))
       if (!response.ok) throw new Error(data.error || 'Could not update the administrator')
-      toast({ title: 'Administrator updated', description: 'Retry setup to finish this organization.' })
+      toast({
+        title: 'Administrator updated',
+        description: organization.status === 'FAILED'
+          ? 'Retry setup to finish this organization.'
+          : 'The organization administrator account has been updated.'
+      })
       setEditingId(null)
       await loadOrganizations()
     } catch (error) {
@@ -184,7 +189,83 @@ export default function OrganizationsPage() {
 
       <section className="space-y-3">
         <div className="flex items-center justify-between gap-3"><div><h2 className="text-lg font-semibold"><LocalizedText>Organizations</LocalizedText></h2><p className="text-sm text-muted-foreground">{activeOrganizations.length} <LocalizedText>ready</LocalizedText></p></div><Button variant="outline" size="sm" onClick={() => void loadOrganizations()} disabled={loading}><RefreshCw className={`me-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} /><LocalizedText>Refresh</LocalizedText></Button></div>
-        {loading ? <div className="flex justify-center p-10"><LoaderCircle className="h-6 w-6 animate-spin text-muted-foreground" /></div> : organizations.length === 0 ? <Card><CardContent className="py-10 text-center text-sm text-muted-foreground"><LocalizedText>No organizations registered yet.</LocalizedText></CardContent></Card> : <div className="grid gap-3 md:grid-cols-2">{organizations.map((organization) => <Card key={organization.id} className="overflow-hidden"><CardHeader className="pb-3"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><CardTitle className="truncate text-base">{organization.name}</CardTitle><CardDescription className="mt-1">/{organization.slug}</CardDescription></div><Badge variant={organization.status === 'ACTIVE' ? 'default' : organization.status === 'FAILED' ? 'destructive' : 'secondary'}>{organization.isPrimary ? <LocalizedText>Original</LocalizedText> : <LocalizedText>{organization.status}</LocalizedText>}</Badge></div></CardHeader><CardContent className="space-y-3 text-sm"><div className="flex items-center gap-2 text-muted-foreground"><BadgeCheck className="h-4 w-4 shrink-0" />{organization.ownerName || organization.ownerEmail || '—'}{organization.ownerName && organization.ownerEmail ? <span className="truncate">· {organization.ownerEmail}</span> : null}</div>{organization.failureReason && <p className="rounded-lg bg-destructive/5 p-2 text-xs text-destructive">{organization.failureReason}</p>}{editingId === organization.id && organization.status === 'FAILED' && <div className="grid gap-3 rounded-lg border bg-muted/30 p-3 sm:grid-cols-2"><div className="space-y-1.5"><Label htmlFor={`edit-owner-name-${organization.id}`}><LocalizedText>Administrator name</LocalizedText></Label><Input id={`edit-owner-name-${organization.id}`} value={editingOwnerName} maxLength={100} onChange={(event) => setEditingOwnerName(event.target.value)} /></div><div className="space-y-1.5"><Label htmlFor={`edit-owner-email-${organization.id}`}><LocalizedText>Administrator email</LocalizedText></Label><Input id={`edit-owner-email-${organization.id}`} type="email" value={editingOwnerEmail} maxLength={254} onChange={(event) => setEditingOwnerEmail(event.target.value)} /></div><div className="flex flex-wrap justify-end gap-2 sm:col-span-2"><Button size="sm" variant="outline" onClick={() => setEditingId(null)} disabled={savingOwnerId === organization.id}><X className="me-2 h-4 w-4" /><LocalizedText>Cancel</LocalizedText></Button><Button size="sm" onClick={() => void saveOwnerDetails(organization)} disabled={savingOwnerId === organization.id || !editingOwnerName.trim() || !editingOwnerEmail.trim()}>{savingOwnerId === organization.id ? <LoaderCircle className="me-2 h-4 w-4 animate-spin" /> : <Save className="me-2 h-4 w-4" />}<LocalizedText>Save administrator</LocalizedText></Button></div></div>}<div className="flex flex-wrap justify-end gap-2">{organization.status === 'ACTIVE' && !organization.isPrimary && <Button size="sm" variant="outline" onClick={() => void copyLoginLink(organization)}><Copy className="me-2 h-4 w-4" /><LocalizedText>Copy login link</LocalizedText></Button>}{organization.status === 'FAILED' && <><Button size="sm" variant="outline" onClick={() => beginEditOwner(organization)} disabled={savingOwnerId === organization.id}><Pencil className="me-2 h-4 w-4" /><LocalizedText>Edit administrator</LocalizedText></Button><Button size="sm" variant="outline" disabled={retryingId === organization.id || savingOwnerId === organization.id} onClick={() => void retryOrganization(organization)}>{retryingId === organization.id ? <LoaderCircle className="me-2 h-4 w-4 animate-spin" /> : <RotateCw className="me-2 h-4 w-4" />}<LocalizedText>Retry setup</LocalizedText></Button></>}</div></CardContent></Card>)}</div>}
+        {loading ? (
+          <div className="flex justify-center p-10"><LoaderCircle className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+        ) : organizations.length === 0 ? (
+          <Card><CardContent className="py-10 text-center text-sm text-muted-foreground"><LocalizedText>No organizations registered yet.</LocalizedText></CardContent></Card>
+        ) : (
+          <div className="grid gap-3 md:grid-cols-2">
+            {organizations.map((organization) => (
+              <Card key={organization.id} className="overflow-hidden">
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <CardTitle className="truncate text-base">{organization.name}</CardTitle>
+                      <CardDescription className="mt-1">/{organization.slug}</CardDescription>
+                    </div>
+                    <Badge variant={organization.status === 'ACTIVE' ? 'default' : organization.status === 'FAILED' ? 'destructive' : 'secondary'}>
+                      {organization.isPrimary ? <LocalizedText>Original</LocalizedText> : <LocalizedText>{organization.status}</LocalizedText>}
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-3 text-sm">
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <BadgeCheck className="h-4 w-4 shrink-0" />
+                    {organization.ownerName || organization.ownerEmail || '—'}
+                    {organization.ownerName && organization.ownerEmail ? <span className="truncate">· {organization.ownerEmail}</span> : null}
+                  </div>
+                  {organization.failureReason && <p className="rounded-lg bg-destructive/5 p-2 text-xs text-destructive">{organization.failureReason}</p>}
+
+                  {editingId === organization.id && (
+                    <div className="grid gap-3 rounded-lg border bg-muted/30 p-3 sm:grid-cols-2">
+                      <div className="space-y-1.5">
+                        <Label htmlFor={`edit-owner-name-${organization.id}`}><LocalizedText>Administrator name</LocalizedText></Label>
+                        <Input id={`edit-owner-name-${organization.id}`} value={editingOwnerName} maxLength={100} onChange={(event) => setEditingOwnerName(event.target.value)} />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor={`edit-owner-email-${organization.id}`}><LocalizedText>Administrator email</LocalizedText></Label>
+                        <Input id={`edit-owner-email-${organization.id}`} type="email" value={editingOwnerEmail} maxLength={254} onChange={(event) => setEditingOwnerEmail(event.target.value)} />
+                      </div>
+                      {organization.status === 'ACTIVE' && (
+                        <p className="text-xs text-muted-foreground sm:col-span-2">
+                          <LocalizedText>Changing the email requires the administrator to verify the new address before signing in.</LocalizedText>
+                        </p>
+                      )}
+                      <div className="flex flex-wrap justify-end gap-2 sm:col-span-2">
+                        <Button size="sm" variant="outline" onClick={() => setEditingId(null)} disabled={savingOwnerId === organization.id}>
+                          <X className="me-2 h-4 w-4" /><LocalizedText>Cancel</LocalizedText>
+                        </Button>
+                        <Button size="sm" onClick={() => void saveOwnerDetails(organization)} disabled={savingOwnerId === organization.id || !editingOwnerName.trim() || !editingOwnerEmail.trim()}>
+                          {savingOwnerId === organization.id ? <LoaderCircle className="me-2 h-4 w-4 animate-spin" /> : <Save className="me-2 h-4 w-4" />}
+                          <LocalizedText>Save administrator</LocalizedText>
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex flex-wrap justify-end gap-2">
+                    {organization.status === 'ACTIVE' && !organization.isPrimary && (
+                      <Button size="sm" variant="outline" onClick={() => void copyLoginLink(organization)}>
+                        <Copy className="me-2 h-4 w-4" /><LocalizedText>Copy login link</LocalizedText>
+                      </Button>
+                    )}
+                    {(organization.status === 'FAILED' || organization.status === 'ACTIVE') && (
+                      <Button size="sm" onClick={() => beginEditOwner(organization)} disabled={savingOwnerId === organization.id}>
+                        <Pencil className="me-2 h-4 w-4" /><LocalizedText>Edit administrator</LocalizedText>
+                      </Button>
+                    )}
+                    {organization.status === 'FAILED' && (
+                      <Button size="sm" variant="outline" disabled={retryingId === organization.id || savingOwnerId === organization.id} onClick={() => void retryOrganization(organization)}>
+                        {retryingId === organization.id ? <LoaderCircle className="me-2 h-4 w-4 animate-spin" /> : <RotateCw className="me-2 h-4 w-4" />}
+                        <LocalizedText>Retry setup</LocalizedText>
+                      </Button>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
       </section>
       <p className="text-xs text-muted-foreground"><LocalizedText>Separate databases require Neon API provisioning and available project capacity. Add the setup keys in the deployment environment before creating the first organization.</LocalizedText></p>
     </div>
