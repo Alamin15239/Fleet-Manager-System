@@ -64,7 +64,7 @@ interface UserProfile {
 }
 
 export default function ProfilePage() {
-  const { token, user, refreshUser, updateUser } = useAuth()
+  const { token, user, refreshUser, updateUser, isLoading: authLoading } = useAuth()
   const authenticatedUserId = user?.id
   const { canUpdate } = usePermissions()
   const { t } = useLanguage()
@@ -84,6 +84,15 @@ export default function ProfilePage() {
   })
 
   useEffect(() => {
+    // Wait until the saved session has been validated before deciding that
+    // there is no signed-in profile. On a direct page load, auth state starts
+    // empty while /api/auth/me is still resolving.
+    if (authLoading) {
+      setProfile(null)
+      setLoading(true)
+      return
+    }
+
     if (!token || !authenticatedUserId) {
       setProfile(null)
       setLoading(false)
@@ -133,7 +142,7 @@ export default function ProfilePage() {
 
     void loadProfile()
     return () => { cancelled = true }
-  }, [token, authenticatedUserId, updateUser])
+  }, [authLoading, token, authenticatedUserId, updateUser])
 
   const handleSave = async () => {
     setSaving(true)
