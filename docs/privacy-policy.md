@@ -1,6 +1,6 @@
 # Privacy Policy
 
-Effective date: 16 October 2026
+Effective date: 17 October 2026
 Operator: Saadfreeh Transport Est. (“Company”, “we”, “us”)
 Privacy contact: saad@saadfreeh.com or the Company administrator
 
@@ -13,7 +13,7 @@ This policy describes the current handling of information in Fleet Manager, incl
 The application may handle:
 
 - **Account information:** name, email, password hash, phone, department, title, biography, profile photo, role, permissions, approval and email-verification status, and password-recovery or verification data.
-- **Fleet and workshop information:** truck and trailer identifiers, VIN, driver and mechanic names, mileage, status, maintenance and oil-change history, tire size and issue quantity, tire serials, job-card details, work/parts, notes, cost, attachments or signatures supplied to a card, and reports.
+- **Fleet, workshop, and purchasing information:** truck and trailer identifiers, VIN, driver and mechanic names, mileage, status, maintenance and oil-change history, tire size and issue quantity, tire serials, job-card details, work/parts, vendor names and contact details, vendor invoice numbers and dates, expense categories, amounts, VAT details, fleet and vendor ledger entries, notes, attachments or signatures supplied to a card, and reports.
 - **Security and activity information:** login history, actions and record changes, IP address, user agent, browser, operating system, device type, and approximate location derived from IP when available.
 - **OneDrive integration information:** connected Microsoft account email, encrypted refresh token, workbook name/ID/link, sync status, and staged workbook changes.
 - **Telemetry:** Vercel Analytics and Speed Insights data, and Microsoft Clarity page/interaction telemetry. The current Clarity integration identifies a signed-in session using the app user ID and sends the user role, email, and name as session metadata. There is currently no in-app analytics opt-out control.
@@ -27,7 +27,7 @@ Information is used to:
 
 - create, authenticate, approve, secure, and recover user accounts;
 - apply role-based and user-specific access controls;
-- manage trucks, trailers, job cards, maintenance, oil changes, tires, reports, and Excel integration;
+- manage trucks, trailers, job cards, maintenance, oil changes, tires, vendor invoices, fleet expense accounts, VAT ledgers, reports, and Excel integration;
 - deliver in-app notifications and configured emails;
 - maintain activity/audit history, investigate incidents, and support users; and
 - measure application usage and performance and improve reliability.

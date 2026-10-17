@@ -42,6 +42,7 @@ model User {
   trailerMaintenanceRecords TrailerMaintenanceRecord[]
   userActivities            UserActivity[]
   workshopJobCards          WorkshopJobCard[]
+  purchaseInvoices          PurchaseInvoice[]
 
   @@map("users")
 }
@@ -93,6 +94,8 @@ model Truck {
   workshopJobCards   WorkshopJobCard[]
   notifications      Notification[]
   predictiveAlerts   PredictiveAlert[]
+  purchaseInvoiceLines PurchaseInvoiceLine[]
+  ledgerAccount      FleetLedgerAccount?
 
   @@map("trucks")
 }
@@ -115,6 +118,8 @@ model Trailer {
   workshopJobCards          WorkshopJobCard[]
   trailerNotifications      TrailerNotification[]
   trailerPredictiveAlerts   TrailerPredictiveAlert[]
+  purchaseInvoiceLines      PurchaseInvoiceLine[]
+  ledgerAccount             FleetLedgerAccount?
 
   @@map("trailers")
 }
@@ -331,6 +336,133 @@ model Settings {
   updatedAt              DateTime @updatedAt
 
   @@map("settings")
+}
+
+model Vendor {
+  id              String              @id @default(cuid())
+  name            String
+  vatRegistration String?             @unique
+  phone           String?
+  email           String?
+  address         String?
+  notes           String?
+  isActive        Boolean             @default(true)
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  invoices        PurchaseInvoice[]
+  ledgerAccount   FleetLedgerAccount?
+
+  @@index([name])
+  @@index([isActive])
+  @@map("vendors")
+}
+
+model PurchaseInvoice {
+  id                  String                 @id @default(cuid())
+  internalNumber      String                 @unique
+  vendorInvoiceNumber String?
+  vendorId            String
+  invoiceDate         DateTime
+  dueDate             DateTime?
+  isVatInvoice        Boolean                @default(false)
+  pricesIncludeVat    Boolean                @default(false)
+  vatRate             Decimal                @default(15) @db.Decimal(5, 2)
+  subtotal            Decimal                @db.Decimal(14, 2)
+  vatTotal            Decimal                @db.Decimal(14, 2)
+  grandTotal          Decimal                @db.Decimal(14, 2)
+  notes               String?
+  status              PurchaseInvoiceStatus  @default(POSTED)
+  createdById         String?
+  createdAt           DateTime               @default(now())
+  updatedAt           DateTime               @updatedAt
+  vendor              Vendor                 @relation(fields: [vendorId], references: [id], onDelete: Restrict)
+  createdBy           User?                  @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  lines               PurchaseInvoiceLine[]
+  journalEntries      PurchaseJournalEntry[]
+
+  @@unique([vendorId, vendorInvoiceNumber])
+  @@index([invoiceDate])
+  @@index([vendorId, invoiceDate])
+  @@index([status])
+  @@map("purchase_invoices")
+}
+
+model PurchaseInvoiceLine {
+  id           String                  @id @default(cuid())
+  invoiceId    String
+  lineNumber   Int
+  category     PurchaseExpenseCategory
+  description  String
+  quantity     Decimal                 @db.Decimal(14, 3)
+  unitPrice    Decimal                 @db.Decimal(14, 4)
+  netAmount    Decimal                 @db.Decimal(14, 2)
+  vatAmount    Decimal                 @db.Decimal(14, 2)
+  totalAmount  Decimal                 @db.Decimal(14, 2)
+  truckId      String?
+  trailerId    String?
+  invoice      PurchaseInvoice         @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+  truck        Truck?                  @relation(fields: [truckId], references: [id], onDelete: Restrict)
+  trailer      Trailer?                @relation(fields: [trailerId], references: [id], onDelete: Restrict)
+  journalLines PurchaseJournalLine[]
+
+  @@index([truckId])
+  @@index([trailerId])
+  @@index([category])
+  @@map("purchase_invoice_lines")
+}
+
+model FleetLedgerAccount {
+  id           String                @id @default(cuid())
+  code         String                @unique
+  name         String
+  type         LedgerAccountType
+  truckId      String?               @unique
+  trailerId    String?               @unique
+  vendorId     String?               @unique
+  isActive     Boolean               @default(true)
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
+  truck        Truck?                @relation(fields: [truckId], references: [id], onDelete: Restrict)
+  trailer      Trailer?              @relation(fields: [trailerId], references: [id], onDelete: Restrict)
+  vendor       Vendor?               @relation(fields: [vendorId], references: [id], onDelete: Restrict)
+  journalLines PurchaseJournalLine[]
+
+  @@index([type])
+  @@map("fleet_ledger_accounts")
+}
+
+model PurchaseJournalEntry {
+  id          String                @id @default(cuid())
+  invoiceId   String
+  entryDate   DateTime
+  description String
+  isReversal  Boolean               @default(false)
+  createdAt   DateTime              @default(now())
+  invoice     PurchaseInvoice       @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+  lines       PurchaseJournalLine[]
+
+  @@unique([invoiceId, isReversal])
+  @@index([entryDate])
+  @@map("purchase_journal_entries")
+}
+
+model PurchaseJournalLine {
+  id            String                   @id @default(cuid())
+  entryId       String
+  accountId     String
+  invoiceLineId String?
+  category      PurchaseExpenseCategory?
+  description   String
+  debit         Decimal                  @default(0) @db.Decimal(14, 2)
+  credit        Decimal                  @default(0) @db.Decimal(14, 2)
+  entry         PurchaseJournalEntry     @relation(fields: [entryId], references: [id], onDelete: Restrict)
+  account       FleetLedgerAccount       @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  invoiceLine   PurchaseInvoiceLine?     @relation(fields: [invoiceLineId], references: [id], onDelete: Restrict)
+
+  @@index([accountId])
+  @@index([entryId])
+  @@index([invoiceLineId])
+  @@map("purchase_journal_lines")
 }
 
 model OneDriveIntegration {
@@ -600,4 +732,24 @@ enum TireOrigin {
   EUROPEAN
   AMERICAN
   OTHER
+}
+
+enum PurchaseInvoiceStatus {
+  POSTED
+  VOID
+}
+
+enum PurchaseExpenseCategory {
+  MAINTENANCE
+  SPARE_PARTS
+  TIRE
+  BATTERY
+  OIL_FILTER
+  OTHER
+}
+
+enum LedgerAccountType {
+  VEHICLE_EXPENSE
+  VENDOR_PAYABLE
+  INPUT_VAT
 }

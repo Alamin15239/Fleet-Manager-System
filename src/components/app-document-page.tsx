@@ -73,7 +73,7 @@ export function AppDocumentPage({ english, arabic, icon: Icon, showContents = tr
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-xs font-semibold uppercase tracking-[0.16em] text-sky-200">
-                {copy.updatedLabel}: {isArabic ? '16 أكتوبر 2026' : '16 October 2026'}
+                {copy.updatedLabel}: {isArabic ? '17 أكتوبر 2026' : '17 October 2026'}
               </p>
               <h1 className="mt-2 text-2xl font-bold tracking-tight sm:text-4xl">{copy.title}</h1>
               <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-200 sm:text-base">{copy.subtitle}</p>

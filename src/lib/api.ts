@@ -88,6 +88,14 @@ export async function apiPut(url: string, data: any) {
   })
 }
 
+// Helper function for PATCH requests
+export async function apiPatch(url: string, data: any) {
+  return apiFetch(url, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  })
+}
+
 // Helper function for DELETE requests
 export async function apiDelete(url: string) {
   return apiFetch(url, { method: 'DELETE' })

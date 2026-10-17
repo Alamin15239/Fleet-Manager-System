@@ -152,6 +152,11 @@ const rolePermissionSections: { title: string; description: string; permissions:
     { field: 'canViewMaintenance', label: 'View job cards, oil changes and maintenance' }, { field: 'canAddMaintenance', label: 'Create records' },
     { field: 'canEditMaintenance', label: 'Edit records' }, { field: 'canDeleteMaintenance', label: 'Delete records' }
   ] },
+  { title: 'Purchase Invoices & Fleet Accounts', description: 'Financial access is configured separately from workshop permissions.', permissions: [
+    { field: 'canViewPurchaseInvoices', label: 'View invoices, vendor accounts and VAT ledger' },
+    { field: 'canCreatePurchaseInvoices', label: 'Create vendors and post purchase invoices' },
+    { field: 'canReversePurchaseInvoices', label: 'Reverse posted invoices' }
+  ] },
   { title: 'Mechanics', description: 'Mechanic records and assignments', permissions: [
     { field: 'canViewMechanics', label: 'View mechanics' }, { field: 'canAddMechanics', label: 'Add mechanics' },
     { field: 'canEditMechanics', label: 'Edit mechanics' }, { field: 'canDeleteMechanics', label: 'Delete mechanics' }
@@ -314,6 +319,7 @@ export default function SettingsPage() {
     const viewFieldByAction: Partial<Record<keyof Permission, keyof Permission>> = {
       canAddTrucks: 'canViewTrucks', canEditTrucks: 'canViewTrucks', canDeleteTrucks: 'canViewTrucks',
       canAddMaintenance: 'canViewMaintenance', canEditMaintenance: 'canViewMaintenance', canDeleteMaintenance: 'canViewMaintenance',
+      canCreatePurchaseInvoices: 'canViewPurchaseInvoices', canReversePurchaseInvoices: 'canViewPurchaseInvoices',
       canAddMechanics: 'canViewMechanics', canEditMechanics: 'canViewMechanics', canDeleteMechanics: 'canViewMechanics',
       canAddTireManagement: 'canViewTireManagement', canEditTireManagement: 'canViewTireManagement', canDeleteTireManagement: 'canViewTireManagement',
       canAddTrailers: 'canViewTrailers', canEditTrailers: 'canViewTrailers', canDeleteTrailers: 'canViewTrailers',
@@ -322,6 +328,7 @@ export default function SettingsPage() {
     const actionsByViewField: Partial<Record<keyof Permission, (keyof Permission)[]>> = {
       canViewTrucks: ['canAddTrucks', 'canEditTrucks', 'canDeleteTrucks'],
       canViewMaintenance: ['canAddMaintenance', 'canEditMaintenance', 'canDeleteMaintenance'],
+      canViewPurchaseInvoices: ['canCreatePurchaseInvoices', 'canReversePurchaseInvoices'],
       canViewMechanics: ['canAddMechanics', 'canEditMechanics', 'canDeleteMechanics'],
       canViewTireManagement: ['canAddTireManagement', 'canEditTireManagement', 'canDeleteTireManagement'],
       canViewTrailers: ['canAddTrailers', 'canEditTrailers', 'canDeleteTrailers'],

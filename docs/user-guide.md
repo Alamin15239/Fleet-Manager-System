@@ -1,6 +1,6 @@
 # Fleet Manager User Guide
 
-Last updated: 16 October 2026
+Last updated: 17 October 2026
 Production app: https://fleetmaintenance.site
 In-app guide: https://fleetmaintenance.site/help
 
@@ -45,6 +45,14 @@ After saving, use the card’s preview, download, or print controls. The job-car
 ## Oil Changes
 
 Use Oil Changes to record and review oil-change events. Choose the truck and enter the actual date, mileage, driver, and oil details available in the form. Correct dates and odometers are important for useful reports and maintenance history.
+
+## Purchase Invoices and Fleet Accounts
+
+Use Purchase Invoices & Accounts to record vendor bills for maintenance, spare parts, tires, batteries, oil and filters, and other fleet costs. Create the vendor first if it is not already in the vendor list. Enter the vendor's invoice number and dates, then add each invoice line and assign it to the truck or trailer that incurred the cost. The asset picker can be searched by fleet number.
+
+Choose whether the bill is a VAT invoice. For VAT invoices, set the invoice VAT rate (15% is the starting value) and whether entered unit prices include VAT. The app separates the net expense, input VAT, and vendor payable in its ledger. A no-VAT bill records the full line amount as the asset expense and does not post input VAT. Review the total before posting.
+
+The Truck & Trailer Accounts tab shows costs by assigned asset; Vendor Accounts shows invoice balances owed to vendors; Input VAT shows the recoverable VAT ledger. These are ledger views of posted bills, not payment or bank reconciliation screens. Posted bills cannot be edited in place: use Void to reverse their journal entry while preserving the audit trail, then enter the corrected bill.
 
 ## Mechanics
 

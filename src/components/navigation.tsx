@@ -25,6 +25,7 @@ import {
   FileSpreadsheet,
   Gauge,
   LogOut,
+  ReceiptText,
   Settings,
   Shield,
   Truck,
@@ -63,6 +64,7 @@ const getNavigationGroups = (t: (key: string) => string) => [
     items: [
       { name: t('nav.jobCards'), href: '/job-cards', icon: ClipboardCheck, iconColor: 'text-emerald-600 dark:text-emerald-400', iconBackground: 'bg-emerald-500/10', resource: 'maintenance', action: 'read' },
       { name: t('nav.oilChanges'), href: '/oil-changes', icon: Droplets, iconColor: 'text-cyan-600 dark:text-cyan-400', iconBackground: 'bg-cyan-500/10', resource: 'maintenance', action: 'read' },
+      { name: t('Purchase invoices & accounts'), href: '/purchase-invoices', icon: ReceiptText, iconColor: 'text-indigo-600 dark:text-indigo-400', iconBackground: 'bg-indigo-500/10', resource: 'purchase-invoices', action: 'read' },
       { name: t('nav.mechanics'), href: '/mechanics', icon: Wrench, iconColor: 'text-rose-600 dark:text-rose-400', iconBackground: 'bg-rose-500/10', resource: 'mechanics', action: 'read' },
     ],
   },

@@ -10,6 +10,9 @@ export interface Permission {
   canAddMaintenance: boolean
   canEditMaintenance: boolean
   canDeleteMaintenance: boolean
+  canViewPurchaseInvoices: boolean
+  canCreatePurchaseInvoices: boolean
+  canReversePurchaseInvoices: boolean
   canViewMechanics: boolean
   canAddMechanics: boolean
   canEditMechanics: boolean
@@ -49,6 +52,9 @@ export const defaultPermissions: Permission = {
   canAddMaintenance: false,
   canEditMaintenance: false,
   canDeleteMaintenance: false,
+  canViewPurchaseInvoices: false,
+  canCreatePurchaseInvoices: false,
+  canReversePurchaseInvoices: false,
   canViewMechanics: true,
   canAddMechanics: false,
   canEditMechanics: false,
@@ -83,6 +89,9 @@ export const adminPermissions: Permission = {
   canAddMaintenance: true,
   canEditMaintenance: true,
   canDeleteMaintenance: true,
+  canViewPurchaseInvoices: true,
+  canCreatePurchaseInvoices: true,
+  canReversePurchaseInvoices: true,
   canViewMechanics: true,
   canAddMechanics: true,
   canEditMechanics: true,
@@ -117,6 +126,9 @@ export const managerPermissions: Permission = {
   canAddMaintenance: true,
   canEditMaintenance: true,
   canDeleteMaintenance: false,
+  canViewPurchaseInvoices: true,
+  canCreatePurchaseInvoices: true,
+  canReversePurchaseInvoices: false,
   canViewMechanics: true,
   canAddMechanics: true,
   canEditMechanics: true,
@@ -147,6 +159,7 @@ export const defaultRolePermissions = {
     { resource: 'dashboard', actions: ['read'] },
     { resource: 'trucks', actions: ['read', 'create', 'update', 'delete'] },
     { resource: 'maintenance', actions: ['read', 'create', 'update', 'delete'] },
+    { resource: 'purchase-invoices', actions: ['read', 'create', 'update'] },
     { resource: 'mechanics', actions: ['read', 'create', 'update', 'delete'] },
     { resource: 'tire-management', actions: ['read', 'create', 'update', 'delete'] },
     { resource: 'trailers', actions: ['read', 'create', 'update', 'delete'] },
@@ -161,6 +174,7 @@ export const defaultRolePermissions = {
     { resource: 'dashboard', actions: ['read'] },
     { resource: 'trucks', actions: ['read', 'create', 'update'] },
     { resource: 'maintenance', actions: ['read', 'create', 'update'] },
+    { resource: 'purchase-invoices', actions: ['read', 'create'] },
     { resource: 'mechanics', actions: ['read', 'create', 'update'] },
     { resource: 'tire-management', actions: ['read', 'create', 'update'] },
     { resource: 'trailers', actions: ['read', 'create', 'update'] },
@@ -197,6 +211,9 @@ const emptyPermissions: Permission = {
   canAddMaintenance: false,
   canEditMaintenance: false,
   canDeleteMaintenance: false,
+  canViewPurchaseInvoices: false,
+  canCreatePurchaseInvoices: false,
+  canReversePurchaseInvoices: false,
   canViewMechanics: false,
   canAddMechanics: false,
   canEditMechanics: false,
@@ -228,6 +245,9 @@ const arrayPermissionFields: Record<string, Record<string, keyof Permission>> = 
   },
   maintenance: {
     read: 'canViewMaintenance', create: 'canAddMaintenance', update: 'canEditMaintenance', delete: 'canDeleteMaintenance'
+  },
+  'purchase-invoices': {
+    read: 'canViewPurchaseInvoices', create: 'canCreatePurchaseInvoices', update: 'canReversePurchaseInvoices'
   },
   mechanics: {
     read: 'canViewMechanics', create: 'canAddMechanics', update: 'canEditMechanics', delete: 'canDeleteMechanics'
@@ -290,6 +310,7 @@ export function normalizePermissionOverrides(value: unknown): Partial<Permission
   const actionToRead: [keyof Permission, keyof Permission][] = [
     ['canAddTrucks', 'canViewTrucks'], ['canEditTrucks', 'canViewTrucks'], ['canDeleteTrucks', 'canViewTrucks'],
     ['canAddMaintenance', 'canViewMaintenance'], ['canEditMaintenance', 'canViewMaintenance'], ['canDeleteMaintenance', 'canViewMaintenance'],
+    ['canCreatePurchaseInvoices', 'canViewPurchaseInvoices'], ['canReversePurchaseInvoices', 'canViewPurchaseInvoices'],
     ['canAddMechanics', 'canViewMechanics'], ['canEditMechanics', 'canViewMechanics'], ['canDeleteMechanics', 'canViewMechanics'],
     ['canAddTireManagement', 'canViewTireManagement'], ['canEditTireManagement', 'canViewTireManagement'], ['canDeleteTireManagement', 'canViewTireManagement'],
     ['canAddTrailers', 'canViewTrailers'], ['canEditTrailers', 'canViewTrailers'], ['canDeleteTrailers', 'canViewTrailers'],
@@ -383,6 +404,13 @@ export class PermissionManager {
           case 'create': return permissions.canAddMaintenance
           case 'update': return permissions.canEditMaintenance
           case 'delete': return permissions.canDeleteMaintenance
+          default: return false
+        }
+      case 'purchase-invoices':
+        switch (action) {
+          case 'read': return permissions.canViewPurchaseInvoices
+          case 'create': return permissions.canCreatePurchaseInvoices
+          case 'update': return permissions.canReversePurchaseInvoices
           default: return false
         }
       case 'mechanics':
@@ -511,6 +539,8 @@ export function canAccessPage(permissions: Permission, page: string): boolean {
       return permissions.canViewMaintenance
     case '/oil-changes':
       return permissions.canViewMaintenance
+    case '/purchase-invoices':
+      return permissions.canViewPurchaseInvoices
     case '/mechanics':
       return permissions.canViewMechanics
     case '/tire-management':
