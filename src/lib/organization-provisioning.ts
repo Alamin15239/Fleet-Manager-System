@@ -68,21 +68,23 @@ async function createNeonProject(organization: ProvisioningOrganization): Promis
 async function applyDatabaseSchema(connectionUri: string) {
   const sqlPath = path.join(process.cwd(), 'prisma', 'organization-bootstrap.sql')
   const schemaSql = await readFile(sqlPath, 'utf8')
-  const client = new Client({ connectionString: connectionUri, connectionTimeoutMillis: 3_000 })
-
-  let connected = false
+  let client: Client | null = null
   let lastError: unknown
   for (let attempt = 0; attempt < 10; attempt++) {
+    // A pg Client is single-use: if a connection attempt fails, retry with a
+    // fresh Client instead of calling connect() again on the same instance.
+    const attemptClient = new Client({ connectionString: connectionUri, connectionTimeoutMillis: 3_000 })
     try {
-      await client.connect()
-      connected = true
+      await attemptClient.connect()
+      client = attemptClient
       break
     } catch (error) {
       lastError = error
+      await attemptClient.end().catch(() => undefined)
       if (attempt < 9) await new Promise((resolve) => setTimeout(resolve, 1_000))
     }
   }
-  if (!connected) throw lastError instanceof Error ? lastError : new Error('Could not connect to the new organization database')
+  if (!client) throw lastError instanceof Error ? lastError : new Error('Could not connect to the new organization database')
 
   try {
     const existingSchema = await client.query("SELECT to_regclass('public.users') IS NOT NULL AS ready")
