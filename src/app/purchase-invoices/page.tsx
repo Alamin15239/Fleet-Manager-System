@@ -1,6 +1,7 @@
 'use client'
 
-import { FormEvent, useEffect, useMemo, useState } from 'react'
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
+import QRCode from 'qrcode'
 import { LocalizedText } from '@/components/localized-text'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -13,7 +14,9 @@ import { usePermissions } from '@/contexts/permissions-context'
 import { apiGet, apiPatch, apiPost } from '@/lib/api'
 import { formatCurrency } from '@/lib/currency'
 import { toast } from '@/lib/localized-toast'
-import { Activity, BadgeCheck, BookOpen, Building2, Calculator, CalendarDays, CarFront, FilePlus2, FileText, Filter, Loader2, Plus, Receipt, Search, ShieldCheck, Truck, Undo2, X } from 'lucide-react'
+import { Activity, BadgeCheck, BookOpen, Building2, Calculator, CarFront, Copy, Download, ExternalLink, FilePlus2, FileText, Filter, Loader2, Plus, Printer, Receipt, Search, ShieldCheck, Truck, Undo2, X } from 'lucide-react'
+import { renderPurchaseInvoiceDocument, type PurchaseInvoiceCompany, type PurchaseInvoiceDocumentData } from '@/lib/purchase-invoice-document'
+import { downloadPurchaseInvoicePdf } from '@/lib/purchase-invoice-pdf'
 
 type Category = 'MAINTENANCE' | 'SPARE_PARTS' | 'TIRE' | 'BATTERY' | 'OIL_FILTER' | 'OTHER'
 type AssetType = 'TRUCK' | 'TRAILER'
@@ -147,6 +150,9 @@ export default function PurchaseInvoicesPage() {
   const [invoiceDialogOpen, setInvoiceDialogOpen] = useState(false)
   const [vendorDialogOpen, setVendorDialogOpen] = useState(false)
   const [selectedInvoice, setSelectedInvoice] = useState<PurchaseInvoice | null>(null)
+  const [invoiceDocumentHtml, setInvoiceDocumentHtml] = useState('')
+  const [invoiceShareUrl, setInvoiceShareUrl] = useState('')
+  const invoicePreviewRef = useRef<HTMLIFrameElement>(null)
   const [ledgerSelection, setLedgerSelection] = useState<{ type: 'TRUCK' | 'TRAILER' | 'VENDOR' | 'VAT'; id: string; label: string; code: string; balance: number } | null>(null)
   const [ledgerLines, setLedgerLines] = useState<LedgerLine[]>([])
   const [ledgerLoading, setLedgerLoading] = useState(false)
@@ -187,6 +193,31 @@ export default function PurchaseInvoicesPage() {
   }
 
   useEffect(() => { void loadData() }, [])
+
+  useEffect(() => {
+    if (!selectedInvoice) {
+      setInvoiceDocumentHtml('')
+      setInvoiceShareUrl('')
+      return
+    }
+    let cancelled = false
+    const prepareInvoicePreview = async () => {
+      setInvoiceDocumentHtml('')
+      try {
+        const response = await apiGet(`/api/purchase-invoices/${encodeURIComponent(selectedInvoice.id)}/share-link`)
+        const payload = await response.json()
+        if (!response.ok) throw new Error(payload.error || 'Unable to prepare invoice preview')
+        const qrDataUrl = await QRCode.toDataURL(payload.shareUrl, { errorCorrectionLevel: 'H', margin: 1, width: 512 })
+        if (cancelled) return
+        setInvoiceShareUrl(payload.shareUrl)
+        setInvoiceDocumentHtml(renderPurchaseInvoiceDocument(selectedInvoice as PurchaseInvoiceDocumentData, payload.company as PurchaseInvoiceCompany | null, payload.shareUrl, qrDataUrl))
+      } catch (error) {
+        if (!cancelled) toast.error(error instanceof Error ? error.message : 'Unable to prepare invoice preview')
+      }
+    }
+    void prepareInvoicePreview()
+    return () => { cancelled = true }
+  }, [selectedInvoice])
 
   useEffect(() => {
     if (!ledgerSelection) {
@@ -233,9 +264,10 @@ export default function PurchaseInvoicesPage() {
 
   const filteredInvoices = useMemo(() => {
     const needle = search.trim().toLowerCase()
+    if (!needle) return []
     return invoices.filter((invoice) => {
       const matchesStatus = statusFilter === 'ALL' || invoice.status === statusFilter
-      const matchesSearch = !needle || [invoice.internalNumber, invoice.vendorInvoiceNumber, invoice.vendor.name,
+      const matchesSearch = [invoice.internalNumber, invoice.vendorInvoiceNumber, invoice.vendor.name,
         ...invoice.lines.flatMap((line) => [line.description, line.truck?.licensePlate, line.trailer?.number])]
         .filter(Boolean).some((value) => String(value).toLowerCase().includes(needle))
       return matchesStatus && matchesSearch
@@ -285,6 +317,7 @@ export default function PurchaseInvoicesPage() {
       if (!response.ok) throw new Error(payload.error || 'Could not post purchase invoice')
       toast.success(`Invoice ${payload.invoice.internalNumber} posted to the vehicle, VAT, and vendor accounts`)
       setInvoiceDialogOpen(false)
+      setSearch('')
       setInvoiceForm({ vendorId: '', vendorInvoiceNumber: '', invoiceDate: new Date().toISOString().slice(0, 10), dueDate: '', isVatInvoice: true, pricesIncludeVat: false, vatRate: '15', notes: '', lines: [blankLine()] })
       setVendorSearch('')
       setAssetSearch({})
@@ -317,6 +350,35 @@ export default function PurchaseInvoicesPage() {
     const id = type === 'VENDOR' ? account.vendorId : account.assetId
     if (!id) return
     setLedgerSelection({ type, id, label: account.label, code: account.code, balance: account.balance })
+  }
+
+  const downloadSelectedInvoice = async () => {
+    if (!selectedInvoice || !invoiceDocumentHtml) return
+    setSaving(true)
+    try {
+      await downloadPurchaseInvoicePdf(invoiceDocumentHtml, `${selectedInvoice.internalNumber}.pdf`)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Unable to download invoice PDF')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const printSelectedInvoice = () => {
+    const printWindow = invoicePreviewRef.current?.contentWindow
+    if (!printWindow || !invoiceDocumentHtml) return
+    printWindow.focus()
+    printWindow.print()
+  }
+
+  const copyInvoiceShareLink = async () => {
+    if (!invoiceShareUrl) return
+    try {
+      await navigator.clipboard.writeText(invoiceShareUrl)
+      toast.success('Public invoice link copied')
+    } catch {
+      window.prompt('Copy this invoice link', invoiceShareUrl)
+    }
   }
 
   const tabButton = (key: Tab, label: string, Icon: typeof FileText) => (
@@ -368,7 +430,7 @@ export default function PurchaseInvoicesPage() {
         <CardContent className="p-4 sm:p-6">
           {tab === 'invoices' && <>
             <div className="mb-4 flex items-center gap-2"><Filter className="h-4 w-4 text-muted-foreground" /><select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="h-9 rounded-lg border border-input bg-background px-3 text-sm"><option value="ALL">All statuses</option><option value="POSTED">Posted</option><option value="VOID">Reversed</option></select><span className="ms-auto text-xs text-muted-foreground">{filteredInvoices.length} <LocalizedText>shown · newest first</LocalizedText></span></div>
-            {filteredInvoices.length === 0 ? <EmptyState title="No purchase invoices yet" description="Create an invoice to record expenses against a truck or trailer." icon={Receipt} action={canWrite ? <Button onClick={() => setInvoiceDialogOpen(true)}><Plus className="me-2 h-4 w-4" /><LocalizedText>Enter first invoice</LocalizedText></Button> : undefined} /> : <div className="space-y-3">
+            {filteredInvoices.length === 0 ? <EmptyState title={search.trim() ? 'No matching invoices' : 'Search to view invoices'} description={search.trim() ? 'Try an invoice number, supplier, truck or trailer number.' : 'Invoices are kept out of the list until you search by invoice number, supplier, description, truck or trailer.'} icon={search.trim() ? Receipt : Search} /> : <div className="space-y-3">
               {filteredInvoices.map((invoice) => <button key={invoice.id} onClick={() => setSelectedInvoice(invoice)} className="grid w-full gap-3 rounded-2xl border border-border/70 p-4 text-start transition hover:border-primary/40 hover:bg-muted/30 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_auto_auto] md:items-center">
                 <div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><span className="font-semibold">{invoice.internalNumber}</span><StatusBadge status={invoice.status} /></div><p className="mt-1 truncate text-sm text-muted-foreground">{invoice.vendor.name}{invoice.vendorInvoiceNumber ? ` · ${invoice.vendorInvoiceNumber}` : ''}</p></div>
                 <div className="text-sm"><p>{formatDate(invoice.invoiceDate)}</p><p className="mt-1 text-xs text-muted-foreground">{invoice.lines.length} <LocalizedText>lines</LocalizedText> · {invoice.isVatInvoice ? `${invoice.vatRate}% VAT` : 'No VAT'}</p></div>
@@ -452,9 +514,9 @@ export default function PurchaseInvoicesPage() {
       </Dialog>
 
       <Dialog open={!!selectedInvoice} onOpenChange={(open) => { if (!open) setSelectedInvoice(null) }}>
-        <DialogContent className="max-h-[90dvh] max-w-3xl overflow-y-auto"><DialogHeader><div className="flex items-center gap-2"><DialogTitle>{selectedInvoice?.internalNumber}</DialogTitle>{selectedInvoice && <StatusBadge status={selectedInvoice.status} />}</div><DialogDescription>{selectedInvoice?.vendor.name}{selectedInvoice?.vendorInvoiceNumber ? ` · ${selectedInvoice.vendorInvoiceNumber}` : ''}</DialogDescription></DialogHeader>
-          {selectedInvoice && <div className="space-y-5 py-3"><div className="grid gap-3 sm:grid-cols-3"><DetailItem label="Invoice date" value={formatDate(selectedInvoice.invoiceDate)} /><DetailItem label="Due date" value={selectedInvoice.dueDate ? formatDate(selectedInvoice.dueDate) : 'Not set'} /><DetailItem label="Tax treatment" value={selectedInvoice.isVatInvoice ? `${selectedInvoice.vatRate}% VAT · ${selectedInvoice.pricesIncludeVat ? 'price includes VAT' : 'price before VAT'}` : 'No VAT'} /></div><div className="overflow-x-auto rounded-xl border"><table className="w-full min-w-[660px] text-sm"><thead className="bg-muted/50 text-xs uppercase text-muted-foreground"><tr><th className="p-3 text-start"><LocalizedText>Category / description</LocalizedText></th><th className="p-3 text-start"><LocalizedText>Vehicle account</LocalizedText></th><th className="p-3 text-end"><LocalizedText>Expense</LocalizedText></th><th className="p-3 text-end"><LocalizedText>VAT</LocalizedText></th><th className="p-3 text-end"><LocalizedText>Total</LocalizedText></th></tr></thead><tbody>{selectedInvoice.lines.map((line) => <tr key={line.id} className="border-t"><td className="p-3"><Badge variant="outline">{categoryLabels[line.category]}</Badge><p className="mt-1">{line.description}</p><p className="text-xs text-muted-foreground">{line.quantity} × {formatCurrency(line.unitPrice)}</p></td><td className="p-3">{line.truck ? `${line.truck.licensePlate} · ${line.truck.make} ${line.truck.model}` : `Trailer ${line.trailer?.number || ''}`}</td><td className="p-3 text-end tabular-nums">{formatCurrency(line.netAmount)}</td><td className="p-3 text-end tabular-nums">{formatCurrency(line.vatAmount)}</td><td className="p-3 text-end font-medium tabular-nums">{formatCurrency(line.totalAmount)}</td></tr>)}</tbody></table></div><div className="ms-auto max-w-sm space-y-2 rounded-xl bg-muted/40 p-4 text-sm"><SummaryRow label="Vehicle expense" value={formatCurrency(selectedInvoice.subtotal)} /><SummaryRow label="Input VAT" value={formatCurrency(selectedInvoice.vatTotal)} /><SummaryRow label="Vendor payable" value={formatCurrency(selectedInvoice.grandTotal)} strong /></div>{selectedInvoice.notes && <div className="rounded-xl border p-4 text-sm"><p className="mb-1 font-medium"><LocalizedText>Notes</LocalizedText></p><p className="text-muted-foreground">{selectedInvoice.notes}</p></div>}</div>}
-          <DialogFooter className="gap-2 sm:justify-between">{selectedInvoice?.status === 'POSTED' && canReverse ? <Button variant="destructive" onClick={() => selectedInvoice && void reverseInvoice(selectedInvoice)} disabled={saving}><Undo2 className="me-2 h-4 w-4" /><LocalizedText>Reverse invoice</LocalizedText></Button> : <span />}{selectedInvoice?.status === 'VOID' && <p className="me-auto text-xs text-muted-foreground"><LocalizedText>This invoice is reversed; its original and counter-entry remain in the ledger.</LocalizedText></p>}<Button variant="outline" onClick={() => setSelectedInvoice(null)}><LocalizedText>Close</LocalizedText></Button></DialogFooter>
+        <DialogContent className="flex max-h-[96dvh] max-w-5xl flex-col overflow-hidden p-4 sm:p-6"><DialogHeader className="shrink-0"><div className="flex items-center gap-2"><DialogTitle>{selectedInvoice?.internalNumber}</DialogTitle>{selectedInvoice && <StatusBadge status={selectedInvoice.status} />}</div><DialogDescription>{selectedInvoice?.vendor.name}{selectedInvoice?.vendorInvoiceNumber ? ` · ${selectedInvoice.vendorInvoiceNumber}` : ''}</DialogDescription></DialogHeader>
+          <div className="min-h-0 flex-1 overflow-hidden rounded-lg border bg-slate-100">{invoiceDocumentHtml ? <iframe ref={invoicePreviewRef} title={`${selectedInvoice?.internalNumber} invoice preview`} srcDoc={invoiceDocumentHtml} className="h-[min(70dvh,850px)] min-h-[480px] w-full bg-white" /> : <div className="flex h-[min(70dvh,850px)] min-h-[480px] items-center justify-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin" /><LocalizedText>Preparing invoice preview and QR code</LocalizedText></div>}</div>
+          <DialogFooter className="shrink-0 flex-wrap gap-2 sm:justify-between">{selectedInvoice?.status === 'POSTED' && canReverse ? <Button variant="destructive" onClick={() => selectedInvoice && void reverseInvoice(selectedInvoice)} disabled={saving}><Undo2 className="me-2 h-4 w-4" /><LocalizedText>Reverse invoice</LocalizedText></Button> : <span />}{selectedInvoice?.status === 'VOID' && <p className="me-auto text-xs text-muted-foreground"><LocalizedText>This invoice is reversed; its original and counter-entry remain in the ledger.</LocalizedText></p>}<div className="flex flex-wrap gap-2"><Button variant="outline" onClick={() => void copyInvoiceShareLink()} disabled={!invoiceShareUrl}><Copy className="me-2 h-4 w-4" /><LocalizedText>Copy QR link</LocalizedText></Button>{invoiceShareUrl && <Button variant="outline" asChild><a href={invoiceShareUrl} target="_blank" rel="noreferrer"><ExternalLink className="me-2 h-4 w-4" /><LocalizedText>Open link</LocalizedText></a></Button>}<Button variant="outline" onClick={printSelectedInvoice} disabled={!invoiceDocumentHtml}><Printer className="me-2 h-4 w-4" /><LocalizedText>Print</LocalizedText></Button><Button onClick={() => void downloadSelectedInvoice()} disabled={!invoiceDocumentHtml || saving}><Download className="me-2 h-4 w-4" /><LocalizedText>Download PDF</LocalizedText></Button><Button variant="ghost" onClick={() => setSelectedInvoice(null)}><LocalizedText>Close</LocalizedText></Button></div></DialogFooter>
         </DialogContent>
       </Dialog>
 
@@ -476,10 +538,6 @@ function AccountGrid({ rows, onSelect }: { rows: AccountRow[]; onSelect: (row: A
 
 function SummaryRow({ label, value, strong = false }: { label: string; value: string; strong?: boolean }) {
   return <div className={`flex items-center justify-between gap-4 ${strong ? 'font-semibold' : ''}`}><span className="text-muted-foreground"><LocalizedText>{label}</LocalizedText></span><span className="tabular-nums">{value}</span></div>
-}
-
-function DetailItem({ label, value }: { label: string; value: string }) {
-  return <div className="rounded-xl border p-3"><p className="text-xs text-muted-foreground"><LocalizedText>{label}</LocalizedText></p><p className="mt-1 text-sm font-medium">{value}</p></div>
 }
 
 function StatusBadge({ status }: { status: 'POSTED' | 'VOID' }) {
