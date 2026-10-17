@@ -73,6 +73,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return
       }
 
+      let cachedUser: User | null = null
+      try {
+        const cachedValue = localStorage.getItem('user')
+        cachedUser = cachedValue ? JSON.parse(cachedValue) as User : null
+      } catch {
+        cachedUser = null
+      }
+
       // Never render the cached identity while checking that it belongs to this token.
       setToken(savedToken)
       setUser(null)
@@ -83,7 +91,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           headers: { Authorization: `Bearer ${savedToken}` },
           cache: 'no-store'
         })
-        if (!response.ok) throw new Error('Saved session is no longer valid')
+        if (response.status === 401 || response.status === 404) {
+          clearSession(savedToken)
+          return
+        }
+        if (!response.ok) {
+          throw new Error(`Session validation temporarily failed (${response.status})`)
+        }
 
         const data = await response.json()
         const verifiedUser = data.user as User | undefined
@@ -96,7 +110,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         localStorage.setItem('user', JSON.stringify(verifiedUser))
       } catch (error) {
         console.warn('Could not validate saved account session:', error)
-        if (currentValidationId === validationId) clearSession(savedToken)
+        // A network or server error does not invalidate a signed-in session.
+        // Preserve the last known identity so a transient database outage does
+        // not force the user to sign in again. Protected API routes still
+        // validate the token and current account state on every request.
+        if (currentValidationId === validationId && localStorage.getItem('authToken') === savedToken) {
+          setToken(savedToken)
+          if (cachedUser?.id) setUser(cachedUser)
+        }
       } finally {
         if (currentValidationId === validationId && localStorage.getItem('authToken') === savedToken) {
           setIsLoading(false)
