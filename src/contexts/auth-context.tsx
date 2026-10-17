@@ -19,12 +19,16 @@ interface User {
   bio?: string | null
   createdAt?: string
   updatedAt?: string
+  organizationId?: string
+  organizationSlug?: string
+  organizationName?: string
+  isPrimaryOrganization?: boolean
 }
 
 interface AuthContextType {
   user: User | null
   token: string | null
-  login: (email: string, passwordOrOtp: string, isOtp?: boolean) => Promise<boolean>
+  login: (email: string, passwordOrOtp: string, isOtp?: boolean, organizationSlug?: string) => Promise<boolean>
   logout: () => Promise<void>
   refreshUser: () => Promise<void>
   updateUser: (userData: Partial<User>) => void
@@ -130,12 +134,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user])
 
-  const login = async (email: string, passwordOrOtp: string, isOtp: boolean = true): Promise<boolean> => {
+  const login = async (email: string, passwordOrOtp: string, isOtp: boolean = true, organizationSlug?: string): Promise<boolean> => {
     try {
       const endpoint = isOtp ? '/api/auth/verify-otp' : '/api/auth/login'
       const body = isOtp 
-        ? { email, otp: passwordOrOtp, isLogin: true }
-        : { email, password: passwordOrOtp }
+        ? { email, otp: passwordOrOtp, isLogin: true, organizationSlug }
+        : { email, password: passwordOrOtp, organizationSlug }
 
       const response = await fetch(endpoint, {
         method: 'POST',

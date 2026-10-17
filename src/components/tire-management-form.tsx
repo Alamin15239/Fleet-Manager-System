@@ -109,7 +109,9 @@ export default function TireManagementForm() {
 
   const fetchVehicles = async () => {
     try {
-      const [vehiclesResponse, filtersResponse] = await Promise.all([apiGet('/api/vehicles'), apiGet('/api/tires/filters')])
+      // This is a limited lookup for tire assignment. It must follow the
+      // Tire Management permission rather than requiring access to Trucks.
+      const [vehiclesResponse, filtersResponse] = await Promise.all([apiGet('/api/tires/vehicles'), apiGet('/api/tires/filters')])
       const vehicleData = vehiclesResponse.ok ? await vehiclesResponse.json() : { vehicles: [] }
       const tireFilters = filtersResponse.ok ? await filtersResponse.json() : {}
       const vehicleList = vehicleData.vehicles || []

@@ -44,6 +44,7 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
           user.role !== freshUser.role ||
           user.isActive !== freshUser.isActive ||
           user.isApproved !== freshUser.isApproved ||
+          user.organizationName !== freshUser.organizationName ||
           JSON.stringify(Object.entries(user.permissions || {}).sort(([a], [b]) => a.localeCompare(b))) !==
             JSON.stringify(Object.entries(freshUser.permissions || {}).sort(([a], [b]) => a.localeCompare(b))))) {
           updateUser(freshUser)

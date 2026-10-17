@@ -61,6 +61,7 @@ The Prisma schema is in prisma/schema.prisma. The app stores accounts, fleet and
 ## Operational notes
 
 - The OneDrive connection and deployment requirements are documented in [docs/onedrive-excel-sync.md](docs/onedrive-excel-sync.md) and [docs/onedrive-workbook-imports.md](docs/onedrive-workbook-imports.md).
+- Multiple organizations with isolated Neon databases are documented in [docs/organizations.md](docs/organizations.md).
 - Notification checks run daily from the Vercel cron configuration. They target 04:00 UTC / 07:00 Riyadh time, subject to the deployment scheduler.
 - Spare-parts quantities are not stored, so low-stock alerts are unavailable.
 - The application currently sends signed-in user ID, role, email, and name to its Microsoft Clarity integration. See [Privacy Policy](docs/privacy-policy.md) and ANALYTICS.md.

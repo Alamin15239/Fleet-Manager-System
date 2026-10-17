@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { authenticateUser } from '@/lib/auth'
-import { db } from '@/lib/db'
+import { findOrganizationBySlug, withOrganization } from '@/lib/db'
 
 export async function POST(request: NextRequest) {
   try {
-    const { email, password } = await request.json()
+    const { email, password, organizationSlug } = await request.json()
 
     if (!email || !password) {
       return NextResponse.json(
@@ -14,7 +14,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Try authentication with database connection handling
-    const result = await authenticateUser(email, password, request)
+    const organization = await findOrganizationBySlug(organizationSlug)
+    const result = await withOrganization(organization, () =>
+      authenticateUser(email, password, request, organization)
+    )
 
     // Create response with token in cookie
     const response = NextResponse.json({
@@ -44,6 +47,9 @@ export async function POST(request: NextRequest) {
       if (error.message === 'Invalid credentials') {
         errorMessage = 'Invalid email or password'
         statusCode = 401
+      } else if (error.message === 'Organization was not found or is not ready') {
+        errorMessage = error.message
+        statusCode = 404
       } else if (error.message === 'Please verify your email address before logging in') {
         errorMessage = 'Please verify your email address before logging in'
         statusCode = 403

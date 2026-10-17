@@ -338,6 +338,28 @@ model Settings {
   @@map("settings")
 }
 
+// Organization registry is stored in the primary database. Tenant databases
+// also receive this table as part of the common Prisma schema, but only the
+// primary database is used as the registry.
+model Organization {
+  id                   String             @id @default(cuid())
+  name                 String
+  slug                 String             @unique
+  ownerName            String?
+  ownerEmail           String?
+  status               OrganizationStatus @default(PROVISIONING)
+  schemaReady          Boolean            @default(false)
+  isPrimary            Boolean            @default(false)
+  neonProjectId        String?            @unique
+  encryptedDatabaseUrl String?
+  failureReason        String?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  @@index([status])
+  @@map("organizations")
+}
+
 model Vendor {
   id              String              @id @default(cuid())
   name            String
@@ -711,6 +733,12 @@ enum Role {
   ADMIN
   MANAGER
   USER
+}
+
+enum OrganizationStatus {
+  PROVISIONING
+  ACTIVE
+  FAILED
 }
 
 enum TruckStatus {

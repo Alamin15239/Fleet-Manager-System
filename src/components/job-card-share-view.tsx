@@ -12,6 +12,7 @@ export default function JobCardShareView() {
   const id = String(params?.id || '')
   const previewRef = useRef<HTMLIFrameElement>(null)
   const [documentHtml, setDocumentHtml] = useState('')
+  const [companyName, setCompanyName] = useState('Saadfreeh Transport')
   const [jobNumber, setJobNumber] = useState('Job card')
   const [loading, setLoading] = useState(true)
   const [downloading, setDownloading] = useState(false)
@@ -21,14 +22,18 @@ export default function JobCardShareView() {
     let cancelled = false
     const load = async () => {
       try {
-        const token = new URLSearchParams(window.location.search).get('token') || ''
+        const search = new URLSearchParams(window.location.search)
+        const token = search.get('token') || ''
+        const organizationSlug = search.get('org')
         if (!token) throw new Error('This job-card link is missing its access token')
-        const response = await fetch(`/api/public/job-cards/${encodeURIComponent(id)}?token=${encodeURIComponent(token)}`, { cache: 'no-store' })
+        const orgParam = organizationSlug ? `&org=${encodeURIComponent(organizationSlug)}` : ''
+        const response = await fetch(`/api/public/job-cards/${encodeURIComponent(id)}?token=${encodeURIComponent(token)}${orgParam}`, { cache: 'no-store' })
         const data = await response.json()
         if (!response.ok) throw new Error(data.error || 'Unable to load this job card')
         const shareUrl = window.location.href
         const html = await renderJobCardDocument(data.jobCard, data.company, shareUrl, window.location.origin)
         if (cancelled) return
+        setCompanyName(data.company?.companyName || 'Saadfreeh Transport')
         setJobNumber(data.jobCard.jobNumber || 'Job card')
         setDocumentHtml(html)
       } catch (cause) {
@@ -64,7 +69,7 @@ export default function JobCardShareView() {
     <main className="min-h-dvh bg-slate-100 text-slate-900">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-800"><LocalizedText>Saadfreeh Transport</LocalizedText></p>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-800">{companyName}</p>
           <h1 className="text-lg font-semibold">{jobNumber}</h1>
         </div>
         {documentHtml && <div className="flex gap-2">

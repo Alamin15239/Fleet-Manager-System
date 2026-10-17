@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { resendEmailService } from '@/lib/resend-email';
-import { db } from '@/lib/db';
+import { db, findOrganizationBySlug, withOrganization } from '@/lib/db';
 import jwt from 'jsonwebtoken';
 import { logUserLogin } from '@/lib/activity-tracking';
 
 export async function POST(request: NextRequest) {
   try {
-    const { email, otp, isLogin } = await request.json();
+    const { email, otp, isLogin, organizationSlug } = await request.json();
+
+    const organization = await findOrganizationBySlug(organizationSlug)
+    return await withOrganization(organization, async () => {
 
     if (!email || !otp) {
       return NextResponse.json(
@@ -74,7 +77,11 @@ export async function POST(request: NextRequest) {
         { 
           userId: updatedUser.id, 
           email: updatedUser.email, 
-          role: updatedUser.role 
+          role: updatedUser.role,
+          organizationId: organization.id,
+          organizationSlug: organization.slug,
+          organizationName: organization.name,
+          isPrimaryOrganization: organization.isPrimary
         },
         process.env.JWT_SECRET!,
         { expiresIn: '7d' }
@@ -98,7 +105,11 @@ export async function POST(request: NextRequest) {
           title: updatedUser.title,
           bio: updatedUser.bio,
           createdAt: updatedUser.createdAt,
-          updatedAt: updatedUser.updatedAt
+          updatedAt: updatedUser.updatedAt,
+          organizationId: organization.id,
+          organizationSlug: organization.slug,
+          organizationName: organization.name,
+          isPrimaryOrganization: organization.isPrimary
         },
         message: 'Login successful'
       });
@@ -109,9 +120,13 @@ export async function POST(request: NextRequest) {
       success: true,
       message: 'Email verified successfully. Please wait for admin approval to access the system.'
     });
+    })
 
   } catch (error) {
     console.error('OTP verification error:', error);
+    if (error instanceof Error && error.message === 'Organization was not found or is not ready') {
+      return NextResponse.json({ error: error.message }, { status: 404 });
+    }
     return NextResponse.json(
       { error: 'Verification failed' },
       { status: 500 }

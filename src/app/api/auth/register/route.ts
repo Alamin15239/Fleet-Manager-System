@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createUser } from '@/lib/auth'
-import { Resend } from 'resend'
-import { db } from '@/lib/db'
-import crypto from 'crypto'
+import { findOrganizationBySlug, withOrganization } from '@/lib/db'
 import { trackRegistration } from '@/lib/activity-tracker'
 
 export async function POST(request: NextRequest) {
@@ -14,7 +12,9 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { email, password, name } = await request.json()
+    const { email, password, name, organizationSlug } = await request.json()
+    const organization = await findOrganizationBySlug(organizationSlug)
+    return await withOrganization(organization, async () => {
 
     if (!email || !password) {
       return NextResponse.json(
@@ -87,6 +87,7 @@ export async function POST(request: NextRequest) {
       message: emailSent
         ? 'Account created successfully. Please check your email for the OTP to verify your account, then wait for admin approval before you can access the system.'
         : 'Account created, but the verification email could not be delivered. Please try requesting a new OTP later or contact the administrator.'
+    })
     })
 
   } catch (error) {

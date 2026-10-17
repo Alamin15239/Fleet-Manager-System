@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { db, findOrganizationBySlug, withOrganization } from '@/lib/db'
 import { Resend } from 'resend'
 import crypto from 'crypto'
 
@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { email } = await request.json()
+    const { email, organizationSlug } = await request.json()
 
     if (!email) {
       return NextResponse.json(
@@ -20,6 +20,9 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
+
+    const organization = await findOrganizationBySlug(organizationSlug)
+    return await withOrganization(organization, async () => {
 
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -67,7 +70,8 @@ export async function POST(request: NextRequest) {
     })
 
     // Send password reset email
-    const resetLink = `${process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL}/reset-password?token=${resetToken}&email=${encodeURIComponent(email)}`
+    const organizationQuery = organization.slug ? `&org=${encodeURIComponent(organization.slug)}` : ''
+    const resetLink = `${process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL}/reset-password?token=${resetToken}&email=${encodeURIComponent(email)}${organizationQuery}`
     
     if (process.env.RESEND_API_KEY) {
       try {
@@ -108,8 +112,12 @@ export async function POST(request: NextRequest) {
       success: true,
       message: 'If an account exists, a reset request has been received.'
     })
+    })
 
   } catch (error) {
+    if (error instanceof Error && error.message === 'Organization was not found or is not ready') {
+      return NextResponse.json({ error: error.message }, { status: 404 })
+    }
     console.error('Forgot password error:', error)
     
     return NextResponse.json(

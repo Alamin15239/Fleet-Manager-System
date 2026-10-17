@@ -38,6 +38,7 @@ export function Header() {
   const { toggleSidebar, isSidebarOpen } = useSidebar()
   const { user, logout } = useAuth()
   const { hasPermission } = usePermissions()
+  const canViewProfile = hasPermission('profile', 'read')
   const { t } = useLanguage()
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [loading, setLoading] = useState(true)
@@ -250,29 +251,23 @@ export function Header() {
         {/* User Profile */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" aria-label={t('Open profile')} title={t('Open profile')} className="relative h-11 w-11 rounded-xl p-0 sm:h-9 sm:w-9">
-              <ProfilePicture size="md" />
+            <Button variant="ghost" aria-label={canViewProfile ? t('Open profile') : t('Account menu')} title={canViewProfile ? t('Open profile') : t('Account menu')} className="relative h-11 w-11 rounded-xl p-0 sm:h-9 sm:w-9">
+              {canViewProfile ? <ProfilePicture size="md" /> : <User className="h-5 w-5 text-muted-foreground" />}
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent className="w-56" align="end" forceMount>
             <DropdownMenuLabel className="font-normal">
               <div className="flex flex-col space-y-1">
-                <p className="text-sm font-medium leading-none">
-                  {user?.name || t('User')}
-                </p>
-                <p className="text-xs leading-none text-muted-foreground">
-                  {user?.email}
-                </p>
-                {user?.title && (
-                  <p className="text-xs leading-none text-muted-foreground">
-                    {user.title}
+                {canViewProfile ? <>
+                  <p className="text-sm font-medium leading-none">
+                    {user?.name || t('User')}
                   </p>
-                )}
-                {user?.department && (
                   <p className="text-xs leading-none text-muted-foreground">
-                    {user.department}
+                    {user?.email}
                   </p>
-                )}
+                  {user?.title && <p className="text-xs leading-none text-muted-foreground">{user.title}</p>}
+                  {user?.department && <p className="text-xs leading-none text-muted-foreground">{user.department}</p>}
+                </> : <p className="text-sm font-medium leading-none">{t('Account')}</p>}
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />

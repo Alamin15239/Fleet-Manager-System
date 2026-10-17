@@ -24,6 +24,7 @@ function ResetPasswordContent() {
   const searchParams = useSearchParams()
   const token = searchParams?.get('token')
   const email = searchParams?.get('email')
+  const organizationSlug = searchParams?.get('org') || ''
 
   useEffect(() => {
     if (!token || !email) {
@@ -63,6 +64,7 @@ function ResetPasswordContent() {
           token,
           email,
           password,
+          organizationSlug: organizationSlug || undefined
         }),
       })
 
@@ -72,7 +74,7 @@ function ResetPasswordContent() {
         setSuccess(true)
         setMessage('Password reset successfully! Redirecting to login...')
         setTimeout(() => {
-          router.push('/login')
+          router.push(organizationSlug ? `/login?org=${encodeURIComponent(organizationSlug)}` : '/login')
         }, 3000)
       } else {
         setError(data.error || 'Failed to reset password')

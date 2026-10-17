@@ -46,6 +46,7 @@ prisma/dev.db-journal
 # Backups
 /backups
 *.sql
+!prisma/organization-bootstrap.sql
 *.sql.gz
 
 # Uploads

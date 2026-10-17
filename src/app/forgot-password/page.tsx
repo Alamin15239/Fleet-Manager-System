@@ -1,7 +1,7 @@
 'use client'
 import { LocalizedText } from '@/components/localized-text'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -17,7 +17,12 @@ export default function ForgotPasswordPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
+  const [organizationSlug, setOrganizationSlug] = useState('')
   const router = useRouter()
+
+  useEffect(() => {
+    setOrganizationSlug(new URLSearchParams(window.location.search).get('org') || '')
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -30,7 +35,7 @@ export default function ForgotPasswordPage() {
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ email })
+        body: JSON.stringify({ email, organizationSlug: organizationSlug || undefined })
       })
 
       const data = await response.json()
@@ -65,7 +70,7 @@ export default function ForgotPasswordPage() {
                 We've sent password reset instructions to {email}
               </p>
               <div className="space-y-2">
-                <Button onClick={() => router.push('/login')} className="w-full">
+                <Button onClick={() => router.push(organizationSlug ? `/login?org=${encodeURIComponent(organizationSlug)}` : '/login')} className="w-full">
                   Back to Login
                 </Button>
                 <Button variant="outline" onClick={() => setSuccess(false)} className="w-full">

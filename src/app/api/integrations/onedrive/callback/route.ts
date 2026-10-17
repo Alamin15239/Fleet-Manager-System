@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import jwt from 'jsonwebtoken'
-import { db } from '@/lib/db'
+import { db, findOrganizationById, getPrimaryOrganization, withOrganization } from '@/lib/db'
 import { ensureOneDriveChangeSubscription, getOneDriveRedirectUri, saveOneDriveConnection, syncOneDriveWorkbook } from '@/lib/onedrive-excel-sync'
 
 export const runtime = 'nodejs'
@@ -33,8 +33,10 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const claims = jwt.verify(state, process.env.JWT_SECRET) as { purpose?: string; userId?: string }
+    const claims = jwt.verify(state, process.env.JWT_SECRET) as { purpose?: string; userId?: string; organizationId?: string }
     if (claims.purpose !== 'onedrive-oauth' || !claims.userId) throw new Error('Invalid authorization state')
+    const organization = claims.organizationId ? await findOrganizationById(claims.organizationId) : await getPrimaryOrganization()
+    return await withOrganization(organization, async () => {
     const user = await db.user.findUnique({ where: { id: claims.userId }, select: { id: true, role: true, isActive: true, isApproved: true, isDeleted: true } })
     if (!user || user.role !== 'ADMIN' || !user.isActive || !user.isApproved || user.isDeleted) throw new Error('Administrator account is no longer active')
 
@@ -66,6 +68,7 @@ export async function GET(request: NextRequest) {
       catch (error) { console.error('OneDrive workbook notifications could not be enabled:', error instanceof Error ? error.message : 'Unknown error') }
     }
     return clearOAuthCookies(settingsRedirect(request, sync.success ? 'connected' : 'sync_failed'))
+    })
   } catch (error) {
     console.error('OneDrive authorization callback failed:', error instanceof Error ? error.message : 'Unknown error')
     return clearOAuthCookies(settingsRedirect(request, 'error'))

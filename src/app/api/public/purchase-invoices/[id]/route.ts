@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { db, findOrganizationBySlug, withOrganization } from '@/lib/db'
 import { verifyPurchaseInvoiceShareToken } from '@/lib/purchase-invoice-share'
 
 export const dynamic = 'force-dynamic'
@@ -17,6 +17,8 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
   }
 
   try {
+    const organization = await findOrganizationBySlug(request.nextUrl.searchParams.get('org'))
+    return await withOrganization(organization, async () => {
     const [invoice, company] = await Promise.all([
       db.purchaseInvoice.findUnique({
         where: { id },
@@ -70,8 +72,11 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
       })),
     }
     return NextResponse.json({ invoice: serializedInvoice, company }, { headers: { 'Cache-Control': 'no-store' } })
+    })
   } catch (error) {
-    console.error('Public purchase-invoice lookup error:', error)
+    if (error instanceof Error && error.message === 'Organization was not found or is not ready') {
+      return NextResponse.json({ error: error.message }, { status: 404, headers: { 'Cache-Control': 'no-store' } })
+    }
     return NextResponse.json({ error: 'Unable to load this invoice' }, { status: 500, headers: { 'Cache-Control': 'no-store' } })
   }
 }

@@ -17,6 +17,7 @@ import {
   Target
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import { usePermissions } from '@/contexts/permissions-context'
 
 interface WelcomeScreenProps {
   userName?: string
@@ -25,6 +26,7 @@ interface WelcomeScreenProps {
 
 export function WelcomeScreen({ userName, userRole }: WelcomeScreenProps) {
   const router = useRouter()
+  const { canAccess, canCreate } = usePermissions()
 
   const quickActions = [
     {
@@ -33,30 +35,38 @@ export function WelcomeScreen({ userName, userRole }: WelcomeScreenProps) {
       icon: <Truck className="h-8 w-8 text-blue-600" />,
       action: () => router.push('/trucks'),
       color: 'bg-blue-50 border-blue-200',
-      primary: true
+      primary: true,
+      resource: 'trucks',
+      permissionAction: 'create'
     },
     {
       title: 'Schedule Maintenance',
       description: 'Set up maintenance schedules',
       icon: <Wrench className="h-8 w-8 text-green-600" />,
       action: () => router.push('/maintenance'),
-      color: 'bg-green-50 border-green-200'
+      color: 'bg-green-50 border-green-200',
+      resource: 'maintenance',
+      permissionAction: 'create'
     },
     {
       title: 'Add Mechanics',
       description: 'Register your maintenance team',
       icon: <Users className="h-8 w-8 text-purple-600" />,
       action: () => router.push('/mechanics'),
-      color: 'bg-purple-50 border-purple-200'
+      color: 'bg-purple-50 border-purple-200',
+      resource: 'mechanics',
+      permissionAction: 'create'
     },
     {
       title: 'Tire Management',
       description: 'Track tire inventory and usage',
       icon: <Target className="h-8 w-8 text-orange-600" />,
       action: () => router.push('/tire-management'),
-      color: 'bg-orange-50 border-orange-200'
+      color: 'bg-orange-50 border-orange-200',
+      resource: 'tire-management',
+      permissionAction: 'read'
     }
-  ]
+  ].filter((item) => item.permissionAction === 'create' ? canCreate(item.resource) : canAccess(item.resource))
 
   const features = [
     {

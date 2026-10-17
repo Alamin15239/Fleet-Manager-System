@@ -1,6 +1,6 @@
 import jwt from 'jsonwebtoken'
 import bcrypt from 'bcryptjs'
-import { db } from '@/lib/db'
+import { db, findOrganizationById, getPrimaryOrganization, OrganizationRecord } from '@/lib/db'
 import { logUserLogin } from '@/lib/activity-tracking'
 import { NextRequest } from 'next/server'
 
@@ -18,6 +18,10 @@ export interface JWTPayload {
   isApproved: boolean
   isEmailVerified?: boolean
   permissions?: any
+  organizationId?: string
+  organizationSlug?: string
+  organizationName?: string
+  isPrimaryOrganization?: boolean
 }
 
 export async function hashPassword(password: string): Promise<string> {
@@ -43,7 +47,7 @@ export function verifyToken(token: string): JWTPayload | null {
   }
 }
 
-export async function authenticateUser(email: string, password: string, request?: NextRequest) {
+export async function authenticateUser(email: string, password: string, request?: NextRequest, organization?: OrganizationRecord) {
   try {
     // First, check if user exists at all
     const user = await Promise.race([
@@ -101,7 +105,11 @@ export async function authenticateUser(email: string, password: string, request?
       isActive: user.isActive,
       isApproved: user.isApproved,
       isEmailVerified: user.isEmailVerified,
-      permissions: user.permissions
+      permissions: user.permissions,
+      organizationId: organization?.id,
+      organizationSlug: organization?.slug,
+      organizationName: organization?.name,
+      isPrimaryOrganization: organization?.isPrimary
     })
 
     return {
@@ -120,7 +128,11 @@ export async function authenticateUser(email: string, password: string, request?
         title: user.title,
         bio: user.bio,
         createdAt: user.createdAt,
-        updatedAt: user.updatedAt
+        updatedAt: user.updatedAt,
+        organizationId: organization?.id,
+        organizationSlug: organization?.slug,
+        organizationName: organization?.name,
+        isPrimaryOrganization: organization?.isPrimary
       },
       token
     }
@@ -142,6 +154,10 @@ export async function requireAuth(request: Request): Promise<JWTPayload> {
   if (!decoded) {
     throw new Error('Invalid token')
   }
+
+  const organization = decoded.organizationId
+    ? await findOrganizationById(decoded.organizationId)
+    : await getPrimaryOrganization()
 
   // Re-check the account on each API request so role changes and disabled
   // accounts take effect immediately, and normalize OTP login tokens.
@@ -172,7 +188,11 @@ export async function requireAuth(request: Request): Promise<JWTPayload> {
     isActive: user.isActive,
     isApproved: user.isApproved,
     isEmailVerified: user.isEmailVerified,
-    permissions: user.permissions
+    permissions: user.permissions,
+    organizationId: organization.id,
+    organizationSlug: organization.slug,
+    organizationName: organization.name,
+    isPrimaryOrganization: organization.isPrimary
   }
 }
 

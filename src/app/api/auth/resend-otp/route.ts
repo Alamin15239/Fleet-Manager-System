@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { resendEmailService } from '@/lib/resend-email';
-import { db } from '@/lib/db';
+import { db, findOrganizationBySlug, withOrganization } from '@/lib/db';
 
 export async function POST(request: NextRequest) {
   try {
-    const { email } = await request.json();
+    const { email, organizationSlug } = await request.json();
 
     if (!email) {
       return NextResponse.json(
@@ -12,6 +12,9 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    const organization = await findOrganizationBySlug(organizationSlug)
+    return await withOrganization(organization, async () => {
 
     // Find user by email
     const user = await db.user.findUnique({
@@ -49,8 +52,12 @@ export async function POST(request: NextRequest) {
       success: true,
       message: 'OTP sent successfully'
     });
+    })
 
   } catch (error) {
+    if (error instanceof Error && error.message === 'Organization was not found or is not ready') {
+      return NextResponse.json({ error: error.message }, { status: 404 })
+    }
     console.error('Resend OTP error:', error);
     return NextResponse.json(
       { error: 'Failed to resend OTP' },

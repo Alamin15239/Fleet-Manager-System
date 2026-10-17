@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { db, findOrganizationBySlug, withOrganization } from '@/lib/db'
 import { verifyJobCardShareToken } from '@/lib/job-card-share'
 
 export const dynamic = 'force-dynamic'
@@ -12,6 +12,8 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
   }
 
   try {
+    const organization = await findOrganizationBySlug(request.nextUrl.searchParams.get('org'))
+    return await withOrganization(organization, async () => {
     const [jobCard, company] = await Promise.all([
       db.workshopJobCard.findUnique({
         where: { id },
@@ -45,8 +47,11 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
 
     if (!jobCard) return NextResponse.json({ error: 'Job card not found' }, { status: 404, headers: { 'Cache-Control': 'no-store' } })
     return NextResponse.json({ jobCard, company }, { headers: { 'Cache-Control': 'no-store' } })
+    })
   } catch (error) {
-    console.error('Public job-card lookup error:', error)
+    if (error instanceof Error && error.message === 'Organization was not found or is not ready') {
+      return NextResponse.json({ error: error.message }, { status: 404, headers: { 'Cache-Control': 'no-store' } })
+    }
     return NextResponse.json({ error: 'Unable to load this job card' }, { status: 500, headers: { 'Cache-Control': 'no-store' } })
   }
 }

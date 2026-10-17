@@ -1,5 +1,5 @@
 import { after, NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { db, controlDb, getPrimaryOrganization, withOrganization } from '@/lib/db'
 import { captureOneDriveWorkbookChanges } from '@/lib/onedrive-excel-import'
 
 export const runtime = 'nodejs'
@@ -21,19 +21,26 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json() as { value?: GraphNotification[] }
     const notifications = Array.isArray(body.value) ? body.value : []
-    const integration = await db.oneDriveIntegration.findUnique({ where: { id: 'primary' } })
-    const verified = notifications.some(notification =>
-      notification.subscriptionId === integration?.graphSubscriptionId &&
-      Boolean(integration?.graphSubscriptionClientState) &&
-      notification.clientState === integration?.graphSubscriptionClientState
-    )
-    if (!verified) return NextResponse.json({ accepted: false }, { status: 202 })
+    if (notifications.length === 0) return NextResponse.json({ accepted: false }, { status: 202 })
+    const organizationModel = (controlDb as any).organization
+    const organizations = await organizationModel.findMany({ where: { status: 'ACTIVE' }, orderBy: { createdAt: 'asc' } })
+    const targets = organizations.length ? organizations : [await getPrimaryOrganization()]
 
     after(async () => {
-      try {
-        await captureOneDriveWorkbookChanges()
-      } catch (error) {
-        console.error('OneDrive workbook notification scan failed:', error instanceof Error ? error.message : 'Unknown error')
+      for (const organization of targets) {
+        try {
+          await withOrganization(organization, async () => {
+            const integration = await db.oneDriveIntegration.findUnique({ where: { id: 'primary' } })
+            const hasVerifiedNotification = notifications.some(notification =>
+              notification.subscriptionId === integration?.graphSubscriptionId &&
+              Boolean(integration?.graphSubscriptionClientState) &&
+              notification.clientState === integration?.graphSubscriptionClientState
+            )
+            if (hasVerifiedNotification) await captureOneDriveWorkbookChanges()
+          })
+        } catch (error) {
+          console.error('OneDrive workbook notification scan failed:', organization.slug, error instanceof Error ? error.message : 'Unknown error')
+        }
       }
     })
     return NextResponse.json({ accepted: true }, { status: 202 })

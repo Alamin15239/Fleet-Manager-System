@@ -6,6 +6,8 @@ export async function GET(request: NextRequest) {
   try {
     // Use custom JWT authentication
     await requireRolePermission(request, 'reports', 'read')
+    // Tire analytics and report rows remain private to users with tire access.
+    await requireRolePermission(request, 'tire-management', 'read')
     
     // Debug: Check total tire count first
     const totalTireCount = await db.tire.count()

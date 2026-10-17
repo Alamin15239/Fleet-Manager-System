@@ -43,7 +43,13 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      user: fullUser
+      user: {
+        ...fullUser,
+        organizationId: user.organizationId,
+        organizationSlug: user.organizationSlug,
+        organizationName: user.organizationName,
+        isPrimaryOrganization: user.isPrimaryOrganization
+      }
     }, { headers: privateNoStore })
 
   } catch (error) {

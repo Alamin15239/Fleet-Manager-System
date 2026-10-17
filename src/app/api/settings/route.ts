@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { db, controlDb } from '@/lib/db'
 import { Prisma } from '@prisma/client'
 import { PermissionManager, defaultPermissions, adminPermissions, managerPermissions } from '@/lib/permissions'
 import { requireAuth } from '@/lib/auth'
@@ -193,6 +193,13 @@ export async function PUT(request: NextRequest) {
       // Create new settings
       settings = await db.settings.create({
         data: settingsData
+      })
+    }
+
+    if (user.organizationId && typeof companyName === 'string' && companyName.trim()) {
+      await (controlDb as any).organization.update({
+        where: { id: user.organizationId },
+        data: { name: companyName.trim() }
       })
     }
 

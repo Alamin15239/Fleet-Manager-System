@@ -419,13 +419,13 @@ export default function DashboardPage() {
                 </CardContent>
               </Card>
 
-              <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => router.push('/tire-management')}>
+              {canAccess('tire-management') && <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => router.push('/tire-management')}>
                 <CardContent className="p-6 text-center">
                   <Truck className="h-12 w-12 mx-auto mb-2 text-orange-600" />
                   <h3 className="font-semibold"><LocalizedText>Tire Reports</LocalizedText></h3>
                   <p className="text-sm text-muted-foreground"><LocalizedText>Tire inventory and usage reports</LocalizedText></p>
                 </CardContent>
-              </Card>
+              </Card>}
             </div>
           </TabsContent>
         </Tabs>

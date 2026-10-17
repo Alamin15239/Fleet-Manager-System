@@ -1,7 +1,7 @@
 'use client'
 import { LocalizedText } from '@/components/localized-text'
 
-import { useState, useEffect, Suspense } from 'react'
+import { useState, useEffect, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 
-import { Truck, Shield, Mail, Loader2, Clock, Lock } from 'lucide-react'
+import { Truck, Shield, Mail, Loader2, Clock, Lock, Building2 } from 'lucide-react'
 import { toast } from '@/lib/localized-toast'
 import { useAuth } from '@/contexts/auth-context'
 import { useLanguage } from '@/contexts/language-context'
@@ -33,6 +33,8 @@ function SearchParamsHandler() {
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
+  const [organizationSlug, setOrganizationSlug] = useState('')
+  const [organizationResolved, setOrganizationResolved] = useState(false)
   const [password, setPassword] = useState('')
   const [otp, setOtp] = useState('')
   const [loading, setLoading] = useState(false)
@@ -41,16 +43,27 @@ export default function LoginPage() {
   const [otpCooldown, setOtpCooldown] = useState(0)
   const [isRedirecting, setIsRedirecting] = useState(false)
   const [loginMethod, setLoginMethod] = useState<'password' | 'otp'>('password')
-  const { login, isAuthenticated, isLoading } = useAuth()
+  const { login, user, isAuthenticated, isLoading } = useAuth()
   const { t } = useLanguage()
   const router = useRouter()
+  const switchingOrganization = useRef(false)
 
-  // Redirect if already authenticated
+  // An organization login link is also a workspace switch. Drop the current
+  // browser session before rendering its data, then ask for the target org login.
   useEffect(() => {
+    if (isLoading || !isAuthenticated || !organizationResolved) return
+    if (organizationSlug && user?.organizationSlug !== organizationSlug) {
+      if (switchingOrganization.current) return
+      switchingOrganization.current = true
+      localStorage.removeItem('authToken')
+      localStorage.removeItem('user')
+      window.location.replace(window.location.href)
+      return
+    }
     if (!isLoading && isAuthenticated) {
       router.push('/')
     }
-  }, [isAuthenticated, isLoading, router])
+  }, [organizationSlug, organizationResolved, isAuthenticated, isLoading, router, user?.organizationSlug])
 
   useEffect(() => {
     // Handle OTP cooldown timer
@@ -60,6 +73,13 @@ export default function LoginPage() {
     }
     return () => clearTimeout(timer)
   }, [otpCooldown])
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setOrganizationSlug(new URLSearchParams(window.location.search).get('org') || '')
+      setOrganizationResolved(true)
+    }
+  }, [])
 
 
 
@@ -75,7 +95,7 @@ export default function LoginPage() {
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ email })
+        body: JSON.stringify({ email, organizationSlug: organizationSlug || undefined })
       })
 
       const data = await response.json()
@@ -101,7 +121,7 @@ export default function LoginPage() {
     setError('')
 
     try {
-      const success = await login(email, password, false)
+      const success = await login(email, password, false, organizationSlug || undefined)
 
       if (success) {
         setIsRedirecting(true)
@@ -125,7 +145,7 @@ export default function LoginPage() {
     setError('')
 
     try {
-      const success = await login(email, otp, true)
+      const success = await login(email, otp, true, organizationSlug || undefined)
 
       if (success) {
         setIsRedirecting(true)
@@ -236,6 +256,22 @@ export default function LoginPage() {
                   <AlertDescription>{error}</AlertDescription>
                 </Alert>
               )}
+
+              <div className="space-y-2">
+                <Label htmlFor="organization"><LocalizedText>Organization code</LocalizedText></Label>
+                <div className="relative">
+                  <Building2 className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                  <Input
+                    id="organization"
+                    placeholder="Use the code provided by your organization"
+                    value={organizationSlug}
+                    onChange={(e) => setOrganizationSlug(e.target.value.trim().toLowerCase())}
+                    className="pl-10"
+                    autoComplete="organization"
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground"><LocalizedText>Leave blank for the original Fleet Manager organization.</LocalizedText></p>
+              </div>
 
               <div className="space-y-2">
                 <Label htmlFor="email"><LocalizedText>Email</LocalizedText></Label>
@@ -364,7 +400,7 @@ export default function LoginPage() {
               {loginMethod === 'password' && (
                 <p className="text-sm text-gray-600 dark:text-gray-400">
                   <Link 
-                    href="/forgot-password"
+                    href={organizationSlug ? `/forgot-password?org=${encodeURIComponent(organizationSlug)}` : '/forgot-password'}
                     className="font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
                   >
                     <LocalizedText>Forgot your password?</LocalizedText>
@@ -374,7 +410,7 @@ export default function LoginPage() {
               <p className="text-sm text-gray-600 dark:text-gray-400">
                 Don't have an account?{' '}
                 <Link 
-                  href="/signup"
+                  href={organizationSlug ? `/signup?org=${encodeURIComponent(organizationSlug)}` : '/signup'}
                   className="font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
                 >
                   <LocalizedText>Sign up</LocalizedText>

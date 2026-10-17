@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { db, findOrganizationBySlug, withOrganization } from '@/lib/db'
 import bcrypt from 'bcryptjs'
 
 export async function POST(request: NextRequest) {
   try {
-    const { token, email, password } = await request.json()
+    const { token, email, password, organizationSlug } = await request.json()
 
     if (!token || !email || !password) {
       return NextResponse.json(
@@ -19,6 +19,9 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
+
+    const organization = await findOrganizationBySlug(organizationSlug)
+    return await withOrganization(organization, async () => {
 
     // Find user with valid reset token
     const user = await db.user.findFirst({
@@ -55,8 +58,12 @@ export async function POST(request: NextRequest) {
       success: true,
       message: 'Password reset successfully'
     })
+    })
 
   } catch (error) {
+    if (error instanceof Error && error.message === 'Organization was not found or is not ready') {
+      return NextResponse.json({ error: error.message }, { status: 404 })
+    }
     console.error('Password reset error:', error)
     return NextResponse.json(
       { error: 'Internal server error' },

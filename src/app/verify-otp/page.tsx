@@ -23,6 +23,7 @@ function VerifyOTPContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const email = searchParams?.get('email') || '';
+  const organizationSlug = searchParams?.get('org') || '';
 
   useEffect(() => {
     if (!email) {
@@ -58,6 +59,7 @@ function VerifyOTPContent() {
         body: JSON.stringify({
           email,
           otp,
+          organizationSlug: organizationSlug || undefined
         }),
       });
 
@@ -92,7 +94,7 @@ function VerifyOTPContent() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email, organizationSlug: organizationSlug || undefined }),
       });
 
       const data = await response.json();

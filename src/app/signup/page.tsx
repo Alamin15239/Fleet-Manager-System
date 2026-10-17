@@ -1,7 +1,7 @@
 'use client'
 import { LocalizedText } from '@/components/localized-text'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -28,7 +28,14 @@ export default function SignupPage() {
   const [success, setSuccess] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [organizationSlug, setOrganizationSlug] = useState('')
   const router = useRouter()
+
+  useEffect(() => {
+    setOrganizationSlug(new URLSearchParams(window.location.search).get('org') || '')
+  }, [])
+
+  const otpVerificationUrl = `/verify-otp?email=${encodeURIComponent(formData.email)}${organizationSlug ? `&org=${encodeURIComponent(organizationSlug)}` : ''}`
 
   const handleChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }))
@@ -79,7 +86,8 @@ export default function SignupPage() {
           email: formData.email,
           password: formData.password,
           role: formData.role,
-          company: formData.company
+          company: formData.company,
+          organizationSlug: organizationSlug || undefined
         })
       })
 
@@ -89,7 +97,7 @@ export default function SignupPage() {
         setSuccess(true)
         toast.success('Account created successfully! Please check your email for the OTP.')
         setTimeout(() => {
-          router.push(`/verify-otp?email=${encodeURIComponent(formData.email)}`)
+          router.push(otpVerificationUrl)
         }, 2000)
       } else {
         setError(data.error || 'Registration failed')
@@ -117,7 +125,7 @@ export default function SignupPage() {
               <p className="text-gray-600 dark:text-gray-400 mb-4">
                 <LocalizedText>Please check your email for verification instructions. You will be redirected to the verification page...</LocalizedText>
               </p>
-              <Button onClick={() => router.push(`/verify-otp?email=${encodeURIComponent(formData.email)}`)}>                Go to OTP Verification
+              <Button onClick={() => router.push(otpVerificationUrl)}>                Go to OTP Verification
               </Button>
             </div>
           </CardContent>
@@ -306,7 +314,7 @@ export default function SignupPage() {
               <p className="text-sm text-gray-600 dark:text-gray-400">
                 Already have an account?{' '}
                 <Link 
-                  href="/login"
+                  href={organizationSlug ? `/login?org=${encodeURIComponent(organizationSlug)}` : '/login'}
                   className="font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
                 >
                   <LocalizedText>Sign in</LocalizedText>

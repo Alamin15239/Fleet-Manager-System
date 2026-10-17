@@ -13,6 +13,7 @@ export default function PurchaseInvoiceShareView() {
   const id = String(params?.id || '')
   const previewRef = useRef<HTMLIFrameElement>(null)
   const [documentHtml, setDocumentHtml] = useState('')
+  const [companyName, setCompanyName] = useState('Saadfreeh Transport')
   const [invoiceNumber, setInvoiceNumber] = useState('Purchase invoice')
   const [loading, setLoading] = useState(true)
   const [downloading, setDownloading] = useState(false)
@@ -22,15 +23,19 @@ export default function PurchaseInvoiceShareView() {
     let cancelled = false
     const load = async () => {
       try {
-        const token = new URLSearchParams(window.location.search).get('token') || ''
+        const search = new URLSearchParams(window.location.search)
+        const token = search.get('token') || ''
+        const organizationSlug = search.get('org')
         if (!token) throw new Error('This invoice link is missing its access token')
-        const response = await fetch(`/api/public/purchase-invoices/${encodeURIComponent(id)}?token=${encodeURIComponent(token)}`, { cache: 'no-store' })
+        const orgParam = organizationSlug ? `&org=${encodeURIComponent(organizationSlug)}` : ''
+        const response = await fetch(`/api/public/purchase-invoices/${encodeURIComponent(id)}?token=${encodeURIComponent(token)}${orgParam}`, { cache: 'no-store' })
         const data = await response.json()
         if (!response.ok) throw new Error(data.error || 'Unable to load this invoice')
         const shareUrl = window.location.href
         const qrDataUrl = await QRCode.toDataURL(shareUrl, { errorCorrectionLevel: 'H', margin: 1, width: 512 })
         const html = renderPurchaseInvoiceDocument(data.invoice as PurchaseInvoiceDocumentData, data.company as PurchaseInvoiceCompany | null, shareUrl, qrDataUrl)
         if (cancelled) return
+        setCompanyName(data.company?.companyName || 'Saadfreeh Transport')
         setInvoiceNumber(data.invoice.internalNumber || 'Purchase invoice')
         setDocumentHtml(html)
       } catch (cause) {
@@ -65,7 +70,7 @@ export default function PurchaseInvoiceShareView() {
   return (
     <main className="min-h-dvh bg-slate-100 text-slate-900">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
-        <div><p className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-800"><LocalizedText>Saadfreeh Transport</LocalizedText></p><h1 className="text-lg font-semibold">{invoiceNumber}</h1></div>
+        <div><p className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-800">{companyName}</p><h1 className="text-lg font-semibold">{invoiceNumber}</h1></div>
         {documentHtml && <div className="flex gap-2">
           <button type="button" onClick={print} className="inline-flex min-h-10 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 text-sm font-medium shadow-sm hover:bg-slate-50"><Printer className="h-4 w-4" /><LocalizedText>Print</LocalizedText></button>
           <button type="button" onClick={downloadPdf} disabled={downloading} className="inline-flex min-h-10 items-center gap-2 rounded-md bg-emerald-800 px-3 text-sm font-semibold text-white shadow-sm hover:bg-emerald-900 disabled:cursor-wait disabled:opacity-60"><Download className="h-4 w-4" />{downloading ? <LocalizedText>Preparing PDF…</LocalizedText> : <LocalizedText>Download PDF</LocalizedText>}</button>

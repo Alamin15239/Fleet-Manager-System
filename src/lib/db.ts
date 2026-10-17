@@ -1,31 +1,198 @@
+import { AsyncLocalStorage } from 'node:async_hooks'
 import { PrismaClient } from '@prisma/client'
+import jwt from 'jsonwebtoken'
+import { headers } from 'next/headers'
+import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto'
 
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined
+export type OrganizationRecord = {
+  id: string
+  name: string
+  slug: string
+  status: 'PROVISIONING' | 'ACTIVE' | 'FAILED'
+  isPrimary: boolean
+  encryptedDatabaseUrl: string | null
 }
 
-export const db =
-  globalForPrisma.prisma ??
-  new PrismaClient({
-    log: process.env.NODE_ENV === 'development' ? ['error'] : ['error'],
-    datasources: {
-      db: {
-        url: process.env.DATABASE_URL
-      }
-    },
-    errorFormat: 'pretty',
-    transactionOptions: {
-      timeout: 10000,
-      maxWait: 5000,
-    },
-  })
+type DatabaseScope = { organizationId: string; client: PrismaClient }
 
-// Database reconnection helper
+const globalForPrisma = globalThis as typeof globalThis & {
+  fleetControlPrisma?: PrismaClient
+  fleetOrganizationPrismas?: Map<string, PrismaClient>
+}
+
+const controlDb = globalForPrisma.fleetControlPrisma ?? new PrismaClient({
+  log: process.env.NODE_ENV === 'development' ? ['error'] : ['error'],
+  datasources: { db: { url: process.env.DATABASE_URL } },
+  errorFormat: 'pretty',
+  transactionOptions: { timeout: 10000, maxWait: 5000 }
+})
+
+if (process.env.NODE_ENV !== 'production') globalForPrisma.fleetControlPrisma = controlDb
+
+const tenantClients = globalForPrisma.fleetOrganizationPrismas ?? new Map<string, PrismaClient>()
+if (process.env.NODE_ENV !== 'production') globalForPrisma.fleetOrganizationPrismas = tenantClients
+
+const databaseScope = new AsyncLocalStorage<DatabaseScope>()
+
+function getEncryptionKey(): Buffer {
+  const configured = process.env.ORGANIZATION_DATABASE_ENCRYPTION_KEY
+  if (!configured) throw new Error('Organization database encryption is not configured')
+  const key = Buffer.from(configured, 'base64')
+  if (key.length !== 32) throw new Error('Organization database encryption key must be 32 bytes (base64)')
+  return key
+}
+
+export function encryptOrganizationDatabaseUrl(value: string): string {
+  const key = getEncryptionKey()
+  const iv = randomBytes(12)
+  const cipher = createCipheriv('aes-256-gcm', key, iv)
+  const ciphertext = Buffer.concat([cipher.update(value, 'utf8'), cipher.final()])
+  return ['v1', iv.toString('base64url'), cipher.getAuthTag().toString('base64url'), ciphertext.toString('base64url')].join('.')
+}
+
+export function decryptOrganizationDatabaseUrl(value: string): string {
+  const [version, ivValue, tagValue, ciphertextValue] = value.split('.')
+  if (version !== 'v1' || !ivValue || !tagValue || !ciphertextValue) {
+    throw new Error('Stored organization database connection is invalid')
+  }
+  const decipher = createDecipheriv('aes-256-gcm', getEncryptionKey(), Buffer.from(ivValue, 'base64url'))
+  decipher.setAuthTag(Buffer.from(tagValue, 'base64url'))
+  return Buffer.concat([
+    decipher.update(Buffer.from(ciphertextValue, 'base64url')),
+    decipher.final()
+  ]).toString('utf8')
+}
+
+export async function getPrimaryOrganization(): Promise<OrganizationRecord> {
+  const organizationModel = (controlDb as any).organization
+  let primary = await organizationModel.findFirst({ where: { isPrimary: true } }) as OrganizationRecord | null
+  if (primary) return primary
+
+  const settings = await controlDb.settings.findFirst({ select: { companyName: true } })
+  const name = settings?.companyName?.trim() || 'Fleet Manager'
+  const slug = (process.env.DEFAULT_ORGANIZATION_SLUG || name)
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 48) || 'default-organization'
+
+  try {
+    primary = await organizationModel.create({
+      data: { name, slug, status: 'ACTIVE', isPrimary: true }
+    }) as OrganizationRecord
+  } catch (error) {
+    // Concurrent first logins can both try to seed the primary organization.
+    primary = await organizationModel.findFirst({ where: { isPrimary: true } }) as OrganizationRecord | null
+    if (!primary) throw error
+  }
+  return primary
+}
+
+export async function findOrganizationBySlug(slug?: string | null): Promise<OrganizationRecord> {
+  if (!slug?.trim()) return getPrimaryOrganization()
+  const normalizedSlug = slug.trim().toLowerCase()
+  const organization = await (controlDb as any).organization.findUnique({ where: { slug: normalizedSlug } }) as OrganizationRecord | null
+  if (!organization || organization.status !== 'ACTIVE') throw new Error('Organization was not found or is not ready')
+  return organization
+}
+
+export async function findOrganizationById(id: string): Promise<OrganizationRecord> {
+  const organization = await (controlDb as any).organization.findUnique({ where: { id } }) as OrganizationRecord | null
+  if (!organization || organization.status !== 'ACTIVE') throw new Error('Organization was not found or is not ready')
+  return organization
+}
+
+export async function getOrganizationPrismaClient(organization: OrganizationRecord): Promise<PrismaClient> {
+  if (organization.status !== 'ACTIVE') throw new Error('Organization is not ready')
+  if (organization.isPrimary) return controlDb
+  if (!organization.encryptedDatabaseUrl) throw new Error('Organization database is not configured')
+
+  const cached = tenantClients.get(organization.id)
+  if (cached) return cached
+
+  const databaseUrl = decryptOrganizationDatabaseUrl(organization.encryptedDatabaseUrl)
+  const client = new PrismaClient({
+    log: process.env.NODE_ENV === 'development' ? ['error'] : ['error'],
+    datasources: { db: { url: databaseUrl } },
+    transactionOptions: { timeout: 10000, maxWait: 5000 }
+  })
+  tenantClients.set(organization.id, client)
+  return client
+}
+
+export async function withOrganization<T>(organization: OrganizationRecord, operation: () => Promise<T>): Promise<T> {
+  const client = await getOrganizationPrismaClient(organization)
+  return databaseScope.run({ organizationId: organization.id, client }, operation)
+}
+
+async function getRequestDatabaseClient(): Promise<PrismaClient> {
+  const scoped = databaseScope.getStore()
+  if (scoped) return scoped.client
+
+  let authorization: string | null = null
+  let organizationSlug: string | null = null
+  try {
+    const requestHeaders = await headers()
+    authorization = requestHeaders.get('authorization')
+    organizationSlug = requestHeaders.get('x-organization-slug')
+  } catch {
+    // Non-request contexts such as process shutdown use the primary database.
+    return controlDb
+  }
+
+  const bearerToken = authorization?.startsWith('Bearer ') ? authorization.slice(7) : null
+  if (!bearerToken) {
+    if (organizationSlug) throw new Error('Organization selection requires an authenticated login flow')
+    return controlDb
+  }
+
+  const secret = process.env.JWT_SECRET
+  if (!secret) throw new Error('JWT_SECRET environment variable is required')
+  const decoded = jwt.verify(bearerToken, secret) as { organizationId?: string }
+  if (!decoded.organizationId) return controlDb
+
+  const organization = await findOrganizationById(decoded.organizationId)
+  return getOrganizationPrismaClient(organization)
+}
+
+// Existing code uses db.model.method throughout the API. This request-aware
+// proxy routes those calls to the database selected by the verified JWT while
+// preserving the generated PrismaClient type for existing consumers.
+export const db = new Proxy({} as PrismaClient, {
+  get(_target, property) {
+    if (property === 'then') return undefined
+    if (typeof property !== 'string') return undefined
+
+    if (property.startsWith('$')) {
+      return (...args: unknown[]) => getRequestDatabaseClient().then((client) => {
+        const method = (client as any)[property]
+        return method.apply(client, args)
+      })
+    }
+
+    return new Proxy({}, {
+      get(_delegate, method) {
+        if (method === 'then') return undefined
+        if (typeof method !== 'string') return undefined
+        return (...args: unknown[]) => getRequestDatabaseClient().then((client) => {
+          const delegate = (client as any)[property]
+          return delegate[method](...args)
+        })
+      }
+    })
+  }
+})
+
+export const prisma = db
+export { controlDb }
+
 export async function reconnectDB() {
   try {
-    await db.$disconnect()
+    await controlDb.$disconnect()
     await new Promise(resolve => setTimeout(resolve, 1000))
-    await db.$connect()
+    await controlDb.$connect()
     return true
   } catch (error) {
     console.error('DB reconnection failed:', error)
@@ -33,21 +200,7 @@ export async function reconnectDB() {
   }
 }
 
-// Force disconnect and reconnect on connection issues
 process.on('beforeExit', async () => {
-  await db.$disconnect()
+  await controlDb.$disconnect()
+  await Promise.all([...tenantClients.values()].map(client => client.$disconnect()))
 })
-
-process.on('SIGINT', async () => {
-  await db.$disconnect()
-  process.exit(0)
-})
-
-process.on('SIGTERM', async () => {
-  await db.$disconnect()
-  process.exit(0)
-})
-
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = db
-
-export const prisma = db
