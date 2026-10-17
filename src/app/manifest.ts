@@ -6,9 +6,11 @@ export default function manifest(): MetadataRoute.Manifest {
     short_name: 'Fleet Manager',
     description: 'Comprehensive fleet and tire management system',
     start_url: '/',
+    scope: '/',
+    id: '/',
     display: 'standalone',
     background_color: '#ffffff',
-    theme_color: '#000000',
+    theme_color: '#1d4ed8',
     icons: [
       {
         src: '/icon-192.png',
