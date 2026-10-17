@@ -3,6 +3,8 @@ import { requireRolePermission } from '@/lib/permission-middleware'
 import { db } from '@/lib/db'
 import { z } from 'zod'
 
+const privateNoStore = { 'Cache-Control': 'private, no-store, max-age=0' }
+
 const updateProfileSchema = z.object({
   name: z.string().optional(),
   phone: z.string().optional(),
@@ -50,7 +52,7 @@ export async function PUT(request: NextRequest) {
       success: true,
       user: updatedUser,
       message: 'Profile updated successfully'
-    })
+    }, { headers: privateNoStore })
 
   } catch (error) {
     console.error('Update profile error:', error)
@@ -58,23 +60,23 @@ export async function PUT(request: NextRequest) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { error: 'Invalid input data', details: error.issues },
-        { status: 400 }
+        { status: 400, headers: privateNoStore }
       )
     }
 
     if (error instanceof Error && ['No token provided', 'Invalid token'].includes(error.message)) {
       return NextResponse.json(
         { error: 'Not authenticated' },
-        { status: 401 }
+        { status: 401, headers: privateNoStore }
       )
     }
     if (error instanceof Error && error.message === 'Insufficient permissions') {
-      return NextResponse.json({ error: 'You do not have permission to edit your profile' }, { status: 403 })
+      return NextResponse.json({ error: 'You do not have permission to edit your profile' }, { status: 403, headers: privateNoStore })
     }
 
     return NextResponse.json(
       { error: 'Failed to update profile' },
-      { status: 500 }
+      { status: 500, headers: privateNoStore }
     )
   }
 }
@@ -112,14 +114,14 @@ export async function GET(request: NextRequest) {
     if (!fullUser) {
       return NextResponse.json(
         { error: 'User not found' },
-        { status: 404 }
+        { status: 404, headers: privateNoStore }
       )
     }
 
     return NextResponse.json({
       success: true,
       user: fullUser
-    })
+    }, { headers: privateNoStore })
 
   } catch (error) {
     console.error('Get user error:', error)
@@ -127,16 +129,16 @@ export async function GET(request: NextRequest) {
     if (error instanceof Error && ['No token provided', 'Invalid token'].includes(error.message)) {
       return NextResponse.json(
         { error: 'Not authenticated' },
-        { status: 401 }
+        { status: 401, headers: privateNoStore }
       )
     }
     if (error instanceof Error && error.message === 'Insufficient permissions') {
-      return NextResponse.json({ error: 'You do not have permission to view your profile' }, { status: 403 })
+      return NextResponse.json({ error: 'You do not have permission to view your profile' }, { status: 403, headers: privateNoStore })
     }
 
     return NextResponse.json(
       { error: 'Failed to get user data' },
-      { status: 500 }
+      { status: 500, headers: privateNoStore }
     )
   }
 }

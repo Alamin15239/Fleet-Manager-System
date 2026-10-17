@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth'
 import { db } from '@/lib/db'
 
+const privateNoStore = { 'Cache-Control': 'private, no-store, max-age=0' }
+
 export async function GET(request: NextRequest) {
   try {
     const user = await requireAuth(request)
@@ -35,14 +37,14 @@ export async function GET(request: NextRequest) {
     if (!fullUser) {
       return NextResponse.json(
         { error: 'User not found' },
-        { status: 404 }
+        { status: 404, headers: privateNoStore }
       )
     }
 
     return NextResponse.json({
       success: true,
       user: fullUser
-    })
+    }, { headers: privateNoStore })
 
   } catch (error) {
     console.error('Get user error:', error)
@@ -50,10 +52,10 @@ export async function GET(request: NextRequest) {
     if (error instanceof Error && ['No token provided', 'Invalid token'].includes(error.message)) {
       return NextResponse.json(
         { error: 'Not authenticated' },
-        { status: 401 }
+        { status: 401, headers: privateNoStore }
       )
     }
 
-    return NextResponse.json({ error: 'Unable to load user profile' }, { status: 503 })
+    return NextResponse.json({ error: 'Unable to load user profile' }, { status: 503, headers: privateNoStore })
   }
 }

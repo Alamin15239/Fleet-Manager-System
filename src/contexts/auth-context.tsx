@@ -47,24 +47,80 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    // Immediately set loading to false and check auth
-    setIsLoading(false)
-    
     if (typeof window === 'undefined') return
 
-    const savedToken = localStorage.getItem('authToken')
-    const savedUser = localStorage.getItem('user')
+    let validationId = 0
 
-    if (savedToken && savedUser) {
-      try {
-        const parsedUser = JSON.parse(savedUser)
-        setToken(savedToken)
-        setUser(parsedUser)
-      } catch (error) {
-        console.error('Error parsing stored user data:', error)
-        localStorage.removeItem('authToken')
-        localStorage.removeItem('user')
+    const clearSession = (expectedToken?: string) => {
+      if (expectedToken && localStorage.getItem('authToken') !== expectedToken) return
+      localStorage.removeItem('authToken')
+      localStorage.removeItem('user')
+      setToken(null)
+      setUser(null)
+      setIsLoading(false)
+    }
+
+    const validateSession = async (savedToken: string | null) => {
+      const currentValidationId = ++validationId
+      if (!savedToken) {
+        setToken(null)
+        setUser(null)
+        setIsLoading(false)
+        return
       }
+
+      // Never render the cached identity while checking that it belongs to this token.
+      setToken(savedToken)
+      setUser(null)
+      setIsLoading(true)
+
+      try {
+        const response = await fetch('/api/auth/me', {
+          headers: { Authorization: `Bearer ${savedToken}` },
+          cache: 'no-store'
+        })
+        if (!response.ok) throw new Error('Saved session is no longer valid')
+
+        const data = await response.json()
+        const verifiedUser = data.user as User | undefined
+        if (!verifiedUser?.id) throw new Error('Session response did not include an account')
+        if (currentValidationId !== validationId) return
+        if (localStorage.getItem('authToken') !== savedToken) return
+
+        setToken(savedToken)
+        setUser(verifiedUser)
+        localStorage.setItem('user', JSON.stringify(verifiedUser))
+      } catch (error) {
+        console.warn('Could not validate saved account session:', error)
+        if (currentValidationId === validationId) clearSession(savedToken)
+      } finally {
+        if (currentValidationId === validationId && localStorage.getItem('authToken') === savedToken) {
+          setIsLoading(false)
+        }
+      }
+    }
+
+    void validateSession(localStorage.getItem('authToken'))
+
+    // Keep other open tabs in step when someone signs out or switches accounts.
+    const handleStorageChange = (event: StorageEvent) => {
+      if (event.key !== 'authToken' && event.key !== null) return
+      const nextToken = localStorage.getItem('authToken')
+      if (!nextToken) {
+        validationId += 1
+        setToken(null)
+        setUser(null)
+        setIsLoading(false)
+        localStorage.removeItem('user')
+        return
+      }
+      void validateSession(nextToken)
+    }
+
+    window.addEventListener('storage', handleStorageChange)
+    return () => {
+      validationId += 1
+      window.removeEventListener('storage', handleStorageChange)
     }
   }, [])
 
@@ -123,15 +179,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const response = await fetch('/api/auth/me', {
         headers: {
           'Authorization': `Bearer ${token}`
-        }
+        },
+        cache: 'no-store'
       })
       
       if (response.ok) {
         const data = await response.json()
         const userData = data.user
+        if (localStorage.getItem('authToken') !== token) return
+        if (!userData?.id || userData.id !== user?.id) {
+          localStorage.removeItem('authToken')
+          localStorage.removeItem('user')
+          setToken(null)
+          setUser(null)
+          throw new Error('The authenticated account changed. Please sign in again.')
+        }
         setUser({ ...userData })
         localStorage.setItem('user', JSON.stringify(userData))
         console.log('User data refreshed:', userData)
+      } else if (response.status === 401 && localStorage.getItem('authToken') === token) {
+        localStorage.removeItem('authToken')
+        localStorage.removeItem('user')
+        setToken(null)
+        setUser(null)
       }
     } catch (error) {
       console.error('Error refreshing user data:', error)
@@ -141,6 +211,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const updateUser = useCallback((userData: Partial<User>): void => {
     setUser((currentUser) => {
       if (!currentUser) return currentUser
+      // Ignore a delayed profile response from a previous account/session.
+      if (userData.id && userData.id !== currentUser.id) return currentUser
       return { ...currentUser, ...userData }
     })
   }, [])

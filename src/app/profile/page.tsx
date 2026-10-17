@@ -64,7 +64,8 @@ interface UserProfile {
 }
 
 export default function ProfilePage() {
-  const { token, refreshUser, updateUser } = useAuth()
+  const { token, user, refreshUser, updateUser } = useAuth()
+  const authenticatedUserId = user?.id
   const { canUpdate } = usePermissions()
   const { t } = useLanguage()
   const { toast } = useToast()
@@ -83,7 +84,8 @@ export default function ProfilePage() {
   })
 
   useEffect(() => {
-    if (!token) {
+    if (!token || !authenticatedUserId) {
+      setProfile(null)
       setLoading(false)
       return
     }
@@ -91,6 +93,7 @@ export default function ProfilePage() {
     let cancelled = false
     const loadProfile = async () => {
       setLoading(true)
+      setProfile(null)
       try {
         const response = await fetch('/api/users/me', {
           headers: { Authorization: `Bearer ${token}` },
@@ -100,6 +103,9 @@ export default function ProfilePage() {
 
         const data = await response.json()
         const savedProfile = data.user as UserProfile
+        if (!savedProfile?.id || savedProfile.id !== authenticatedUserId) {
+          throw new Error('Profile response did not match the signed-in account')
+        }
         if (cancelled) return
         setProfile(savedProfile)
         setFormData({
@@ -127,7 +133,7 @@ export default function ProfilePage() {
 
     void loadProfile()
     return () => { cancelled = true }
-  }, [token, updateUser])
+  }, [token, authenticatedUserId, updateUser])
 
   const handleSave = async () => {
     setSaving(true)
@@ -143,6 +149,9 @@ export default function ProfilePage() {
 
       if (response.ok) {
         const data = await response.json()
+        if (!data.user?.id || data.user.id !== authenticatedUserId) {
+          throw new Error('Profile response did not match the signed-in account')
+        }
         setProfile(data.user)
         updateUser(data.user)
         await refreshUser()
@@ -199,6 +208,9 @@ export default function ProfilePage() {
 
       if (response.ok) {
         const data = await response.json()
+        if (!data.user?.id || data.user.id !== authenticatedUserId) {
+          throw new Error('Profile response did not match the signed-in account')
+        }
         
         // Update profile state immediately
         if (profile) {
