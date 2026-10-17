@@ -87,11 +87,7 @@ const getNavigationGroups = (t: (key: string) => string) => [
   },
 ]
 
-interface NavigationProps {
-  userRole?: string
-}
-
-export function Navigation({ userRole = 'USER' }: NavigationProps) {
+export function Navigation() {
   const pathname = usePathname()
   const { user, logout } = useAuth()
   const { hasPermission, isLoading } = usePermissions()
@@ -104,7 +100,7 @@ export function Navigation({ userRole = 'USER' }: NavigationProps) {
     .map((group) => ({
       ...group,
       items: group.items.filter((item) =>
-        user?.role === 'ADMIN' || userRole === 'ADMIN' || hasPermission(item.resource, item.action),
+        user?.role === 'ADMIN' || hasPermission(item.resource, item.action),
       ),
     }))
     .filter((group) => group.items.length > 0)
@@ -113,6 +109,33 @@ export function Navigation({ userRole = 'USER' }: NavigationProps) {
     'fixed inset-y-0 z-50 flex w-[min(19rem,86vw)] flex-col border-sidebar-border bg-sidebar text-sidebar-foreground shadow-2xl shadow-black/10 transition-[width,transform] duration-300 ease-out md:sticky md:inset-x-auto md:top-0 md:z-auto md:h-dvh md:w-64 md:shrink-0 md:translate-x-0 md:shadow-none',
     navPosition,
     isSidebarOpen ? 'translate-x-0 md:w-64' : `${hiddenTransform} md:w-[4.5rem]`,
+  )
+  const brandClassName = cn('group flex min-w-0 items-center gap-3 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring', !isSidebarOpen && 'md:justify-center')
+  const brandContent = (
+    <>
+      <span className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-sky-500 to-blue-700 text-white shadow-md shadow-blue-900/20 transition-transform group-hover:scale-[1.03]">
+        <Truck className="h-[1.2rem] w-[1.2rem]" strokeWidth={2.2} />
+        <span className="absolute -bottom-0.5 -end-0.5 h-3 w-3 rounded-full border-2 border-sidebar bg-emerald-400" />
+      </span>
+      {isSidebarOpen && (
+        <span className="min-w-0">
+          <span className="block truncate text-[15px] font-bold leading-5 tracking-tight"><LocalizedText>Fleet Manager</LocalizedText></span>
+          <span className="block truncate text-[11px] font-medium tracking-wide text-sidebar-foreground/55"><LocalizedText>TRANSPORT OPERATIONS</LocalizedText></span>
+        </span>
+      )}
+    </>
+  )
+  const profileAvatar = (
+    <span className="relative block">
+      <ProfilePicture size={isSidebarOpen ? 'md' : 'sm'} />
+      {isSidebarOpen && <span className="absolute bottom-0 end-0 h-2.5 w-2.5 rounded-full border-2 border-sidebar bg-emerald-500" />}
+    </span>
+  )
+  const profileDetails = (
+    <>
+      <span className="block truncate text-xs font-semibold text-sidebar-foreground">{user?.name || user?.email || t('User')}</span>
+      <span className="block truncate text-[11px] text-sidebar-foreground/55">{user?.role ? t(user.role) : t('User')}</span>
+    </>
   )
 
   if (isLoading) {
@@ -131,23 +154,15 @@ export function Navigation({ userRole = 'USER' }: NavigationProps) {
         'flex h-[4.75rem] shrink-0 items-center border-b border-sidebar-border/80',
         isSidebarOpen ? 'justify-between px-4' : 'justify-center px-2',
       )}>
-        <Link
-          href="/"
-          onClick={() => window.matchMedia('(max-width: 767px)').matches && closeSidebar()}
-          className={cn('group flex min-w-0 items-center gap-3 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring', !isSidebarOpen && 'md:justify-center')}
-          aria-label={t('Fleet Manager home')}
-        >
-          <span className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-sky-500 to-blue-700 text-white shadow-md shadow-blue-900/20 transition-transform group-hover:scale-[1.03]">
-            <Truck className="h-[1.2rem] w-[1.2rem]" strokeWidth={2.2} />
-            <span className="absolute -bottom-0.5 -end-0.5 h-3 w-3 rounded-full border-2 border-sidebar bg-emerald-400" />
-          </span>
-          {isSidebarOpen && (
-            <span className="min-w-0">
-              <span className="block truncate text-[15px] font-bold leading-5 tracking-tight"><LocalizedText>Fleet Manager</LocalizedText></span>
-              <span className="block truncate text-[11px] font-medium tracking-wide text-sidebar-foreground/55"><LocalizedText>TRANSPORT OPERATIONS</LocalizedText></span>
-            </span>
-          )}
-        </Link>
+        {hasPermission('dashboard', 'read') ? (
+          <Link href="/" onClick={() => window.matchMedia('(max-width: 767px)').matches && closeSidebar()} className={brandClassName} aria-label={t('Fleet Manager home')}>
+            {brandContent}
+          </Link>
+        ) : (
+          <div className={brandClassName} aria-label={t('Fleet Manager')}>
+            {brandContent}
+          </div>
+        )}
 
         {isSidebarOpen && (
           <div className="flex items-center gap-1">
@@ -231,16 +246,16 @@ export function Navigation({ userRole = 'USER' }: NavigationProps) {
         {isSidebarOpen ? (
           <div className="rounded-2xl border border-sidebar-border/80 bg-sidebar-accent/50 p-2.5">
             <div className="flex min-w-0 items-center gap-2.5">
-              <Link href="/profile" onClick={() => window.matchMedia('(max-width: 767px)').matches && closeSidebar()} className="shrink-0 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring" aria-label={t('Open profile')}>
-                <span className="relative block">
-                  <ProfilePicture size="md" />
-                  <span className="absolute bottom-0 end-0 h-2.5 w-2.5 rounded-full border-2 border-sidebar bg-emerald-500" />
-                </span>
-              </Link>
-              <Link href="/profile" onClick={() => window.matchMedia('(max-width: 767px)').matches && closeSidebar()} className="min-w-0 flex-1 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring">
-                <span className="block truncate text-xs font-semibold text-sidebar-foreground">{user?.name || user?.email || t('User')}</span>
-                <span className="block truncate text-[11px] text-sidebar-foreground/55">{user?.role ? t(user.role) : t('User')}</span>
-              </Link>
+              {hasPermission('profile', 'read') ? (
+                <Link href="/profile" onClick={() => window.matchMedia('(max-width: 767px)').matches && closeSidebar()} className="shrink-0 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring" aria-label={t('Open profile')}>
+                  {profileAvatar}
+                </Link>
+              ) : profileAvatar}
+              {hasPermission('profile', 'read') ? (
+                <Link href="/profile" onClick={() => window.matchMedia('(max-width: 767px)').matches && closeSidebar()} className="min-w-0 flex-1 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring">
+                  {profileDetails}
+                </Link>
+              ) : <div className="min-w-0 flex-1">{profileDetails}</div>}
               <Button type="button" variant="ghost" size="icon" onClick={logout} aria-label={t('nav.logout')} title={t('nav.logout')} className="h-8 w-8 shrink-0 rounded-lg text-sidebar-foreground/50 hover:bg-destructive/10 hover:text-destructive">
                 <LogOut className="h-4 w-4" />
               </Button>
@@ -248,9 +263,9 @@ export function Navigation({ userRole = 'USER' }: NavigationProps) {
           </div>
         ) : (
           <div className="flex flex-col items-center gap-2">
-            <Link href="/profile" onClick={() => window.matchMedia('(max-width: 767px)').matches && closeSidebar()} title={user?.name || t('nav.profile')} aria-label={t('Open profile')} className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring">
-              <ProfilePicture size="sm" />
-            </Link>
+            {hasPermission('profile', 'read')
+              ? <Link href="/profile" onClick={() => window.matchMedia('(max-width: 767px)').matches && closeSidebar()} title={user?.name || t('nav.profile')} aria-label={t('Open profile')} className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"><ProfilePicture size="sm" /></Link>
+              : <ProfilePicture size="sm" />}
             <Button type="button" variant="ghost" size="icon" onClick={logout} title={t('nav.logout')} aria-label={t('nav.logout')} className="h-9 w-9 rounded-lg text-sidebar-foreground/55 hover:bg-destructive/10 hover:text-destructive">
               <LogOut className="h-4 w-4" />
             </Button>

@@ -13,7 +13,7 @@ import { Loader2, Plus, CheckCircle, AlertCircle, Search, Truck, User, Package, 
 import { apiPost, apiGet } from '@/lib/api'
 import { useDebounce } from '@/hooks/use-debounce'
 import { toast } from '@/lib/localized-toast'
-import { PermissionGuard, usePermissions } from '@/components/permission-guard'
+import { PermissionGuard } from '@/components/permission-guard'
 
 interface Vehicle {
   id: string
@@ -55,7 +55,6 @@ interface TireFormData {
 }
 
 export default function TireManagementForm() {
-  const permissions = usePermissions()
   const [formData, setFormData] = useState<TireFormData>({
     tireSize: '',
     manufacturer: '',

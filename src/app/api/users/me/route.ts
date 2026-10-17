@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/auth'
+import { requireRolePermission } from '@/lib/permission-middleware'
 import { db } from '@/lib/db'
 import { z } from 'zod'
 
@@ -14,7 +14,7 @@ const updateProfileSchema = z.object({
 
 export async function PUT(request: NextRequest) {
   try {
-    const user = await requireAuth(request)
+    const user = await requireRolePermission(request, 'profile', 'update')
     
     const body = await request.json()
     const validatedData = updateProfileSchema.parse(body)
@@ -68,6 +68,9 @@ export async function PUT(request: NextRequest) {
         { status: 401 }
       )
     }
+    if (error instanceof Error && error.message === 'Insufficient permissions') {
+      return NextResponse.json({ error: 'You do not have permission to edit your profile' }, { status: 403 })
+    }
 
     return NextResponse.json(
       { error: 'Failed to update profile' },
@@ -78,7 +81,7 @@ export async function PUT(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    const user = await requireAuth(request)
+    const user = await requireRolePermission(request, 'profile', 'read')
 
     // Get full user data
     const fullUser = await db.user.findUnique({
@@ -126,6 +129,9 @@ export async function GET(request: NextRequest) {
         { error: 'Not authenticated' },
         { status: 401 }
       )
+    }
+    if (error instanceof Error && error.message === 'Insufficient permissions') {
+      return NextResponse.json({ error: 'You do not have permission to view your profile' }, { status: 403 })
     }
 
     return NextResponse.json(

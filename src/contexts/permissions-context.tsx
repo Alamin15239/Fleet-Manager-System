@@ -32,7 +32,7 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
     try {
       const [profileResponse, response] = await Promise.all([
         apiGet('/api/auth/me'),
-        apiGet('/api/settings')
+        apiGet('/api/permissions/me')
       ])
       let effectiveUser = user
 
@@ -51,63 +51,46 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
         if (freshUser) effectiveUser = freshUser
       }
 
-      if (response.ok) {
-        const settings = await response.json()
-        const storedRolePermissions = settings.rolePermissions || {
-          ADMIN: adminPermissions,
-          MANAGER: managerPermissions,
-          USER: defaultPermissions
-        }
-        const permissions: SettingsPermissions = {
-          rolePermissions: Object.fromEntries(
-            Object.entries(storedRolePermissions).map(([role, rolePermissions]) => [
-              role,
-              normalizeRolePermissions(rolePermissions)
-            ])
-          ),
-          userPermissions: Object.fromEntries(
-            Object.entries(settings.userPermissions || {}).map(([userId, userPermissions]) => [
-              userId,
-              normalizePermissionOverrides(userPermissions)
-            ])
-          )
-        }
-        
-        setSettingsPermissions(permissions)
-        
-        if (effectiveUser) {
-          const manager = new PermissionManager(
-            effectiveUser.role,
-            effectiveUser.id,
-            effectiveUser.permissions
-          )
-          manager.setSettingsPermissions(permissions)
-          setPermissionManager(manager)
-        }
+      if (!response.ok) throw new Error(`Permission configuration request failed (${response.status})`)
+      const settings = await response.json()
+      const storedRolePermissions = settings.rolePermissions || {
+        ADMIN: adminPermissions,
+        MANAGER: managerPermissions,
+        USER: defaultPermissions
+      }
+      const permissions: SettingsPermissions = {
+        rolePermissions: Object.fromEntries(
+          Object.entries(storedRolePermissions).map(([role, rolePermissions]) => [
+            role,
+            normalizeRolePermissions(rolePermissions)
+          ])
+        ),
+        userPermissions: Object.fromEntries(
+          Object.entries(settings.userPermissions || {}).map(([userId, userPermissions]) => [
+            userId,
+            normalizePermissionOverrides(userPermissions)
+          ])
+        )
+      }
+      setSettingsPermissions(permissions)
+
+      if (effectiveUser) {
+        const manager = new PermissionManager(
+          effectiveUser.role,
+          effectiveUser.id,
+          effectiveUser.permissions
+        )
+        manager.setSettingsPermissions(permissions)
+        setPermissionManager(manager)
+      } else {
+        setPermissionManager(null)
       }
     } catch (error) {
       console.error('Error fetching permissions:', error)
-      // Use default permissions if fetch fails
-      setSettingsPermissions({
-        rolePermissions: {
-          ADMIN: adminPermissions,
-          MANAGER: managerPermissions,
-          USER: defaultPermissions
-        },
-        userPermissions: {}
-      })
-      if (user) {
-        const manager = new PermissionManager(user.role, user.id, user.permissions)
-        manager.setSettingsPermissions({
-          rolePermissions: {
-            ADMIN: adminPermissions,
-            MANAGER: managerPermissions,
-            USER: defaultPermissions
-          },
-          userPermissions: {}
-        })
-        setPermissionManager(manager)
-      }
+      // Fail closed: never grant stale/default UI access when the database's
+      // current role configuration cannot be read.
+      setSettingsPermissions(null)
+      setPermissionManager(null)
     } finally {
       setLoading(false)
     }

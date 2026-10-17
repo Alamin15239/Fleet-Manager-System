@@ -22,6 +22,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { getProfileImageUrl, handleImageError } from '@/lib/image-utils'
 import { useLanguage } from '@/contexts/language-context'
+import { usePermissions } from '@/contexts/permissions-context'
 
 interface Notification {
   id: string
@@ -36,6 +37,7 @@ export function Header() {
   const router = useRouter()
   const { toggleSidebar, isSidebarOpen } = useSidebar()
   const { user, logout } = useAuth()
+  const { hasPermission } = usePermissions()
   const { t } = useLanguage()
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [loading, setLoading] = useState(true)
@@ -275,14 +277,14 @@ export function Header() {
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem onClick={() => router.push('/profile')}>
+              {hasPermission('profile', 'read') && <DropdownMenuItem onClick={() => router.push('/profile')}>
                 <User className="me-2 h-4 w-4" />
                 <span>{t('Profile')}</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => router.push('/settings')}>
+              </DropdownMenuItem>}
+              {hasPermission('settings', 'read') && <DropdownMenuItem onClick={() => router.push('/settings')}>
                 <Settings className="me-2 h-4 w-4" />
                 <span>{t('Settings')}</span>
-              </DropdownMenuItem>
+              </DropdownMenuItem>}
               <DropdownMenuItem onClick={() => router.push('/help')}>
                 <BookOpen className="me-2 h-4 w-4" />
                 <span>{t('User Guide')}</span>

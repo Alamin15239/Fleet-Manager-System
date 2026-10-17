@@ -5,28 +5,24 @@ import { Navigation } from './navigation'
 import { Header } from './header'
 import { useAuth } from '@/contexts/auth-context'
 import { useSidebar } from '@/contexts/sidebar-context'
-import { ThemeToggle } from './theme-toggle'
 import { PageTransition } from './ui/page-transition'
 import { useLanguage } from '@/contexts/language-context'
+import { RoutePermissionGuard } from './route-permission-guard'
 
 
 interface LayoutProps {
   children: ReactNode
-  userRole?: string
   isAuthenticated?: boolean
 }
 
-export function Layout({ children, userRole = 'MECHANIC', isAuthenticated: forceAuthenticated = false }: LayoutProps) {
-  const { user, isAuthenticated, logout } = useAuth()
+export function Layout({ children, isAuthenticated: forceAuthenticated = false }: LayoutProps) {
+  const { isAuthenticated } = useAuth()
   const { isSidebarOpen, closeSidebar } = useSidebar()
   const { t } = useLanguage()
 
   // If forceAuthenticated is true, bypass authentication check
   const effectiveIsAuthenticated = forceAuthenticated || isAuthenticated
   
-  // If user is authenticated, use their role, otherwise use the default
-  const effectiveUserRole = user?.role || userRole
-
   // Only show navigation and header if user is authenticated
   if (!effectiveIsAuthenticated) {
     return (
@@ -40,7 +36,7 @@ export function Layout({ children, userRole = 'MECHANIC', isAuthenticated: force
 
   return (
     <div className="flex min-h-dvh bg-background">
-      <Navigation userRole={effectiveUserRole} />
+      <Navigation />
       {isSidebarOpen && (
         <button
           type="button"
@@ -53,7 +49,7 @@ export function Layout({ children, userRole = 'MECHANIC', isAuthenticated: force
         <Header />
         <main className="min-h-0 min-w-0 flex-1 overflow-auto bg-background">
           <PageTransition>
-            {children}
+            <RoutePermissionGuard>{children}</RoutePermissionGuard>
           </PageTransition>
         </main>
       </div>

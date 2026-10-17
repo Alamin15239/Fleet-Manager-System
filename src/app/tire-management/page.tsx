@@ -1,7 +1,7 @@
 'use client'
 import { LocalizedText } from '@/components/localized-text'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { BarChart3, FileText, List, Plus, Settings } from 'lucide-react'
 import TireManagementForm from '@/components/tire-management-form'
@@ -10,10 +10,17 @@ import TireReports from '@/components/tire-reports'
 import TireReportsSimple from '@/components/tire-reports-simple'
 import TireExcelViewer from '@/components/tire-excel-viewer'
 import { useLanguage } from '@/contexts/language-context'
+import { usePermissions } from '@/contexts/permissions-context'
 
 export default function TireManagementPage() {
   const { t } = useLanguage()
+  const { canCreate, loading: permissionsLoading } = usePermissions()
   const [activeTab, setActiveTab] = useState('form')
+  const canAddTires = canCreate('tire-management')
+
+  useEffect(() => {
+    if (!permissionsLoading && !canAddTires && activeTab === 'form') setActiveTab('inventory')
+  }, [permissionsLoading, canAddTires, activeTab])
 
   return (
     <div className="container mx-auto space-y-4 p-4 sm:space-y-6 sm:p-6">
@@ -23,11 +30,11 @@ export default function TireManagementPage() {
       </header>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid h-auto w-full grid-cols-2 gap-1 p-1 sm:grid-cols-5">
-          <TabsTrigger value="form" className="flex min-h-[60px] flex-col items-center gap-1 p-1.5 text-xs">
+        <TabsList className={`grid h-auto w-full grid-cols-2 gap-1 p-1 ${canAddTires ? 'sm:grid-cols-5' : 'sm:grid-cols-4'}`}>
+          {canAddTires && <TabsTrigger value="form" className="flex min-h-[60px] flex-col items-center gap-1 p-1.5 text-xs">
             <Plus className="h-4 w-4" />
             <span className="leading-tight"><LocalizedText>Add</LocalizedText></span>
-          </TabsTrigger>
+          </TabsTrigger>}
           <TabsTrigger value="inventory" className="flex min-h-[60px] flex-col items-center gap-1 p-1.5 text-xs">
             <List className="h-4 w-4" />
             <span className="leading-tight"><LocalizedText>List</LocalizedText></span>
@@ -46,9 +53,9 @@ export default function TireManagementPage() {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="form" className="space-y-4">
+        {canAddTires && <TabsContent value="form" className="space-y-4">
           <TireManagementForm />
-        </TabsContent>
+        </TabsContent>}
         <TabsContent value="inventory" className="space-y-4">
           <TireInventoryGrouped />
         </TabsContent>

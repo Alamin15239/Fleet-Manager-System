@@ -14,6 +14,7 @@ import { useToast } from '@/hooks/use-toast'
 import { ProfilePicture } from '@/components/profile-picture'
 import { prepareProfileImage } from '@/lib/prepare-profile-image'
 import { cn } from '@/lib/utils'
+import { usePermissions } from '@/contexts/permissions-context'
 import {
   BadgeCheck,
   Briefcase,
@@ -64,6 +65,7 @@ interface UserProfile {
 
 export default function ProfilePage() {
   const { token, refreshUser, updateUser } = useAuth()
+  const { canUpdate } = usePermissions()
   const { t } = useLanguage()
   const { toast } = useToast()
   const [profile, setProfile] = useState<UserProfile | null>(null)
@@ -301,7 +303,7 @@ export default function ProfilePage() {
             <p className="mt-0.5 text-sm text-muted-foreground"><LocalizedText>Manage your account information</LocalizedText></p>
           </div>
         </div>
-        {!isEditing && (
+        {!isEditing && canUpdate('profile') && (
           <Button onClick={() => setIsEditing(true)} className="w-full rounded-xl shadow-sm sm:w-auto">
             <Edit className="me-2 h-4 w-4" />
             <LocalizedText>Edit Profile</LocalizedText>
@@ -318,7 +320,7 @@ export default function ProfilePage() {
         <CardContent className="relative px-4 pb-5 sm:px-7 sm:pb-7">
           <div className="-mt-12 flex flex-col gap-4 sm:-mt-14 sm:flex-row sm:items-end sm:gap-5">
             <div className="w-fit rounded-full bg-background p-1.5 shadow-lg ring-1 ring-border/60">
-              <ProfilePicture size="xl" editable className="rounded-full" />
+              <ProfilePicture size="xl" editable={canUpdate('profile')} className="rounded-full" />
             </div>
             <div className="min-w-0 flex-1 pb-0.5 sm:pb-1">
               <div className="flex flex-wrap items-center gap-2">
@@ -394,7 +396,7 @@ export default function ProfilePage() {
               </div>
               <div className="flex flex-col-reverse gap-2 border-t border-border/60 pt-4 sm:flex-row sm:justify-end">
                 <Button type="button" variant="outline" className="rounded-xl" onClick={handleCancel}><LocalizedText>Cancel</LocalizedText></Button>
-                <Button type="button" className="rounded-xl" onClick={handleSave} disabled={saving}>
+                <Button type="button" className="rounded-xl" onClick={handleSave} disabled={saving || !canUpdate('profile')}>
                   {saving ? <Loader2 className="me-2 h-4 w-4 animate-spin" /> : <Save className="me-2 h-4 w-4" />}
                   <LocalizedText>Save Changes</LocalizedText>
                 </Button>

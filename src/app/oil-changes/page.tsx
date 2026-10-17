@@ -17,6 +17,7 @@ import { Search, Droplets, Calendar, Truck, User, BarChart3, Plus, Filter, Check
 import { apiGet, apiPost } from '@/lib/api'
 import { formatCurrency } from '@/lib/currency'
 import { toast } from '@/lib/localized-toast'
+import { usePermissions } from '@/contexts/permissions-context'
 
 interface OilChangeRecord {
   id: string
@@ -64,6 +65,7 @@ interface Mechanic {
 }
 
 export default function OilChangesPage() {
+  const { canCreate } = usePermissions()
   const [oilChanges, setOilChanges] = useState<OilChangeRecord[]>([])
   const [filteredRecords, setFilteredRecords] = useState<OilChangeRecord[]>([])
   const [searchTerm, setSearchTerm] = useState('')
@@ -296,12 +298,12 @@ export default function OilChangesPage() {
             setTruckSearchOpen(false)
           }
         }}>
-          <DialogTrigger asChild>
+          {canCreate('maintenance') && <DialogTrigger asChild>
             <Button className="flex items-center gap-2">
               <Plus className="h-4 w-4" />
               Add Oil Change
             </Button>
-          </DialogTrigger>
+          </DialogTrigger>}
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle><LocalizedText>Add New Oil Change Record</LocalizedText></DialogTitle>
@@ -517,7 +519,7 @@ export default function OilChangesPage() {
                 >
                   Cancel
                 </Button>
-                <Button type="submit" disabled={isSubmitting || !selectedTruck}>
+                <Button type="submit" disabled={!canCreate('maintenance') || isSubmitting || !selectedTruck}>
                   {isSubmitting ? 'Adding...' : 'Add Oil Change'}
                 </Button>
               </div>

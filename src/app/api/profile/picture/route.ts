@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/auth'
+import { requireRolePermission } from '@/lib/permission-middleware'
 import { db } from '@/lib/db'
 
 export async function POST(request: NextRequest) {
@@ -8,11 +8,15 @@ export async function POST(request: NextRequest) {
     
     let user
     try {
-      user = await requireAuth(request)
+      user = await requireRolePermission(request, 'profile', 'update')
       console.log('User authenticated:', user?.id)
     } catch (authError) {
       console.error('Auth error:', authError)
-      return NextResponse.json({ error: 'Authentication failed' }, { status: 401 })
+      const message = authError instanceof Error ? authError.message : ''
+      return NextResponse.json(
+        { error: message === 'Insufficient permissions' ? 'You do not have permission to edit your profile' : 'Authentication failed' },
+        { status: message === 'Insufficient permissions' ? 403 : 401 }
+      )
     }
     
     if (!user) {
@@ -82,7 +86,7 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const user = await requireAuth(request)
+    const user = await requireRolePermission(request, 'profile', 'update')
     
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -100,6 +104,12 @@ export async function DELETE(request: NextRequest) {
       user: updatedUser
     })
   } catch (error) {
+    if (error instanceof Error && ['No token provided', 'Invalid token'].includes(error.message)) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+    }
+    if (error instanceof Error && error.message === 'Insufficient permissions') {
+      return NextResponse.json({ error: 'You do not have permission to edit your profile' }, { status: 403 })
+    }
     console.error('Error removing profile picture:', error)
     return NextResponse.json(
       { error: 'Failed to remove profile picture' },

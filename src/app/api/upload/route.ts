@@ -1,43 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { writeFile } from 'fs/promises';
 import { join } from 'path';
-import jwt from 'jsonwebtoken';
 import { db } from '@/lib/db';
-
-async function getUserFromToken(request: NextRequest) {
-  const authHeader = request.headers.get('authorization');
-  
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return null;
-  }
-  
-  const token = authHeader.substring(7);
-  
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { id?: string, userId?: string };
-    const userId = decoded.id || decoded.userId;
-    if (!userId) return null;
-    
-    const user = await db.user.findUnique({ where: { id: userId } });
-    return user;
-  } catch (error) {
-    return null;
-  }
-}
+import { requireRolePermission } from '@/lib/permission-middleware';
 
 export async function POST(request: NextRequest) {
   try {
     console.log('Upload request received');
     
-    const user = await getUserFromToken(request);
-    if (!user) {
-      console.log('User authentication failed');
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    console.log('User authenticated:', user.email);
-    
     const data = await request.formData();
+    const type = String(data.get('type') || 'general').toLowerCase();
+    const permissionResource = type === 'truck'
+      ? 'trucks'
+      : type === 'maintenance'
+        ? 'maintenance'
+        : 'admin';
+    const user = await requireRolePermission(request, permissionResource, 'update');
+    console.log('User authenticated for upload:', user.id);
+
     const file: File | null = data.get('file') as unknown as File;
 
     if (!file) {
@@ -75,9 +55,6 @@ export async function POST(request: NextRequest) {
     console.log('File written successfully');
 
     const fileUrl = `/uploads/${filename}`;
-    const type = data.get('type') as string || 'general';
-    const entityId = data.get('entityId') as string;
-
     // Save file metadata to database
     try {
       // Persist file metadata in the Document table
@@ -113,6 +90,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(uploadedFile, { status: 200 });
   } catch (error) {
     console.error('Error uploading file:', error);
+    const message = error instanceof Error ? error.message : '';
+    if (['No token provided', 'Invalid token', 'User not found or inactive'].includes(message)) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+    }
+    if (message === 'Insufficient permissions') {
+      return NextResponse.json({ error: 'You do not have permission to upload files for this section' }, { status: 403 });
+    }
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

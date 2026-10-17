@@ -3,10 +3,11 @@ import { db } from '@/lib/db'
 import { Prisma } from '@prisma/client'
 import { PermissionManager, defaultPermissions, adminPermissions, managerPermissions } from '@/lib/permissions'
 import { requireAuth } from '@/lib/auth'
+import { requireRolePermission } from '@/lib/permission-middleware'
 
 export async function GET(request: NextRequest) {
   try {
-    const user = await requireAuth(request)
+    const user = await requireRolePermission(request, 'settings', 'read')
     
     const timeoutPromise = new Promise((_, reject) => 
       setTimeout(() => reject(new Error('Database timeout')), 5000)
@@ -89,6 +90,9 @@ export async function GET(request: NextRequest) {
         { error: 'Authentication required' },
         { status: 401 }
       )
+    }
+    if (error instanceof Error && error.message === 'Insufficient permissions') {
+      return NextResponse.json({ error: 'You do not have permission to view settings' }, { status: 403 })
     }
 
     return NextResponse.json(

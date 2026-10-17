@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import jwt from 'jsonwebtoken'
+import { requireRolePermission } from '@/lib/permission-middleware'
 
 export async function OPTIONS(request: NextRequest) {
   return new NextResponse(null, {
@@ -15,45 +15,7 @@ export async function OPTIONS(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    // Verify JWT_SECRET exists
-    if (!process.env.JWT_SECRET) {
-      console.error('JWT_SECRET is not configured')
-      return NextResponse.json(
-        { error: 'Server configuration error' },
-        { status: 500 }
-      )
-    }
-
-    // Get user ID from token
-    const authHeader = request.headers.get('authorization')
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'No token provided' }, { status: 401 })
-    }
-    
-    const token = authHeader.substring(7)
-    let decoded: any
-    
-    try {
-      decoded = jwt.verify(token, process.env.JWT_SECRET)
-    } catch (jwtError) {
-      console.error('JWT verification failed:', jwtError)
-      if (jwtError instanceof jwt.JsonWebTokenError) {
-        return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
-      }
-      if (jwtError instanceof jwt.TokenExpiredError) {
-        return NextResponse.json({ error: 'Token expired' }, { status: 401 })
-      }
-      return NextResponse.json({ error: 'Token verification failed' }, { status: 401 })
-    }
-    
-    // Handle both possible JWT token structures
-    const userId = decoded.userId || decoded.id
-    if (!userId) {
-      console.error('No user ID in token:', decoded)
-      return NextResponse.json({ error: 'Invalid token payload' }, { status: 401 })
-    }
-    
-    console.log('User ID from token:', userId)
+    const user = await requireRolePermission(request, 'profile', 'update')
     
     // Get form data
     let data: FormData
@@ -115,11 +77,11 @@ export async function POST(request: NextRequest) {
     // Update profile image in database
     try {
       const updatedUser = await db.user.update({
-        where: { id: userId },
+        where: { id: user.id },
         data: { profileImage: dataUrl }
       })
 
-      console.log(`Profile image updated for user ${userId}`)
+      console.log(`Profile image updated for user ${user.id}`)
 
       return NextResponse.json({
         success: true,
@@ -151,6 +113,13 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Profile image upload error:', error)
+    const message = error instanceof Error ? error.message : ''
+    if (['No token provided', 'Invalid token', 'User not found or inactive'].includes(message)) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+    }
+    if (message === 'Insufficient permissions') {
+      return NextResponse.json({ error: 'You do not have permission to edit your profile' }, { status: 403 })
+    }
     
     return NextResponse.json(
       { 

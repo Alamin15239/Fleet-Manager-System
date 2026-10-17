@@ -266,12 +266,30 @@ const arrayPermissionFields: Record<string, Record<string, keyof Permission>> = 
   'advanced-analytics': { read: 'canViewAdvancedAnalytics' }
 }
 
+const actionToRead: [keyof Permission, keyof Permission][] = [
+  ['canAddTrucks', 'canViewTrucks'], ['canEditTrucks', 'canViewTrucks'], ['canDeleteTrucks', 'canViewTrucks'],
+  ['canAddMaintenance', 'canViewMaintenance'], ['canEditMaintenance', 'canViewMaintenance'], ['canDeleteMaintenance', 'canViewMaintenance'],
+  ['canCreatePurchaseInvoices', 'canViewPurchaseInvoices'], ['canReversePurchaseInvoices', 'canViewPurchaseInvoices'],
+  ['canAddMechanics', 'canViewMechanics'], ['canEditMechanics', 'canViewMechanics'], ['canDeleteMechanics', 'canViewMechanics'],
+  ['canAddTireManagement', 'canViewTireManagement'], ['canEditTireManagement', 'canViewTireManagement'], ['canDeleteTireManagement', 'canViewTireManagement'],
+  ['canAddTrailers', 'canViewTrailers'], ['canEditTrailers', 'canViewTrailers'], ['canDeleteTrailers', 'canViewTrailers'],
+  ['canManageUsers', 'canViewUsers'], ['canEditProfile', 'canViewProfile'], ['canManageSettings', 'canViewSettings'],
+  ['canManageAdmin', 'canViewAdmin']
+]
+
+function enforceRolePermissionDependencies(permissions: Permission): Permission {
+  for (const [action, read] of actionToRead) {
+    if (permissions[action]) permissions[read] = true
+    if (!permissions[read]) permissions[action] = false
+  }
+  return permissions
+}
+
 /** Convert legacy resource/action arrays to the boolean shape used by PermissionManager. */
 export function normalizeRolePermissions(value: unknown): Permission {
   if (!Array.isArray(value)) {
     const normalized = { ...emptyPermissions, ...(value && typeof value === 'object' ? value as Partial<Permission> : {}) }
-    if (normalized.canManageUsers) normalized.canViewUsers = true
-    return normalized
+    return enforceRolePermissionDependencies(normalized)
   }
 
   const normalized = { ...emptyPermissions }
@@ -286,8 +304,7 @@ export function normalizeRolePermissions(value: unknown): Permission {
       normalized[field] = actions.includes(action)
     }
   }
-  if (normalized.canManageUsers) normalized.canViewUsers = true
-  return normalized
+  return enforceRolePermissionDependencies(normalized)
 }
 
 /** Keep object overrides partial; legacy arrays remain complete permission sets. */
@@ -307,16 +324,6 @@ export function normalizePermissionOverrides(value: unknown): Partial<Permission
 
   // A user who can change records must also be able to open the corresponding
   // page and read the records those actions operate on.
-  const actionToRead: [keyof Permission, keyof Permission][] = [
-    ['canAddTrucks', 'canViewTrucks'], ['canEditTrucks', 'canViewTrucks'], ['canDeleteTrucks', 'canViewTrucks'],
-    ['canAddMaintenance', 'canViewMaintenance'], ['canEditMaintenance', 'canViewMaintenance'], ['canDeleteMaintenance', 'canViewMaintenance'],
-    ['canCreatePurchaseInvoices', 'canViewPurchaseInvoices'], ['canReversePurchaseInvoices', 'canViewPurchaseInvoices'],
-    ['canAddMechanics', 'canViewMechanics'], ['canEditMechanics', 'canViewMechanics'], ['canDeleteMechanics', 'canViewMechanics'],
-    ['canAddTireManagement', 'canViewTireManagement'], ['canEditTireManagement', 'canViewTireManagement'], ['canDeleteTireManagement', 'canViewTireManagement'],
-    ['canAddTrailers', 'canViewTrailers'], ['canEditTrailers', 'canViewTrailers'], ['canDeleteTrailers', 'canViewTrailers'],
-    ['canManageUsers', 'canViewUsers'], ['canEditProfile', 'canViewProfile'], ['canManageSettings', 'canViewSettings'],
-    ['canManageAdmin', 'canViewAdmin']
-  ]
   for (const [action, read] of actionToRead) {
     if (normalized[action] === true) normalized[read] = true
     if (normalized[read] === false) normalized[action] = false

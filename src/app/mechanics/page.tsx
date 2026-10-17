@@ -14,6 +14,7 @@ import { toast } from '@/lib/localized-toast'
 import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api'
 import { useLanguage } from '@/contexts/language-context'
 import { PageHeader } from '@/components/page-header'
+import { usePermissions } from '@/contexts/permissions-context'
 
 interface Mechanic {
   id: string
@@ -27,6 +28,7 @@ interface Mechanic {
 
 export default function MechanicsPage() {
   const { t } = useLanguage()
+  const { canCreate, canUpdate, canDelete } = usePermissions()
   const [mechanics, setMechanics] = useState<Mechanic[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
@@ -175,12 +177,12 @@ export default function MechanicsPage() {
         subtitleKey="mechanics.subtitle"
       >
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
+          {canCreate('mechanics') && <DialogTrigger asChild>
             <Button onClick={resetForm}>
               <Plus className="h-4 w-4 mr-2" />
               {t('action.add')} {t('mechanics.title').split(' ')[0]}
             </Button>
-          </DialogTrigger>
+          </DialogTrigger>}
           <DialogContent className="sm:max-w-[500px]">
             <DialogHeader>
               <DialogTitle>
@@ -258,7 +260,7 @@ export default function MechanicsPage() {
               </div>
               
               <DialogFooter>
-                <Button type="submit">
+                <Button type="submit" disabled={editingMechanic ? !canUpdate('mechanics') : !canCreate('mechanics')}>
                   {editingMechanic ? t('action.update') + ' ' + t('mechanics.title') : t('action.add') + ' ' + t('mechanics.title')}
                 </Button>
               </DialogFooter>
@@ -307,13 +309,13 @@ export default function MechanicsPage() {
                 <TableHead>{t('table.specialty')}</TableHead>
                 <TableHead>{t('table.status')}</TableHead>
                 <TableHead>{t('table.maintenanceCount')}</TableHead>
-                <TableHead className="text-right">{t('table.actions')}</TableHead>
+                {(canUpdate('mechanics') || canDelete('mechanics')) && <TableHead className="text-right">{t('table.actions')}</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredMechanics.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8">
+                  <TableCell colSpan={canUpdate('mechanics') || canDelete('mechanics') ? 6 : 5} className="text-center py-8">
                     <div className="flex flex-col items-center gap-2">
                       <Wrench className="h-8 w-8 text-gray-400" />
                       <p className="text-gray-500">{t('message.noData')}</p>
@@ -358,21 +360,22 @@ export default function MechanicsPage() {
                       </Badge>
                     </TableCell>
                     <TableCell>{mechanic.maintenanceCount || 0}</TableCell>
-                    <TableCell className="text-right">
+                    {(canUpdate('mechanics') || canDelete('mechanics')) && <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
-                        <Button variant="outline" size="sm" onClick={() => handleEdit(mechanic)}>
+                        {canUpdate('mechanics') && <Button variant="outline" size="sm" onClick={() => handleEdit(mechanic)} aria-label={t('Edit mechanic')}>
                           <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button 
+                        </Button>}
+                        {canDelete('mechanics') && <Button
                           variant="outline" 
                           size="sm" 
                           onClick={() => handleDelete(mechanic.id)}
                           className="text-red-600 hover:text-red-700"
+                          aria-label={t('Delete mechanic')}
                         >
                           <Trash2 className="h-4 w-4" />
-                        </Button>
+                        </Button>}
                       </div>
-                    </TableCell>
+                    </TableCell>}
                   </TableRow>
                 ))
               )}

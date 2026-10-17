@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth';
+import { requireRolePermission } from '@/lib/permission-middleware';
 
 export async function POST(request: NextRequest) {
   try {
-    await requireAuth(request)
+    await requireRolePermission(request, 'profile', 'update')
     const formData = await request.formData();
     const imageFile = formData.get('image_file') as File;
     
@@ -59,6 +59,13 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Background removal error:', error);
+    const message = error instanceof Error ? error.message : ''
+    if (['No token provided', 'Invalid token', 'User not found or inactive'].includes(message)) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+    }
+    if (message === 'Insufficient permissions') {
+      return NextResponse.json({ error: 'You do not have permission to edit your profile' }, { status: 403 })
+    }
     return NextResponse.json({ 
       error: 'Background removal failed',
       details: error instanceof Error ? error.message : 'Unknown error'

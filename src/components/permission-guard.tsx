@@ -1,8 +1,7 @@
 'use client'
 
-import { useAuth } from '@/contexts/auth-context'
-import { PermissionManager } from '@/lib/permissions'
 import { ReactNode } from 'react'
+import { usePermissions as useRolePermissions } from '@/contexts/permissions-context'
 
 interface PermissionGuardProps {
   resource: string
@@ -21,21 +20,13 @@ export function PermissionGuard({
   requireAll = false,
   permissions = []
 }: PermissionGuardProps) {
-  const { user } = useAuth()
+  const { hasPermission, loading } = useRolePermissions()
 
-  if (!user) {
-    return <>{fallback}</>
-  }
-
-  const permissionManager = new PermissionManager(
-    user.role,
-    user.id,
-    user.permissions
-  )
+  if (loading) return <>{fallback}</>
 
   // Check single permission
   if (resource && action) {
-    if (!permissionManager.hasPermission(resource, action)) {
+    if (!hasPermission(resource, action)) {
       return <>{fallback}</>
     }
   }
@@ -44,7 +35,7 @@ export function PermissionGuard({
   if (permissions.length > 0) {
     const hasPermissions = permissions.map(perm => {
       const [res, act] = perm.split(':')
-      return permissionManager.hasPermission(res, act || 'read')
+      return hasPermission(res, act || 'read')
     })
 
     if (requireAll) {
@@ -61,12 +52,4 @@ export function PermissionGuard({
   return <>{children}</>
 }
 
-export function usePermissions() {
-  const { user } = useAuth()
-
-  if (!user) {
-    return null
-  }
-
-  return new PermissionManager(user.role, user.id, user.permissions)
-}
+export const usePermissions = useRolePermissions
