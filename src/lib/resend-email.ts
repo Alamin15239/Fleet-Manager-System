@@ -441,10 +441,6 @@ class ResendEmailService {
         return { success: false, message: 'Unable to send OTP. Check the account details or try again shortly.' }
       }
 
-      if (!user.isEmailVerified) {
-        return { success: false, message: 'Unable to send OTP. Check the account details or try again shortly.' }
-      }
-
       // Check rate limiting
       if (!this.canRequestOTP(user.lastOtpRequest)) {
         return { success: false, message: 'Unable to send OTP. Check the account details or try again shortly.' }

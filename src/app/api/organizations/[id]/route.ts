@@ -76,7 +76,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
             ...(emailChanged ? {
               isEmailVerified: false,
               otpCode: null,
-              otpExpires: null
+              otpExpires: null,
+              lastOtpRequest: null
             } : {})
           }
         })
