@@ -609,7 +609,7 @@ export default function PurchaseInvoicesPage() {
                   const availableAssets = assetOptions.filter((asset) => asset.type === line.assetType)
                   const chosenAsset = availableAssets.find((asset) => asset.id === line.assetId)
                   const query = assetSearch[line.key] ?? chosenAsset?.label ?? ''
-                  const matches = availableAssets.filter((asset) => !query || asset.label.toLowerCase().includes(query.toLowerCase())).slice(0, 8)
+                  const matches = availableAssets.filter((asset) => !query || asset.label.toLowerCase().includes(query.toLowerCase()))
                   const totals = lineTotals(line)
                   return <div key={line.key} className="rounded-2xl border border-border/70 bg-muted/[0.18] p-4">
                     <div className="mb-3 flex items-center justify-between"><p className="text-sm font-semibold"><LocalizedText>Line</LocalizedText> {index + 1}</p>{invoiceForm.lines.length > 1 && <Button type="button" variant="ghost" size="icon" aria-label="Remove line" onClick={() => setInvoiceForm((current) => ({ ...current, lines: current.lines.filter((row) => row.key !== line.key) }))}><X className="h-4 w-4" /></Button>}</div>
