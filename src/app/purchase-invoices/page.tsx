@@ -11,11 +11,12 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { usePermissions } from '@/contexts/permissions-context'
+import { useLanguage } from '@/contexts/language-context'
 import { apiGet, apiPatch, apiPost } from '@/lib/api'
 import { formatCurrency } from '@/lib/currency'
 import { toast } from '@/lib/localized-toast'
-import { Activity, BadgeCheck, BookOpen, Building2, Calculator, CarFront, Copy, Download, ExternalLink, FilePlus2, FileText, Filter, Loader2, Plus, Printer, Receipt, Search, ShieldCheck, Truck, Undo2, X } from 'lucide-react'
-import { renderPurchaseInvoiceDocument, type PurchaseInvoiceCompany, type PurchaseInvoiceDocumentData } from '@/lib/purchase-invoice-document'
+import { Activity, BadgeCheck, BookOpen, Building2, Calculator, CalendarDays, CarFront, Copy, Download, ExternalLink, FilePlus2, FileText, Filter, Loader2, Plus, Printer, Receipt, Search, ShieldCheck, Truck, Undo2, X } from 'lucide-react'
+import { combinePurchaseInvoiceDocuments, renderPurchaseInvoiceDocument, type PurchaseInvoiceCompany, type PurchaseInvoiceDocumentData } from '@/lib/purchase-invoice-document'
 import { downloadPurchaseInvoicePdf } from '@/lib/purchase-invoice-pdf'
 
 type Category = 'MAINTENANCE' | 'SPARE_PARTS' | 'TIRE' | 'BATTERY' | 'OIL_FILTER' | 'OTHER'
@@ -133,6 +134,7 @@ function moneyCents(amount: number) { return Math.round((amount + Number.EPSILON
 
 export default function PurchaseInvoicesPage() {
   const { canAccess, canCreate, canUpdate, loading: permissionsLoading } = usePermissions()
+  const { t } = useLanguage()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [dataError, setDataError] = useState('')
@@ -147,6 +149,15 @@ export default function PurchaseInvoicesPage() {
   const [tab, setTab] = useState<Tab>('invoices')
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('ALL')
+  const [invoiceDateFrom, setInvoiceDateFrom] = useState('')
+  const [invoiceDateTo, setInvoiceDateTo] = useState('')
+  const [invoiceAmountMin, setInvoiceAmountMin] = useState('')
+  const [invoiceAmountMax, setInvoiceAmountMax] = useState('')
+  const [selectedInvoiceIds, setSelectedInvoiceIds] = useState<string[]>([])
+  const [batchDialogOpen, setBatchDialogOpen] = useState(false)
+  const [batchDocumentHtml, setBatchDocumentHtml] = useState('')
+  const [batchBusy, setBatchBusy] = useState(false)
+  const batchPreviewRef = useRef<HTMLIFrameElement>(null)
   const [invoiceDialogOpen, setInvoiceDialogOpen] = useState(false)
   const [vendorDialogOpen, setVendorDialogOpen] = useState(false)
   const [selectedInvoice, setSelectedInvoice] = useState<PurchaseInvoice | null>(null)
@@ -262,17 +273,32 @@ export default function PurchaseInvoicesPage() {
     return { net: totals.net + amounts.net, vat: totals.vat + amounts.vat, total: totals.total + amounts.total }
   }, { net: 0, vat: 0, total: 0 }), [invoiceForm.lines, invoiceForm.isVatInvoice, invoiceForm.pricesIncludeVat, invoiceForm.vatRate])
 
+  const hasInvoiceCriteria = Boolean(search.trim() || invoiceDateFrom || invoiceDateTo || invoiceAmountMin || invoiceAmountMax || statusFilter !== 'ALL')
   const filteredInvoices = useMemo(() => {
     const needle = search.trim().toLowerCase()
-    if (!needle) return []
+    if (!hasInvoiceCriteria) return []
     return invoices.filter((invoice) => {
       const matchesStatus = statusFilter === 'ALL' || invoice.status === statusFilter
       const matchesSearch = [invoice.internalNumber, invoice.vendorInvoiceNumber, invoice.vendor.name,
         ...invoice.lines.flatMap((line) => [line.description, line.truck?.licensePlate, line.trailer?.number])]
-        .filter(Boolean).some((value) => String(value).toLowerCase().includes(needle))
-      return matchesStatus && matchesSearch
+        .filter(Boolean).some((value) => String(value).toLowerCase().includes(needle)) || !needle
+      const invoiceDate = new Date(invoice.invoiceDate).toISOString().slice(0, 10)
+      const matchesDateFrom = !invoiceDateFrom || invoiceDate >= invoiceDateFrom
+      const matchesDateTo = !invoiceDateTo || invoiceDate <= invoiceDateTo
+      const minimum = invoiceAmountMin === '' ? null : Number(invoiceAmountMin)
+      const maximum = invoiceAmountMax === '' ? null : Number(invoiceAmountMax)
+      const matchesAmountMin = minimum === null || invoice.grandTotal >= minimum
+      const matchesAmountMax = maximum === null || invoice.grandTotal <= maximum
+      return matchesStatus && matchesSearch && matchesDateFrom && matchesDateTo && matchesAmountMin && matchesAmountMax
     })
-  }, [invoices, search, statusFilter])
+  }, [invoices, search, statusFilter, hasInvoiceCriteria, invoiceDateFrom, invoiceDateTo, invoiceAmountMin, invoiceAmountMax])
+
+  useEffect(() => {
+    const visibleIds = new Set(filteredInvoices.map((invoice) => invoice.id))
+    setSelectedInvoiceIds((current) => current.filter((id) => visibleIds.has(id)))
+  }, [filteredInvoices])
+
+  const allFilteredInvoicesSelected = filteredInvoices.length > 0 && filteredInvoices.every((invoice) => selectedInvoiceIds.includes(invoice.id))
 
   const filteredVehicleAccounts = useMemo(() => vehicleAccounts.filter((account) => account.label.toLowerCase().includes(search.toLowerCase())), [vehicleAccounts, search])
   const filteredVendorAccounts = useMemo(() => vendorAccounts.filter((account) => account.label.toLowerCase().includes(search.toLowerCase())), [vendorAccounts, search])
@@ -381,6 +407,87 @@ export default function PurchaseInvoicesPage() {
     }
   }
 
+  const resetInvoiceFilters = () => {
+    setSearch('')
+    setStatusFilter('ALL')
+    setInvoiceDateFrom('')
+    setInvoiceDateTo('')
+    setInvoiceAmountMin('')
+    setInvoiceAmountMax('')
+    setSelectedInvoiceIds([])
+  }
+
+  const toggleInvoiceSelection = (invoiceId: string) => {
+    setSelectedInvoiceIds((current) => {
+      if (current.includes(invoiceId)) return current.filter((id) => id !== invoiceId)
+      if (current.length >= 50) {
+        toast.error('Select up to 50 invoices at a time. Refine your filters to make a smaller batch.')
+        return current
+      }
+      return [...current, invoiceId]
+    })
+  }
+
+  const toggleAllFilteredInvoices = () => {
+    if (allFilteredInvoicesSelected) {
+      setSelectedInvoiceIds((current) => current.filter((id) => !filteredInvoices.some((invoice) => invoice.id === id)))
+      return
+    }
+    if (filteredInvoices.length > 50) {
+      toast.error('More than 50 invoices match. Refine your filters to select a smaller batch.')
+      return
+    }
+    setSelectedInvoiceIds(filteredInvoices.map((invoice) => invoice.id))
+  }
+
+  const buildBatchDocument = async () => {
+    const selected = filteredInvoices.filter((invoice) => selectedInvoiceIds.includes(invoice.id))
+    if (!selected.length) throw new Error('Select invoices before opening the batch preview')
+    if (selected.length > 50) throw new Error('Select up to 50 invoices at a time')
+    const response = await apiPost('/api/purchase-invoices/share-links', { invoiceIds: selected.map((invoice) => invoice.id) })
+    const payload = await response.json()
+    if (!response.ok) throw new Error(payload.error || 'Unable to prepare selected invoices')
+    const shareUrlById = new Map<string, string>((payload.links || []).map((link: { invoiceId: string; shareUrl: string }) => [link.invoiceId, link.shareUrl]))
+    const documents = await Promise.all(selected.map(async (invoice) => {
+      const shareUrl = shareUrlById.get(invoice.id)
+      if (!shareUrl) throw new Error(`Unable to prepare ${invoice.internalNumber}`)
+      const qrDataUrl = await QRCode.toDataURL(shareUrl, { errorCorrectionLevel: 'H', margin: 1, width: 512 })
+      return renderPurchaseInvoiceDocument(invoice as PurchaseInvoiceDocumentData, payload.company as PurchaseInvoiceCompany | null, shareUrl, qrDataUrl)
+    }))
+    return combinePurchaseInvoiceDocuments(documents)
+  }
+
+  const openBatchPreview = async () => {
+    setBatchBusy(true)
+    try {
+      setBatchDocumentHtml(await buildBatchDocument())
+      setBatchDialogOpen(true)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Unable to prepare selected invoices')
+    } finally {
+      setBatchBusy(false)
+    }
+  }
+
+  const printBatchInvoices = () => {
+    const printWindow = batchPreviewRef.current?.contentWindow
+    if (!printWindow || !batchDocumentHtml) return
+    printWindow.focus()
+    printWindow.print()
+  }
+
+  const downloadBatchInvoices = async () => {
+    if (!batchDocumentHtml) return
+    setBatchBusy(true)
+    try {
+      await downloadPurchaseInvoicePdf(batchDocumentHtml, `purchase-invoices-${new Date().toISOString().slice(0, 10)}.pdf`)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Unable to download selected invoices')
+    } finally {
+      setBatchBusy(false)
+    }
+  }
+
   const tabButton = (key: Tab, label: string, Icon: typeof FileText) => (
     <button key={key} onClick={() => { setTab(key); setSearch(''); setLedgerSelection(null) }} className={`flex items-center gap-2 whitespace-nowrap rounded-xl px-4 py-2.5 text-sm font-medium transition ${tab === key ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}>
       <Icon className="h-4 w-4" /><LocalizedText>{label}</LocalizedText>
@@ -417,7 +524,7 @@ export default function PurchaseInvoicesPage() {
         <CardHeader className="gap-4 border-b border-border/60 pb-4">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div><CardTitle className="text-lg"><LocalizedText>Accounts & invoices</LocalizedText></CardTitle><p className="mt-1 text-sm text-muted-foreground"><LocalizedText>Every posted invoice is balanced and traceable to its vehicle and vendor.</LocalizedText></p></div>
-            <div className="relative w-full lg:max-w-sm"><Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search invoices, vendors, or vehicles" className="ps-9" /></div>
+            <div className="relative w-full lg:max-w-md"><Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t('Invoice no., vendor, truck, trailer, or description')} className="ps-9" /></div>
           </div>
           <div className="flex gap-2 overflow-x-auto pb-1">
             {tabButton('invoices', 'Invoices', FileText)}
@@ -429,14 +536,31 @@ export default function PurchaseInvoicesPage() {
 
         <CardContent className="p-4 sm:p-6">
           {tab === 'invoices' && <>
-            <div className="mb-4 flex items-center gap-2"><Filter className="h-4 w-4 text-muted-foreground" /><select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="h-9 rounded-lg border border-input bg-background px-3 text-sm"><option value="ALL">All statuses</option><option value="POSTED">Posted</option><option value="VOID">Reversed</option></select><span className="ms-auto text-xs text-muted-foreground">{filteredInvoices.length} <LocalizedText>shown · newest first</LocalizedText></span></div>
-            {filteredInvoices.length === 0 ? <EmptyState title={search.trim() ? 'No matching invoices' : 'Search to view invoices'} description={search.trim() ? 'Try an invoice number, supplier, truck or trailer number.' : 'Invoices are kept out of the list until you search by invoice number, supplier, description, truck or trailer.'} icon={search.trim() ? Receipt : Search} /> : <div className="space-y-3">
-              {filteredInvoices.map((invoice) => <button key={invoice.id} onClick={() => setSelectedInvoice(invoice)} className="grid w-full gap-3 rounded-2xl border border-border/70 p-4 text-start transition hover:border-primary/40 hover:bg-muted/30 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_auto_auto] md:items-center">
-                <div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><span className="font-semibold">{invoice.internalNumber}</span><StatusBadge status={invoice.status} /></div><p className="mt-1 truncate text-sm text-muted-foreground">{invoice.vendor.name}{invoice.vendorInvoiceNumber ? ` · ${invoice.vendorInvoiceNumber}` : ''}</p></div>
-                <div className="text-sm"><p>{formatDate(invoice.invoiceDate)}</p><p className="mt-1 text-xs text-muted-foreground">{invoice.lines.length} <LocalizedText>lines</LocalizedText> · {invoice.isVatInvoice ? `${invoice.vatRate}% VAT` : 'No VAT'}</p></div>
-                <div className="text-sm"><p className="text-muted-foreground"><LocalizedText>Expense</LocalizedText> {formatCurrency(invoice.subtotal)}</p><p className="mt-1 text-muted-foreground"><LocalizedText>VAT</LocalizedText> {formatCurrency(invoice.vatTotal)}</p></div>
-                <div className="text-end"><p className="font-semibold tabular-nums">{formatCurrency(invoice.grandTotal)}</p><p className="mt-1 text-xs text-muted-foreground"><LocalizedText>Vendor payable</LocalizedText></p></div>
-              </button>)}
+            <div className="mb-5 rounded-2xl border border-border/70 bg-muted/[0.16] p-4 sm:p-5">
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-3"><div className="flex items-center gap-2"><div className="rounded-lg bg-primary/10 p-2 text-primary"><Filter className="h-4 w-4" /></div><div><h3 className="text-sm font-semibold"><LocalizedText>Find and filter invoices</LocalizedText></h3><p className="text-xs text-muted-foreground"><LocalizedText>Search by date, payable amount, status, or invoice details.</LocalizedText></p></div></div><Button type="button" variant="ghost" size="sm" onClick={resetInvoiceFilters} disabled={!hasInvoiceCriteria}><X className="me-1 h-3.5 w-3.5" /><LocalizedText>Clear filters</LocalizedText></Button></div>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+                <div className="space-y-1.5"><Label htmlFor="invoice-status-filter" className="text-xs text-muted-foreground"><LocalizedText>Status</LocalizedText></Label><select id="invoice-status-filter" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm"><option value="ALL">{t('All statuses')}</option><option value="POSTED">{t('Posted')}</option><option value="VOID">{t('Reversed')}</option></select></div>
+                <div className="space-y-1.5"><Label htmlFor="invoice-date-from" className="text-xs text-muted-foreground"><LocalizedText>Invoice date from</LocalizedText></Label><div className="relative"><CalendarDays className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input id="invoice-date-from" type="date" value={invoiceDateFrom} max={invoiceDateTo || undefined} onChange={(event) => setInvoiceDateFrom(event.target.value)} className="ps-9" /></div></div>
+                <div className="space-y-1.5"><Label htmlFor="invoice-date-to" className="text-xs text-muted-foreground"><LocalizedText>Invoice date to</LocalizedText></Label><div className="relative"><CalendarDays className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input id="invoice-date-to" type="date" value={invoiceDateTo} min={invoiceDateFrom || undefined} onChange={(event) => setInvoiceDateTo(event.target.value)} className="ps-9" /></div></div>
+                <div className="space-y-1.5"><Label htmlFor="invoice-amount-min" className="text-xs text-muted-foreground"><LocalizedText>Minimum amount (SAR)</LocalizedText></Label><Input id="invoice-amount-min" type="number" min="0" max={invoiceAmountMax || undefined} step="0.01" inputMode="decimal" placeholder={t('Any amount')} value={invoiceAmountMin} onChange={(event) => setInvoiceAmountMin(event.target.value)} /></div>
+                <div className="space-y-1.5"><Label htmlFor="invoice-amount-max" className="text-xs text-muted-foreground"><LocalizedText>Maximum amount (SAR)</LocalizedText></Label><Input id="invoice-amount-max" type="number" min={invoiceAmountMin || '0'} step="0.01" inputMode="decimal" placeholder={t('Any amount')} value={invoiceAmountMax} onChange={(event) => setInvoiceAmountMax(event.target.value)} /></div>
+              </div>
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-border/60 pt-3"><p className="text-xs text-muted-foreground">{filteredInvoices.length} <LocalizedText>matching invoices</LocalizedText></p><p className="text-xs text-muted-foreground"><LocalizedText>Amount filters use the total payable including VAT.</LocalizedText></p></div>
+            </div>
+            {filteredInvoices.length > 0 && <div className="mb-3 flex flex-col gap-3 rounded-xl border border-primary/20 bg-primary/[0.035] p-3 sm:flex-row sm:items-center sm:justify-between">
+              <label className="flex cursor-pointer items-center gap-2 text-sm"><input type="checkbox" checked={allFilteredInvoicesSelected} onChange={toggleAllFilteredInvoices} className="h-4 w-4 rounded border-input accent-primary" /><span><LocalizedText>Select all matching</LocalizedText> ({filteredInvoices.length})</span></label>
+              <div className="flex flex-wrap items-center gap-2"><span className="text-xs text-muted-foreground">{selectedInvoiceIds.length} <LocalizedText>selected · batch limit 50</LocalizedText></span>{selectedInvoiceIds.length > 0 && <><Button type="button" size="sm" onClick={() => void openBatchPreview()} disabled={batchBusy}><Printer className="me-2 h-4 w-4" />{batchBusy ? <LocalizedText>Preparing…</LocalizedText> : <LocalizedText>Preview selected</LocalizedText>}</Button><Button type="button" variant="ghost" size="sm" onClick={() => setSelectedInvoiceIds([])}><LocalizedText>Clear selection</LocalizedText></Button></>}</div>
+            </div>}
+            {filteredInvoices.length === 0 ? <EmptyState title={hasInvoiceCriteria ? 'No matching invoices' : 'Search to view invoices'} description={hasInvoiceCriteria ? 'No invoices match these search and filter values. Try adjusting the date range or amount.' : 'Invoices are kept out of the list until you search or set a filter. Search by invoice number, supplier, description, truck or trailer.'} icon={hasInvoiceCriteria ? Receipt : Search} /> : <div className="space-y-2.5">
+              {filteredInvoices.map((invoice) => <div key={invoice.id} className={`flex items-stretch gap-3 rounded-2xl border p-3 transition sm:items-center sm:p-4 ${selectedInvoiceIds.includes(invoice.id) ? 'border-primary/40 bg-primary/[0.035]' : 'border-border/70 hover:border-primary/25 hover:bg-muted/[0.18]'}`}>
+                <label className="flex shrink-0 cursor-pointer items-center px-1" aria-label={`Select ${invoice.internalNumber}`}><input type="checkbox" checked={selectedInvoiceIds.includes(invoice.id)} onChange={() => toggleInvoiceSelection(invoice.id)} className="h-4 w-4 rounded border-input accent-primary" /></label>
+                <button type="button" onClick={() => setSelectedInvoice(invoice)} className="grid min-w-0 flex-1 gap-3 text-start sm:grid-cols-[minmax(0,1.5fr)_minmax(120px,.8fr)_minmax(125px,.8fr)_auto] sm:items-center">
+                  <div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><span className="font-semibold">{invoice.internalNumber}</span><StatusBadge status={invoice.status} /></div><p className="mt-1 truncate text-sm text-muted-foreground">{invoice.vendor.name}{invoice.vendorInvoiceNumber ? ` · ${invoice.vendorInvoiceNumber}` : ''}</p></div>
+                  <div className="text-sm"><p>{formatDate(invoice.invoiceDate)}</p><p className="mt-1 text-xs text-muted-foreground">{invoice.lines.length} <LocalizedText>lines</LocalizedText> · {invoice.isVatInvoice ? `${invoice.vatRate}% VAT` : 'No VAT'}</p></div>
+                  <div className="flex gap-4 text-xs text-muted-foreground sm:block sm:text-sm"><p><LocalizedText>Expense</LocalizedText> {formatCurrency(invoice.subtotal)}</p><p className="sm:mt-1"><LocalizedText>VAT</LocalizedText> {formatCurrency(invoice.vatTotal)}</p></div>
+                  <div className="text-end"><p className="font-semibold tabular-nums">{formatCurrency(invoice.grandTotal)}</p><p className="mt-1 text-xs text-muted-foreground"><LocalizedText>Total payable</LocalizedText></p></div>
+                </button>
+              </div>)}
             </div>}
             {invoices.length >= 500 && <p className="mt-4 text-xs text-muted-foreground"><LocalizedText>Showing the most recent 500 invoices. Account balances include all posted and reversed entries.</LocalizedText></p>}
           </>}
@@ -517,6 +641,13 @@ export default function PurchaseInvoicesPage() {
         <DialogContent className="flex max-h-[96dvh] max-w-5xl flex-col overflow-hidden p-4 sm:p-6"><DialogHeader className="shrink-0"><div className="flex items-center gap-2"><DialogTitle>{selectedInvoice?.internalNumber}</DialogTitle>{selectedInvoice && <StatusBadge status={selectedInvoice.status} />}</div><DialogDescription>{selectedInvoice?.vendor.name}{selectedInvoice?.vendorInvoiceNumber ? ` · ${selectedInvoice.vendorInvoiceNumber}` : ''}</DialogDescription></DialogHeader>
           <div className="min-h-0 flex-1 overflow-hidden rounded-lg border bg-slate-100">{invoiceDocumentHtml ? <iframe ref={invoicePreviewRef} title={`${selectedInvoice?.internalNumber} invoice preview`} srcDoc={invoiceDocumentHtml} className="h-[min(70dvh,850px)] min-h-[480px] w-full bg-white" /> : <div className="flex h-[min(70dvh,850px)] min-h-[480px] items-center justify-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin" /><LocalizedText>Preparing invoice preview and QR code</LocalizedText></div>}</div>
           <DialogFooter className="shrink-0 flex-wrap gap-2 sm:justify-between">{selectedInvoice?.status === 'POSTED' && canReverse ? <Button variant="destructive" onClick={() => selectedInvoice && void reverseInvoice(selectedInvoice)} disabled={saving}><Undo2 className="me-2 h-4 w-4" /><LocalizedText>Reverse invoice</LocalizedText></Button> : <span />}{selectedInvoice?.status === 'VOID' && <p className="me-auto text-xs text-muted-foreground"><LocalizedText>This invoice is reversed; its original and counter-entry remain in the ledger.</LocalizedText></p>}<div className="flex flex-wrap gap-2"><Button variant="outline" onClick={() => void copyInvoiceShareLink()} disabled={!invoiceShareUrl}><Copy className="me-2 h-4 w-4" /><LocalizedText>Copy QR link</LocalizedText></Button>{invoiceShareUrl && <Button variant="outline" asChild><a href={invoiceShareUrl} target="_blank" rel="noreferrer"><ExternalLink className="me-2 h-4 w-4" /><LocalizedText>Open link</LocalizedText></a></Button>}<Button variant="outline" onClick={printSelectedInvoice} disabled={!invoiceDocumentHtml}><Printer className="me-2 h-4 w-4" /><LocalizedText>Print</LocalizedText></Button><Button onClick={() => void downloadSelectedInvoice()} disabled={!invoiceDocumentHtml || saving}><Download className="me-2 h-4 w-4" /><LocalizedText>Download PDF</LocalizedText></Button><Button variant="ghost" onClick={() => setSelectedInvoice(null)}><LocalizedText>Close</LocalizedText></Button></div></DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={batchDialogOpen} onOpenChange={setBatchDialogOpen}>
+        <DialogContent className="flex max-h-[96dvh] max-w-5xl flex-col overflow-hidden p-4 sm:p-6"><DialogHeader className="shrink-0"><DialogTitle><LocalizedText>Batch invoice preview</LocalizedText> · {selectedInvoiceIds.length}</DialogTitle><DialogDescription><LocalizedText>Selected invoices are combined in one A4 document. Each page keeps its own invoice QR link.</LocalizedText></DialogDescription></DialogHeader>
+          <div className="min-h-0 flex-1 overflow-hidden rounded-lg border bg-slate-100">{batchDocumentHtml ? <iframe ref={batchPreviewRef} title="Selected purchase invoices preview" srcDoc={batchDocumentHtml} className="h-[min(70dvh,850px)] min-h-[480px] w-full bg-white" /> : <div className="flex h-[min(70dvh,850px)] min-h-[480px] items-center justify-center text-sm text-muted-foreground"><LocalizedText>No invoice document is prepared.</LocalizedText></div>}</div>
+          <DialogFooter className="shrink-0 flex-wrap gap-2"><Button type="button" variant="outline" onClick={printBatchInvoices} disabled={!batchDocumentHtml || batchBusy}><Printer className="me-2 h-4 w-4" /><LocalizedText>Print all</LocalizedText></Button><Button type="button" onClick={() => void downloadBatchInvoices()} disabled={!batchDocumentHtml || batchBusy}><Download className="me-2 h-4 w-4" />{batchBusy ? <LocalizedText>Preparing PDF…</LocalizedText> : <LocalizedText>Download combined PDF</LocalizedText>}</Button><Button type="button" variant="ghost" onClick={() => setBatchDialogOpen(false)}><LocalizedText>Close</LocalizedText></Button></DialogFooter>
         </DialogContent>
       </Dialog>
 
