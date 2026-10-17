@@ -93,56 +93,42 @@ export default function ProfilePage() {
       return
     }
 
-    if (!token || !authenticatedUserId) {
+    if (!token || !user?.id || user.id !== authenticatedUserId) {
       setProfile(null)
       setLoading(false)
       return
     }
 
-    let cancelled = false
-    const loadProfile = async () => {
-      setLoading(true)
-      setProfile(null)
-      try {
-        const response = await fetch('/api/users/me', {
-          headers: { Authorization: `Bearer ${token}` },
-          cache: 'no-store'
-        })
-        if (!response.ok) throw new Error('Unable to load profile data')
-
-        const data = await response.json()
-        const savedProfile = data.user as UserProfile
-        if (!savedProfile?.id || savedProfile.id !== authenticatedUserId) {
-          throw new Error('Profile response did not match the signed-in account')
-        }
-        if (cancelled) return
-        setProfile(savedProfile)
-        setFormData({
-          name: savedProfile.name || '',
-          phone: savedProfile.phone || '',
-          department: savedProfile.department || '',
-          title: savedProfile.title || '',
-          bio: savedProfile.bio || ''
-        })
-        updateUser(savedProfile)
-      } catch (error) {
-        console.error('Error loading profile:', error)
-        if (!cancelled) {
-          setProfile(null)
-          toast({
-            title: 'Error',
-            description: 'Unable to load profile data from the database',
-            variant: 'destructive'
-          })
-        }
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
+    // AuthProvider already loads the complete, authenticated user's profile
+    // from /api/auth/me for the app shell. Reuse that shared record here so
+    // the header, avatar, and profile page are populated from one source
+    // without waiting for the profile route to be opened or edited.
+    const currentProfile: UserProfile = {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      isActive: user.isActive,
+      isApproved: user.isApproved,
+      isEmailVerified: user.isEmailVerified,
+      profileImage: user.profileImage ?? null,
+      phone: user.phone ?? null,
+      department: user.department ?? null,
+      title: user.title ?? null,
+      bio: user.bio ?? null,
+      createdAt: user.createdAt ?? '',
+      updatedAt: user.updatedAt ?? '',
     }
-
-    void loadProfile()
-    return () => { cancelled = true }
-  }, [authLoading, token, authenticatedUserId, updateUser])
+    setProfile(currentProfile)
+    setFormData({
+      name: currentProfile.name || '',
+      phone: currentProfile.phone || '',
+      department: currentProfile.department || '',
+      title: currentProfile.title || '',
+      bio: currentProfile.bio || ''
+    })
+    setLoading(false)
+  }, [authLoading, token, user, authenticatedUserId])
 
   const handleSave = async () => {
     setSaving(true)
