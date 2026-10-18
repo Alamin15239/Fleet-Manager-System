@@ -130,31 +130,19 @@ export async function claimOneDriveAccount(
   if (!accountId) throw new Error('Microsoft did not return a stable account ID.')
   const emailHash = hashOneDriveEmail(connectedEmail)
   const organizationModel = (controlDb as any).organization
-  const [organization, activeOrganizations] = await Promise.all([
-    organizationModel.findUnique({
-      where: { id: organizationId },
-      select: { id: true, oneDriveAccountId: true, oneDriveAccountEmailHash: true }
-    }) as Promise<(OneDriveAccountClaim & { id: string }) | null>,
-    organizationModel.findMany({
-      where: { status: 'ACTIVE', id: { not: organizationId } },
-      select: {
-        id: true,
-        name: true,
-        slug: true,
-        status: true,
-        isPrimary: true,
-        encryptedDatabaseUrl: true,
-        oneDriveAccountId: true,
-        oneDriveAccountEmailHash: true
-      }
-    }) as Promise<OrganizationRecord[]>
-  ])
-  if (!organization) throw new Error('Organization was not found.')
-
-  const accountAlreadyClaimed = activeOrganizations.some((other) =>
-    other.oneDriveAccountId === accountId || Boolean(emailHash && other.oneDriveAccountEmailHash === emailHash)
-  )
-  if (accountAlreadyClaimed) throw new OneDriveAccountAlreadyConnectedError()
+  const activeOrganizations = await organizationModel.findMany({
+    where: { status: 'ACTIVE', id: { not: organizationId } },
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      status: true,
+      isPrimary: true,
+      encryptedDatabaseUrl: true,
+      oneDriveAccountId: true,
+      oneDriveAccountEmailHash: true
+    }
+  }) as OrganizationRecord[]
 
   // Existing connections predate the central claim registry. Check their
   // actual tenant records as well, so a legacy connection cannot be reused.
@@ -169,22 +157,44 @@ export async function claimOneDriveAccount(
     }
   }
 
-  try {
-    await organizationModel.update({
+  const lockKeys = [`microsoft-account:${accountId}`]
+  if (emailHash) lockKeys.push(`microsoft-email:${emailHash}`)
+  lockKeys.sort()
+
+  return controlDb.$transaction(async (transaction) => {
+    for (const lockKey of lockKeys) {
+      await transaction.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))`
+    }
+
+    const txOrganizationModel = (transaction as any).organization
+    const organization = await txOrganizationModel.findUnique({
+      where: { id: organizationId },
+      select: { id: true, oneDriveAccountId: true, oneDriveAccountEmailHash: true }
+    }) as (OneDriveAccountClaim & { id: string }) | null
+    if (!organization) throw new Error('Organization was not found.')
+
+    const accountAlreadyClaimed = await txOrganizationModel.findFirst({
+      where: {
+        id: { not: organizationId },
+        OR: [
+          { oneDriveAccountId: accountId },
+          ...(emailHash ? [{ oneDriveAccountEmailHash: emailHash }] : [])
+        ]
+      },
+      select: { id: true }
+    })
+    if (accountAlreadyClaimed) throw new OneDriveAccountAlreadyConnectedError()
+
+    await txOrganizationModel.update({
       where: { id: organizationId },
       data: { oneDriveAccountId: accountId, oneDriveAccountEmailHash: emailHash }
     })
-  } catch (error) {
-    if (error && typeof error === 'object' && 'code' in error && (error as { code?: string }).code === 'P2002') {
-      throw new OneDriveAccountAlreadyConnectedError()
-    }
-    throw error
-  }
 
-  return {
-    oneDriveAccountId: organization.oneDriveAccountId,
-    oneDriveAccountEmailHash: organization.oneDriveAccountEmailHash
-  }
+    return {
+      oneDriveAccountId: organization.oneDriveAccountId,
+      oneDriveAccountEmailHash: organization.oneDriveAccountEmailHash
+    }
+  })
 }
 
 export async function restoreOneDriveAccountClaim(organizationId: string, claim: OneDriveAccountClaim) {

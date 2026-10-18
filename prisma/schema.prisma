@@ -353,12 +353,14 @@ model Organization {
   neonProjectId        String?            @unique
   encryptedDatabaseUrl String?
   failureReason        String?
-  oneDriveAccountId    String?            @unique
-  oneDriveAccountEmailHash String?         @unique
+  oneDriveAccountId        String?
+  oneDriveAccountEmailHash String?
   createdAt            DateTime           @default(now())
   updatedAt            DateTime           @updatedAt
 
   @@index([status])
+  @@index([oneDriveAccountId])
+  @@index([oneDriveAccountEmailHash])
   @@map("organizations")
 }
 

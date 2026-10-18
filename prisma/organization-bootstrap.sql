@@ -687,10 +687,10 @@ CREATE UNIQUE INDEX "organizations_slug_key" ON "organizations"("slug");
 CREATE UNIQUE INDEX "organizations_neonProjectId_key" ON "organizations"("neonProjectId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "organizations_oneDriveAccountId_key" ON "organizations"("oneDriveAccountId");
+CREATE INDEX "organizations_oneDriveAccountId_idx" ON "organizations"("oneDriveAccountId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "organizations_oneDriveAccountEmailHash_key" ON "organizations"("oneDriveAccountEmailHash");
+CREATE INDEX "organizations_oneDriveAccountEmailHash_idx" ON "organizations"("oneDriveAccountEmailHash");
 
 -- CreateIndex
 CREATE INDEX "organizations_status_idx" ON "organizations"("status");
