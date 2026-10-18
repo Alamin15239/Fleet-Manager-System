@@ -17,7 +17,7 @@ function settingsRedirect(request: NextRequest, result: string, reason?: string)
   return NextResponse.redirect(url)
 }
 
-function safeConnectionFailureReason(error: unknown) {
+function safeConnectionFailureReason(error: unknown, stage: string) {
   const message = error instanceof Error ? error.message : ''
   if (error instanceof OneDriveAccountRegistryCheckError) return message
   if (message.startsWith('Microsoft authorization failed (HTTP ')) return message
@@ -28,7 +28,16 @@ function safeConnectionFailureReason(error: unknown) {
   if (/hashtextextended|42883/i.test(message)) return 'The database could not create the OneDrive account safety lock. Contact support with the deployment time.'
   if (/P1001|P1002|P2024/i.test(message)) return 'The organization database could not be reached to verify this OneDrive account. Try again shortly.'
   if (/P2021|P2022/i.test(message)) return 'The organization registry schema is not ready for OneDrive connections. Wait for the latest deployment to finish, then try again.'
-  return 'The server could not complete the organization account check. Ask an administrator to check the Vercel function log for this attempt.'
+  if (stage === 'checking account ownership across workspaces') {
+    return 'Could not check whether this Microsoft account is already connected to another workspace. Ask an administrator to check the organization database connection and Vercel function log.'
+  }
+  if (stage === 'saving the OneDrive connection') {
+    return 'Microsoft sign-in succeeded, but this workspace could not save the OneDrive connection. Ask an administrator to check the workspace database and token encryption settings.'
+  }
+  if (stage === 'loading the selected workspace') {
+    return 'Could not load this workspace for the OneDrive connection. Ask an administrator to check its database setup.'
+  }
+  return `OneDrive connection failed while ${stage}. Ask an administrator to check the Vercel function log for this attempt.`
 }
 
 function clearOAuthCookies(response: NextResponse) {
@@ -55,14 +64,18 @@ export async function GET(request: NextRequest) {
     return clearOAuthCookies(settingsRedirect(request, 'error', 'The sign-in session expired or its browser cookies were unavailable. Start Connect OneDrive again.'))
   }
 
+  let failureStage = 'validating the Microsoft sign-in'
   try {
     const claims = jwt.verify(state, process.env.JWT_SECRET) as { purpose?: string; userId?: string; organizationId?: string }
     if (claims.purpose !== 'onedrive-oauth' || !claims.userId) throw new Error('Invalid authorization state')
+    failureStage = 'loading the selected workspace'
     const organization = claims.organizationId ? await findOrganizationById(claims.organizationId) : await getPrimaryOrganization()
     return await withOrganization(organization, async () => {
+    failureStage = 'checking administrator access'
     const user = await db.user.findUnique({ where: { id: claims.userId }, select: { id: true, role: true, isActive: true, isApproved: true, isDeleted: true } })
     if (!user || user.role !== 'ADMIN' || !user.isActive || !user.isApproved || user.isDeleted) throw new Error('Administrator account is no longer active')
 
+    failureStage = 'exchanging the Microsoft authorization code'
     const tokenResponse = await fetch('https://login.microsoftonline.com/consumers/oauth2/v2.0/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -80,6 +93,7 @@ export async function GET(request: NextRequest) {
     const tokens = await tokenResponse.json() as { access_token?: string; refresh_token?: string }
     if (!tokens.access_token || !tokens.refresh_token) throw new Error('Microsoft did not grant the required OneDrive access. Reconnect and approve the requested access.')
 
+    failureStage = 'verifying the Microsoft account identity'
     const profileResponse = await fetch('https://graph.microsoft.com/v1.0/me?$select=id,displayName,mail,userPrincipalName', {
       headers: { Authorization: `Bearer ${tokens.access_token}` }
     })
@@ -87,8 +101,10 @@ export async function GET(request: NextRequest) {
     const profile = await profileResponse.json() as { id?: string; mail?: string | null; userPrincipalName?: string | null }
     if (!profile.id) throw new Error('Microsoft did not return a stable account ID. Reconnect OneDrive and try again.')
     const connectedEmail = profile.mail || profile.userPrincipalName || null
+    failureStage = 'checking account ownership across workspaces'
     const previousAccountClaim = await claimOneDriveAccount(organization.id, profile.id, connectedEmail)
     try {
+      failureStage = 'saving the OneDrive connection'
       await saveOneDriveConnection(tokens.refresh_token, connectedEmail)
     } catch (error) {
       await restoreOneDriveAccountClaim(organization.id, previousAccountClaim).catch((restoreError) => {
@@ -96,6 +112,7 @@ export async function GET(request: NextRequest) {
       })
       throw error
     }
+    failureStage = 'creating the initial workbook'
     const sync = await syncOneDriveWorkbook()
     if (sync.success) {
       try { await ensureOneDriveChangeSubscription() }
@@ -107,7 +124,7 @@ export async function GET(request: NextRequest) {
     if (error instanceof OneDriveAccountAlreadyConnectedError) {
       return clearOAuthCookies(settingsRedirect(request, 'account_in_use', error.message))
     }
-    console.error('OneDrive authorization callback failed:', error instanceof Error ? error.message : 'Unknown error')
-    return clearOAuthCookies(settingsRedirect(request, 'error', safeConnectionFailureReason(error)))
+    console.error(`OneDrive authorization callback failed while ${failureStage}:`, error instanceof Error ? error.message : 'Unknown error')
+    return clearOAuthCookies(settingsRedirect(request, 'error', safeConnectionFailureReason(error, failureStage)))
   }
 }
