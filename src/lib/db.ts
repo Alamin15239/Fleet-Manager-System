@@ -137,6 +137,21 @@ export async function claimOneDriveAccount(
   if (!accountId) throw new Error('Microsoft did not return a stable account ID.')
   const emailHash = hashOneDriveEmail(connectedEmail)
   const organizationModel = (controlDb as any).organization
+
+  // Prefer the central reservation result before probing tenant databases. A
+  // known duplicate should be reported even if an unrelated tenant is offline.
+  const existingClaim = await organizationModel.findFirst({
+    where: {
+      id: { not: organizationId },
+      OR: [
+        { oneDriveAccountId: accountId },
+        ...(emailHash ? [{ oneDriveAccountEmailHash: emailHash }] : [])
+      ]
+    },
+    select: { id: true }
+  })
+  if (existingClaim) throw new OneDriveAccountAlreadyConnectedError()
+
   const activeOrganizations = await organizationModel.findMany({
     where: { status: 'ACTIVE', id: { not: organizationId } },
     select: {
