@@ -9,9 +9,25 @@ const STATE_COOKIE = 'onedrive_oauth_state'
 const VERIFIER_COOKIE = 'onedrive_pkce_verifier'
 const CALLBACK_COOKIE_PATH = '/api/integrations/onedrive/callback'
 
-function settingsRedirect(request: NextRequest, result: string) {
+function settingsRedirect(request: NextRequest, result: string, reason?: string) {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin
-  return NextResponse.redirect(new URL(`/settings?tab=onedrive&onedrive=${result}`, baseUrl))
+  const url = new URL('/settings?tab=onedrive', baseUrl)
+  url.searchParams.set('onedrive', result)
+  if (reason) url.searchParams.set('onedriveReason', reason.replace(/[\u0000-\u001f\u007f]/g, ' ').slice(0, 240))
+  return NextResponse.redirect(url)
+}
+
+function safeConnectionFailureReason(error: unknown) {
+  const message = error instanceof Error ? error.message : ''
+  if (message.startsWith('Microsoft authorization failed (HTTP ')) return message
+  if (message === 'Microsoft did not grant the required OneDrive access. Reconnect and approve the requested access.') return message
+  if (message === 'Microsoft account identity could not be verified. Reconnect OneDrive and approve profile access.') return message
+  if (message === 'Microsoft did not return a stable account ID. Reconnect OneDrive and try again.') return message
+  if (message === 'Administrator account is no longer active') return 'Your administrator account is no longer active. Sign in with an active organization administrator.'
+  if (/hashtextextended|42883/i.test(message)) return 'The database could not create the OneDrive account safety lock. Contact support with the deployment time.'
+  if (/P1001|P1002|P2024/i.test(message)) return 'The organization database could not be reached to verify this OneDrive account. Try again shortly.'
+  if (/P2021|P2022/i.test(message)) return 'The organization registry schema is not ready for OneDrive connections. Wait for the latest deployment to finish, then try again.'
+  return 'The server could not complete the organization account check. Ask an administrator to check the Vercel function log for this attempt.'
 }
 
 function clearOAuthCookies(response: NextResponse) {
@@ -24,12 +40,18 @@ export async function GET(request: NextRequest) {
   const code = request.nextUrl.searchParams.get('code')
   const state = request.nextUrl.searchParams.get('state')
   const microsoftError = request.nextUrl.searchParams.get('error')
-  if (microsoftError) return clearOAuthCookies(settingsRedirect(request, 'cancelled'))
+  if (microsoftError) {
+    const description = request.nextUrl.searchParams.get('error_description')
+    const reason = microsoftError === 'access_denied'
+      ? 'Microsoft sign-in was cancelled.'
+      : description ? `Microsoft sign-in failed (${microsoftError}): ${description}` : `Microsoft sign-in failed (${microsoftError}).`
+    return clearOAuthCookies(settingsRedirect(request, microsoftError === 'access_denied' ? 'cancelled' : 'error', reason))
+  }
 
   const cookieState = request.cookies.get(STATE_COOKIE)?.value
   const verifier = request.cookies.get(VERIFIER_COOKIE)?.value
   if (!code || !state || !cookieState || state !== cookieState || !verifier || !process.env.JWT_SECRET) {
-    return clearOAuthCookies(settingsRedirect(request, 'error'))
+    return clearOAuthCookies(settingsRedirect(request, 'error', 'The sign-in session expired or its browser cookies were unavailable. Start Connect OneDrive again.'))
   }
 
   try {
@@ -82,9 +104,9 @@ export async function GET(request: NextRequest) {
     })
   } catch (error) {
     if (error instanceof OneDriveAccountAlreadyConnectedError) {
-      return clearOAuthCookies(settingsRedirect(request, 'account_in_use'))
+      return clearOAuthCookies(settingsRedirect(request, 'account_in_use', error.message))
     }
     console.error('OneDrive authorization callback failed:', error instanceof Error ? error.message : 'Unknown error')
-    return clearOAuthCookies(settingsRedirect(request, 'error'))
+    return clearOAuthCookies(settingsRedirect(request, 'error', safeConnectionFailureReason(error)))
   }
 }

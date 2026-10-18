@@ -29,6 +29,7 @@ export default function OneDriveExcelSettings() {
   const [status, setStatus] = useState<OneDriveStatus | null>(null)
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
+  const [connectionError, setConnectionError] = useState<string | null>(null)
 
   const loadStatus = useCallback(async () => {
     try {
@@ -88,15 +89,27 @@ export default function OneDriveExcelSettings() {
     void loadStatus()
     const url = new URL(window.location.href)
     const result = url.searchParams.get('onedrive')
+    const reason = url.searchParams.get('onedriveReason')
     const syncFromWorkbook = url.searchParams.get('excelSync') === '1'
 
     if (result) {
       if (result === 'connected') toast.success('OneDrive connected and workbook created')
       else if (result === 'sync_failed') toast.error('OneDrive connected, but the first workbook sync failed. Check the status below.')
-      else if (result === 'account_in_use') toast.error('This Microsoft account is already connected to another organization. Use a different account.')
-      else if (result === 'cancelled') toast.error('OneDrive connection was cancelled')
-      else toast.error('Could not connect OneDrive. Check the app registration settings and try again.')
+      else if (result === 'account_in_use') {
+        const message = reason || 'This Microsoft account is already connected to another organization. Use a different account.'
+        setConnectionError(message)
+        toast.error(message)
+      } else if (result === 'cancelled') {
+        const message = reason || 'OneDrive connection was cancelled.'
+        setConnectionError(message)
+        toast.error(message)
+      } else {
+        const message = reason || 'Could not connect OneDrive. Check the app registration settings and try again.'
+        setConnectionError(message)
+        toast.error(message)
+      }
       url.searchParams.delete('onedrive')
+      url.searchParams.delete('onedriveReason')
     }
 
     if (syncFromWorkbook) url.searchParams.delete('excelSync')
@@ -135,6 +148,12 @@ export default function OneDriveExcelSettings() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
+        {connectionError && (
+          <div role="alert" className="flex gap-3 rounded-lg border border-red-300 bg-red-50 p-4 text-sm text-red-900">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+            <p>{connectionError}</p>
+          </div>
+        )}
         {loading ? (
           <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /><LocalizedText>Loading connection status...</LocalizedText></div>
         ) : (
