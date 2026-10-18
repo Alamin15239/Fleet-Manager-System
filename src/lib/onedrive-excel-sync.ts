@@ -26,6 +26,22 @@ export async function ensureOrganizationWorkbookIsolated() {
 
   const hasWorkbookReference = Boolean(integration.driveItemId || integration.webUrl || integration.graphSubscriptionId)
   const needsWorkbookName = integration.driveItemName !== workbookName
+
+  // A previous isolation pass detached the workbook but kept the OAuth token
+  // and account email. Clear that stale connection after a short grace period
+  // so this organization must explicitly connect its own Microsoft account.
+  const staleDetachedConnection = !hasWorkbookReference &&
+    !needsWorkbookName &&
+    integration.lastSyncStatus === 'NEVER' &&
+    integration.lastSyncAt === null &&
+    integration.syncInProgressAt === null &&
+    integration.syncRevision > 0 &&
+    Date.now() - integration.updatedAt.getTime() > 2 * 60 * 1000
+  if (staleDetachedConnection) {
+    await db.oneDriveIntegration.delete({ where: { id: INTEGRATION_ID } })
+    return { integration: null, workbookName, detached: true }
+  }
+
   if (!hasWorkbookReference && !needsWorkbookName) return { integration, workbookName, detached: false }
   if (!hasWorkbookReference) {
     const updated = await db.oneDriveIntegration.update({
