@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import jwt from 'jsonwebtoken'
-import { claimOneDriveAccount, db, findOrganizationById, getPrimaryOrganization, OneDriveAccountAlreadyConnectedError, restoreOneDriveAccountClaim, withOrganization } from '@/lib/db'
+import { claimOneDriveAccount, db, findOrganizationById, getPrimaryOrganization, OneDriveAccountAlreadyConnectedError, OneDriveAccountRegistryCheckError, restoreOneDriveAccountClaim, withOrganization } from '@/lib/db'
 import { ensureOneDriveChangeSubscription, getOneDriveRedirectUri, saveOneDriveConnection, syncOneDriveWorkbook } from '@/lib/onedrive-excel-sync'
 
 export const runtime = 'nodejs'
@@ -19,6 +19,7 @@ function settingsRedirect(request: NextRequest, result: string, reason?: string)
 
 function safeConnectionFailureReason(error: unknown) {
   const message = error instanceof Error ? error.message : ''
+  if (error instanceof OneDriveAccountRegistryCheckError) return message
   if (message.startsWith('Microsoft authorization failed (HTTP ')) return message
   if (message === 'Microsoft did not grant the required OneDrive access. Reconnect and approve the requested access.') return message
   if (message === 'Microsoft account identity could not be verified. Reconnect OneDrive and approve profile access.') return message

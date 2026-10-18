@@ -113,6 +113,13 @@ export class OneDriveAccountAlreadyConnectedError extends Error {
   }
 }
 
+export class OneDriveAccountRegistryCheckError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'OneDriveAccountRegistryCheckError'
+  }
+}
+
 function hashOneDriveEmail(email?: string | null) {
   const normalized = email?.trim().toLowerCase()
   return normalized ? createHash('sha256').update(normalized).digest('hex') : null
@@ -147,11 +154,26 @@ export async function claimOneDriveAccount(
   // Existing connections predate the central claim registry. Check their
   // actual tenant records as well, so a legacy connection cannot be reused.
   for (const other of activeOrganizations) {
-    const tenantClient = await getOrganizationPrismaClient(other)
-    const integration = await tenantClient.oneDriveIntegration.findUnique({
-      where: { id: 'primary' },
-      select: { connectedEmail: true }
-    })
+    let integration
+    try {
+      const tenantClient = await getOrganizationPrismaClient(other)
+      integration = await tenantClient.oneDriveIntegration.findUnique({
+        where: { id: 'primary' },
+        select: { connectedEmail: true }
+      })
+    } catch (error) {
+      const message = error instanceof Error ? error.message : ''
+      const reason = message.startsWith('An organization must use a database separate from the primary organization')
+        ? 'an organization is configured to share the primary database'
+        : /P2021|P2022/i.test(message)
+          ? 'an organization database is missing the required OneDrive schema'
+          : /P1001|P1002|P2024|ECONN|timed out/i.test(message)
+            ? 'an organization database could not be reached'
+            : 'an organization database check failed'
+      throw new OneDriveAccountRegistryCheckError(
+        `OneDrive account reuse could not be checked because ${reason}. Ask the platform administrator to repair the organization database setup, then try again.`
+      )
+    }
     if (emailHash && hashOneDriveEmail(integration?.connectedEmail) === emailHash) {
       throw new OneDriveAccountAlreadyConnectedError()
     }
