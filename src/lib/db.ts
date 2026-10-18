@@ -194,14 +194,19 @@ export async function claimOneDriveAccount(
     }
   }
 
-  const lockKeys = [`microsoft-account:${accountId}`]
-  if (emailHash) lockKeys.push(`microsoft-email:${emailHash}`)
-  lockKeys.sort()
-
   return controlDb.$transaction(async (transaction) => {
-    for (const lockKey of lockKeys) {
-      await transaction.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))`
-    }
+    // Serialize account reservations by locking a stable registry row. The
+    // advisory-lock function returns PostgreSQL `void`, which Prisma cannot
+    // decode through $queryRaw; selecting the row ID keeps the lock result typed.
+    const [registryLock] = await transaction.$queryRaw<Array<{ id: string }>>`
+      SELECT "id"
+      FROM "organizations"
+      WHERE "isPrimary" = TRUE
+      ORDER BY "createdAt" ASC
+      LIMIT 1
+      FOR UPDATE
+    `
+    if (!registryLock) throw new Error('The primary organization account registry lock is unavailable.')
 
     const txOrganizationModel = (transaction as any).organization
     const organization = await txOrganizationModel.findUnique({
