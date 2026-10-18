@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Workbook } from 'exceljs'
-import { db } from '@/lib/db'
+import { db, findOrganizationById, getPrimaryOrganization, withOrganization } from '@/lib/db'
+import { requireAuth } from '@/lib/auth'
 import { getRolePermissionManager } from '@/lib/permission-middleware'
 import { logAuditEvent } from '@/lib/audit-logging'
 import { logUserActivity } from '@/lib/activity-tracking'
@@ -9,6 +10,14 @@ import { captureOneDriveWorkbookChanges } from '@/lib/onedrive-excel-import'
 import { applyWorkbookChange } from '@/lib/onedrive-excel-apply'
 
 export const runtime = 'nodejs'
+
+async function withRequestOrganization<T>(request: NextRequest, operation: () => Promise<T>) {
+  const user = await requireAuth(request)
+  const organization = user.organizationId
+    ? await findOrganizationById(user.organizationId)
+    : await getPrimaryOrganization()
+  return withOrganization(organization, operation)
+}
 
 const resourceForEntity: Record<string, string> = {
   TRUCK: 'trucks', TRAILER: 'trailers', MAINTENANCE: 'maintenance', OIL_CHANGE: 'maintenance',
@@ -134,6 +143,7 @@ async function applyPendingChange(change: WorkbookChangeRecord, context: ReviewC
 
 export async function GET(request: NextRequest) {
   try {
+    return await withRequestOrganization(request, async () => {
     const { permissionManager } = await getRolePermissionManager(request)
     if (!permissionManager.hasPermission('excel-imports', 'read')) {
       return NextResponse.json({ error: 'Your role cannot review workbook changes.' }, { status: 403 })
@@ -172,6 +182,7 @@ export async function GET(request: NextRequest) {
       }] : []
     })
     return NextResponse.json({ changes: visible, total: visible.length, watchError })
+    })
   } catch (error) {
     const message = error instanceof Error ? error.message : ''
     const status = ['No token provided', 'Invalid token'].includes(message) ? 401 : message === 'Insufficient permissions' ? 403 : 500
@@ -181,6 +192,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    return await withRequestOrganization(request, async () => {
     const { user, permissionManager } = await getRolePermissionManager(request)
     const body = await request.json() as { id?: string; ids?: string[]; action?: string }
     if (body.action === 'scan') {
@@ -254,6 +266,7 @@ export async function POST(request: NextRequest) {
 
     const sync = await syncOneDriveWorkbookAfterChange()
     return NextResponse.json({ success: true, status: 'APPLIED', workbookSync: sync.success && !sync.queued, pendingWorkbookChanges: sync.pendingWorkbookChanges || 0, workbookSyncError: sync.error || null })
+    })
   } catch (error) {
     const message = error instanceof Error ? error.message : ''
     const status = ['No token provided', 'Invalid token'].includes(message) ? 401 : message === 'Insufficient permissions' ? 403 : 500

@@ -1,14 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/auth'
-import { db } from '@/lib/db'
+import { db, findOrganizationById, getPrimaryOrganization, withOrganization } from '@/lib/db'
 import { deleteOneDriveChangeSubscription, ensureOneDriveChangeSubscription, isOneDriveConfigured, ONEDRIVE_WORKBOOK_NAME, syncOneDriveWorkbook } from '@/lib/onedrive-excel-sync'
 import { captureOneDriveWorkbookChanges } from '@/lib/onedrive-excel-import'
 
 export const runtime = 'nodejs'
 
+async function withAdminOrganization<T>(request: NextRequest, operation: (organization: Awaited<ReturnType<typeof getPrimaryOrganization>>) => Promise<T>) {
+  const user = await requireAdmin(request)
+  const organization = user.organizationId
+    ? await findOrganizationById(user.organizationId)
+    : await getPrimaryOrganization()
+  return withOrganization(organization, () => operation(organization))
+}
+
 export async function GET(request: NextRequest) {
   try {
-    await requireAdmin(request)
+    return await withAdminOrganization(request, async (organization) => {
     let importWatchError: string | null = null
     const integration = await db.oneDriveIntegration.findUnique({
       where: { id: 'primary' },
@@ -26,6 +34,7 @@ export async function GET(request: NextRequest) {
     const pendingWorkbookChanges = await db.excelWorkbookChange.count({ where: { status: { in: ['PENDING', 'CONFLICT'] } } })
     return NextResponse.json({
       configured: isOneDriveConfigured(),
+      organization: { id: organization.id, name: organization.name, slug: organization.slug },
       connected: Boolean(integration),
       connectedEmail: integration?.connectedEmail || null,
       workbookName: integration?.driveItemName || ONEDRIVE_WORKBOOK_NAME,
@@ -36,6 +45,7 @@ export async function GET(request: NextRequest) {
       syncMode: 'App-to-workbook sync plus role-checked workbook change review',
       pendingWorkbookChanges,
       importWatchError
+    }, { headers: { 'Cache-Control': 'private, no-store, max-age=0' } })
     })
   } catch (error) {
     const message = error instanceof Error ? error.message : ''
@@ -46,7 +56,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    await requireAdmin(request)
+    return await withAdminOrganization(request, async () => {
     const result = await syncOneDriveWorkbook()
     if (!result.connected) return NextResponse.json({ error: result.error || 'Connect OneDrive first' }, { status: 409 })
     if (!result.success) return NextResponse.json({ error: result.error || 'Workbook sync failed' }, { status: 502 })
@@ -60,6 +70,7 @@ export async function POST(request: NextRequest) {
       pendingWorkbookChanges: result.pendingWorkbookChanges || 0,
       recordCounts: result.recordCounts || null
     })
+    })
   } catch (error) {
     const message = error instanceof Error ? error.message : ''
     const status = ['No token provided', 'Invalid token'].includes(message) ? 401 : message === 'Insufficient permissions' ? 403 : 500
@@ -69,10 +80,11 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    await requireAdmin(request)
+    return await withAdminOrganization(request, async () => {
     await deleteOneDriveChangeSubscription()
     await db.oneDriveIntegration.deleteMany({ where: { id: 'primary' } })
     return NextResponse.json({ success: true, message: 'OneDrive disconnected. The workbook remains in OneDrive.' })
+    })
   } catch (error) {
     const message = error instanceof Error ? error.message : ''
     const status = ['No token provided', 'Invalid token'].includes(message) ? 401 : message === 'Insufficient permissions' ? 403 : 500

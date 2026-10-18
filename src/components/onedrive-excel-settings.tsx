@@ -12,6 +12,7 @@ import { toast } from '@/lib/localized-toast'
 
 interface OneDriveStatus {
   configured: boolean
+  organization?: { id: string; name: string; slug: string }
   connected: boolean
   connectedEmail: string | null
   workbookName: string
@@ -139,6 +140,7 @@ export default function OneDriveExcelSettings() {
           <>
             <div className="flex flex-col gap-3 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="space-y-1">
+                {status?.organization && <p className="text-xs text-muted-foreground"><LocalizedText>Workspace</LocalizedText>: {status.organization.name} ({status.organization.slug})</p>}
                 <div className="flex items-center gap-2 font-medium">
                   <LocalizedText>Connection</LocalizedText>
                   <Badge variant={status?.connected ? 'default' : 'secondary'}>
