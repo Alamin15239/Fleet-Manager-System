@@ -105,9 +105,16 @@ export function getOneDriveRedirectUri(origin?: string) {
 }
 
 class GraphRequestError extends Error {
-  constructor(readonly status: number) {
+  readonly retryAfterMs: number | null
+
+  constructor(readonly status: number, retryAfterHeader: string | null = null) {
     super(`OneDrive file update failed (Microsoft Graph HTTP ${status}).`)
     this.name = 'GraphRequestError'
+    const retryAfterSeconds = retryAfterHeader ? Number(retryAfterHeader) : NaN
+    const retryAfterDate = retryAfterHeader ? Date.parse(retryAfterHeader) : NaN
+    this.retryAfterMs = Number.isFinite(retryAfterSeconds)
+      ? Math.max(0, retryAfterSeconds * 1000)
+      : Number.isFinite(retryAfterDate) ? Math.max(0, retryAfterDate - Date.now()) : null
   }
 }
 
@@ -203,9 +210,26 @@ async function graphRequest(url: string, accessToken: string, init?: RequestInit
     }
   })
   if (!response.ok) {
-    throw new GraphRequestError(response.status)
+    throw new GraphRequestError(response.status, response.headers.get('retry-after'))
   }
   return response
+}
+
+async function graphRequestWithRetry(url: string, accessToken: string, init: RequestInit, retries = 2) {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await graphRequest(url, accessToken, init)
+    } catch (error) {
+      const retryable = error instanceof GraphRequestError && [408, 429, 500, 502, 503, 504].includes(error.status)
+      if (!retryable || attempt >= retries) throw error
+
+      const retryAfterMs = error.retryAfterMs
+      const delayMs = retryAfterMs === null
+        ? 750 * (2 ** attempt)
+        : Math.min(retryAfterMs, 5000)
+      await new Promise(resolve => setTimeout(resolve, delayMs))
+    }
+  }
 }
 
 export async function getOneDriveAccessToken() {
@@ -713,7 +737,7 @@ export async function syncOneDriveWorkbook(): Promise<OneDriveSyncResult> {
       }
       let upload: Response
       try {
-        upload = await graphRequest(target, tokens.access_token, uploadOptions)
+        upload = await graphRequestWithRetry(target, tokens.access_token, uploadOptions)
       } catch (error) {
         if (!(error instanceof GraphRequestError) || error.status !== 423) throw error
 
@@ -723,7 +747,7 @@ export async function syncOneDriveWorkbook(): Promise<OneDriveSyncResult> {
         const suffix = randomBytes(4).toString('hex')
         latestItemName = `Fleet Manager Live Data - ${timestamp}-${suffix}.xlsx`
         const replacementTarget = `https://graph.microsoft.com/v1.0/me/drive/root:/${encodeURIComponent(latestItemName)}:/content`
-        upload = await graphRequest(replacementTarget, tokens.access_token, uploadOptions)
+        upload = await graphRequestWithRetry(replacementTarget, tokens.access_token, uploadOptions)
         recoveredFromLock = true
       }
       const driveItem = await upload.json() as { id?: string; name?: string; webUrl?: string }
