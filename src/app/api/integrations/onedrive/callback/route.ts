@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import jwt from 'jsonwebtoken'
-import { db, findOrganizationById, getPrimaryOrganization, withOrganization } from '@/lib/db'
+import { claimOneDriveAccount, db, findOrganizationById, getPrimaryOrganization, OneDriveAccountAlreadyConnectedError, restoreOneDriveAccountClaim, withOrganization } from '@/lib/db'
 import { ensureOneDriveChangeSubscription, getOneDriveRedirectUri, saveOneDriveConnection, syncOneDriveWorkbook } from '@/lib/onedrive-excel-sync'
 
 export const runtime = 'nodejs'
@@ -57,11 +57,22 @@ export async function GET(request: NextRequest) {
     const tokens = await tokenResponse.json() as { access_token?: string; refresh_token?: string }
     if (!tokens.access_token || !tokens.refresh_token) throw new Error('Microsoft did not grant the required OneDrive access. Reconnect and approve the requested access.')
 
-    const profileResponse = await fetch('https://graph.microsoft.com/v1.0/me?$select=displayName,mail,userPrincipalName', {
+    const profileResponse = await fetch('https://graph.microsoft.com/v1.0/me?$select=id,displayName,mail,userPrincipalName', {
       headers: { Authorization: `Bearer ${tokens.access_token}` }
     })
-    const profile = profileResponse.ok ? await profileResponse.json() as { mail?: string | null; userPrincipalName?: string | null } : null
-    await saveOneDriveConnection(tokens.refresh_token, profile?.mail || profile?.userPrincipalName || null)
+    if (!profileResponse.ok) throw new Error('Microsoft account identity could not be verified. Reconnect OneDrive and approve profile access.')
+    const profile = await profileResponse.json() as { id?: string; mail?: string | null; userPrincipalName?: string | null }
+    if (!profile.id) throw new Error('Microsoft did not return a stable account ID. Reconnect OneDrive and try again.')
+    const connectedEmail = profile.mail || profile.userPrincipalName || null
+    const previousAccountClaim = await claimOneDriveAccount(organization.id, profile.id, connectedEmail)
+    try {
+      await saveOneDriveConnection(tokens.refresh_token, connectedEmail)
+    } catch (error) {
+      await restoreOneDriveAccountClaim(organization.id, previousAccountClaim).catch((restoreError) => {
+        console.error('Could not roll back the OneDrive account reservation:', restoreError instanceof Error ? restoreError.message : 'Unknown error')
+      })
+      throw error
+    }
     const sync = await syncOneDriveWorkbook()
     if (sync.success) {
       try { await ensureOneDriveChangeSubscription() }
@@ -70,6 +81,9 @@ export async function GET(request: NextRequest) {
     return clearOAuthCookies(settingsRedirect(request, sync.success ? 'connected' : 'sync_failed'))
     })
   } catch (error) {
+    if (error instanceof OneDriveAccountAlreadyConnectedError) {
+      return clearOAuthCookies(settingsRedirect(request, 'account_in_use'))
+    }
     console.error('OneDrive authorization callback failed:', error instanceof Error ? error.message : 'Unknown error')
     return clearOAuthCookies(settingsRedirect(request, 'error'))
   }

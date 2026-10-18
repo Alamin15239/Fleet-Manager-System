@@ -344,6 +344,8 @@ CREATE TABLE "organizations" (
     "neonProjectId" TEXT,
     "encryptedDatabaseUrl" TEXT,
     "failureReason" TEXT,
+    "oneDriveAccountId" TEXT,
+    "oneDriveAccountEmailHash" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -683,6 +685,12 @@ CREATE UNIQUE INDEX "organizations_slug_key" ON "organizations"("slug");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "organizations_neonProjectId_key" ON "organizations"("neonProjectId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "organizations_oneDriveAccountId_key" ON "organizations"("oneDriveAccountId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "organizations_oneDriveAccountEmailHash_key" ON "organizations"("oneDriveAccountEmailHash");
 
 -- CreateIndex
 CREATE INDEX "organizations_status_idx" ON "organizations"("status");

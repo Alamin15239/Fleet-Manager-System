@@ -93,6 +93,7 @@ export default function OneDriveExcelSettings() {
     if (result) {
       if (result === 'connected') toast.success('OneDrive connected and workbook created')
       else if (result === 'sync_failed') toast.error('OneDrive connected, but the first workbook sync failed. Check the status below.')
+      else if (result === 'account_in_use') toast.error('This Microsoft account is already connected to another organization. Use a different account.')
       else if (result === 'cancelled') toast.error('OneDrive connection was cancelled')
       else toast.error('Could not connect OneDrive. Check the app registration settings and try again.')
       url.searchParams.delete('onedrive')

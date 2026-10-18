@@ -353,6 +353,8 @@ model Organization {
   neonProjectId        String?            @unique
   encryptedDatabaseUrl String?
   failureReason        String?
+  oneDriveAccountId    String?            @unique
+  oneDriveAccountEmailHash String?         @unique
   createdAt            DateTime           @default(now())
   updatedAt            DateTime           @updatedAt
 

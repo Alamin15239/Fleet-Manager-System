@@ -2,7 +2,7 @@ import { AsyncLocalStorage } from 'node:async_hooks'
 import { PrismaClient } from '@prisma/client'
 import jwt from 'jsonwebtoken'
 import { headers } from 'next/headers'
-import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto'
+import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto'
 
 export type OrganizationRecord = {
   id: string
@@ -11,6 +11,8 @@ export type OrganizationRecord = {
   status: 'PROVISIONING' | 'ACTIVE' | 'FAILED'
   isPrimary: boolean
   encryptedDatabaseUrl: string | null
+  oneDriveAccountId: string | null
+  oneDriveAccountEmailHash: string | null
 }
 
 type DatabaseScope = { organizationId: string; client: PrismaClient }
@@ -102,6 +104,101 @@ export async function findOrganizationById(id: string): Promise<OrganizationReco
   const organization = await (controlDb as any).organization.findUnique({ where: { id } }) as OrganizationRecord | null
   if (!organization || organization.status !== 'ACTIVE') throw new Error('Organization was not found or is not ready')
   return organization
+}
+
+export class OneDriveAccountAlreadyConnectedError extends Error {
+  constructor() {
+    super('This Microsoft account is already connected to another organization.')
+    this.name = 'OneDriveAccountAlreadyConnectedError'
+  }
+}
+
+function hashOneDriveEmail(email?: string | null) {
+  const normalized = email?.trim().toLowerCase()
+  return normalized ? createHash('sha256').update(normalized).digest('hex') : null
+}
+
+type OneDriveAccountClaim = { oneDriveAccountId: string | null; oneDriveAccountEmailHash: string | null }
+
+/** Atomically reserve one Microsoft account for a single organization. */
+export async function claimOneDriveAccount(
+  organizationId: string,
+  microsoftAccountId: string,
+  connectedEmail: string | null
+): Promise<OneDriveAccountClaim> {
+  const accountId = microsoftAccountId.trim()
+  if (!accountId) throw new Error('Microsoft did not return a stable account ID.')
+  const emailHash = hashOneDriveEmail(connectedEmail)
+  const organizationModel = (controlDb as any).organization
+  const [organization, activeOrganizations] = await Promise.all([
+    organizationModel.findUnique({
+      where: { id: organizationId },
+      select: { id: true, oneDriveAccountId: true, oneDriveAccountEmailHash: true }
+    }) as Promise<(OneDriveAccountClaim & { id: string }) | null>,
+    organizationModel.findMany({
+      where: { status: 'ACTIVE', id: { not: organizationId } },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        status: true,
+        isPrimary: true,
+        encryptedDatabaseUrl: true,
+        oneDriveAccountId: true,
+        oneDriveAccountEmailHash: true
+      }
+    }) as Promise<OrganizationRecord[]>
+  ])
+  if (!organization) throw new Error('Organization was not found.')
+
+  const accountAlreadyClaimed = activeOrganizations.some((other) =>
+    other.oneDriveAccountId === accountId || Boolean(emailHash && other.oneDriveAccountEmailHash === emailHash)
+  )
+  if (accountAlreadyClaimed) throw new OneDriveAccountAlreadyConnectedError()
+
+  // Existing connections predate the central claim registry. Check their
+  // actual tenant records as well, so a legacy connection cannot be reused.
+  for (const other of activeOrganizations) {
+    const tenantClient = await getOrganizationPrismaClient(other)
+    const integration = await tenantClient.oneDriveIntegration.findUnique({
+      where: { id: 'primary' },
+      select: { connectedEmail: true }
+    })
+    if (emailHash && hashOneDriveEmail(integration?.connectedEmail) === emailHash) {
+      throw new OneDriveAccountAlreadyConnectedError()
+    }
+  }
+
+  try {
+    await organizationModel.update({
+      where: { id: organizationId },
+      data: { oneDriveAccountId: accountId, oneDriveAccountEmailHash: emailHash }
+    })
+  } catch (error) {
+    if (error && typeof error === 'object' && 'code' in error && (error as { code?: string }).code === 'P2002') {
+      throw new OneDriveAccountAlreadyConnectedError()
+    }
+    throw error
+  }
+
+  return {
+    oneDriveAccountId: organization.oneDriveAccountId,
+    oneDriveAccountEmailHash: organization.oneDriveAccountEmailHash
+  }
+}
+
+export async function restoreOneDriveAccountClaim(organizationId: string, claim: OneDriveAccountClaim) {
+  await (controlDb as any).organization.update({
+    where: { id: organizationId },
+    data: claim
+  })
+}
+
+export async function releaseOneDriveAccountClaim(organizationId: string) {
+  await (controlDb as any).organization.update({
+    where: { id: organizationId },
+    data: { oneDriveAccountId: null, oneDriveAccountEmailHash: null }
+  })
 }
 
 /** Resolve the organization selected by this authenticated request or active tenant scope. */

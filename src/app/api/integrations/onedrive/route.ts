@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/auth'
-import { db, findOrganizationById, getPrimaryOrganization, withOrganization } from '@/lib/db'
+import { db, findOrganizationById, getPrimaryOrganization, releaseOneDriveAccountClaim, withOrganization } from '@/lib/db'
 import { deleteOneDriveChangeSubscription, ensureOneDriveChangeSubscription, ensureOrganizationWorkbookIsolated, getOrganizationWorkbookName, isOneDriveConfigured, syncOneDriveWorkbook } from '@/lib/onedrive-excel-sync'
 import { captureOneDriveWorkbookChanges } from '@/lib/onedrive-excel-import'
 
@@ -81,9 +81,10 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    return await withAdminOrganization(request, async () => {
+    return await withAdminOrganization(request, async (organization) => {
     await deleteOneDriveChangeSubscription()
     await db.oneDriveIntegration.deleteMany({ where: { id: 'primary' } })
+    await releaseOneDriveAccountClaim(organization.id)
     return NextResponse.json({ success: true, message: 'OneDrive disconnected. The workbook remains in OneDrive.' })
     })
   } catch (error) {
