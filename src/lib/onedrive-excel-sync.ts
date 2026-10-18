@@ -1,10 +1,63 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'crypto'
 import { Workbook } from 'exceljs'
-import { db } from '@/lib/db'
+import { db, getRequestOrganization } from '@/lib/db'
 
 export const ONEDRIVE_WORKBOOK_NAME = 'Fleet Manager Live Data.xlsx'
 const INTEGRATION_ID = 'primary'
 const LOCK_TIMEOUT_MS = 5 * 60 * 1000
+
+export async function getOrganizationWorkbookName() {
+  const organization = await getRequestOrganization()
+  return organization.isPrimary
+    ? ONEDRIVE_WORKBOOK_NAME
+    : `Fleet Manager Live Data - ${organization.slug}.xlsx`
+}
+
+/** Detach a non-primary organization from any legacy workbook using the shared default filename. */
+export async function ensureOrganizationWorkbookIsolated() {
+  const [organization, integration] = await Promise.all([
+    getRequestOrganization(),
+    db.oneDriveIntegration.findUnique({ where: { id: INTEGRATION_ID } })
+  ])
+  const workbookName = organization.isPrimary
+    ? ONEDRIVE_WORKBOOK_NAME
+    : `Fleet Manager Live Data - ${organization.slug}.xlsx`
+  if (!integration || organization.isPrimary) return { integration, workbookName, detached: false }
+
+  const hasWorkbookReference = Boolean(integration.driveItemId || integration.webUrl || integration.graphSubscriptionId)
+  const needsWorkbookName = integration.driveItemName !== workbookName
+  if (!hasWorkbookReference && !needsWorkbookName) return { integration, workbookName, detached: false }
+  if (!hasWorkbookReference) {
+    const updated = await db.oneDriveIntegration.update({
+      where: { id: INTEGRATION_ID },
+      data: { driveItemName: workbookName }
+    })
+    return { integration: updated, workbookName, detached: false }
+  }
+
+  // Do not read, update, or delete the legacy file or its subscription: either
+  // may still belong to the primary organization. A later sync creates a new
+  // file with this organization's unique name.
+  const updated = await db.oneDriveIntegration.update({
+    where: { id: INTEGRATION_ID },
+    data: {
+      driveItemId: null,
+      driveItemName: workbookName,
+      webUrl: null,
+      lastWorkbookHash: null,
+      graphSubscriptionId: null,
+      graphSubscriptionExpiresAt: null,
+      graphSubscriptionClientState: null,
+      lastSyncAt: null,
+      lastSyncStatus: 'NEVER',
+      lastSyncError: null,
+      syncInProgressAt: null,
+      syncRevision: { increment: 1 },
+      lastSyncedRevision: 0
+    }
+  })
+  return { integration: updated, workbookName, detached: true }
+}
 
 export interface OneDriveSyncResult {
   connected: boolean
@@ -200,6 +253,7 @@ export async function getFleetRecordVersion(entityType: string, id: string, rowD
 }
 
 export async function ensureOneDriveChangeSubscription() {
+  await ensureOrganizationWorkbookIsolated()
   const integration = await db.oneDriveIntegration.findUnique({ where: { id: INTEGRATION_ID } })
   if (!integration?.driveItemId) return { enabled: false, expiresAt: null as Date | null }
   const currentExpiry = integration.graphSubscriptionExpiresAt
@@ -258,6 +312,7 @@ export async function ensureOneDriveChangeSubscription() {
 }
 
 export async function deleteOneDriveChangeSubscription() {
+  await ensureOrganizationWorkbookIsolated()
   const integration = await db.oneDriveIntegration.findUnique({ where: { id: INTEGRATION_ID } })
   if (!integration?.graphSubscriptionId) return
   try {
@@ -569,7 +624,7 @@ export async function syncOneDriveWorkbook(): Promise<OneDriveSyncResult> {
     return { connected: false, success: false, error: 'OneDrive app configuration is incomplete.' }
   }
 
-  const integration = await db.oneDriveIntegration.findUnique({ where: { id: INTEGRATION_ID } })
+  const { integration } = await ensureOrganizationWorkbookIsolated()
   if (!integration) return { connected: false, success: false, error: null }
 
   await db.oneDriveIntegration.update({
@@ -611,7 +666,7 @@ export async function syncOneDriveWorkbook(): Promise<OneDriveSyncResult> {
     }
 
     let latestItemId = integration.driveItemId
-    let latestItemName = integration.driveItemName || ONEDRIVE_WORKBOOK_NAME
+    let latestItemName = integration.driveItemName || await getOrganizationWorkbookName()
     let latestWebUrl = integration.webUrl
     let observedRevision = -1
     let latestRecordCounts: Record<string, number> | undefined
@@ -634,7 +689,7 @@ export async function syncOneDriveWorkbook(): Promise<OneDriveSyncResult> {
       latestRecordCounts = snapshot.recordCounts
       const target = latestItemId
         ? `https://graph.microsoft.com/v1.0/me/drive/items/${encodeURIComponent(latestItemId)}/content`
-        : `https://graph.microsoft.com/v1.0/me/drive/root:/${encodeURIComponent(ONEDRIVE_WORKBOOK_NAME)}:/content`
+        : `https://graph.microsoft.com/v1.0/me/drive/root:/${encodeURIComponent(latestItemName)}:/content`
       const uploadOptions: RequestInit = {
         method: 'PUT',
         headers: { 'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' },

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/auth'
 import { db, findOrganizationById, getPrimaryOrganization, withOrganization } from '@/lib/db'
-import { deleteOneDriveChangeSubscription, ensureOneDriveChangeSubscription, isOneDriveConfigured, ONEDRIVE_WORKBOOK_NAME, syncOneDriveWorkbook } from '@/lib/onedrive-excel-sync'
+import { deleteOneDriveChangeSubscription, ensureOneDriveChangeSubscription, ensureOrganizationWorkbookIsolated, getOrganizationWorkbookName, isOneDriveConfigured, syncOneDriveWorkbook } from '@/lib/onedrive-excel-sync'
 import { captureOneDriveWorkbookChanges } from '@/lib/onedrive-excel-import'
 
 export const runtime = 'nodejs'
@@ -17,6 +17,7 @@ async function withAdminOrganization<T>(request: NextRequest, operation: (organi
 export async function GET(request: NextRequest) {
   try {
     return await withAdminOrganization(request, async (organization) => {
+    await ensureOrganizationWorkbookIsolated()
     let importWatchError: string | null = null
     const integration = await db.oneDriveIntegration.findUnique({
       where: { id: 'primary' },
@@ -37,7 +38,7 @@ export async function GET(request: NextRequest) {
       organization: { id: organization.id, name: organization.name, slug: organization.slug },
       connected: Boolean(integration),
       connectedEmail: integration?.connectedEmail || null,
-      workbookName: integration?.driveItemName || ONEDRIVE_WORKBOOK_NAME,
+      workbookName: integration?.driveItemName || await getOrganizationWorkbookName(),
       webUrl: integration?.webUrl || null,
       lastSyncAt: integration?.lastSyncAt || null,
       lastSyncStatus: integration?.lastSyncStatus || 'NEVER',
@@ -65,7 +66,7 @@ export async function POST(request: NextRequest) {
       queued: Boolean(result.queued),
       lastSyncAt: result.lastSyncAt || null,
       webUrl: result.webUrl || null,
-      workbookName: result.workbookName || ONEDRIVE_WORKBOOK_NAME,
+      workbookName: result.workbookName || await getOrganizationWorkbookName(),
       recoveredFromLock: Boolean(result.recoveredFromLock),
       pendingWorkbookChanges: result.pendingWorkbookChanges || 0,
       recordCounts: result.recordCounts || null

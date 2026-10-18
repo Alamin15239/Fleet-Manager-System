@@ -1,5 +1,6 @@
 import { after, NextRequest, NextResponse } from 'next/server'
 import { db, controlDb, getPrimaryOrganization, withOrganization } from '@/lib/db'
+import { ensureOrganizationWorkbookIsolated } from '@/lib/onedrive-excel-sync'
 import { captureOneDriveWorkbookChanges } from '@/lib/onedrive-excel-import'
 
 export const runtime = 'nodejs'
@@ -30,6 +31,7 @@ export async function POST(request: NextRequest) {
       for (const organization of targets) {
         try {
           await withOrganization(organization, async () => {
+            await ensureOrganizationWorkbookIsolated()
             const integration = await db.oneDriveIntegration.findUnique({ where: { id: 'primary' } })
             const hasVerifiedNotification = notifications.some(notification =>
               notification.subscriptionId === integration?.graphSubscriptionId &&

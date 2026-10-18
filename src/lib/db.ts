@@ -104,15 +104,56 @@ export async function findOrganizationById(id: string): Promise<OrganizationReco
   return organization
 }
 
+/** Resolve the organization selected by this authenticated request or active tenant scope. */
+export async function getRequestOrganization(): Promise<OrganizationRecord> {
+  const scoped = databaseScope.getStore()
+  if (scoped) return findOrganizationById(scoped.organizationId)
+
+  let authorization: string | null = null
+  let organizationSlug: string | null = null
+  try {
+    const requestHeaders = await headers()
+    authorization = requestHeaders.get('authorization')
+    organizationSlug = requestHeaders.get('x-organization-slug')
+  } catch {
+    return getPrimaryOrganization()
+  }
+
+  const bearerToken = authorization?.startsWith('Bearer ') ? authorization.slice(7) : null
+  if (!bearerToken) {
+    if (organizationSlug) throw new Error('Organization selection requires an authenticated login flow')
+    return getPrimaryOrganization()
+  }
+
+  const secret = process.env.JWT_SECRET
+  if (!secret) throw new Error('JWT_SECRET environment variable is required')
+  const decoded = jwt.verify(bearerToken, secret) as { organizationId?: string }
+  return decoded.organizationId ? findOrganizationById(decoded.organizationId) : getPrimaryOrganization()
+}
+
 export async function getOrganizationPrismaClient(organization: OrganizationRecord): Promise<PrismaClient> {
   if (organization.status !== 'ACTIVE') throw new Error('Organization is not ready')
   if (organization.isPrimary) return controlDb
   if (!organization.encryptedDatabaseUrl) throw new Error('Organization database is not configured')
 
+  const databaseUrl = decryptOrganizationDatabaseUrl(organization.encryptedDatabaseUrl)
+  if (process.env.DATABASE_URL) {
+    try {
+      const tenantTarget = new URL(databaseUrl)
+      const primaryTarget = new URL(process.env.DATABASE_URL)
+      const tenantHost = tenantTarget.hostname.toLowerCase().replace(/-pooler(?=\.)/, '')
+      const primaryHost = primaryTarget.hostname.toLowerCase().replace(/-pooler(?=\.)/, '')
+      if (tenantHost === primaryHost && tenantTarget.pathname === primaryTarget.pathname) {
+        throw new Error('An organization must use a database separate from the primary organization.')
+      }
+    } catch (error) {
+      if (error instanceof Error && error.message.startsWith('An organization must use')) throw error
+      // Let Prisma report malformed PostgreSQL URLs through its normal connection error.
+    }
+  }
   const cached = tenantClients.get(organization.id)
   if (cached) return cached
 
-  const databaseUrl = decryptOrganizationDatabaseUrl(organization.encryptedDatabaseUrl)
   const client = new PrismaClient({
     log: process.env.NODE_ENV === 'development' ? ['error'] : ['error'],
     datasources: { db: { url: databaseUrl } },

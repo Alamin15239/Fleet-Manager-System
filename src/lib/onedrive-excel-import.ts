@@ -1,7 +1,7 @@
 import { createHash } from 'crypto'
 import { Workbook } from 'exceljs'
 import { db } from '@/lib/db'
-import { createFleetWorkbook, downloadOneDriveWorkbook, getFleetRecordVersion } from '@/lib/onedrive-excel-sync'
+import { createFleetWorkbook, downloadOneDriveWorkbook, ensureOrganizationWorkbookIsolated, getFleetRecordVersion } from '@/lib/onedrive-excel-sync'
 
 type WorkbookEntity = 'TRUCK' | 'TRAILER' | 'MAINTENANCE' | 'OIL_CHANGE' | 'TIRE' | 'JOBCARD'
 type SheetSpec = { sheet: string; entityType: WorkbookEntity; naturalKeys: string[][] }
@@ -76,6 +76,7 @@ function readBaseline(value: unknown): WorkbookRow | null {
 
 /** Compare workbook rows to their last synced snapshots and stage edits/additions. */
 export async function captureOneDriveWorkbookChanges() {
+  await ensureOrganizationWorkbookIsolated()
   const integration = await db.oneDriveIntegration.findUnique({ where: { id: 'primary' } })
   if (!integration?.driveItemId) throw new Error('Connect OneDrive and create the live workbook first.')
 
