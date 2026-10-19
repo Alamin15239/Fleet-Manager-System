@@ -44,72 +44,84 @@
 }
 
 :root {
-  --radius: 0.625rem;
-  --background: oklch(0.985 0.004 255);
+  --radius: 0.875rem;
+  --background: oklch(0.968 0.014 255);
   --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
+  --card: oklch(1 0 0 / 72%);
   --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
+  --popover: oklch(0.995 0.006 255 / 94%);
   --popover-foreground: oklch(0.145 0 0);
   --primary: oklch(0.52 0.19 255);
   --primary-foreground: oklch(0.99 0.003 255);
-  --secondary: oklch(0.97 0 0);
+  --secondary: oklch(0.94 0.018 255 / 78%);
   --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
+  --muted: oklch(0.94 0.016 255 / 68%);
   --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
+  --accent: oklch(0.92 0.026 255 / 76%);
   --accent-foreground: oklch(0.205 0 0);
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
+  --border: oklch(0.86 0.024 255 / 66%);
+  --input: oklch(0.84 0.025 255 / 72%);
   --ring: oklch(0.61 0.16 255);
   --chart-1: oklch(0.56 0.19 255);
   --chart-2: oklch(0.64 0.13 195);
   --chart-3: oklch(0.62 0.16 150);
   --chart-4: oklch(0.72 0.16 75);
   --chart-5: oklch(0.61 0.18 310);
-  --sidebar: oklch(0.985 0 0);
+  --sidebar: oklch(0.99 0.012 255 / 78%);
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-primary: oklch(0.52 0.19 255);
   --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent: oklch(0.93 0.02 255 / 72%);
   --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-border: oklch(0.84 0.025 255 / 60%);
   --sidebar-ring: oklch(0.708 0 0);
+  --glass-surface: color-mix(in oklab, white 76%, transparent);
+  --glass-surface-strong: color-mix(in oklab, white 90%, transparent);
+  --glass-sidebar: color-mix(in oklab, white 78%, transparent);
+  --glass-edge: color-mix(in oklab, white 78%, var(--border));
+  --glass-blur: blur(14px) saturate(145%);
+  --glass-shadow: 0 18px 48px -34px rgb(35 59 98 / 34%), inset 0 1px 0 rgb(255 255 255 / 78%);
 }
 
 .dark {
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
+  --card: oklch(0.23 0.03 255 / 76%);
   --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
+  --popover: oklch(0.22 0.03 255 / 95%);
   --popover-foreground: oklch(0.985 0 0);
   --primary: oklch(0.72 0.14 255);
   --primary-foreground: oklch(0.2 0.035 255);
-  --secondary: oklch(0.269 0 0);
+  --secondary: oklch(0.27 0.03 255 / 78%);
   --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
+  --muted: oklch(0.25 0.025 255 / 74%);
   --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
+  --accent: oklch(0.3 0.04 255 / 82%);
   --accent-foreground: oklch(0.985 0 0);
   --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
+  --border: oklch(0.8 0.03 255 / 16%);
+  --input: oklch(0.8 0.03 255 / 20%);
   --ring: oklch(0.67 0.12 255);
   --chart-1: oklch(0.68 0.15 255);
   --chart-2: oklch(0.72 0.12 195);
   --chart-3: oklch(0.72 0.14 150);
   --chart-4: oklch(0.8 0.14 75);
   --chart-5: oklch(0.72 0.15 310);
-  --sidebar: oklch(0.205 0 0);
+  --sidebar: oklch(0.18 0.03 255 / 84%);
   --sidebar-foreground: oklch(0.985 0 0);
   --sidebar-primary: oklch(0.62 0.17 255);
   --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent: oklch(0.28 0.035 255 / 82%);
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+  --glass-surface: color-mix(in oklab, oklch(0.22 0.035 255) 82%, transparent);
+  --glass-surface-strong: color-mix(in oklab, oklch(0.2 0.03 255) 94%, transparent);
+  --glass-sidebar: color-mix(in oklab, oklch(0.17 0.03 255) 84%, transparent);
+  --glass-edge: color-mix(in oklab, white 15%, var(--border));
+  --glass-blur: blur(14px) saturate(135%);
+  --glass-shadow: 0 20px 54px -34px rgb(0 0 0 / 60%), inset 0 1px 0 rgb(255 255 255 / 7%);
 }
 
 @layer base {
@@ -119,6 +131,93 @@
   body {
     @apply bg-background text-foreground;
     text-rendering: optimizeLegibility;
+    background-image:
+      radial-gradient(ellipse at 4% 0%, color-mix(in oklab, var(--primary) 10%, transparent), transparent 34rem),
+      radial-gradient(ellipse at 96% 14%, color-mix(in oklab, var(--chart-2) 8%, transparent), transparent 38rem);
+    background-attachment: fixed;
+  }
+}
+
+@media screen {
+  div.min-h-screen.bg-gradient-to-br,
+  div.min-h-screen.bg-gray-50 {
+    background: transparent;
+  }
+
+  :is([data-slot="card"], [class~="bg-card"]) {
+    background-color: var(--glass-surface);
+    border-color: var(--glass-edge);
+    box-shadow: var(--glass-shadow);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+  }
+
+  div[class~="bg-white"][class~="border"][class*="rounded"] {
+    background-color: var(--glass-surface-strong);
+    border-color: var(--glass-edge);
+    box-shadow: var(--glass-shadow);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+  }
+
+  :is([data-slot="dialog-content"], [data-slot="alert-dialog-content"], [data-slot="drawer-content"], [data-slot="sheet-content"], [data-slot="popover-content"], [data-slot="select-content"], [data-slot="dropdown-menu-content"], [data-slot="context-menu-content"], [data-slot="hover-card-content"], [data-slot="command"], [data-slot="menubar"], [data-slot="alert"], [data-slot="toast"]) {
+    background-color: var(--glass-surface-strong);
+    border-color: var(--glass-edge);
+    box-shadow: var(--glass-shadow);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+  }
+
+  header.sticky {
+    background-color: var(--glass-surface-strong);
+    border-color: var(--glass-edge);
+    box-shadow: 0 12px 32px -28px rgb(30 55 90 / 50%);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+  }
+
+  .glass-sidebar {
+    background-color: var(--glass-sidebar);
+    border-color: var(--glass-edge);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+  }
+
+  :is([data-slot="input"], [data-slot="select-trigger"], input:not([type="checkbox"]):not([type="radio"]), select, textarea) {
+    background-color: color-mix(in oklab, var(--glass-surface-strong) 84%, transparent);
+    border-color: var(--glass-edge);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 32%);
+  }
+
+  :is([data-slot="button"].bg-background, [data-slot="button"].bg-secondary) {
+    background-color: var(--glass-surface-strong);
+    border-color: var(--glass-edge);
+    backdrop-filter: blur(10px) saturate(140%);
+    -webkit-backdrop-filter: blur(10px) saturate(140%);
+  }
+
+  button[class~="bg-white"] {
+    background-color: var(--glass-surface-strong);
+    border-color: var(--glass-edge);
+    backdrop-filter: blur(10px) saturate(140%);
+    -webkit-backdrop-filter: blur(10px) saturate(140%);
+  }
+
+  [role="tablist"] {
+    background-color: color-mix(in oklab, var(--glass-surface) 72%, transparent);
+    border-color: var(--glass-edge);
+    backdrop-filter: blur(12px) saturate(140%);
+    -webkit-backdrop-filter: blur(12px) saturate(140%);
+  }
+
+  [data-slot="table-header"] {
+    background-color: color-mix(in oklab, var(--glass-surface-strong) 82%, transparent);
+  }
+
+  @supports not (backdrop-filter: blur(1px)) {
+    :is([data-slot="card"], [class~="bg-card"]) {
+      background-color: var(--glass-surface-strong);
+    }
   }
 }
 

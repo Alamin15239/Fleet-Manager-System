@@ -26,7 +26,7 @@ export function Layout({ children, isAuthenticated: forceAuthenticated = false }
   // Only show navigation and header if user is authenticated
   if (!effectiveIsAuthenticated) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-transparent">
         <main className="flex-1">
           {children}
         </main>
@@ -35,7 +35,7 @@ export function Layout({ children, isAuthenticated: forceAuthenticated = false }
   }
 
   return (
-    <div className="flex min-h-dvh bg-background">
+    <div className="flex min-h-dvh bg-transparent">
       <Navigation />
       {isSidebarOpen && (
         <button
@@ -47,7 +47,7 @@ export function Layout({ children, isAuthenticated: forceAuthenticated = false }
       )}
       <div className="flex min-h-dvh min-w-0 flex-1 flex-col overflow-hidden">
         <Header />
-        <main className="min-h-0 min-w-0 flex-1 overflow-auto bg-background">
+        <main className="min-h-0 min-w-0 flex-1 overflow-auto bg-transparent">
           <PageTransition>
             <RoutePermissionGuard>{children}</RoutePermissionGuard>
           </PageTransition>

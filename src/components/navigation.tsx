@@ -109,7 +109,7 @@ export function Navigation() {
     .filter((group) => group.items.length > 0)
 
   const sidebarClassName = cn(
-    'fixed inset-y-0 z-50 flex w-[min(19rem,86vw)] flex-col border-sidebar-border bg-sidebar text-sidebar-foreground shadow-2xl shadow-black/10 transition-[width,transform] duration-300 ease-out md:sticky md:inset-x-auto md:top-0 md:z-auto md:h-dvh md:w-64 md:shrink-0 md:translate-x-0 md:shadow-none',
+    'glass-sidebar fixed inset-y-0 z-50 flex w-[min(19rem,86vw)] flex-col border-sidebar-border bg-sidebar text-sidebar-foreground shadow-2xl shadow-black/10 transition-[width,transform] duration-300 ease-out md:sticky md:inset-x-auto md:top-0 md:z-auto md:h-dvh md:w-64 md:shrink-0 md:translate-x-0 md:shadow-none',
     navPosition,
     isSidebarOpen ? 'translate-x-0 md:w-64' : `${hiddenTransform} md:w-[4.5rem]`,
   )
