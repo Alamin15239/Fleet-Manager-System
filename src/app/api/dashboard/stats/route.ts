@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
       db.trailer.count({ where: { isDeleted: false, status: 'ACTIVE' } }),
       db.truck.findMany({
         where: { isDeleted: false },
-        select: { id: true, make: true, model: true, year: true, licensePlate: true, status: true, createdAt: true },
+        select: { id: true, make: true, model: true, year: true, licensePlate: true, status: true, currentMileage: true, createdAt: true },
         orderBy: { createdAt: 'desc' },
         take: 10
       }),

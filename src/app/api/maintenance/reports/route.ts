@@ -122,11 +122,25 @@ export async function GET(request: NextRequest) {
     const [truckRecords, trailerRecords, workshopJobCards] = await Promise.all([
       db.maintenanceRecord.findMany({
         where: truckWhere,
-        include: {
+        select: {
+          id: true,
+          truckId: true,
+          serviceType: true,
+          description: true,
+          datePerformed: true,
+          partsCost: true,
+          laborCost: true,
+          totalCost: true,
+          status: true,
+          currentMileage: true,
+          oilQuantityLiters: true,
+          isOilChange: true,
+          driverName: true,
+          mechanicName: true,
+          notes: true,
           truck: {
             select: {
               id: true,
-              vin: true,
               make: true,
               model: true,
               year: true,
@@ -141,38 +155,49 @@ export async function GET(request: NextRequest) {
               name: true,
               specialty: true
             }
-          },
-          maintenanceJob: {
-            select: {
-              id: true,
-              name: true,
-              category: true
-            }
-          },
-          createdBy: {
-            select: {
-              id: true,
-              name: true,
-              email: true
-            }
           }
         },
         orderBy: { datePerformed: 'desc' }
       }),
       db.trailerMaintenanceRecord.findMany({
         where: trailerWhere,
-        include: {
+        select: {
+          id: true,
+          trailerId: true,
+          serviceType: true,
+          description: true,
+          datePerformed: true,
+          partsCost: true,
+          laborCost: true,
+          totalCost: true,
+          status: true,
+          driverName: true,
+          mechanicName: true,
+          notes: true,
           trailer: { select: { id: true, number: true, driverName: true } },
-          mechanic: { select: { id: true, name: true, specialty: true } },
-          maintenanceJob: { select: { id: true, name: true, category: true } },
-          createdBy: { select: { id: true, name: true, email: true } }
+          mechanic: { select: { id: true, name: true, specialty: true } }
         },
         orderBy: { datePerformed: 'desc' }
       }),
       db.workshopJobCard.findMany({
         where: jobCardWhere,
-        include: {
-          truck: { select: { id: true, vin: true, make: true, model: true, year: true, licensePlate: true, currentMileage: true, driverName: true } },
+        select: {
+          id: true,
+          jobNumber: true,
+          truckId: true,
+          trailerId: true,
+          serviceDate: true,
+          odometerKm: true,
+          serviceType: true,
+          reportedIssue: true,
+          status: true,
+          partsCost: true,
+          laborCost: true,
+          totalCost: true,
+          notes: true,
+          driverName: true,
+          technicianName: true,
+          truck: { select: { id: true, make: true, model: true, year: true, licensePlate: true, currentMileage: true, driverName: true } },
           trailer: { select: { id: true, number: true, driverName: true } }
         },
         orderBy: [{ serviceDate: 'desc' }, { createdAt: 'desc' }]
@@ -200,7 +225,6 @@ export async function GET(request: NextRequest) {
         mechanic: undefined,
         mechanicId: null,
         jobNumber: card.jobNumber,
-        workshopItems: card.items,
         truck: card.truck ?? undefined,
         trailer: card.trailer ?? undefined,
         vehicleType: card.trailerId ? 'trailer' as const : 'truck' as const

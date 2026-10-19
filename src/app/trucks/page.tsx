@@ -386,7 +386,7 @@ export default function TrucksPage() {
 
   const handleExport = () => {
     const csvContent = [
-      ['VIN', 'Make', 'Model', 'Year', 'License Plate', 'Driver', 'Mileage', 'Status'],
+      ['VIN', 'Make', 'Model', 'Year', 'License Plate', 'Driver', 'Mileage (km)', 'Status'],
       ...filteredTrucks.map(truck => [
         truck.vin,
         truck.make,
@@ -800,7 +800,7 @@ export default function TrucksPage() {
                 </div>
                 <div>
                   <Label className="text-sm font-medium text-gray-500">{t('trucks.currentMileage')}</Label>
-                  <p className="text-lg font-semibold">{(selectedTruck.currentMileage || 0).toLocaleString()} {t('trucks.miles')}</p>
+                  <p className="text-lg font-semibold">{(selectedTruck.currentMileage || 0).toLocaleString()} {t('trucks.mileageUnit')}</p>
                 </div>
               </div>
               
@@ -943,7 +943,7 @@ export default function TrucksPage() {
                       </TableCell>
                       <TableCell>{truck.licensePlate}</TableCell>
                       <TableCell>{truck.driverName || 'No driver'}</TableCell>
-                      <TableCell>{(truck.currentMileage || 0).toLocaleString()} {t('trucks.miles')}</TableCell>
+                      <TableCell>{(truck.currentMileage || 0).toLocaleString()} {t('trucks.mileageUnit')}</TableCell>
                       <TableCell>
                         <Badge className={getStatusColor(truck.status)}>
                           {truck.status}

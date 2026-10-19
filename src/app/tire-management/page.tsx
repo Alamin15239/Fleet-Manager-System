@@ -4,11 +4,11 @@ import { LocalizedText } from '@/components/localized-text'
 import { useEffect, useState } from 'react'
 import dynamic from 'next/dynamic'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { BarChart3, FileText, List, Plus, Settings } from 'lucide-react'
+import { BarChart3, FileText, List, Loader2, Plus, Settings } from 'lucide-react'
 import { useLanguage } from '@/contexts/language-context'
 import { usePermissions } from '@/contexts/permissions-context'
 
-const TabContentLoading = () => <div aria-hidden="true" className="h-48 animate-pulse rounded-2xl border bg-muted/30" />
+const TabContentLoading = () => <div role="status" className="flex min-h-48 items-center justify-center gap-2 rounded-2xl border bg-muted/30 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /><LocalizedText>Loading...</LocalizedText></div>
 const TireManagementForm = dynamic(() => import('@/components/tire-management-form'), { loading: TabContentLoading })
 const TireInventoryGrouped = dynamic(() => import('@/components/tire-inventory-grouped'), { loading: TabContentLoading })
 const TireReports = dynamic(() => import('@/components/tire-reports'), { loading: TabContentLoading })

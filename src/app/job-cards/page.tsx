@@ -1,9 +1,9 @@
 import { LocalizedText } from '@/components/localized-text'
 import dynamic from 'next/dynamic'
-import { FileText } from 'lucide-react'
+import { FileText, Loader2 } from 'lucide-react'
 
 const WorkshopJobCards = dynamic(() => import('@/components/workshop-job-cards'), {
-  loading: () => <div aria-hidden="true" className="min-h-[50vh] animate-pulse rounded-2xl border bg-muted/30" />,
+  loading: () => <div role="status" className="flex min-h-[50vh] items-center justify-center gap-2 rounded-2xl border bg-muted/30 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /><LocalizedText>Loading...</LocalizedText></div>,
 })
 
 export default function JobCardsPage() {

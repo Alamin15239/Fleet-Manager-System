@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Truck, Wrench, AlertTriangle, TrendingUp, Plus, Activity, DollarSign, Database } from 'lucide-react'
+import { Truck, Wrench, AlertTriangle, Plus, Activity, DollarSign } from 'lucide-react'
 import { apiGet } from '@/lib/api'
 import { useAuth } from '@/contexts/auth-context'
 import { usePermissions } from '@/contexts/permissions-context'
@@ -53,7 +53,7 @@ interface MaintenanceRecord {
 export default function Dashboard() {
   const router = useRouter()
   const { isAuthenticated, isLoading, user } = useAuth()
-  const { canAccess, loading: permissionsLoading } = usePermissions()
+  const { canAccess, canCreate, loading: permissionsLoading } = usePermissions()
   const canViewDashboard = canAccess('dashboard')
   const { t } = useLanguage()
   const [stats, setStats] = useState<DashboardStats>({
@@ -89,7 +89,10 @@ export default function Dashboard() {
         const data = await response.json()
         
         // Only set stats if there's actual user data
-        const hasRealData = data.totalTrucks > 0 || data.totalMaintenanceCost > 0
+        const hasRealData = data.totalTrucks > 0
+          || data.totalMaintenanceCost > 0
+          || (Array.isArray(data.recentMaintenance) && data.recentMaintenance.length > 0)
+          || (Array.isArray(data.monthlyTrends) && data.monthlyTrends.length > 0)
         
         setStats({
           totalTrucks: hasRealData ? data.totalTrucks : 0,
@@ -101,18 +104,19 @@ export default function Dashboard() {
           recentMaintenance: hasRealData ? data.recentMaintenance : []
         })
         
-        // Only generate chart data if there are real maintenance records
-        if (hasRealData && data.monthlyMaintenanceData && Array.isArray(data.monthlyMaintenanceData) && data.monthlyMaintenanceData.length > 0) {
-          const monthlyData = generateMonthlyCostData(data.monthlyMaintenanceData)
-          setMonthlyCostData(monthlyData)
-          
-          const typeData = generateMaintenanceTypeData(data.monthlyMaintenanceData)
-          setMaintenanceTypeData(typeData)
-        } else {
-          // Clear chart data if no real data exists
-          setMonthlyCostData([])
-          setMaintenanceTypeData([])
-        }
+        const monthlyTrends = Array.isArray(data.monthlyTrends) ? data.monthlyTrends : []
+        setMonthlyCostData(monthlyTrends.map((point: { month: string; cost: number }) => ({
+          month: point.month,
+          cost: Number(point.cost) || 0,
+        })))
+
+        const maintenanceByType = data.maintenanceByType && typeof data.maintenanceByType === 'object'
+          ? data.maintenanceByType as Record<string, number>
+          : {}
+        setMaintenanceTypeData(Object.entries(maintenanceByType).map(([type, count]) => ({
+          type,
+          count: Number(count) || 0,
+        })))
       } else {
         console.error('Failed to fetch dashboard data')
         // Set empty state on error
@@ -145,57 +149,6 @@ export default function Dashboard() {
     } finally {
       setLoading(false)
     }
-  }
-
-  const generateMonthlyCostData = (maintenanceRecords: any[]) => {
-    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun']
-    const monthlyTotals = new Array(6).fill(0).map((_, index) => ({
-      month: monthNames[index],
-      cost: 0
-    }))
-
-    // Only process records that have actual costs and valid dates
-    const validRecords = maintenanceRecords.filter(record => 
-      record && 
-      record.datePerformed && 
-      record.totalCost > 0 &&
-      !isNaN(new Date(record.datePerformed).getTime())
-    )
-
-    validRecords.forEach(record => {
-      try {
-        const recordDate = new Date(record.datePerformed)
-        const monthIndex = recordDate.getMonth()
-        if (monthIndex >= 0 && monthIndex < 6) {
-          monthlyTotals[monthIndex].cost += record.totalCost || 0
-        }
-      } catch (error) {
-        console.warn('Invalid date in maintenance record:', record)
-      }
-    })
-
-    return monthlyTotals
-  }
-
-  const generateMaintenanceTypeData = (maintenanceRecords: any[]) => {
-    const typeCounts: Record<string, number> = {}
-    
-    // Only process valid records with service types
-    const validRecords = maintenanceRecords.filter(record => 
-      record && 
-      record.serviceType &&
-      record.serviceType.trim() !== ''
-    )
-    
-    validRecords.forEach(record => {
-      const type = record.serviceType || 'Other'
-      typeCounts[type] = (typeCounts[type] || 0) + 1
-    })
-
-    return Object.entries(typeCounts).map(([type, count]) => ({
-      type,
-      count
-    }))
   }
 
   const getStatusColor = (status: string) => {
@@ -335,13 +288,14 @@ export default function Dashboard() {
             <Truck className="h-12 w-12 text-muted-foreground mb-4" />
             <h3 className="text-lg font-semibold mb-2">{t('dashboard.noDataAvailable')}</h3>
             <p className="text-muted-foreground text-center max-w-md">
-              <LocalizedText>Add trucks and maintenance records to see analytics and charts here.
-              Start by adding your first truck to begin tracking your fleet maintenance.</LocalizedText>
+              {t('dashboard.noChartDataDescription')}
             </p>
-            <Button className="mt-4" onClick={() => router.push('/trucks')}>
-              <Plus className="h-4 w-4 mr-2" />
-              {t('dashboard.addFirstTruck')}
-            </Button>
+            {stats.totalTrucks === 0 && canAccess('trucks') && canCreate('trucks') && (
+              <Button className="mt-4" onClick={() => router.push('/trucks')}>
+                <Plus className="h-4 w-4 mr-2" />
+                {t('dashboard.addFirstTruck')}
+              </Button>
+            )}
           </CardContent>
         </Card>
       )}
