@@ -132,8 +132,8 @@ export default function OneDriveExcelSettings() {
       if (
         !initialSyncStarted.current &&
         currentStatus?.connected &&
-        currentStatus.lastSyncStatus === 'NEVER' &&
-        !currentStatus.lastSyncAt
+        !currentStatus.lastSyncAt &&
+        ['NEVER', 'ERROR'].includes(currentStatus.lastSyncStatus)
       ) {
         initialSyncStarted.current = true
         void syncNow()
