@@ -50,16 +50,9 @@ export async function apiFetch(url: string, options: RequestInit = {}) {
     const response = await fetch(fullUrl, config)
     console.log('API Fetch - Response status:', response.status)
     
-    if (!response.ok) {
-      // If authentication error, try to redirect to login
-      if (response.status === 401) {
-        console.log('API Fetch - Authentication error, redirecting to login')
-        if (typeof window !== 'undefined') {
-          window.location.href = '/login'
-        }
-      }
-    }
-    
+    // Return authorization errors to the calling page. A global hard redirect
+    // can discard in-progress work when an individual API request is missing a
+    // token; the caller can show the error and let the user choose what to do.
     return response
   } catch (error) {
     console.error('API request failed:', error)

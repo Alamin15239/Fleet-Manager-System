@@ -72,11 +72,6 @@ export default function TireExcelIntegration() {
         const data = await response.json()
         toast.success(data.message)
         setSuccess(data.message)
-        
-        // Refresh the page to show new data
-        setTimeout(() => {
-          window.location.reload()
-        }, 1500)
       } else {
         const errorData = await response.json()
         throw new Error(errorData.error || 'Failed to import')

@@ -262,10 +262,6 @@ export default function TireManagementForm() {
         fetchVehicles()
         fetchRecentTires()
         
-        // Redirect to list page after 1.5 seconds
-        setTimeout(() => {
-          window.location.href = '/tire-management?tab=inventory'
-        }, 1500)
       } else {
         const errorData = await response.json()
         const errorMessage = errorData.details ? 
@@ -275,10 +271,6 @@ export default function TireManagementForm() {
         setError(errorMessage)
         toast.error(errorMessage)
         
-        // If authentication error, redirect to login
-        if (response.status === 401) {
-          window.location.href = '/login'
-        }
       }
     } catch (error) {
       const errorMessage = 'Network error: Failed to create tires'
