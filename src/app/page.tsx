@@ -231,29 +231,32 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex justify-between items-center">
+    <div className="container mx-auto space-y-6 px-4 py-5 sm:px-6 lg:px-8">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">{t('dashboard.title')}</h1>
-          <p className="text-muted-foreground">{t('dashboard.subtitle')}</p>
+          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{t('dashboard.title')}</h1>
+          <p className="mt-1 text-sm text-muted-foreground sm:text-base">{t('dashboard.subtitle')}</p>
         </div>
-        <div className="flex gap-2">
-          {/* Button removed - Simple Tire Management deleted */}
-        </div>
+        {canAccess('trucks') && (
+          <Button variant="outline" className="w-full rounded-xl sm:w-auto" onClick={() => router.push('/trucks')}>
+            <Truck className="me-2 h-4 w-4 text-blue-600 dark:text-blue-400" />
+            {t('dashboard.viewFleet')}
+          </Button>
+        )}
       </div>
 
       {/* Database Storage Monitor */}
       <DatabaseStorageMonitor />
       
       {/* KPI Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-5">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">{t('dashboard.totalTrucks')}</CardTitle>
-            <Truck className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="min-w-0 text-xs font-medium leading-snug sm:text-sm">{t('dashboard.totalTrucks')}</CardTitle>
+            <Truck className="h-9 w-9 shrink-0 rounded-xl bg-blue-500/10 p-2 text-blue-600 dark:text-blue-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.totalTrucks}</div>
+            <div className="text-xl font-semibold tracking-tight tabular-nums sm:text-2xl">{stats.totalTrucks}</div>
             <p className="text-xs text-muted-foreground">
               {stats.activeTrucks} {t('dashboard.activeTrucks')}
             </p>
@@ -262,11 +265,11 @@ export default function Dashboard() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">{t('dashboard.upcomingMaintenance')}</CardTitle>
-            <Wrench className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="min-w-0 text-xs font-medium leading-snug sm:text-sm">{t('dashboard.upcomingMaintenance')}</CardTitle>
+            <Wrench className="h-9 w-9 shrink-0 rounded-xl bg-amber-500/10 p-2 text-amber-600 dark:text-amber-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.upcomingMaintenance}</div>
+            <div className="text-xl font-semibold tracking-tight tabular-nums sm:text-2xl">{stats.upcomingMaintenance}</div>
             <p className="text-xs text-muted-foreground">
               {t('dashboard.dueWithin30Days')}
             </p>
@@ -275,11 +278,11 @@ export default function Dashboard() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">{t('dashboard.overdueRepairs')}</CardTitle>
-            <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="min-w-0 text-xs font-medium leading-snug sm:text-sm">{t('dashboard.overdueRepairs')}</CardTitle>
+            <AlertTriangle className="h-9 w-9 shrink-0 rounded-xl bg-rose-500/10 p-2 text-rose-600 dark:text-rose-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-destructive">{stats.overdueRepairs}</div>
+            <div className="text-xl font-semibold tracking-tight tabular-nums text-destructive sm:text-2xl">{stats.overdueRepairs}</div>
             <p className="text-xs text-muted-foreground">
               {t('dashboard.requireAttention')}
             </p>
@@ -288,11 +291,11 @@ export default function Dashboard() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">{t('dashboard.monthlyMaintenanceCost')}</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="min-w-0 text-xs font-medium leading-snug sm:text-sm">{t('dashboard.monthlyMaintenanceCost')}</CardTitle>
+            <DollarSign className="h-9 w-9 shrink-0 rounded-xl bg-emerald-500/10 p-2 text-emerald-600 dark:text-emerald-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">﷼{((stats.totalMaintenanceCost || 0) / 6).toLocaleString()}</div>
+            <div className="text-lg font-semibold tracking-tight tabular-nums sm:text-2xl">﷼{((stats.totalMaintenanceCost || 0) / 6).toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">
               {t('dashboard.averageMonthlyCost')}
             </p>
@@ -301,11 +304,11 @@ export default function Dashboard() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">{t('dashboard.totalCost6mo')}</CardTitle>
-            <Activity className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="min-w-0 text-xs font-medium leading-snug sm:text-sm">{t('dashboard.totalCost6mo')}</CardTitle>
+            <Activity className="h-9 w-9 shrink-0 rounded-xl bg-violet-500/10 p-2 text-violet-600 dark:text-violet-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">﷼{(stats.totalMaintenanceCost || 0).toLocaleString()}</div>
+            <div className="text-lg font-semibold tracking-tight tabular-nums sm:text-2xl">﷼{(stats.totalMaintenanceCost || 0).toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">
               {t('dashboard.last6Months')}
             </p>
@@ -315,14 +318,14 @@ export default function Dashboard() {
 
       {/* Charts and Recent Activity */}
       {monthlyCostData.length > 0 && maintenanceTypeData.length > 0 && stats.totalTrucks > 0 ? (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-          <Card className="col-span-4">
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-7">
+          <Card className="min-w-0 xl:col-span-4">
             <CardHeader>
               <CardTitle>{t('dashboard.monthlyMaintenanceCosts')}</CardTitle>
               <CardDescription>{t('dashboard.costTrends')}</CardDescription>
             </CardHeader>
             <CardContent className="pl-2">
-              <ChartContainer config={{}} className="h-[300px]">
+              <ChartContainer config={{}} className="h-[260px] sm:h-[300px]">
                 <LineChart data={monthlyCostData}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="month" />
@@ -334,13 +337,13 @@ export default function Dashboard() {
             </CardContent>
           </Card>
 
-          <Card className="col-span-3">
+          <Card className="min-w-0 xl:col-span-3">
             <CardHeader>
               <CardTitle>{t('dashboard.maintenanceTypes')}</CardTitle>
               <CardDescription>{t('dashboard.serviceDistribution')}</CardDescription>
             </CardHeader>
             <CardContent className="pl-2">
-              <ChartContainer config={{}} className="h-[300px]">
+              <ChartContainer config={{}} className="h-[260px] sm:h-[300px]">
                 <BarChart data={maintenanceTypeData}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="type" />
@@ -391,13 +394,13 @@ export default function Dashboard() {
                     </div>
                   ) : (
                     stats.recentTrucks.map((truck: Truck) => (
-                      <div key={truck.id} className="flex items-center justify-between p-4 border rounded-lg">
-                        <div className="flex items-center space-x-4">
-                          <Truck className="h-8 w-8 text-muted-foreground" />
-                          <div>
+                      <div key={truck.id} className="flex min-w-0 items-center justify-between gap-3 rounded-xl border bg-muted/20 p-3 sm:p-4">
+                        <div className="flex min-w-0 items-center gap-3 sm:gap-4">
+                          <Truck className="h-9 w-9 shrink-0 rounded-xl bg-blue-500/10 p-2 text-blue-600 dark:text-blue-400" />
+                          <div className="min-w-0">
                             <h3 className="font-semibold">{truck.year} {truck.make} {truck.model}</h3>
                             <p className="text-sm text-muted-foreground">
-                              {truck.licensePlate} • {(truck.currentMileage || 0).toLocaleString()} miles
+                              {truck.licensePlate} • {(truck.currentMileage || 0).toLocaleString()} km
                             </p>
                           </div>
                         </div>
@@ -426,10 +429,10 @@ export default function Dashboard() {
                     </div>
                   ) : (
                     stats.recentMaintenance.map((record: MaintenanceRecord) => (
-                      <div key={record.id} className="flex items-center justify-between p-4 border rounded-lg">
-                        <div className="flex items-center space-x-4">
-                          <Wrench className="h-8 w-8 text-muted-foreground" />
-                          <div>
+                      <div key={record.id} className="flex min-w-0 items-center justify-between gap-3 rounded-xl border bg-muted/20 p-3 sm:p-4">
+                        <div className="flex min-w-0 items-center gap-3 sm:gap-4">
+                          <Wrench className="h-9 w-9 shrink-0 rounded-xl bg-emerald-500/10 p-2 text-emerald-600 dark:text-emerald-400" />
+                          <div className="min-w-0">
                             <h3 className="font-semibold">{record.serviceType}</h3>
                             <p className="text-sm text-muted-foreground">
                               {record.vehicleName || 'Unknown vehicle'}

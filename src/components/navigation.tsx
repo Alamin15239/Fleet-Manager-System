@@ -57,7 +57,7 @@ const getNavigationGroups = (t: (key: string) => string) => [
     items: [
       { name: t('nav.trucks'), href: '/trucks', icon: Truck, iconColor: 'text-blue-600 dark:text-blue-400', iconBackground: 'bg-blue-500/10', resource: 'trucks', action: 'read' },
       { name: t('nav.trailers'), href: '/trailers', icon: Caravan, iconColor: 'text-orange-600 dark:text-orange-400', iconBackground: 'bg-orange-500/10', resource: 'trailers', action: 'read' },
-      { name: t('nav.tires'), href: '/tire-management', icon: CircleDot, iconColor: 'text-amber-600 dark:text-amber-400', iconBackground: 'bg-amber-500/10', resource: 'tire-management', action: 'read' },
+      { name: t('nav.tireManagement'), href: '/tire-management', icon: CircleDot, iconColor: 'text-amber-600 dark:text-amber-400', iconBackground: 'bg-amber-500/10', resource: 'tire-management', action: 'read' },
     ],
   },
   {
@@ -84,7 +84,7 @@ const getNavigationGroups = (t: (key: string) => string) => [
       { name: t('nav.profile'), href: '/profile', icon: User, iconColor: 'text-sky-600 dark:text-sky-400', iconBackground: 'bg-sky-500/10', resource: 'profile', action: 'read' },
       { name: t('nav.settings'), href: '/settings', icon: Settings, iconColor: 'text-slate-600 dark:text-slate-300', iconBackground: 'bg-slate-500/10', resource: 'settings', action: 'read' },
       { name: t('nav.admin'), href: '/admin', icon: Shield, iconColor: 'text-red-600 dark:text-red-400', iconBackground: 'bg-red-500/10', resource: 'admin', action: 'read' },
-      { name: t('Organizations'), href: '/organizations', icon: Building2, iconColor: 'text-indigo-600 dark:text-indigo-400', iconBackground: 'bg-indigo-500/10', resource: 'admin', action: 'read' },
+      { name: t('nav.organizations'), href: '/organizations', icon: Building2, iconColor: 'text-indigo-600 dark:text-indigo-400', iconBackground: 'bg-indigo-500/10', resource: 'admin', action: 'read' },
     ],
   },
 ]

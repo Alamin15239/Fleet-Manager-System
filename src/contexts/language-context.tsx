@@ -13,12 +13,19 @@ interface LanguageContextType {
 const translations = {
   en: {
     // Navigation
+    'nav.quickSearch': 'Find a page',
+    'nav.quickNavigation': 'Quick navigation',
+    'nav.searchPages': 'Search pages and tools...',
+    'nav.noMatchingPages': 'No matching pages found.',
+    'nav.keyboardHint': 'Use the arrow keys to move and Enter to open',
+    'nav.organizations': 'Organizations',
     'nav.tireManagement': 'Tire Management',
     'nav.editor': 'Document Editor',
     
     // Dashboard
     'dashboard.title': 'Fleet Maintenance Dashboard',
     'dashboard.subtitle': 'Monitor and manage your truck fleet maintenance',
+    'dashboard.viewFleet': 'View fleet',
     
     // Common
     'common.loading': 'Loading...',
@@ -451,6 +458,7 @@ const translations = {
     // Dashboard
     'dashboard.title': 'لوحة تحكم صيانة الأسطول',
     'dashboard.subtitle': 'راقب وأدر صيانة أسطول الشاحنات الخاص بك',
+    'dashboard.viewFleet': 'عرض الأسطول',
     
     // Common
     'common.loading': 'جاري التحميل...',
@@ -858,6 +866,12 @@ const translations = {
     'admin.nextBackup': 'النسخة الاحتياطية التالية',
     
     // Navigation
+    'nav.quickSearch': 'بحث عن صفحة',
+    'nav.quickNavigation': 'تنقل سريع',
+    'nav.searchPages': 'ابحث عن الصفحات والأدوات...',
+    'nav.noMatchingPages': 'لم يتم العثور على صفحات مطابقة.',
+    'nav.keyboardHint': 'استخدم الأسهم للتنقل واضغط Enter للفتح',
+    'nav.organizations': 'المنظمات',
     'nav.dashboard': 'لوحة التحكم',
     'nav.trucks': 'الشاحنات',
     'nav.maintenance': 'الصيانة',
