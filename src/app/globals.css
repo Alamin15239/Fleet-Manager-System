@@ -250,10 +250,24 @@
 
   main {
     width: 100%;
+    min-width: 0;
   }
 
   table {
-    min-width: 40rem;
+    width: 100%;
+    min-width: 0;
+  }
+
+  [data-slot="table-head"],
+  [data-slot="table-cell"] {
+    padding-inline: 0.5rem;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  [data-slot="table-container"] {
+    max-width: 100%;
+    overscroll-behavior-x: contain;
   }
 }
 
