@@ -6,6 +6,10 @@ export const ONEDRIVE_WORKBOOK_NAME = 'Fleet Manager Live Data.xlsx'
 const INTEGRATION_ID = 'primary'
 const LOCK_TIMEOUT_MS = 5 * 60 * 1000
 
+export function isOneDriveSyncLockStale(syncInProgressAt: Date | null | undefined) {
+  return Boolean(syncInProgressAt && Date.now() - syncInProgressAt.getTime() > LOCK_TIMEOUT_MS)
+}
+
 export async function getOrganizationWorkbookName() {
   const organization = await getRequestOrganization()
   return organization.isPrimary

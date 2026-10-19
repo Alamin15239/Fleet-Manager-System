@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/auth'
 import { db, findOrganizationById, getPrimaryOrganization, releaseOneDriveAccountClaim, withOrganization } from '@/lib/db'
-import { deleteOneDriveChangeSubscription, ensureOneDriveChangeSubscription, ensureOrganizationWorkbookIsolated, getOrganizationWorkbookName, isOneDriveConfigured, syncOneDriveWorkbook } from '@/lib/onedrive-excel-sync'
+import { deleteOneDriveChangeSubscription, ensureOneDriveChangeSubscription, ensureOrganizationWorkbookIsolated, getOrganizationWorkbookName, isOneDriveConfigured, isOneDriveSyncLockStale, syncOneDriveWorkbook } from '@/lib/onedrive-excel-sync'
 import { captureOneDriveWorkbookChanges } from '@/lib/onedrive-excel-import'
 
 export const runtime = 'nodejs'
@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
     let importWatchError: string | null = null
     const integration = await db.oneDriveIntegration.findUnique({
       where: { id: 'primary' },
-      select: { connectedEmail: true, driveItemName: true, webUrl: true, lastSyncAt: true, lastSyncStatus: true, lastSyncError: true, driveItemId: true }
+      select: { connectedEmail: true, driveItemName: true, webUrl: true, lastSyncAt: true, lastSyncStatus: true, lastSyncError: true, driveItemId: true, syncInProgressAt: true }
     })
     if (integration?.driveItemId) {
       try {
@@ -43,6 +43,7 @@ export async function GET(request: NextRequest) {
       lastSyncAt: integration?.lastSyncAt || null,
       lastSyncStatus: integration?.lastSyncStatus || 'NEVER',
       lastSyncError: integration?.lastSyncError || null,
+      syncNeedsRecovery: isOneDriveSyncLockStale(integration?.syncInProgressAt),
       syncMode: 'App-to-workbook sync plus role-checked workbook change review',
       pendingWorkbookChanges,
       importWatchError

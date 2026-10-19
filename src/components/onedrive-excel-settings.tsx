@@ -20,6 +20,7 @@ interface OneDriveStatus {
   lastSyncAt: string | null
   lastSyncStatus: string
   lastSyncError: string | null
+  syncNeedsRecovery?: boolean
   syncMode: string
   pendingWorkbookChanges: number
   importWatchError: string | null
@@ -132,8 +133,10 @@ export default function OneDriveExcelSettings() {
       if (
         !initialSyncStarted.current &&
         currentStatus?.connected &&
-        !currentStatus.lastSyncAt &&
-        ['NEVER', 'ERROR'].includes(currentStatus.lastSyncStatus)
+        (
+          (!currentStatus.lastSyncAt && ['NEVER', 'ERROR'].includes(currentStatus.lastSyncStatus)) ||
+          currentStatus.syncNeedsRecovery
+        )
       ) {
         initialSyncStarted.current = true
         void syncNow()
@@ -158,6 +161,8 @@ export default function OneDriveExcelSettings() {
 
   const lastSync = status?.lastSyncAt
     ? new Date(status.lastSyncAt).toLocaleString()
+    : status?.syncNeedsRecovery
+      ? 'Previous sync stalled; retrying...'
     : status?.lastSyncStatus === 'SYNCING'
       ? 'Sync in progress...'
       : status?.lastSyncStatus === 'PENDING'
