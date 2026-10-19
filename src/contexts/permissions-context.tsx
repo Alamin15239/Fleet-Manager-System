@@ -105,10 +105,10 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
       return
     }
 
-    fetchPermissions()
-    const refreshOnFocus = () => { void fetchPermissions() }
-    window.addEventListener('focus', refreshOnFocus)
-    return () => window.removeEventListener('focus', refreshOnFocus)
+    // Load permissions when the account changes. Refetching on every window
+    // focus made the route guard replace the page with a loader whenever users
+    // returned from another tab or app.
+    void fetchPermissions()
   }, [user])
 
   const hasPermission = (resource: string, action: string): boolean => {

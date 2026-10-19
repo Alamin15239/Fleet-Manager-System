@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { AlertCircle, CheckCircle2, Cloud, ExternalLink, Loader2, RefreshCw, Unplug } from 'lucide-react'
 import { LocalizedText } from '@/components/localized-text'
@@ -30,14 +30,18 @@ export default function OneDriveExcelSettings() {
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [connectionError, setConnectionError] = useState<string | null>(null)
+  const initialSyncStarted = useRef(false)
 
   const loadStatus = useCallback(async () => {
     try {
       const response = await apiGet('/api/integrations/onedrive')
       if (!response.ok) throw new Error('Could not load OneDrive status')
-      setStatus(await response.json())
+      const nextStatus = await response.json() as OneDriveStatus
+      setStatus(nextStatus)
+      return nextStatus
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Could not load OneDrive status')
+      return null
     } finally {
       setLoading(false)
     }
@@ -86,7 +90,6 @@ export default function OneDriveExcelSettings() {
   }, [loadStatus])
 
   useEffect(() => {
-    void loadStatus()
     const url = new URL(window.location.href)
     const result = url.searchParams.get('onedrive')
     const reason = url.searchParams.get('onedriveReason')
@@ -116,7 +119,26 @@ export default function OneDriveExcelSettings() {
     if (result || syncFromWorkbook) {
       window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`)
     }
-    if (syncFromWorkbook) void syncNow()
+    if (syncFromWorkbook) {
+      initialSyncStarted.current = true
+      void syncNow()
+      return
+    }
+
+    void loadStatus().then((currentStatus) => {
+      // A fresh organization has a connected account but no workbook upload
+      // yet. Start that first sync when the settings panel is opened so it
+      // cannot remain indefinitely at "Not synced yet" after OAuth setup.
+      if (
+        !initialSyncStarted.current &&
+        currentStatus?.connected &&
+        currentStatus.lastSyncStatus === 'NEVER' &&
+        !currentStatus.lastSyncAt
+      ) {
+        initialSyncStarted.current = true
+        void syncNow()
+      }
+    })
   }, [loadStatus, syncNow])
 
   const disconnect = async () => {
@@ -134,7 +156,13 @@ export default function OneDriveExcelSettings() {
     }
   }
 
-  const lastSync = status?.lastSyncAt ? new Date(status.lastSyncAt).toLocaleString() : 'Not synced yet'
+  const lastSync = status?.lastSyncAt
+    ? new Date(status.lastSyncAt).toLocaleString()
+    : status?.lastSyncStatus === 'SYNCING'
+      ? 'Sync in progress...'
+      : status?.lastSyncStatus === 'PENDING'
+        ? 'Waiting for workbook changes to be reviewed'
+        : 'Not synced yet'
 
   return (
     <Card>
