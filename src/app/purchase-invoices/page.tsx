@@ -1,7 +1,6 @@
 'use client'
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
-import QRCode from 'qrcode'
 import { LocalizedText } from '@/components/localized-text'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -218,6 +217,7 @@ export default function PurchaseInvoicesPage() {
         const response = await apiGet(`/api/purchase-invoices/${encodeURIComponent(selectedInvoice.id)}/share-link`)
         const payload = await response.json()
         if (!response.ok) throw new Error(payload.error || 'Unable to prepare invoice preview')
+        const { default: QRCode } = await import('qrcode')
         const qrDataUrl = await QRCode.toDataURL(payload.shareUrl, { errorCorrectionLevel: 'H', margin: 1, width: 512 })
         if (cancelled) return
         setInvoiceShareUrl(payload.shareUrl)
@@ -448,6 +448,7 @@ export default function PurchaseInvoicesPage() {
     const payload = await response.json()
     if (!response.ok) throw new Error(payload.error || 'Unable to prepare selected invoices')
     const shareUrlById = new Map<string, string>((payload.links || []).map((link: { invoiceId: string; shareUrl: string }) => [link.invoiceId, link.shareUrl]))
+    const { default: QRCode } = await import('qrcode')
     const documents = await Promise.all(selected.map(async (invoice) => {
       const shareUrl = shareUrlById.get(invoice.id)
       if (!shareUrl) throw new Error(`Unable to prepare ${invoice.internalNumber}`)

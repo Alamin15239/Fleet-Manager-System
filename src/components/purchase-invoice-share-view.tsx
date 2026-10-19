@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'next/navigation'
-import QRCode from 'qrcode'
 import { Download, Loader2, Printer } from 'lucide-react'
 import { LocalizedText } from '@/components/localized-text'
 import { renderPurchaseInvoiceDocument, type PurchaseInvoiceCompany, type PurchaseInvoiceDocumentData } from '@/lib/purchase-invoice-document'
@@ -32,6 +31,7 @@ export default function PurchaseInvoiceShareView() {
         const data = await response.json()
         if (!response.ok) throw new Error(data.error || 'Unable to load this invoice')
         const shareUrl = window.location.href
+        const { default: QRCode } = await import('qrcode')
         const qrDataUrl = await QRCode.toDataURL(shareUrl, { errorCorrectionLevel: 'H', margin: 1, width: 512 })
         const html = renderPurchaseInvoiceDocument(data.invoice as PurchaseInvoiceDocumentData, data.company as PurchaseInvoiceCompany | null, shareUrl, qrDataUrl)
         if (cancelled) return

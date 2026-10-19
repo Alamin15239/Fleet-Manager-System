@@ -2,20 +2,23 @@
 import { LocalizedText } from '@/components/localized-text'
 
 import { useState, useEffect } from 'react'
+import dynamic from 'next/dynamic'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Truck, Wrench, AlertTriangle, TrendingUp, Plus, Activity, DollarSign, Database } from 'lucide-react'
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
-import { Bar, BarChart, Line, LineChart, XAxis, YAxis, CartesianGrid } from 'recharts'
 import { apiGet } from '@/lib/api'
 import { useAuth } from '@/contexts/auth-context'
 import { usePermissions } from '@/contexts/permissions-context'
 import { useLanguage } from '@/contexts/language-context'
 import { DatabaseStorageMonitor } from '@/components/database-storage-monitor'
 import { TruckLoader } from '@/components/ui/truck-loader'
+
+const DashboardCharts = dynamic(() => import('@/components/dashboard-charts'), {
+  loading: () => <div aria-hidden="true" className="grid grid-cols-1 gap-4 xl:grid-cols-7"><div className="h-[390px] animate-pulse rounded-2xl border bg-muted/30 xl:col-span-4" /><div className="h-[390px] animate-pulse rounded-2xl border bg-muted/30 xl:col-span-3" /></div>,
+})
 
 interface DashboardStats {
   totalTrucks: number
@@ -318,43 +321,14 @@ export default function Dashboard() {
 
       {/* Charts and Recent Activity */}
       {monthlyCostData.length > 0 && maintenanceTypeData.length > 0 && stats.totalTrucks > 0 ? (
-        <div className="grid grid-cols-1 gap-4 xl:grid-cols-7">
-          <Card className="min-w-0 xl:col-span-4">
-            <CardHeader>
-              <CardTitle>{t('dashboard.monthlyMaintenanceCosts')}</CardTitle>
-              <CardDescription>{t('dashboard.costTrends')}</CardDescription>
-            </CardHeader>
-            <CardContent className="pl-2">
-              <ChartContainer config={{}} className="h-[260px] sm:h-[300px]">
-                <LineChart data={monthlyCostData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="month" />
-                  <YAxis />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Line type="monotone" dataKey="cost" stroke="#8884d8" strokeWidth={2} />
-                </LineChart>
-              </ChartContainer>
-            </CardContent>
-          </Card>
-
-          <Card className="min-w-0 xl:col-span-3">
-            <CardHeader>
-              <CardTitle>{t('dashboard.maintenanceTypes')}</CardTitle>
-              <CardDescription>{t('dashboard.serviceDistribution')}</CardDescription>
-            </CardHeader>
-            <CardContent className="pl-2">
-              <ChartContainer config={{}} className="h-[260px] sm:h-[300px]">
-                <BarChart data={maintenanceTypeData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="type" />
-                  <YAxis />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Bar dataKey="count" fill="#82ca9d" />
-                </BarChart>
-              </ChartContainer>
-            </CardContent>
-          </Card>
-        </div>
+        <DashboardCharts
+          monthlyCostData={monthlyCostData}
+          maintenanceTypeData={maintenanceTypeData}
+          monthlyTitle={t('dashboard.monthlyMaintenanceCosts')}
+          monthlyDescription={t('dashboard.costTrends')}
+          typesTitle={t('dashboard.maintenanceTypes')}
+          typesDescription={t('dashboard.serviceDistribution')}
+        />
       ) : (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">

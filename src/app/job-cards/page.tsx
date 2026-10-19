@@ -1,6 +1,10 @@
 import { LocalizedText } from '@/components/localized-text'
-import WorkshopJobCards from '@/components/workshop-job-cards'
+import dynamic from 'next/dynamic'
 import { FileText } from 'lucide-react'
+
+const WorkshopJobCards = dynamic(() => import('@/components/workshop-job-cards'), {
+  loading: () => <div aria-hidden="true" className="min-h-[50vh] animate-pulse rounded-2xl border bg-muted/30" />,
+})
 
 export default function JobCardsPage() {
   return <div className="container mx-auto space-y-6 p-4 sm:p-6">

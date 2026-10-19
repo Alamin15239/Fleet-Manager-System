@@ -2,15 +2,18 @@
 import { LocalizedText } from '@/components/localized-text'
 
 import { useEffect, useState } from 'react'
+import dynamic from 'next/dynamic'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { BarChart3, FileText, List, Plus, Settings } from 'lucide-react'
-import TireManagementForm from '@/components/tire-management-form'
-import TireInventoryGrouped from '@/components/tire-inventory-grouped'
-import TireReports from '@/components/tire-reports'
-import TireReportsSimple from '@/components/tire-reports-simple'
-import TireExcelViewer from '@/components/tire-excel-viewer'
 import { useLanguage } from '@/contexts/language-context'
 import { usePermissions } from '@/contexts/permissions-context'
+
+const TabContentLoading = () => <div aria-hidden="true" className="h-48 animate-pulse rounded-2xl border bg-muted/30" />
+const TireManagementForm = dynamic(() => import('@/components/tire-management-form'), { loading: TabContentLoading })
+const TireInventoryGrouped = dynamic(() => import('@/components/tire-inventory-grouped'), { loading: TabContentLoading })
+const TireReports = dynamic(() => import('@/components/tire-reports'), { loading: TabContentLoading })
+const TireReportsSimple = dynamic(() => import('@/components/tire-reports-simple'), { loading: TabContentLoading })
+const TireExcelViewer = dynamic(() => import('@/components/tire-excel-viewer'), { loading: TabContentLoading })
 
 export default function TireManagementPage() {
   const { t } = useLanguage()
