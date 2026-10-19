@@ -112,7 +112,9 @@ class GraphRequestError extends Error {
   readonly retryAfterMs: number | null
 
   constructor(readonly status: number, retryAfterHeader: string | null = null) {
-    super(`OneDrive file update failed (Microsoft Graph HTTP ${status}).`)
+    super(status === 507
+      ? 'OneDrive does not have enough available storage for this workbook. Free up space in the connected Microsoft account, then select Sync Now again.'
+      : `OneDrive file update failed (Microsoft Graph HTTP ${status}).`)
     this.name = 'GraphRequestError'
     const retryAfterSeconds = retryAfterHeader ? Number(retryAfterHeader) : NaN
     const retryAfterDate = retryAfterHeader ? Date.parse(retryAfterHeader) : NaN
