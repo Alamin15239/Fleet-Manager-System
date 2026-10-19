@@ -149,13 +149,23 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Your role cannot review workbook changes.' }, { status: 403 })
     }
     let watchError: string | null = null
+    let workbookSetupRequired = false
     try {
       const subscription = await ensureOneDriveChangeSubscription()
       if (subscription.enabled) {
         const scan = await captureOneDriveWorkbookChanges()
         if (scan.baselineInitializationNeeded && scan.queued === 0) watchError = 'No workbook changes are waiting for review. Use Sync Now to initialize safe Excel imports.'
       }
-      else watchError = 'Connect OneDrive and create the live workbook to receive edits.'
+      else {
+        const integration = await db.oneDriveIntegration.findUnique({
+          where: { id: 'primary' },
+          select: { driveItemId: true }
+        })
+        workbookSetupRequired = Boolean(integration && !integration.driveItemId)
+        watchError = workbookSetupRequired
+          ? 'The OneDrive account is connected, but its live workbook has not been created yet.'
+          : 'Connect OneDrive and create the live workbook to receive edits.'
+      }
     } catch (error) {
       watchError = error instanceof Error ? error.message : 'Could not scan the live workbook.'
     }
@@ -181,7 +191,7 @@ export async function GET(request: NextRequest) {
         canResolveWorkbookValue: canApply && canResolveUsingWorkbook(change)
       }] : []
     })
-    return NextResponse.json({ changes: visible, total: visible.length, watchError })
+    return NextResponse.json({ changes: visible, total: visible.length, watchError, workbookSetupRequired })
     })
   } catch (error) {
     const message = error instanceof Error ? error.message : ''

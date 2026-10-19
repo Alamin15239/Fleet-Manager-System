@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { AlertTriangle, Check, Clock3, FileSpreadsheet, Loader2, RefreshCw, ShieldCheck, X, CheckCheck } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -38,10 +38,12 @@ export default function ExcelImportsPage() {
   const [loading, setLoading] = useState(true)
   const [activeId, setActiveId] = useState<string | null>(null)
   const [watchError, setWatchError] = useState<string | null>(null)
+  const [workbookSetupRequired, setWorkbookSetupRequired] = useState(false)
   const [bulkConfirmOpen, setBulkConfirmOpen] = useState(false)
   const [bulkMode, setBulkMode] = useState<'pending' | 'conflicts'>('pending')
   const [conflictToResolve, setConflictToResolve] = useState<WorkbookChange | null>(null)
   const [bulkProgress, setBulkProgress] = useState<{ complete: number; total: number } | null>(null)
+  const workbookSetupStarted = useRef(false)
 
   const loadChanges = useCallback(async () => {
     try {
@@ -50,6 +52,7 @@ export default function ExcelImportsPage() {
       if (!response.ok) throw new Error(data.error || 'Could not load workbook changes.')
       setChanges(data.changes || [])
       setWatchError(data.watchError || null)
+      setWorkbookSetupRequired(Boolean(data.workbookSetupRequired))
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Could not load workbook changes.')
     } finally {
@@ -58,6 +61,38 @@ export default function ExcelImportsPage() {
   }, [])
 
   useEffect(() => { void loadChanges() }, [loadChanges])
+
+  useEffect(() => {
+    if (!workbookSetupRequired || !isAdmin || workbookSetupStarted.current) return
+    workbookSetupStarted.current = true
+    setActiveId('create-workbook')
+    setWatchError('Creating the live workbook in the connected OneDrive account...')
+
+    void (async () => {
+      try {
+        const response = await apiPost('/api/integrations/onedrive', {})
+        const data = await response.json()
+        if (!response.ok) throw new Error(data.error || 'Could not create the live workbook.')
+
+        if (data.queued) {
+          setWatchError(data.pendingWorkbookChanges > 0
+            ? 'Workbook creation is waiting for pending Excel changes to be reviewed.'
+            : 'Workbook creation is already in progress. Refresh this page shortly to check its status.')
+          return
+        }
+
+        toast.success(`OneDrive workbook created: ${data.workbookName || 'Fleet Manager Live Data'}`)
+        setWorkbookSetupRequired(false)
+        await loadChanges()
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Could not create the live workbook.'
+        setWatchError(message)
+        toast.error(message)
+      } finally {
+        setActiveId(null)
+      }
+    })()
+  }, [workbookSetupRequired, isAdmin, loadChanges])
 
   const applyChange = async (change: WorkbookChange) => {
     setActiveId(change.id)
