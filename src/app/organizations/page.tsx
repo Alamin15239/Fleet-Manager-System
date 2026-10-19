@@ -188,7 +188,7 @@ export default function OrganizationsPage() {
       </Card>
 
       <section className="space-y-3">
-        <div className="flex items-center justify-between gap-3"><div><h2 className="text-lg font-semibold"><LocalizedText>Organizations</LocalizedText></h2><p className="text-sm text-muted-foreground">{activeOrganizations.length} <LocalizedText>ready</LocalizedText></p></div><Button variant="outline" size="sm" onClick={() => void loadOrganizations()} disabled={loading}><RefreshCw className={`me-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} /><LocalizedText>Refresh</LocalizedText></Button></div>
+        <div className="flex items-center justify-between gap-3"><div><h2 className="text-lg font-semibold"><LocalizedText>Organizations</LocalizedText></h2><p className="text-sm text-muted-foreground" aria-live="polite">{loading ? <LocalizedText>Loading organizations…</LocalizedText> : <>{activeOrganizations.length} <LocalizedText>ready</LocalizedText></>}</p></div><Button variant="outline" size="sm" onClick={() => void loadOrganizations()} disabled={loading}><RefreshCw className={`me-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} /><LocalizedText>Refresh</LocalizedText></Button></div>
         {loading ? (
           <div className="flex justify-center p-10"><LoaderCircle className="h-6 w-6 animate-spin text-muted-foreground" /></div>
         ) : organizations.length === 0 ? (
