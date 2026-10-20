@@ -18,6 +18,25 @@ type DocumentType = typeof documentTypes[number]
 type ExpiryDocument = { id: string; title: string; documentType: DocumentType; fileName: string | null; validFrom: string | null; validUntil: string; reminderStartDate: string | null; createdAt: string }
 type ExpiryTruck = { id: string; licensePlate: string; make: string; model: string; year: number; driverName: string | null; vehicleDocuments: ExpiryDocument[] }
 type TrackerRow = { truck: ExpiryTruck; type: DocumentType; document?: ExpiryDocument; status: 'missing' | 'expired' | 'reminder' | 'current' }
+type DocumentDraft = { validFrom: string; validUntil: string; file: File | null }
+type DocumentDrafts = Record<DocumentType, DocumentDraft>
+
+function emptyDocumentDrafts(): DocumentDrafts {
+  return Object.fromEntries(documentTypes.map(type => [type, { validFrom: '', validUntil: '', file: null }])) as DocumentDrafts
+}
+
+function draftsForTruck(truck?: ExpiryTruck): DocumentDrafts {
+  const drafts = emptyDocumentDrafts()
+  for (const type of documentTypes) {
+    const document = truck?.vehicleDocuments.find(item => item.documentType === type)
+    drafts[type] = {
+      validFrom: document?.validFrom?.slice(0, 10) || inferredIssueDateKey(document?.validUntil),
+      validUntil: document?.validUntil?.slice(0, 10) || '',
+      file: null,
+    }
+  }
+  return drafts
+}
 
 function localDateKey(value = new Date()) {
   return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}-${String(value.getDate()).padStart(2, '0')}`
@@ -52,21 +71,19 @@ export function VehicleExpiryTracker() {
   const { t } = useLanguage()
   const [trucks, setTrucks] = useState<ExpiryTruck[]>([])
   const [selectedTruck, setSelectedTruck] = useState('')
-  const [documentType, setDocumentType] = useState<DocumentType>(documentTypes[0])
-  const [validFrom, setValidFrom] = useState('')
-  const [validUntil, setValidUntil] = useState('')
-  const [file, setFile] = useState<File | null>(null)
+  const [draftsByTruck, setDraftsByTruck] = useState<Record<string, DocumentDrafts>>({})
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [typeFilter, setTypeFilter] = useState('all')
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
-  const formRef = useRef<HTMLDivElement>(null)
-  const selectedDocument = useMemo(
-    () => trucks.find(truck => truck.id === selectedTruck)?.vehicleDocuments.find(document => document.documentType === documentType),
-    [trucks, selectedTruck, documentType],
+  const documentSlotRefs = useRef<Partial<Record<DocumentType, HTMLElement | null>>>({})
+  const fileInputRefs = useRef<Partial<Record<DocumentType, HTMLInputElement | null>>>({})
+  const selectedTruckData = useMemo(() => trucks.find(truck => truck.id === selectedTruck), [trucks, selectedTruck])
+  const documentDrafts = useMemo(
+    () => draftsByTruck[selectedTruck] || draftsForTruck(selectedTruckData),
+    [draftsByTruck, selectedTruck, selectedTruckData],
   )
-  const requiresFile = documentType !== 'Fire extinguisher'
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -85,11 +102,15 @@ export function VehicleExpiryTracker() {
 
   useEffect(() => { void load() }, [load])
 
-  useEffect(() => {
-    setValidFrom(selectedDocument?.validFrom?.slice(0, 10) || inferredIssueDateKey(selectedDocument?.validUntil))
-    setValidUntil(selectedDocument?.validUntil?.slice(0, 10) || '')
-    setFile(null)
-  }, [selectedDocument?.id, selectedDocument?.validFrom, selectedDocument?.validUntil])
+  const updateDraft = (type: DocumentType, values: Partial<DocumentDraft>) => {
+    setDraftsByTruck(current => ({
+      ...current,
+      [selectedTruck]: {
+        ...(current[selectedTruck] || draftsForTruck(selectedTruckData)),
+        [type]: { ...documentDrafts[type], ...values },
+      },
+    }))
+  }
 
   const rows = useMemo<TrackerRow[]>(() => {
     const today = localDateKey()
@@ -116,37 +137,88 @@ export function VehicleExpiryTracker() {
 
   const upload = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    const fileInput = event.currentTarget.elements.namedItem('expiryFile') as HTMLInputElement | null
-    if (!selectedTruck || (requiresFile && !selectedDocument && !file)) {
-      toast.error(requiresFile && !selectedDocument ? 'Select a truck and document file.' : 'Select a truck.')
+    if (!selectedTruck || !selectedTruckData) {
+      toast.error('Select a truck.')
       return
     }
-    if (!validUntil || (validFrom && validUntil < validFrom)) {
-      toast.error('Check the valid-from and expiry dates.')
+    const missingDates = documentTypes.filter(type => {
+      const draft = documentDrafts[type]
+      return !draft.validUntil || (draft.validFrom && draft.validUntil < draft.validFrom)
+    })
+    if (missingDates.length) {
+      toast.error('Enter valid issue and expiry dates for all six document types.')
       return
     }
+    const missingFiles = documentTypes.filter(type => {
+      if (type === 'Fire extinguisher') return false
+      const currentDocument = selectedTruckData.vehicleDocuments.find(document => document.documentType === type)
+      return !currentDocument?.fileName && !documentDrafts[type].file
+    })
+    if (missingFiles.length) {
+      toast.error('Upload all missing required document files before saving.')
+      return
+    }
+    const invalidFile = documentTypes.find(type => {
+      const file = documentDrafts[type].file
+      return file && (file.size > 4 * 1024 * 1024 || !['application/pdf', 'image/jpeg', 'image/png', 'image/webp'].includes(file.type))
+    })
+    if (invalidFile) {
+      toast.error('Each document file must be a PDF, JPG, PNG, or WEBP file no larger than 4 MB.')
+      return
+    }
+
+    const changedTypes = documentTypes.filter(type => {
+      const draft = documentDrafts[type]
+      const existing = selectedTruckData.vehicleDocuments.find(document => document.documentType === type)
+      if (!existing || draft.file) return true
+      const oldIssueDate = existing.validFrom?.slice(0, 10) || inferredIssueDateKey(existing.validUntil)
+      return draft.validFrom !== oldIssueDate || draft.validUntil !== existing.validUntil.slice(0, 10)
+    })
+    if (!changedTypes.length) {
+      toast.success('All truck documents are already up to date.')
+      return
+    }
+
+    const deniedType = changedTypes.find(type => {
+      const exists = selectedTruckData.vehicleDocuments.some(document => document.documentType === type)
+      return exists ? !canUpdate('trucks') : !canCreate('trucks')
+    })
+    if (deniedType) {
+      toast.error('Your role cannot save one or more document changes.')
+      return
+    }
+
     setBusy(true)
+    const savedTypes: DocumentType[] = []
     try {
-      const wasExisting = Boolean(selectedDocument)
-      const replacedFile = Boolean(file)
-      const form = new FormData()
-      form.set('sourceType', 'TRUCK')
-      form.set('sourceId', selectedTruck)
-      form.set('documentType', documentType)
-      form.set('validFrom', validFrom)
-      form.set('validUntil', validUntil)
-      if (requiresFile && file) form.set('file', file)
-      const response = await apiFetch('/api/vehicle-documents', { method: 'POST', body: form })
-      const data = await response.json().catch(() => ({}))
-      if (!response.ok) throw new Error(data.error || 'Could not save the document.')
-      setFile(null)
-      if (fileInput) fileInput.value = ''
-      if (documentType === 'Fire extinguisher') toast.success(wasExisting ? 'Expiry dates updated.' : 'Expiry dates saved. A Fire Extinguisher file is not required.')
-      else if (wasExisting) toast.success(replacedFile ? 'Document updated and file replaced.' : 'Document dates updated. The existing file was kept.')
-      else toast.success('Document and expiry dates saved. Re-uploading this type for the truck replaces its existing file.')
+      for (const type of changedTypes) {
+        const draft = documentDrafts[type]
+        const form = new FormData()
+        form.set('sourceType', 'TRUCK')
+        form.set('sourceId', selectedTruck)
+        form.set('documentType', type)
+        form.set('validFrom', draft.validFrom)
+        form.set('validUntil', draft.validUntil)
+        if (draft.file) form.set('file', draft.file)
+        const response = await apiFetch('/api/vehicle-documents', { method: 'POST', body: form })
+        const data = await response.json().catch(() => ({}))
+        if (!response.ok) throw new Error(`${t(type)}: ${data.error || 'Could not save the document.'}`)
+        savedTypes.push(type)
+        if (draft.file || !draft.validFrom) {
+          setDraftsByTruck(current => ({ ...current, [selectedTruck]: { ...(current[selectedTruck] || documentDrafts), [type]: { ...draft, validFrom: draft.validFrom || inferredIssueDateKey(draft.validUntil), file: null } } }))
+        }
+        if (draft.file) {
+          if (fileInputRefs.current[type]) fileInputRefs.current[type]!.value = ''
+        }
+      }
+      toast.success('All truck document updates were saved. Existing files are kept unless you replace that same document type.')
       await load()
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Could not save the document.')
+      const partialMessage = savedTypes.length
+        ? `Saved ${savedTypes.map(type => t(type)).join(', ')}. ${error instanceof Error ? error.message : 'The remaining documents could not be saved.'} Submit again to finish the remaining changes.`
+        : error instanceof Error ? error.message : 'Could not save the documents.'
+      toast.error(partialMessage)
+      if (savedTypes.length) await load()
     } finally {
       setBusy(false)
     }
@@ -154,11 +226,9 @@ export function VehicleExpiryTracker() {
 
   const focusRowInForm = (row: TrackerRow) => {
     setSelectedTruck(row.truck.id)
-    setDocumentType(row.type)
-    setValidFrom(row.document?.validFrom?.slice(0, 10) || inferredIssueDateKey(row.document?.validUntil))
-    setValidUntil(row.document?.validUntil?.slice(0, 10) || '')
-    setFile(null)
-    window.setTimeout(() => formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0)
+    window.setTimeout(() => {
+      documentSlotRefs.current[row.type]?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }, 0)
   }
 
   const openFile = async (documentId: string) => {
@@ -201,54 +271,66 @@ export function VehicleExpiryTracker() {
         <Metric icon={<ShieldAlert className="h-4 w-4"/>} label="Expired or missing" value={counts.expired + counts.missing} tone="rose"/>
       </div>
 
-      {(canCreate('trucks') || canUpdate('trucks')) && <div ref={formRef} className="scroll-mt-6">
+      {(canCreate('trucks') || canUpdate('trucks')) && <div className="scroll-mt-6">
         <Card className="glass-card">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              {selectedDocument ? <Pencil className="h-5 w-5 text-sky-600"/> : <Upload className="h-5 w-5 text-sky-600"/>}
-              <LocalizedText>{selectedDocument ? 'Edit truck document' : 'Add or update a truck document'}</LocalizedText>
+              <Upload className="h-5 w-5 text-sky-600"/>
+              <LocalizedText>All truck documents</LocalizedText>
             </CardTitle>
             <CardDescription>
-              <LocalizedText>{selectedDocument ? 'Update the issue and expiry dates. Upload a file only if you want to add or replace it.' : 'Fire Extinguisher is date-only. Its reminder starts 10 days before expiry. Upload files for the other five document types.'}</LocalizedText>
+              <LocalizedText>Choose one truck, enter dates for all six document types, and upload all five required files. Fire Extinguisher is date-only. Existing files stay unless you replace that same document type.</LocalizedText>
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={upload} className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
-              <div className="space-y-1.5 xl:col-span-2">
+            <form onSubmit={upload} className="space-y-4">
+              <div className="max-w-xl space-y-1.5">
                 <Label htmlFor="expiryTruck"><LocalizedText>Truck</LocalizedText></Label>
                 <select id="expiryTruck" required className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={selectedTruck} onChange={event => setSelectedTruck(event.target.value)}>
                   <option value=""><LocalizedText>Select truck</LocalizedText></option>
                   {trucks.map(truck => <option key={truck.id} value={truck.id}>{truck.licensePlate} · {truck.make} {truck.model}</option>)}
                 </select>
               </div>
-              <div className="space-y-1.5 xl:col-span-2">
-                <Label htmlFor="expiryType"><LocalizedText>Document type</LocalizedText></Label>
-                <select id="expiryType" className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={documentType} onChange={event => { setDocumentType(event.target.value as DocumentType); setFile(null) }}>
-                  {documentTypes.map(type => <option key={type} value={type}>{t(type)}</option>)}
-                </select>
+              <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
+                {documentTypes.map(type => {
+                  const draft = documentDrafts[type]
+                  const currentDocument = selectedTruckData?.vehicleDocuments.find(document => document.documentType === type)
+                  const key = type.toLowerCase().replace(/[^a-z0-9]+/g, '-')
+                  const isFireExtinguisher = type === 'Fire extinguisher'
+                  return <section key={type} ref={element => { documentSlotRefs.current[type] = element }} className="space-y-3 rounded-xl border bg-background/60 p-4">
+                    <div className="flex items-start justify-between gap-2">
+                      <h3 className="font-semibold"><LocalizedText>{type}</LocalizedText></h3>
+                      {currentDocument?.fileName && !isFireExtinguisher ? <Badge variant="outline" className="max-w-[55%] truncate">{currentDocument.fileName}</Badge> : null}
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div className="space-y-1.5">
+                        <Label htmlFor={`valid-from-${key}`}><LocalizedText>Issue date</LocalizedText></Label>
+                        <Input id={`valid-from-${key}`} type="date" disabled={!selectedTruck || busy} value={draft.validFrom} onChange={event => updateDraft(type, { validFrom: event.target.value })}/>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor={`valid-until-${key}`}><LocalizedText>Expiry date</LocalizedText></Label>
+                        <Input id={`valid-until-${key}`} type="date" required disabled={!selectedTruck || busy} value={draft.validUntil} onChange={event => updateDraft(type, { validUntil: event.target.value })}/>
+                      </div>
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      <LocalizedText>Reminder starts (10 days before expiry)</LocalizedText>: <span className="font-medium tabular-nums">{readableDate(draft.validUntil ? reminderDateKey(draft.validUntil) : null)}</span>
+                    </div>
+                    {isFireExtinguisher ? <p className="rounded-lg bg-sky-500/5 p-2 text-xs text-muted-foreground"><LocalizedText>Fire Extinguisher is date-tracked only; no file is required.</LocalizedText></p> : <div className="space-y-1.5">
+                      <Label htmlFor={`document-file-${key}`}><LocalizedText>{currentDocument?.fileName ? 'Replace this document file (optional)' : 'Document file (required)'}</LocalizedText></Label>
+                      <Input key={`${selectedTruck}-${type}`} ref={element => { fileInputRefs.current[type] = element }} id={`document-file-${key}`} type="file" accept="application/pdf,image/jpeg,image/png,image/webp" disabled={!selectedTruck || busy} required={!currentDocument?.fileName} onChange={event => updateDraft(type, { file: event.target.files?.[0] || null })}/>
+                      <p className="text-xs text-muted-foreground">
+                        {draft.file ? <><LocalizedText>Selected file</LocalizedText>: {draft.file.name}. </> : currentDocument?.fileName ? <><LocalizedText>Current file</LocalizedText>: {currentDocument.fileName}. </> : null}
+                        <LocalizedText>{currentDocument?.fileName ? 'A new file replaces only this document type.' : 'PDF, JPG, PNG, or WEBP · maximum 4 MB'}</LocalizedText>
+                      </p>
+                    </div>}
+                    <p className="text-xs text-muted-foreground"><LocalizedText>If the issue date is blank, it is saved as one year before expiry.</LocalizedText></p>
+                  </section>
+                })}
               </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="validFrom"><LocalizedText>Issue date</LocalizedText></Label>
-                <Input id="validFrom" type="date" value={validFrom} onChange={event => setValidFrom(event.target.value)}/>
-                <p className="text-xs text-muted-foreground"><LocalizedText>If you leave it blank, the issue date is set one year before expiry.</LocalizedText></p>
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="validUntil"><LocalizedText>Expiry date</LocalizedText></Label>
-                <Input id="validUntil" type="date" required value={validUntil} onChange={event => setValidUntil(event.target.value)}/>
-              </div>
-              <div className="space-y-1.5 xl:col-span-2">
-                <Label htmlFor="reminderStartDate"><LocalizedText>Reminder starts (10 days before expiry)</LocalizedText></Label>
-                <Input id="reminderStartDate" type="date" readOnly value={reminderDateKey(validUntil)}/>
-                <p className="text-xs text-muted-foreground"><LocalizedText>This reminder date is calculated automatically.</LocalizedText></p>
-              </div>
-              {requiresFile ? <div className="space-y-1.5 xl:col-span-3">
-                <Label htmlFor="expiryFile"><LocalizedText>{selectedDocument?.fileName ? 'Replace document file (optional)' : selectedDocument ? 'Upload document file (optional)' : 'Document file'}</LocalizedText></Label>
-                <Input id="expiryFile" name="expiryFile" type="file" accept="application/pdf,image/jpeg,image/png,image/webp" required={!selectedDocument} onChange={event => setFile(event.target.files?.[0] || null)}/>
-                {selectedDocument?.fileName ? <p className="text-xs text-muted-foreground"><LocalizedText>Current file</LocalizedText>: {selectedDocument.fileName}. <LocalizedText>Leave empty to keep the current file.</LocalizedText></p> : <p className="text-xs text-muted-foreground"><LocalizedText>{selectedDocument ? 'The file is optional for an existing date record.' : 'PDF, JPG, PNG, or WEBP · maximum 4 MB'}</LocalizedText></p>}
-              </div> : <div className="flex items-center rounded-lg border border-sky-500/20 bg-sky-500/5 p-3 text-sm text-muted-foreground xl:col-span-3"><LocalizedText>Fire Extinguisher is date-tracked only; no file is required.</LocalizedText></div>}
-              <div className="flex items-end xl:col-span-3">
-                <Button type="submit" disabled={busy || loading || !selectedTruck || (requiresFile && !file && !selectedDocument) || !validUntil} className="w-full sm:w-auto">
-                  {busy ? <><RefreshCw className="me-2 h-4 w-4 animate-spin"/><LocalizedText>Saving…</LocalizedText></> : <><Upload className="me-2 h-4 w-4"/><LocalizedText>{selectedDocument ? documentType === 'Fire extinguisher' ? 'Update expiry dates' : 'Update document' : requiresFile ? 'Save document' : 'Save expiry dates'}</LocalizedText></>}
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-xs text-muted-foreground"><LocalizedText>All six expiry dates are required. All five files are required if they are not already saved for this truck.</LocalizedText></p>
+                <Button type="submit" disabled={busy || loading || !selectedTruck} className="w-full sm:w-auto">
+                  {busy ? <><RefreshCw className="me-2 h-4 w-4 animate-spin"/><LocalizedText>Saving all documents…</LocalizedText></> : <><Upload className="me-2 h-4 w-4"/><LocalizedText>Save all truck documents</LocalizedText></>}
                 </Button>
               </div>
             </form>
