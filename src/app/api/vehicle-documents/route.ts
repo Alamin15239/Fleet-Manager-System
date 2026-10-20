@@ -16,6 +16,20 @@ function safeError(status: number, fallback: string) {
   return NextResponse.json({ error: status === 500 ? fallback : 'Access denied.' }, { status })
 }
 
+function parseDateInput(value: string) {
+  if (!value) return null
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null
+  const date = new Date(`${value}T00:00:00.000Z`)
+  return Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== value ? null : date
+}
+
+function oneYearBefore(date: Date) {
+  const year = date.getUTCFullYear() - 1
+  const month = date.getUTCMonth()
+  const day = Math.min(date.getUTCDate(), new Date(Date.UTC(year, month + 1, 0)).getUTCDate())
+  return new Date(Date.UTC(year, month, day))
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
@@ -79,8 +93,6 @@ export async function POST(request: NextRequest) {
     }
     const submittedFile = form.get('file')
     const file = submittedFile instanceof File && submittedFile.size > 0 ? submittedFile : null
-    const fileRequired = documentType !== 'Fire extinguisher'
-    if (fileRequired && !file) return NextResponse.json({ error: 'Choose a document file.' }, { status: 400 })
     if (file && file.size > maxFileBytes) return NextResponse.json({ error: 'Vehicle documents must be 4 MB or smaller.' }, { status: 400 })
     if (file && !allowedFiles.has(file.type)) return NextResponse.json({ error: 'Upload a PDF, JPG, PNG, or WEBP file.' }, { status: 400 })
 
@@ -91,41 +103,46 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Active trailer not found.' }, { status: 404 })
     }
 
-    const validFromText = String(form.get('validFrom') || '').trim()
-    const validUntilText = String(form.get('validUntil') || '').trim()
-    if (isExpiryDocument && !validUntilText) {
-      return NextResponse.json({ error: 'Expiry date is required.' }, { status: 400 })
-    }
-    const validFrom = validFromText ? new Date(`${validFromText.slice(0, 10)}T00:00:00.000Z`) : null
-    const validUntil = validUntilText ? new Date(`${validUntilText.slice(0, 10)}T00:00:00.000Z`) : null
-    const reminderStartDate = validUntil ? new Date(validUntil.getTime() - 10 * 24 * 60 * 60 * 1000) : null
-    if ([validFrom, validUntil, reminderStartDate].some(date => date && Number.isNaN(date.getTime()))) {
-      return NextResponse.json({ error: 'Enter valid document dates.' }, { status: 400 })
-    }
-    if (validFrom && validUntil && validUntil < validFrom) {
-      return NextResponse.json({ error: 'Expiry date must be after the valid-from date.' }, { status: 400 })
-    }
     const uniqueWhere = sourceType === 'TRUCK'
       ? { truckId_documentType: { truckId: sourceId, documentType } }
       : { trailerId_documentType: { trailerId: sourceId, documentType } }
-    const existingDocument = await db.vehicleDocument.findUnique({ where: uniqueWhere as any, select: { id: true } })
+    const existingDocument = await db.vehicleDocument.findUnique({ where: uniqueWhere as any, select: { id: true, title: true, notes: true } })
     await requireRolePermission(request, sourceType === 'TRUCK' ? 'trucks' : 'trailers', existingDocument ? 'update' : 'create')
+    const fileRequired = documentType !== 'Fire extinguisher' && !existingDocument
+    if (fileRequired && !file) return NextResponse.json({ error: 'Choose a document file.' }, { status: 400 })
+
+    const validFromText = String(form.get('validFrom') || '').trim()
+    const validUntilText = String(form.get('validUntil') || '').trim()
+    const enteredValidFrom = parseDateInput(validFromText)
+    const validUntil = parseDateInput(validUntilText)
+    if ((validFromText && !enteredValidFrom) || (validUntilText && !validUntil)) {
+      return NextResponse.json({ error: 'Enter valid document dates.' }, { status: 400 })
+    }
+    if (isExpiryDocument && !validUntil) {
+      return NextResponse.json({ error: 'Expiry date is required.' }, { status: 400 })
+    }
+    const validFrom = isExpiryDocument && validUntil ? enteredValidFrom || oneYearBefore(validUntil) : null
+    const reminderStartDate = validUntil ? new Date(validUntil.getTime() - 10 * 24 * 60 * 60 * 1000) : null
+    if (validFrom && validUntil && validUntil < validFrom) {
+      return NextResponse.json({ error: 'Expiry date must be after the valid-from date.' }, { status: 400 })
+    }
     const fileFields = file ? {
       fileName: file.name.replace(/[\r\n"\\/]/g, '_').slice(0, 180),
       mimeType: file.type,
       fileSize: file.size,
       fileData: Buffer.from(await file.arrayBuffer()),
     } : { fileName: null, mimeType: null, fileSize: null, fileData: null }
+    const submittedTitle = String(form.get('title') || '').trim().slice(0, 120)
     const data = {
       truckId: sourceType === 'TRUCK' ? sourceId : null,
       trailerId: sourceType === 'TRAILER' ? sourceId : null,
       vehicleId: null,
-      title: String(form.get('title') || file?.name || documentType).trim().slice(0, 120) || documentType,
+      title: submittedTitle || file?.name || existingDocument?.title || documentType,
       documentType,
       validFrom: isExpiryDocument ? validFrom : null,
       validUntil: isExpiryDocument ? validUntil : null,
       reminderStartDate: isExpiryDocument ? reminderStartDate : null,
-      notes: String(form.get('notes') || '').trim().slice(0, 2000) || null,
+      notes: String(form.get('notes') || '').trim().slice(0, 2000) || existingDocument?.notes || null,
     }
     const document = await db.vehicleDocument.upsert({
       where: uniqueWhere as any,

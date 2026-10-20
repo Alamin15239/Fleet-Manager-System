@@ -1,7 +1,7 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { AlertTriangle, CalendarClock, CheckCircle2, Clock3, FileText, RefreshCw, ShieldAlert, Upload } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { AlertTriangle, CalendarClock, CheckCircle2, Clock3, FileText, Pencil, RefreshCw, ShieldAlert, Upload } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -31,10 +31,20 @@ function reminderDateKey(expiryDate: string) {
   return date.toISOString().slice(0, 10)
 }
 
+function inferredIssueDateKey(expiryDate?: string | null) {
+  if (!expiryDate) return ''
+  const date = new Date(`${expiryDate.slice(0, 10)}T00:00:00.000Z`)
+  if (Number.isNaN(date.getTime())) return ''
+  const year = date.getUTCFullYear() - 1
+  const month = date.getUTCMonth()
+  const day = Math.min(date.getUTCDate(), new Date(Date.UTC(year, month + 1, 0)).getUTCDate())
+  return new Date(Date.UTC(year, month, day)).toISOString().slice(0, 10)
+}
+
 function readableDate(value?: string | null) {
   if (!value) return '—'
   const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? '—' : new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(date)
+  return Number.isNaN(date.getTime()) ? '—' : new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeZone: 'UTC' }).format(date)
 }
 
 export function VehicleExpiryTracker() {
@@ -51,6 +61,11 @@ export function VehicleExpiryTracker() {
   const [typeFilter, setTypeFilter] = useState('all')
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
+  const formRef = useRef<HTMLDivElement>(null)
+  const selectedDocument = useMemo(
+    () => trucks.find(truck => truck.id === selectedTruck)?.vehicleDocuments.find(document => document.documentType === documentType),
+    [trucks, selectedTruck, documentType],
+  )
   const requiresFile = documentType !== 'Fire extinguisher'
 
   const load = useCallback(async () => {
@@ -69,6 +84,12 @@ export function VehicleExpiryTracker() {
   }, [])
 
   useEffect(() => { void load() }, [load])
+
+  useEffect(() => {
+    setValidFrom(selectedDocument?.validFrom?.slice(0, 10) || inferredIssueDateKey(selectedDocument?.validUntil))
+    setValidUntil(selectedDocument?.validUntil?.slice(0, 10) || '')
+    setFile(null)
+  }, [selectedDocument?.id, selectedDocument?.validFrom, selectedDocument?.validUntil])
 
   const rows = useMemo<TrackerRow[]>(() => {
     const today = localDateKey()
@@ -96,8 +117,8 @@ export function VehicleExpiryTracker() {
   const upload = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const fileInput = event.currentTarget.elements.namedItem('expiryFile') as HTMLInputElement | null
-    if (!selectedTruck || (requiresFile && !file)) {
-      toast.error(requiresFile ? 'Select a truck and document file.' : 'Select a truck.')
+    if (!selectedTruck || (requiresFile && !selectedDocument && !file)) {
+      toast.error(requiresFile && !selectedDocument ? 'Select a truck and document file.' : 'Select a truck.')
       return
     }
     if (!validUntil || (validFrom && validUntil < validFrom)) {
@@ -106,6 +127,8 @@ export function VehicleExpiryTracker() {
     }
     setBusy(true)
     try {
+      const wasExisting = Boolean(selectedDocument)
+      const replacedFile = Boolean(file)
       const form = new FormData()
       form.set('sourceType', 'TRUCK')
       form.set('sourceId', selectedTruck)
@@ -118,13 +141,24 @@ export function VehicleExpiryTracker() {
       if (!response.ok) throw new Error(data.error || 'Could not save the document.')
       setFile(null)
       if (fileInput) fileInput.value = ''
-      toast.success(documentType === 'Fire extinguisher' ? 'Expiry dates saved. A Fire Extinguisher file is not required.' : 'Document and expiry dates saved. Re-uploading this type for the truck replaces its existing file.')
+      if (documentType === 'Fire extinguisher') toast.success(wasExisting ? 'Expiry dates updated.' : 'Expiry dates saved. A Fire Extinguisher file is not required.')
+      else if (wasExisting) toast.success(replacedFile ? 'Document updated and file replaced.' : 'Document dates updated. The existing file was kept.')
+      else toast.success('Document and expiry dates saved. Re-uploading this type for the truck replaces its existing file.')
       await load()
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Could not save the document.')
     } finally {
       setBusy(false)
     }
+  }
+
+  const focusRowInForm = (row: TrackerRow) => {
+    setSelectedTruck(row.truck.id)
+    setDocumentType(row.type)
+    setValidFrom(row.document?.validFrom?.slice(0, 10) || inferredIssueDateKey(row.document?.validUntil))
+    setValidUntil(row.document?.validUntil?.slice(0, 10) || '')
+    setFile(null)
+    window.setTimeout(() => formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0)
   }
 
   const openFile = async (documentId: string) => {
@@ -167,19 +201,64 @@ export function VehicleExpiryTracker() {
         <Metric icon={<ShieldAlert className="h-4 w-4"/>} label="Expired or missing" value={counts.expired + counts.missing} tone="rose"/>
       </div>
 
-      {(canCreate('trucks') || canUpdate('trucks')) && <Card className="glass-card"><CardHeader><CardTitle className="flex items-center gap-2"><Upload className="h-5 w-5 text-sky-600"/><LocalizedText>Add or update a truck document</LocalizedText></CardTitle><CardDescription><LocalizedText>Fire Extinguisher is date-only. Its reminder starts 10 days before expiry. Upload files for the other five document types.</LocalizedText></CardDescription></CardHeader><CardContent><form onSubmit={upload} className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
-        <div className="space-y-1.5 xl:col-span-2"><Label htmlFor="expiryTruck"><LocalizedText>Truck</LocalizedText></Label><select id="expiryTruck" required className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={selectedTruck} onChange={event => setSelectedTruck(event.target.value)}><option value=""><LocalizedText>Select truck</LocalizedText></option>{trucks.map(truck => <option key={truck.id} value={truck.id}>{truck.licensePlate} · {truck.make} {truck.model}</option>)}</select></div>
-        <div className="space-y-1.5 xl:col-span-2"><Label htmlFor="expiryType"><LocalizedText>Document type</LocalizedText></Label><select id="expiryType" className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={documentType} onChange={event => { setDocumentType(event.target.value as DocumentType); setFile(null) }}>{documentTypes.map(type => <option key={type} value={type}>{t(type)}</option>)}</select></div>
-        <div className="space-y-1.5"><Label htmlFor="validFrom"><LocalizedText>Valid from</LocalizedText></Label><Input id="validFrom" type="date" value={validFrom} onChange={event => setValidFrom(event.target.value)}/></div>
-        <div className="space-y-1.5"><Label htmlFor="validUntil"><LocalizedText>Expiry date</LocalizedText></Label><Input id="validUntil" type="date" required value={validUntil} onChange={event => setValidUntil(event.target.value)}/></div>
-        <div className="space-y-1.5 xl:col-span-2"><Label htmlFor="reminderStartDate"><LocalizedText>Reminder starts (10 days before expiry)</LocalizedText></Label><Input id="reminderStartDate" type="date" readOnly value={reminderDateKey(validUntil)}/><p className="text-xs text-muted-foreground"><LocalizedText>This reminder date is calculated automatically.</LocalizedText></p></div>
-        {requiresFile ? <div className="space-y-1.5 xl:col-span-3"><Label htmlFor="expiryFile"><LocalizedText>Document file</LocalizedText></Label><Input id="expiryFile" name="expiryFile" type="file" accept="application/pdf,image/jpeg,image/png,image/webp" required onChange={event => setFile(event.target.files?.[0] || null)}/><p className="text-xs text-muted-foreground"><LocalizedText>PDF, JPG, PNG, or WEBP · maximum 4 MB</LocalizedText></p></div> : <div className="flex items-center rounded-lg border border-sky-500/20 bg-sky-500/5 p-3 text-sm text-muted-foreground xl:col-span-3"><LocalizedText>Fire Extinguisher is date-tracked only; no file is required.</LocalizedText></div>}
-        <div className="flex items-end xl:col-span-3"><Button type="submit" disabled={busy || loading || !selectedTruck || (requiresFile && !file) || !validUntil} className="w-full sm:w-auto">{busy ? <><RefreshCw className="me-2 h-4 w-4 animate-spin"/><LocalizedText>Saving…</LocalizedText></> : <><Upload className="me-2 h-4 w-4"/><LocalizedText>{requiresFile ? 'Save document' : 'Save expiry dates'}</LocalizedText></>}</Button></div>
-      </form></CardContent></Card>}
+      {(canCreate('trucks') || canUpdate('trucks')) && <div ref={formRef} className="scroll-mt-6">
+        <Card className="glass-card">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              {selectedDocument ? <Pencil className="h-5 w-5 text-sky-600"/> : <Upload className="h-5 w-5 text-sky-600"/>}
+              <LocalizedText>{selectedDocument ? 'Edit truck document' : 'Add or update a truck document'}</LocalizedText>
+            </CardTitle>
+            <CardDescription>
+              <LocalizedText>{selectedDocument ? 'Update the issue and expiry dates. Upload a file only if you want to add or replace it.' : 'Fire Extinguisher is date-only. Its reminder starts 10 days before expiry. Upload files for the other five document types.'}</LocalizedText>
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={upload} className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
+              <div className="space-y-1.5 xl:col-span-2">
+                <Label htmlFor="expiryTruck"><LocalizedText>Truck</LocalizedText></Label>
+                <select id="expiryTruck" required className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={selectedTruck} onChange={event => setSelectedTruck(event.target.value)}>
+                  <option value=""><LocalizedText>Select truck</LocalizedText></option>
+                  {trucks.map(truck => <option key={truck.id} value={truck.id}>{truck.licensePlate} · {truck.make} {truck.model}</option>)}
+                </select>
+              </div>
+              <div className="space-y-1.5 xl:col-span-2">
+                <Label htmlFor="expiryType"><LocalizedText>Document type</LocalizedText></Label>
+                <select id="expiryType" className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={documentType} onChange={event => { setDocumentType(event.target.value as DocumentType); setFile(null) }}>
+                  {documentTypes.map(type => <option key={type} value={type}>{t(type)}</option>)}
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="validFrom"><LocalizedText>Issue date</LocalizedText></Label>
+                <Input id="validFrom" type="date" value={validFrom} onChange={event => setValidFrom(event.target.value)}/>
+                <p className="text-xs text-muted-foreground"><LocalizedText>If you leave it blank, the issue date is set one year before expiry.</LocalizedText></p>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="validUntil"><LocalizedText>Expiry date</LocalizedText></Label>
+                <Input id="validUntil" type="date" required value={validUntil} onChange={event => setValidUntil(event.target.value)}/>
+              </div>
+              <div className="space-y-1.5 xl:col-span-2">
+                <Label htmlFor="reminderStartDate"><LocalizedText>Reminder starts (10 days before expiry)</LocalizedText></Label>
+                <Input id="reminderStartDate" type="date" readOnly value={reminderDateKey(validUntil)}/>
+                <p className="text-xs text-muted-foreground"><LocalizedText>This reminder date is calculated automatically.</LocalizedText></p>
+              </div>
+              {requiresFile ? <div className="space-y-1.5 xl:col-span-3">
+                <Label htmlFor="expiryFile"><LocalizedText>{selectedDocument?.fileName ? 'Replace document file (optional)' : selectedDocument ? 'Upload document file (optional)' : 'Document file'}</LocalizedText></Label>
+                <Input id="expiryFile" name="expiryFile" type="file" accept="application/pdf,image/jpeg,image/png,image/webp" required={!selectedDocument} onChange={event => setFile(event.target.files?.[0] || null)}/>
+                {selectedDocument?.fileName ? <p className="text-xs text-muted-foreground"><LocalizedText>Current file</LocalizedText>: {selectedDocument.fileName}. <LocalizedText>Leave empty to keep the current file.</LocalizedText></p> : <p className="text-xs text-muted-foreground"><LocalizedText>{selectedDocument ? 'The file is optional for an existing date record.' : 'PDF, JPG, PNG, or WEBP · maximum 4 MB'}</LocalizedText></p>}
+              </div> : <div className="flex items-center rounded-lg border border-sky-500/20 bg-sky-500/5 p-3 text-sm text-muted-foreground xl:col-span-3"><LocalizedText>Fire Extinguisher is date-tracked only; no file is required.</LocalizedText></div>}
+              <div className="flex items-end xl:col-span-3">
+                <Button type="submit" disabled={busy || loading || !selectedTruck || (requiresFile && !file && !selectedDocument) || !validUntil} className="w-full sm:w-auto">
+                  {busy ? <><RefreshCw className="me-2 h-4 w-4 animate-spin"/><LocalizedText>Saving…</LocalizedText></> : <><Upload className="me-2 h-4 w-4"/><LocalizedText>{selectedDocument ? documentType === 'Fire extinguisher' ? 'Update expiry dates' : 'Update document' : requiresFile ? 'Save document' : 'Save expiry dates'}</LocalizedText></>}
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+      </div>}
 
       <Card className="glass-card"><CardHeader><CardTitle><LocalizedText>Truck document status</LocalizedText></CardTitle><CardDescription><LocalizedText>Missing entries are included so you can see which trucks still need documents.</LocalizedText></CardDescription></CardHeader><CardContent className="space-y-4">
         <div className="grid gap-2 sm:grid-cols-3"><Input aria-label={t('Search truck, driver, or document')} placeholder={t('Search truck, driver, or document')} value={search} onChange={event => setSearch(event.target.value)}/><select aria-label={t('Filter by document')} className="h-10 rounded-md border bg-background px-3 text-sm" value={typeFilter} onChange={event => setTypeFilter(event.target.value)}><option value="all">{t('All document types')}</option>{documentTypes.map(type => <option key={type} value={type}>{t(type)}</option>)}</select><select aria-label={t('Filter by status')} className="h-10 rounded-md border bg-background px-3 text-sm" value={statusFilter} onChange={event => setStatusFilter(event.target.value)}><option value="all">{t('All statuses')}</option><option value="missing">{t('Missing')}</option><option value="expired">{t('Expired')}</option><option value="reminder">{t('Reminder started')}</option><option value="current">{t('Current')}</option></select></div>
-        {loading ? <div className="flex min-h-32 items-center justify-center text-sm text-muted-foreground"><RefreshCw className="me-2 h-4 w-4 animate-spin"/><LocalizedText>Loading expiry tracker</LocalizedText></div> : !trucks.length ? <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground"><AlertTriangle className="mx-auto mb-2 h-5 w-5"/><LocalizedText>No trucks are available.</LocalizedText></div> : !visibleRows.length ? <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground"><LocalizedText>No documents match these filters.</LocalizedText></div> : <div className="overflow-x-auto rounded-xl border"><table className="min-w-[850px] w-full text-sm"><thead className="bg-muted/60 text-left"><tr><th className="px-3 py-3 font-semibold"><LocalizedText>Truck</LocalizedText></th><th className="px-3 py-3 font-semibold"><LocalizedText>Driver</LocalizedText></th><th className="px-3 py-3 font-semibold"><LocalizedText>Document</LocalizedText></th><th className="px-3 py-3 font-semibold"><LocalizedText>Expiry date</LocalizedText></th><th className="px-3 py-3 font-semibold"><LocalizedText>Reminder starts (10 days before expiry)</LocalizedText></th><th className="px-3 py-3 font-semibold"><LocalizedText>Status</LocalizedText></th><th className="px-3 py-3 font-semibold"><LocalizedText>File</LocalizedText></th></tr></thead><tbody className="divide-y">{visibleRows.map(row => <tr key={`${row.truck.id}-${row.type}`} className="hover:bg-muted/30"><td className="px-3 py-3"><span className="font-medium">{row.truck.licensePlate}</span><span className="block text-xs text-muted-foreground">{[row.truck.make, row.truck.model, row.truck.year].filter(Boolean).join(' ')}</span></td><td className="px-3 py-3">{row.truck.driverName || '—'}</td><td className="px-3 py-3"><LocalizedText>{row.type}</LocalizedText></td><td className="px-3 py-3 tabular-nums">{readableDate(row.document?.validUntil)}</td><td className="px-3 py-3 tabular-nums">{readableDate(row.document?.validUntil ? reminderDateKey(row.document.validUntil.slice(0, 10)) : null)}</td><td className="px-3 py-3"><Badge variant="outline" className={statusStyle[row.status]}>{statusLabel[row.status]}</Badge></td><td className="px-3 py-3">{row.document?.fileName ? <Button type="button" size="sm" variant="outline" onClick={() => void openFile(row.document!.id)}><FileText className="me-1 h-4 w-4"/><LocalizedText>View</LocalizedText></Button> : row.document && row.type === 'Fire extinguisher' ? <LocalizedText>Date only</LocalizedText> : row.document ? <LocalizedText>Missing file</LocalizedText> : '—'}</td></tr>)}</tbody></table></div>}
+        {loading ? <div className="flex min-h-32 items-center justify-center text-sm text-muted-foreground"><RefreshCw className="me-2 h-4 w-4 animate-spin"/><LocalizedText>Loading expiry tracker</LocalizedText></div> : !trucks.length ? <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground"><AlertTriangle className="mx-auto mb-2 h-5 w-5"/><LocalizedText>No trucks are available.</LocalizedText></div> : !visibleRows.length ? <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground"><LocalizedText>No documents match these filters.</LocalizedText></div> : <div className="overflow-x-auto rounded-xl border"><table className="min-w-[1050px] w-full text-sm"><thead className="bg-muted/60 text-left"><tr><th className="px-3 py-3 font-semibold"><LocalizedText>Truck</LocalizedText></th><th className="px-3 py-3 font-semibold"><LocalizedText>Driver</LocalizedText></th><th className="px-3 py-3 font-semibold"><LocalizedText>Document</LocalizedText></th><th className="px-3 py-3 font-semibold"><LocalizedText>Issue date</LocalizedText></th><th className="px-3 py-3 font-semibold"><LocalizedText>Expiry date</LocalizedText></th><th className="px-3 py-3 font-semibold"><LocalizedText>Reminder starts (10 days before expiry)</LocalizedText></th><th className="px-3 py-3 font-semibold"><LocalizedText>Status</LocalizedText></th><th className="px-3 py-3 font-semibold"><LocalizedText>File</LocalizedText></th><th className="px-3 py-3 font-semibold"><LocalizedText>Actions</LocalizedText></th></tr></thead><tbody className="divide-y">{visibleRows.map(row => <tr key={`${row.truck.id}-${row.type}`} className="hover:bg-muted/30"><td className="px-3 py-3"><span className="font-medium">{row.truck.licensePlate}</span><span className="block text-xs text-muted-foreground">{[row.truck.make, row.truck.model, row.truck.year].filter(Boolean).join(' ')}</span></td><td className="px-3 py-3">{row.truck.driverName || '—'}</td><td className="px-3 py-3"><LocalizedText>{row.type}</LocalizedText></td><td className="px-3 py-3 tabular-nums">{readableDate(row.document?.validFrom)}</td><td className="px-3 py-3 tabular-nums">{readableDate(row.document?.validUntil)}</td><td className="px-3 py-3 tabular-nums">{readableDate(row.document?.validUntil ? reminderDateKey(row.document.validUntil.slice(0, 10)) : null)}</td><td className="px-3 py-3"><Badge variant="outline" className={statusStyle[row.status]}>{statusLabel[row.status]}</Badge></td><td className="px-3 py-3">{row.document?.fileName ? <Button type="button" size="sm" variant="outline" onClick={() => void openFile(row.document!.id)}><FileText className="me-1 h-4 w-4"/><LocalizedText>View</LocalizedText></Button> : row.document && row.type === 'Fire extinguisher' ? <LocalizedText>Date only</LocalizedText> : row.document ? <LocalizedText>Missing file</LocalizedText> : '—'}</td><td className="px-3 py-3">{row.document ? canUpdate('trucks') ? <Button type="button" size="sm" variant="outline" onClick={() => focusRowInForm(row)}><Pencil className="me-1 h-4 w-4"/><LocalizedText>Edit</LocalizedText></Button> : '—' : canCreate('trucks') ? <Button type="button" size="sm" variant="outline" onClick={() => focusRowInForm(row)}><Upload className="me-1 h-4 w-4"/><LocalizedText>Add</LocalizedText></Button> : '—'}</td></tr>)}</tbody></table></div>}
       </CardContent></Card>
     </div>
   )
