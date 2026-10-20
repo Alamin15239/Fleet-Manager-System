@@ -13,11 +13,14 @@ import { useLanguage } from '@/contexts/language-context'
 import { toast } from '@/lib/localized-toast'
 import { apiFetch, apiGet } from '@/lib/api'
 
-const documentTypes = ['Fire extinguisher', 'Operation card', 'Istimara', 'Insurance', 'Driver card', 'Fahas'] as const
+const documentTypes = ['Fire extinguisher', 'Operation card', 'Istimara', 'Insurance', 'Fahas'] as const
+const driverCardType = 'Driver card'
 type DocumentType = typeof documentTypes[number]
-type ExpiryDocument = { id: string; title: string; documentType: DocumentType; fileName: string | null; validFrom: string | null; validUntil: string; reminderStartDate: string | null; createdAt: string }
+type ExpiryDocument = { id: string; title: string; documentType: string; fileName: string | null; validFrom: string | null; validUntil: string; reminderStartDate: string | null; createdAt?: string }
 type ExpiryTruck = { id: string; licensePlate: string; make: string; model: string; year: number; driverName: string | null; vehicleDocuments: ExpiryDocument[] }
 type TrackerRow = { truck: ExpiryTruck; type: DocumentType; document?: ExpiryDocument; status: 'missing' | 'expired' | 'reminder' | 'current' }
+type DriverOption = { id: string; name: string; phone: string | null; vehicleDocuments: ExpiryDocument[] }
+type DriverTrackerRow = { driver: DriverOption; document?: ExpiryDocument; status: TrackerRow['status'] }
 type DocumentDraft = { validFrom: string; validUntil: string; file: File | null }
 type DocumentDrafts = Record<DocumentType, DocumentDraft>
 
@@ -70,7 +73,15 @@ export function VehicleExpiryTracker() {
   const { canCreate, canUpdate } = usePermissions()
   const { t } = useLanguage()
   const [trucks, setTrucks] = useState<ExpiryTruck[]>([])
+  const [drivers, setDrivers] = useState<DriverOption[]>([])
   const [selectedTruck, setSelectedTruck] = useState('')
+  const [selectedDriverId, setSelectedDriverId] = useState('')
+  const [newDriverName, setNewDriverName] = useState('')
+  const [showAddDriver, setShowAddDriver] = useState(false)
+  const [driverValidFrom, setDriverValidFrom] = useState('')
+  const [driverValidUntil, setDriverValidUntil] = useState('')
+  const [driverFile, setDriverFile] = useState<File | null>(null)
+  const [driverBusy, setDriverBusy] = useState(false)
   const [draftsByTruck, setDraftsByTruck] = useState<Record<string, DocumentDrafts>>({})
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
@@ -79,7 +90,11 @@ export function VehicleExpiryTracker() {
   const [busy, setBusy] = useState(false)
   const documentSlotRefs = useRef<Partial<Record<DocumentType, HTMLElement | null>>>({})
   const fileInputRefs = useRef<Partial<Record<DocumentType, HTMLInputElement | null>>>({})
+  const driverFileInputRef = useRef<HTMLInputElement>(null)
+  const driverCardFormRef = useRef<HTMLDivElement>(null)
   const selectedTruckData = useMemo(() => trucks.find(truck => truck.id === selectedTruck), [trucks, selectedTruck])
+  const selectedDriver = useMemo(() => drivers.find(driver => driver.id === selectedDriverId), [drivers, selectedDriverId])
+  const selectedDriverCard = selectedDriver?.vehicleDocuments.find(document => document.documentType === driverCardType)
   const documentDrafts = useMemo(
     () => draftsByTruck[selectedTruck] || draftsForTruck(selectedTruckData),
     [draftsByTruck, selectedTruck, selectedTruckData],
@@ -100,7 +115,27 @@ export function VehicleExpiryTracker() {
     }
   }, [])
 
-  useEffect(() => { void load() }, [load])
+  const loadDrivers = useCallback(async () => {
+    try {
+      const response = await apiGet('/api/drivers')
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(data.error || 'Could not load drivers.')
+      const nextDrivers = (data.drivers || []) as DriverOption[]
+      setDrivers(nextDrivers)
+      setSelectedDriverId(current => current || nextDrivers[0]?.id || '')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not load drivers.')
+    }
+  }, [])
+
+  useEffect(() => { void load(); void loadDrivers() }, [load, loadDrivers])
+
+  useEffect(() => {
+    setDriverValidFrom(selectedDriverCard?.validFrom?.slice(0, 10) || inferredIssueDateKey(selectedDriverCard?.validUntil))
+    setDriverValidUntil(selectedDriverCard?.validUntil?.slice(0, 10) || '')
+    setDriverFile(null)
+    if (driverFileInputRef.current) driverFileInputRef.current.value = ''
+  }, [selectedDriverId, selectedDriverCard?.id, selectedDriverCard?.validFrom, selectedDriverCard?.validUntil])
 
   const updateDraft = (type: DocumentType, values: Partial<DocumentDraft>) => {
     setDraftsByTruck(current => ({
@@ -126,6 +161,17 @@ export function VehicleExpiryTracker() {
     }))
   }, [trucks])
 
+  const driverRows = useMemo<DriverTrackerRow[]>(() => {
+    const today = localDateKey()
+    return drivers.map(driver => {
+      const document = driver.vehicleDocuments.find(item => item.documentType === driverCardType)
+      const expiry = document?.validUntil?.slice(0, 10) || ''
+      const reminder = expiry ? reminderDateKey(expiry) : ''
+      const status: TrackerRow['status'] = !expiry ? 'missing' : expiry < today ? 'expired' : reminder <= today ? 'reminder' : 'current'
+      return { driver, document, status }
+    })
+  }, [drivers])
+
   const visibleRows = rows.filter(row => {
     const searchable = `${row.truck.licensePlate} ${row.truck.make} ${row.truck.model} ${row.truck.driverName || ''} ${row.type}`.toLowerCase()
     return (!search || searchable.includes(search.toLowerCase())) &&
@@ -133,7 +179,13 @@ export function VehicleExpiryTracker() {
       (typeFilter === 'all' || row.type === typeFilter)
   })
 
-  const counts = rows.reduce((acc, row) => { acc[row.status] += 1; return acc }, { missing: 0, expired: 0, reminder: 0, current: 0 })
+  const visibleDriverRows = driverRows.filter(row =>
+    (!search || row.driver.name.toLowerCase().includes(search.toLowerCase())) &&
+    (statusFilter === 'all' || row.status === statusFilter) &&
+    (typeFilter === 'all' || typeFilter === driverCardType),
+  )
+
+  const counts = [...rows.map(row => row.status), ...driverRows.map(row => row.status)].reduce((acc, status) => { acc[status] += 1; return acc }, { missing: 0, expired: 0, reminder: 0, current: 0 })
 
   const upload = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -146,7 +198,7 @@ export function VehicleExpiryTracker() {
       return !draft.validUntil || (draft.validFrom && draft.validUntil < draft.validFrom)
     })
     if (missingDates.length) {
-      toast.error('Enter valid issue and expiry dates for all six document types.')
+      toast.error('Enter valid issue and expiry dates for all five truck document types.')
       return
     }
     const missingFiles = documentTypes.filter(type => {
@@ -155,7 +207,7 @@ export function VehicleExpiryTracker() {
       return !currentDocument?.fileName && !documentDrafts[type].file
     })
     if (missingFiles.length) {
-      toast.error('Upload all missing required document files before saving.')
+      toast.error('Upload all missing required truck document files before saving.')
       return
     }
     const invalidFile = documentTypes.find(type => {
@@ -224,11 +276,91 @@ export function VehicleExpiryTracker() {
     }
   }
 
+  const addDriver = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const name = newDriverName.trim().replace(/\s+/g, ' ')
+    if (!name) {
+      toast.error('Enter the driver name.')
+      return
+    }
+    setDriverBusy(true)
+    try {
+      const response = await apiFetch('/api/drivers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }),
+      })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok || !data.driver) throw new Error(data.error || 'Could not add the driver.')
+      const driver = { ...data.driver, vehicleDocuments: [] } as DriverOption
+      setDrivers(current => [...current.filter(item => item.id !== driver.id), driver].sort((a, b) => a.name.localeCompare(b.name)))
+      setSelectedDriverId(driver.id)
+      setNewDriverName('')
+      setShowAddDriver(false)
+      toast.success('Driver added. You can now upload their driver card.')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not add the driver.')
+    } finally {
+      setDriverBusy(false)
+    }
+  }
+
+  const saveDriverCard = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!selectedDriver) {
+      toast.error('Select or add a driver first.')
+      return
+    }
+    if (!driverValidUntil || (driverValidFrom && driverValidUntil < driverValidFrom)) {
+      toast.error('Check the valid-from and expiry dates.')
+      return
+    }
+    if (!selectedDriverCard?.fileName && !driverFile) {
+      toast.error('Choose the driver card file.')
+      return
+    }
+    if (driverFile && (driverFile.size > 4 * 1024 * 1024 || !['application/pdf', 'image/jpeg', 'image/png', 'image/webp'].includes(driverFile.type))) {
+      toast.error('Each document file must be a PDF, JPG, PNG, or WEBP file no larger than 4 MB.')
+      return
+    }
+    if (selectedDriverCard ? !canUpdate('trucks') : !canCreate('trucks')) {
+      toast.error('Your role cannot save one or more document changes.')
+      return
+    }
+
+    setDriverBusy(true)
+    try {
+      const form = new FormData()
+      form.set('sourceType', 'DRIVER')
+      form.set('sourceId', selectedDriver.id)
+      form.set('documentType', driverCardType)
+      form.set('validFrom', driverValidFrom)
+      form.set('validUntil', driverValidUntil)
+      if (driverFile) form.set('file', driverFile)
+      const response = await apiFetch('/api/vehicle-documents', { method: 'POST', body: form })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(data.error || 'Could not save the driver card.')
+      setDriverFile(null)
+      if (driverFileInputRef.current) driverFileInputRef.current.value = ''
+      toast.success(selectedDriverCard ? driverFile ? 'Driver card updated and file replaced.' : 'Driver card dates updated.' : 'Driver card and expiry dates saved.')
+      await loadDrivers()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not save the driver card.')
+    } finally {
+      setDriverBusy(false)
+    }
+  }
+
   const focusRowInForm = (row: TrackerRow) => {
     setSelectedTruck(row.truck.id)
     window.setTimeout(() => {
       documentSlotRefs.current[row.type]?.scrollIntoView({ behavior: 'smooth', block: 'center' })
     }, 0)
+  }
+
+  const focusDriverInForm = (row: DriverTrackerRow) => {
+    setSelectedDriverId(row.driver.id)
+    window.setTimeout(() => driverCardFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0)
   }
 
   const openFile = async (documentId: string) => {
@@ -260,16 +392,69 @@ export function VehicleExpiryTracker() {
   return (
     <div className="mx-auto w-full max-w-[1500px] space-y-5 p-4 md:p-6">
       <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
-        <div><div className="mb-1 flex items-center gap-2 text-sm font-medium text-sky-700 dark:text-sky-300"><CalendarClock className="h-4 w-4"/><LocalizedText>Fleet compliance</LocalizedText></div><h1 className="text-2xl font-bold tracking-tight md:text-3xl"><LocalizedText>Document expiry tracker</LocalizedText></h1><p className="mt-1 max-w-3xl text-sm text-muted-foreground"><LocalizedText>Track fire extinguisher, operation card, Istimara, insurance, driver card, and Fahas dates for trucks. Trucks and trailers keep their separate Protection Card file on their own detail pages.</LocalizedText></p></div>
-        <Button variant="outline" onClick={() => void load()} disabled={loading}><RefreshCw className={`me-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`}/><LocalizedText>Refresh</LocalizedText></Button>
+        <div><div className="mb-1 flex items-center gap-2 text-sm font-medium text-sky-700 dark:text-sky-300"><CalendarClock className="h-4 w-4"/><LocalizedText>Fleet compliance</LocalizedText></div><h1 className="text-2xl font-bold tracking-tight md:text-3xl"><LocalizedText>Document expiry tracker</LocalizedText></h1><p className="mt-1 max-w-3xl text-sm text-muted-foreground"><LocalizedText>Track fire extinguisher, operation card, Istimara, insurance, and Fahas dates for trucks. Driver Cards are saved to driver records. Trucks and trailers keep their separate Protection Card file on their own detail pages.</LocalizedText></p></div>
+        <Button variant="outline" onClick={() => { void load(); void loadDrivers() }} disabled={loading}><RefreshCw className={`me-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`}/><LocalizedText>Refresh</LocalizedText></Button>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Metric icon={<FileText className="h-4 w-4"/>} label="Tracked document slots" value={rows.length} tone="blue"/>
+        <Metric icon={<FileText className="h-4 w-4"/>} label="Tracked document slots" value={rows.length + driverRows.length} tone="blue"/>
         <Metric icon={<CheckCircle2 className="h-4 w-4"/>} label="Current" value={counts.current} tone="green"/>
         <Metric icon={<Clock3 className="h-4 w-4"/>} label="Reminder started" value={counts.reminder} tone="amber"/>
         <Metric icon={<ShieldAlert className="h-4 w-4"/>} label="Expired or missing" value={counts.expired + counts.missing} tone="rose"/>
       </div>
+
+      {(canCreate('trucks') || canUpdate('trucks')) && <div ref={driverCardFormRef} className="scroll-mt-6">
+        <Card className="glass-card">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2"><FileText className="h-5 w-5 text-violet-600"/><LocalizedText>Driver card documents</LocalizedText></CardTitle>
+            <CardDescription><LocalizedText>Driver Cards belong to people, so they are saved to a driver record and stay with that driver if the assigned truck changes.</LocalizedText></CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+              <div className="min-w-0 flex-1 space-y-1.5">
+                <Label htmlFor="expiryDriver"><LocalizedText>Select driver from system</LocalizedText></Label>
+                <select id="expiryDriver" required className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={selectedDriverId} onChange={event => setSelectedDriverId(event.target.value)}>
+                  <option value=""><LocalizedText>Select driver</LocalizedText></option>
+                  {drivers.map(driver => <option key={driver.id} value={driver.id}>{driver.name}{driver.phone ? ` · ${driver.phone}` : ''}</option>)}
+                </select>
+              </div>
+              {canCreate('trucks') && <Button type="button" variant="outline" onClick={() => setShowAddDriver(value => !value)}><LocalizedText>{showAddDriver ? 'Cancel' : 'Add driver'}</LocalizedText></Button>}
+            </div>
+            {showAddDriver && <form onSubmit={addDriver} className="flex flex-col gap-2 rounded-xl border bg-background/50 p-3 sm:flex-row">
+              <Input aria-label={t('Driver name')} placeholder={t('Driver name')} required maxLength={120} value={newDriverName} onChange={event => setNewDriverName(event.target.value)} disabled={driverBusy}/>
+              <Button type="submit" disabled={driverBusy || !newDriverName.trim()} className="sm:min-w-36"><LocalizedText>{driverBusy ? 'Saving…' : 'Save driver'}</LocalizedText></Button>
+            </form>}
+            {!drivers.length && <p className="text-sm text-muted-foreground"><LocalizedText>No driver records yet. Add a driver or assign a driver to a truck first.</LocalizedText></p>}
+            <form onSubmit={saveDriverCard} className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+              <div className="space-y-1.5">
+                <Label htmlFor="driverCardIssueDate"><LocalizedText>Issue date</LocalizedText></Label>
+                <Input id="driverCardIssueDate" type="date" disabled={!selectedDriverId || driverBusy} value={driverValidFrom} onChange={event => setDriverValidFrom(event.target.value)}/>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="driverCardExpiryDate"><LocalizedText>Expiry date</LocalizedText></Label>
+                <Input id="driverCardExpiryDate" type="date" required disabled={!selectedDriverId || driverBusy} value={driverValidUntil} onChange={event => setDriverValidUntil(event.target.value)}/>
+              </div>
+              <div className="space-y-1.5">
+                <Label><LocalizedText>Reminder starts (10 days before expiry)</LocalizedText></Label>
+                <div className="flex h-10 items-center rounded-md border bg-muted/30 px-3 text-sm tabular-nums">{readableDate(driverValidUntil ? reminderDateKey(driverValidUntil) : null)}</div>
+              </div>
+              <div className="space-y-1.5 xl:col-span-2">
+                <Label htmlFor="driverCardFile"><LocalizedText>{selectedDriverCard?.fileName ? 'Replace driver card file (optional)' : 'Driver card file (required)'}</LocalizedText></Label>
+                <Input key={selectedDriverId} ref={driverFileInputRef} id="driverCardFile" type="file" accept="application/pdf,image/jpeg,image/png,image/webp" disabled={!selectedDriverId || driverBusy} required={!selectedDriverCard?.fileName} onChange={event => setDriverFile(event.target.files?.[0] || null)}/>
+                <p className="text-xs text-muted-foreground">
+                  {driverFile ? <><LocalizedText>Selected file</LocalizedText>: {driverFile.name}. </> : selectedDriverCard?.fileName ? <><LocalizedText>Current file</LocalizedText>: {selectedDriverCard.fileName}. </> : null}
+                  <LocalizedText>{selectedDriverCard?.fileName ? 'A new file replaces only this driver card.' : 'PDF, JPG, PNG, or WEBP · maximum 4 MB'}</LocalizedText>
+                </p>
+              </div>
+              <div className="flex items-end">
+                <Button type="submit" disabled={driverBusy || !selectedDriver || !driverValidUntil} className="w-full">
+                  {driverBusy ? <><RefreshCw className="me-2 h-4 w-4 animate-spin"/><LocalizedText>Saving…</LocalizedText></> : <><Upload className="me-2 h-4 w-4"/><LocalizedText>{selectedDriverCard ? 'Update driver card' : 'Save driver card'}</LocalizedText></>}
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+      </div>}
 
       {(canCreate('trucks') || canUpdate('trucks')) && <div className="scroll-mt-6">
         <Card className="glass-card">
@@ -279,7 +464,7 @@ export function VehicleExpiryTracker() {
               <LocalizedText>All truck documents</LocalizedText>
             </CardTitle>
             <CardDescription>
-              <LocalizedText>Choose one truck, enter dates for all six document types, and upload all five required files. Fire Extinguisher is date-only. Existing files stay unless you replace that same document type.</LocalizedText>
+              <LocalizedText>Choose one truck, enter dates for all five truck document types, and upload the four required files. Driver Cards are managed separately under their driver. Fire Extinguisher is date-only.</LocalizedText>
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -328,7 +513,7 @@ export function VehicleExpiryTracker() {
                 })}
               </div>
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <p className="text-xs text-muted-foreground"><LocalizedText>All six expiry dates are required. All five files are required if they are not already saved for this truck.</LocalizedText></p>
+                <p className="text-xs text-muted-foreground"><LocalizedText>All five expiry dates are required. The four files are required if they are not already saved for this truck.</LocalizedText></p>
                 <Button type="submit" disabled={busy || loading || !selectedTruck} className="w-full sm:w-auto">
                   {busy ? <><RefreshCw className="me-2 h-4 w-4 animate-spin"/><LocalizedText>Saving all documents…</LocalizedText></> : <><Upload className="me-2 h-4 w-4"/><LocalizedText>Save all truck documents</LocalizedText></>}
                 </Button>
@@ -339,8 +524,12 @@ export function VehicleExpiryTracker() {
       </div>}
 
       <Card className="glass-card"><CardHeader><CardTitle><LocalizedText>Truck document status</LocalizedText></CardTitle><CardDescription><LocalizedText>Missing entries are included so you can see which trucks still need documents.</LocalizedText></CardDescription></CardHeader><CardContent className="space-y-4">
-        <div className="grid gap-2 sm:grid-cols-3"><Input aria-label={t('Search truck, driver, or document')} placeholder={t('Search truck, driver, or document')} value={search} onChange={event => setSearch(event.target.value)}/><select aria-label={t('Filter by document')} className="h-10 rounded-md border bg-background px-3 text-sm" value={typeFilter} onChange={event => setTypeFilter(event.target.value)}><option value="all">{t('All document types')}</option>{documentTypes.map(type => <option key={type} value={type}>{t(type)}</option>)}</select><select aria-label={t('Filter by status')} className="h-10 rounded-md border bg-background px-3 text-sm" value={statusFilter} onChange={event => setStatusFilter(event.target.value)}><option value="all">{t('All statuses')}</option><option value="missing">{t('Missing')}</option><option value="expired">{t('Expired')}</option><option value="reminder">{t('Reminder started')}</option><option value="current">{t('Current')}</option></select></div>
+        <div className="grid gap-2 sm:grid-cols-3"><Input aria-label={t('Search truck, driver, or document')} placeholder={t('Search truck, driver, or document')} value={search} onChange={event => setSearch(event.target.value)}/><select aria-label={t('Filter by document')} className="h-10 rounded-md border bg-background px-3 text-sm" value={typeFilter} onChange={event => setTypeFilter(event.target.value)}><option value="all">{t('All document types')}</option>{documentTypes.map(type => <option key={type} value={type}>{t(type)}</option>)}<option value={driverCardType}>{t(driverCardType)}</option></select><select aria-label={t('Filter by status')} className="h-10 rounded-md border bg-background px-3 text-sm" value={statusFilter} onChange={event => setStatusFilter(event.target.value)}><option value="all">{t('All statuses')}</option><option value="missing">{t('Missing')}</option><option value="expired">{t('Expired')}</option><option value="reminder">{t('Reminder started')}</option><option value="current">{t('Current')}</option></select></div>
         {loading ? <div className="flex min-h-32 items-center justify-center text-sm text-muted-foreground"><RefreshCw className="me-2 h-4 w-4 animate-spin"/><LocalizedText>Loading expiry tracker</LocalizedText></div> : !trucks.length ? <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground"><AlertTriangle className="mx-auto mb-2 h-5 w-5"/><LocalizedText>No trucks are available.</LocalizedText></div> : !visibleRows.length ? <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground"><LocalizedText>No documents match these filters.</LocalizedText></div> : <div className="overflow-x-auto rounded-xl border"><table className="min-w-[1050px] w-full text-sm"><thead className="bg-muted/60 text-left"><tr><th className="px-3 py-3 font-semibold"><LocalizedText>Truck</LocalizedText></th><th className="px-3 py-3 font-semibold"><LocalizedText>Driver</LocalizedText></th><th className="px-3 py-3 font-semibold"><LocalizedText>Document</LocalizedText></th><th className="px-3 py-3 font-semibold"><LocalizedText>Issue date</LocalizedText></th><th className="px-3 py-3 font-semibold"><LocalizedText>Expiry date</LocalizedText></th><th className="px-3 py-3 font-semibold"><LocalizedText>Reminder starts (10 days before expiry)</LocalizedText></th><th className="px-3 py-3 font-semibold"><LocalizedText>Status</LocalizedText></th><th className="px-3 py-3 font-semibold"><LocalizedText>File</LocalizedText></th><th className="px-3 py-3 font-semibold"><LocalizedText>Actions</LocalizedText></th></tr></thead><tbody className="divide-y">{visibleRows.map(row => <tr key={`${row.truck.id}-${row.type}`} className="hover:bg-muted/30"><td className="px-3 py-3"><span className="font-medium">{row.truck.licensePlate}</span><span className="block text-xs text-muted-foreground">{[row.truck.make, row.truck.model, row.truck.year].filter(Boolean).join(' ')}</span></td><td className="px-3 py-3">{row.truck.driverName || '—'}</td><td className="px-3 py-3"><LocalizedText>{row.type}</LocalizedText></td><td className="px-3 py-3 tabular-nums">{readableDate(row.document?.validFrom)}</td><td className="px-3 py-3 tabular-nums">{readableDate(row.document?.validUntil)}</td><td className="px-3 py-3 tabular-nums">{readableDate(row.document?.validUntil ? reminderDateKey(row.document.validUntil.slice(0, 10)) : null)}</td><td className="px-3 py-3"><Badge variant="outline" className={statusStyle[row.status]}>{statusLabel[row.status]}</Badge></td><td className="px-3 py-3">{row.document?.fileName ? <Button type="button" size="sm" variant="outline" onClick={() => void openFile(row.document!.id)}><FileText className="me-1 h-4 w-4"/><LocalizedText>View</LocalizedText></Button> : row.document && row.type === 'Fire extinguisher' ? <LocalizedText>Date only</LocalizedText> : row.document ? <LocalizedText>Missing file</LocalizedText> : '—'}</td><td className="px-3 py-3">{row.document ? canUpdate('trucks') ? <Button type="button" size="sm" variant="outline" onClick={() => focusRowInForm(row)}><Pencil className="me-1 h-4 w-4"/><LocalizedText>Edit</LocalizedText></Button> : '—' : canCreate('trucks') ? <Button type="button" size="sm" variant="outline" onClick={() => focusRowInForm(row)}><Upload className="me-1 h-4 w-4"/><LocalizedText>Add</LocalizedText></Button> : '—'}</td></tr>)}</tbody></table></div>}
+      </CardContent></Card>
+
+      <Card className="glass-card"><CardHeader><CardTitle><LocalizedText>Driver card status</LocalizedText></CardTitle><CardDescription><LocalizedText>Driver Cards are tracked against the driver record, independently from truck assignments.</LocalizedText></CardDescription></CardHeader><CardContent>
+        {!visibleDriverRows.length ? <div className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground"><LocalizedText>{drivers.length ? 'No driver cards match these filters.' : 'No driver records yet. Add a driver or assign a driver to a truck first.'}</LocalizedText></div> : <div className="overflow-x-auto rounded-xl border"><table className="min-w-[850px] w-full text-sm"><thead className="bg-muted/60 text-left"><tr><th className="px-3 py-3 font-semibold"><LocalizedText>Driver</LocalizedText></th><th className="px-3 py-3 font-semibold"><LocalizedText>Issue date</LocalizedText></th><th className="px-3 py-3 font-semibold"><LocalizedText>Expiry date</LocalizedText></th><th className="px-3 py-3 font-semibold"><LocalizedText>Reminder starts (10 days before expiry)</LocalizedText></th><th className="px-3 py-3 font-semibold"><LocalizedText>Status</LocalizedText></th><th className="px-3 py-3 font-semibold"><LocalizedText>File</LocalizedText></th><th className="px-3 py-3 font-semibold"><LocalizedText>Actions</LocalizedText></th></tr></thead><tbody className="divide-y">{visibleDriverRows.map(row => <tr key={row.driver.id} className="hover:bg-muted/30"><td className="px-3 py-3 font-medium">{row.driver.name}</td><td className="px-3 py-3 tabular-nums">{readableDate(row.document?.validFrom)}</td><td className="px-3 py-3 tabular-nums">{readableDate(row.document?.validUntil)}</td><td className="px-3 py-3 tabular-nums">{readableDate(row.document?.validUntil ? reminderDateKey(row.document.validUntil.slice(0, 10)) : null)}</td><td className="px-3 py-3"><Badge variant="outline" className={statusStyle[row.status]}>{statusLabel[row.status]}</Badge></td><td className="px-3 py-3">{row.document?.fileName ? <Button type="button" size="sm" variant="outline" onClick={() => void openFile(row.document!.id)}><FileText className="me-1 h-4 w-4"/><LocalizedText>View</LocalizedText></Button> : <LocalizedText>Missing file</LocalizedText>}</td><td className="px-3 py-3">{row.document ? canUpdate('trucks') ? <Button type="button" size="sm" variant="outline" onClick={() => focusDriverInForm(row)}><Pencil className="me-1 h-4 w-4"/><LocalizedText>Edit</LocalizedText></Button> : '—' : canCreate('trucks') ? <Button type="button" size="sm" variant="outline" onClick={() => focusDriverInForm(row)}><Upload className="me-1 h-4 w-4"/><LocalizedText>Add</LocalizedText></Button> : '—'}</td></tr>)}</tbody></table></div>}
       </CardContent></Card>
     </div>
   )

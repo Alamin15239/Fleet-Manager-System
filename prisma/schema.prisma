@@ -65,6 +65,21 @@ model Mechanic {
   @@map("mechanics")
 }
 
+model Driver {
+  id                String           @id @default(cuid())
+  name              String
+  normalizedName    String           @unique
+  phone             String?
+  isActive          Boolean          @default(true)
+  isDeleted         Boolean          @default(false)
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  vehicleDocuments VehicleDocument[]
+
+  @@index([name])
+  @@map("drivers")
+}
+
 model Truck {
   id                 String              @id @default(cuid())
   vin                String              @unique
@@ -702,6 +717,7 @@ model FleetVehicle {
 model VehicleDocument {
   id                String       @id @default(cuid())
   vehicleId         String?
+  driverId          String?
   title             String
   documentType      String
   fileName          String?
@@ -717,13 +733,16 @@ model VehicleDocument {
   truckId           String?
   trailerId         String?
   vehicle           FleetVehicle? @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  driver            Driver?       @relation(fields: [driverId], references: [id], onDelete: Cascade)
   truck             Truck?        @relation(fields: [truckId], references: [id], onDelete: Cascade)
   trailer           Trailer?      @relation(fields: [trailerId], references: [id], onDelete: Cascade)
 
   @@unique([vehicleId, documentType])
+  @@unique([driverId, documentType])
   @@unique([truckId, documentType])
   @@unique([trailerId, documentType])
   @@index([vehicleId])
+  @@index([driverId])
   @@index([truckId])
   @@index([trailerId])
   @@index([validUntil])

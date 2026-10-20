@@ -948,6 +948,21 @@ CREATE TABLE "vehicle_types" (
 
 CREATE UNIQUE INDEX "vehicle_types_name_key" ON "vehicle_types"("name");
 
+CREATE TABLE "drivers" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "normalizedName" TEXT NOT NULL,
+    "phone" TEXT,
+    "isActive" BOOLEAN NOT NULL DEFAULT TRUE,
+    "isDeleted" BOOLEAN NOT NULL DEFAULT FALSE,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    CONSTRAINT "drivers_pkey" PRIMARY KEY ("id")
+);
+
+CREATE UNIQUE INDEX "drivers_normalizedName_key" ON "drivers"("normalizedName");
+CREATE INDEX "drivers_name_idx" ON "drivers"("name");
+
 CREATE TABLE "fleet_vehicles" (
     "id" TEXT NOT NULL,
     "vehicleNumber" TEXT NOT NULL,
@@ -976,6 +991,7 @@ CREATE INDEX "fleet_vehicles_vehicleNumber_idx" ON "fleet_vehicles"("vehicleNumb
 CREATE TABLE "vehicle_documents" (
     "id" TEXT NOT NULL,
     "vehicleId" TEXT,
+    "driverId" TEXT,
     "truckId" TEXT,
     "trailerId" TEXT,
     "title" TEXT NOT NULL,
@@ -994,9 +1010,11 @@ CREATE TABLE "vehicle_documents" (
 );
 
 CREATE INDEX "vehicle_documents_vehicleId_idx" ON "vehicle_documents"("vehicleId");
+CREATE INDEX "vehicle_documents_driverId_idx" ON "vehicle_documents"("driverId");
 CREATE INDEX "vehicle_documents_validUntil_idx" ON "vehicle_documents"("validUntil");
 CREATE INDEX "vehicle_documents_reminderStartDate_idx" ON "vehicle_documents"("reminderStartDate");
 CREATE UNIQUE INDEX "vehicle_documents_vehicleId_documentType_key" ON "vehicle_documents"("vehicleId", "documentType");
+CREATE UNIQUE INDEX "vehicle_documents_driverId_documentType_key" ON "vehicle_documents"("driverId", "documentType");
 CREATE UNIQUE INDEX "vehicle_documents_truckId_documentType_key" ON "vehicle_documents"("truckId", "documentType");
 CREATE UNIQUE INDEX "vehicle_documents_trailerId_documentType_key" ON "vehicle_documents"("trailerId", "documentType");
 CREATE INDEX "vehicle_documents_truckId_idx" ON "vehicle_documents"("truckId");
@@ -1027,6 +1045,7 @@ CREATE INDEX "_MaintenanceTypeToVehicleType_B_index" ON "_MaintenanceTypeToVehic
 
 ALTER TABLE "fleet_vehicles" ADD CONSTRAINT "fleet_vehicles_vehicleTypeId_fkey" FOREIGN KEY ("vehicleTypeId") REFERENCES "vehicle_types"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 ALTER TABLE "vehicle_documents" ADD CONSTRAINT "vehicle_documents_vehicleId_fkey" FOREIGN KEY ("vehicleId") REFERENCES "fleet_vehicles"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "vehicle_documents" ADD CONSTRAINT "vehicle_documents_driverId_fkey" FOREIGN KEY ("driverId") REFERENCES "drivers"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "vehicle_documents" ADD CONSTRAINT "vehicle_documents_truckId_fkey" FOREIGN KEY ("truckId") REFERENCES "trucks"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "vehicle_documents" ADD CONSTRAINT "vehicle_documents_trailerId_fkey" FOREIGN KEY ("trailerId") REFERENCES "trailers"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "_MaintenanceTypeToVehicleType" ADD CONSTRAINT "_MaintenanceTypeToVehicleType_A_fkey" FOREIGN KEY ("A") REFERENCES "maintenance_types"("id") ON DELETE CASCADE ON UPDATE CASCADE;

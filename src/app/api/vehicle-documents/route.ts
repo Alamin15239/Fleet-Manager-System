@@ -3,7 +3,8 @@ import { db } from '@/lib/db'
 import { requireRolePermission } from '@/lib/permission-middleware'
 
 const allowedFiles = new Set(['application/pdf', 'image/jpeg', 'image/png', 'image/webp'])
-const expiryDocumentTypes = ['Fire extinguisher', 'Operation card', 'Istimara', 'Insurance', 'Driver card', 'Fahas'] as const
+const expiryDocumentTypes = ['Fire extinguisher', 'Operation card', 'Istimara', 'Insurance', 'Fahas'] as const
+const driverCardType = 'Driver card'
 const protectionCardType = 'Protection Card'
 const maxFileBytes = 4 * 1024 * 1024
 
@@ -81,15 +82,19 @@ export async function POST(request: NextRequest) {
     const documentType = String(form.get('documentType') || '').trim()
     const isExpiryDocument = (expiryDocumentTypes as readonly string[]).includes(documentType)
     const isProtectionCard = documentType === protectionCardType
+    const isDriverCard = documentType === driverCardType
 
-    if (!sourceId || !['TRUCK', 'TRAILER'].includes(sourceType)) {
-      return NextResponse.json({ error: 'Select a valid truck or trailer.' }, { status: 400 })
+    if (!sourceId || !['TRUCK', 'TRAILER', 'DRIVER'].includes(sourceType)) {
+      return NextResponse.json({ error: 'Select a valid truck, trailer, or driver.' }, { status: 400 })
     }
-    if (!isExpiryDocument && !isProtectionCard) {
+    if (!isExpiryDocument && !isProtectionCard && !isDriverCard) {
       return NextResponse.json({ error: 'Choose a supported document type.' }, { status: 400 })
     }
-    if (isExpiryDocument && sourceType !== 'TRUCK') {
-      return NextResponse.json({ error: 'Expiry tracking documents are attached to trucks.' }, { status: 400 })
+    if ((isExpiryDocument && sourceType !== 'TRUCK') || (isDriverCard && sourceType !== 'DRIVER') || (sourceType === 'DRIVER' && !isDriverCard)) {
+      return NextResponse.json({ error: 'Choose the correct owner for this document type.' }, { status: 400 })
+    }
+    if (isProtectionCard && sourceType === 'DRIVER') {
+      return NextResponse.json({ error: 'Protection Cards are attached to trucks or trailers.' }, { status: 400 })
     }
     const submittedFile = form.get('file')
     const file = submittedFile instanceof File && submittedFile.size > 0 ? submittedFile : null
@@ -102,12 +107,17 @@ export async function POST(request: NextRequest) {
     if (sourceType === 'TRAILER' && !await db.trailer.findFirst({ where: { id: sourceId, isDeleted: false }, select: { id: true } })) {
       return NextResponse.json({ error: 'Active trailer not found.' }, { status: 404 })
     }
+    if (sourceType === 'DRIVER' && !await db.driver.findFirst({ where: { id: sourceId, isActive: true, isDeleted: false }, select: { id: true } })) {
+      return NextResponse.json({ error: 'Active driver not found.' }, { status: 404 })
+    }
 
-    const uniqueWhere = sourceType === 'TRUCK'
-      ? { truckId_documentType: { truckId: sourceId, documentType } }
-      : { trailerId_documentType: { trailerId: sourceId, documentType } }
+    const uniqueWhere = sourceType === 'DRIVER'
+      ? { driverId_documentType: { driverId: sourceId, documentType } }
+      : sourceType === 'TRUCK'
+        ? { truckId_documentType: { truckId: sourceId, documentType } }
+        : { trailerId_documentType: { trailerId: sourceId, documentType } }
     const existingDocument = await db.vehicleDocument.findUnique({ where: uniqueWhere as any, select: { id: true, title: true, notes: true } })
-    await requireRolePermission(request, sourceType === 'TRUCK' ? 'trucks' : 'trailers', existingDocument ? 'update' : 'create')
+    await requireRolePermission(request, sourceType === 'TRAILER' ? 'trailers' : 'trucks', existingDocument ? 'update' : 'create')
     const fileRequired = documentType !== 'Fire extinguisher' && !existingDocument
     if (fileRequired && !file) return NextResponse.json({ error: 'Choose a document file.' }, { status: 400 })
 
@@ -118,10 +128,11 @@ export async function POST(request: NextRequest) {
     if ((validFromText && !enteredValidFrom) || (validUntilText && !validUntil)) {
       return NextResponse.json({ error: 'Enter valid document dates.' }, { status: 400 })
     }
-    if (isExpiryDocument && !validUntil) {
+    if ((isExpiryDocument || isDriverCard) && !validUntil) {
       return NextResponse.json({ error: 'Expiry date is required.' }, { status: 400 })
     }
-    const validFrom = isExpiryDocument && validUntil ? enteredValidFrom || oneYearBefore(validUntil) : null
+    const tracksExpiry = isExpiryDocument || isDriverCard
+    const validFrom = tracksExpiry && validUntil ? enteredValidFrom || oneYearBefore(validUntil) : null
     const reminderStartDate = validUntil ? new Date(validUntil.getTime() - 10 * 24 * 60 * 60 * 1000) : null
     if (validFrom && validUntil && validUntil < validFrom) {
       return NextResponse.json({ error: 'Expiry date must be after the valid-from date.' }, { status: 400 })
@@ -136,18 +147,19 @@ export async function POST(request: NextRequest) {
     const data = {
       truckId: sourceType === 'TRUCK' ? sourceId : null,
       trailerId: sourceType === 'TRAILER' ? sourceId : null,
+      driverId: sourceType === 'DRIVER' ? sourceId : null,
       vehicleId: null,
       title: submittedTitle || file?.name || existingDocument?.title || documentType,
       documentType,
-      validFrom: isExpiryDocument ? validFrom : null,
-      validUntil: isExpiryDocument ? validUntil : null,
-      reminderStartDate: isExpiryDocument ? reminderStartDate : null,
+      validFrom: tracksExpiry ? validFrom : null,
+      validUntil: tracksExpiry ? validUntil : null,
+      reminderStartDate: tracksExpiry ? reminderStartDate : null,
       notes: String(form.get('notes') || '').trim().slice(0, 2000) || existingDocument?.notes || null,
     }
     const document = await db.vehicleDocument.upsert({
       where: uniqueWhere as any,
       create: { ...data, ...fileFields },
-      update: { ...data, truckId: undefined, trailerId: undefined, vehicleId: undefined, ...(file ? fileFields : {}) },
+      update: { ...data, truckId: undefined, trailerId: undefined, driverId: undefined, vehicleId: undefined, ...(file ? fileFields : {}) },
       select: { id: true, title: true, documentType: true, fileName: true, mimeType: true, fileSize: true, validFrom: true, validUntil: true, reminderStartDate: true, notes: true, createdAt: true },
     })
     return NextResponse.json({ document })
