@@ -1004,6 +1004,7 @@ const phraseTranslations: Record<string, string> = {
   'Fire Extinguisher is date-tracked only; no file is required.': 'تتم متابعة تاريخ طفاية الحريق فقط؛ لا يلزم رفع ملف.',
   'Fire Extinguisher is date-only. Its reminder starts 10 days before expiry. Upload files for the other five document types.': 'تتم متابعة تاريخ طفاية الحريق فقط، ويبدأ التذكير قبل انتهاء الصلاحية بـ 10 أيام. ارفع ملفات الأنواع الخمسة الأخرى من المستندات.',
   'Date only': 'تاريخ فقط',
+  'Missing file': 'الملف مفقود',
   'Save expiry dates': 'حفظ تواريخ الصلاحية',
   'Fire extinguisher': 'طفاية الحريق',
   'Operation card': 'بطاقة التشغيل',
