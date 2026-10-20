@@ -58,7 +58,7 @@ const getNavigationGroups = (t: (key: string) => string) => [
     label: 'Fleet',
     items: [
       { name: t('nav.trucks'), href: '/trucks', icon: Truck, iconColor: 'text-blue-600 dark:text-blue-400', iconBackground: 'bg-blue-500/10', resource: 'trucks', action: 'read' },
-      { name: t('Vehicle master & tracking'), href: '/fleet-planning', icon: CalendarClock, iconColor: 'text-teal-600 dark:text-teal-400', iconBackground: 'bg-teal-500/10', resource: 'trucks', action: 'read' },
+      { name: t('Document expiry tracker'), href: '/document-expiry', icon: CalendarClock, iconColor: 'text-teal-600 dark:text-teal-400', iconBackground: 'bg-teal-500/10', resource: 'trucks', action: 'read' },
       { name: t('nav.trailers'), href: '/trailers', icon: Caravan, iconColor: 'text-orange-600 dark:text-orange-400', iconBackground: 'bg-orange-500/10', resource: 'trailers', action: 'read' },
       { name: t('nav.tireManagement'), href: '/tire-management', icon: CircleDot, iconColor: 'text-amber-600 dark:text-amber-400', iconBackground: 'bg-amber-500/10', resource: 'tire-management', action: 'read' },
     ],

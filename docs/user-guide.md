@@ -1,6 +1,6 @@
 # Fleet Manager User Guide
 
-Last updated: 17 October 2026
+Last updated: 20 October 2026
 Production app: https://fleetmaintenance.site
 In-app guide: https://fleetmaintenance.site/help
 
@@ -26,13 +26,11 @@ Update the record when driver or mileage changes. Accurate current values feed d
 
 Use Trailers to manage trailer number, status, driver, inspection information, and maintenance history. Select the correct trailer when creating a workshop job card or recording related work.
 
-## Vehicle Master and Expiry Tracking
+## Document Expiry Tracker and Protection Cards
 
-Open Vehicle Master & Tracking to view existing trucks and trailers alongside any additional fleet vehicles. Vehicle Types defines categories such as trucks, trailers, forklifts, and saloon cars. Authorized users can add a master vehicle and attach its identifying details.
+Use Document Expiry Tracker for each truck’s fire extinguisher, operation card, Istimara, insurance, driver card, and Fahas documents. Enter an expiry date and reminder start date, then upload the current file. The tracker shows missing, current, reminder-started, and expired entries. Each truck can have one current file per document type; uploading the same type again replaces that file.
 
-From a vehicle row, open its documents to upload a fire extinguisher certificate, operation card, Istimara, insurance certificate, driver card, or Fahas inspection. Record the expiry date and the date reminders should begin. The tracker highlights expired and reminder-period documents, and the Reports tab can export vehicle, document-validity, and job-card maintenance tracking data. Uploading the same document category for the same vehicle replaces its current file.
-
-Maintenance Types is a reusable service catalog. Authorized users can define what a service covers, its repeat interval, reminder lead time, and applicable vehicle types. Select a catalog item on a job card to reuse that service information; job cards remain the maintenance records and drive the upcoming/overdue service tracker.
+For a truck or trailer’s Protection Card, open the vehicle’s details from its existing page and use the Protection Card section. Each vehicle has its own private file, with no expiry dates or reminders. Uploading again replaces that vehicle’s current Protection Card file. Job cards remain the maintenance records and drive maintenance tracking.
 
 ## Tire Management
 

@@ -15,6 +15,7 @@ import { toast } from '@/lib/localized-toast'
 import { usePermissions } from '@/contexts/permissions-context'
 import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api'
 import { useLanguage } from '@/contexts/language-context'
+import { ProtectionCardDocuments } from '@/components/protection-card-documents'
 
 interface Trailer {
   id: string
@@ -330,7 +331,7 @@ export default function TrailersPage() {
 
       {/* View Trailer Dialog */}
       <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[600px]">
           <DialogHeader>
             <DialogTitle>
               Trailer Details - {selectedTrailer?.number}
@@ -371,6 +372,7 @@ export default function TrailersPage() {
                   <p className="text-sm">{new Date(selectedTrailer.updatedAt).toLocaleDateString()}</p>
                 </div>
               </div>
+              <ProtectionCardDocuments sourceType="TRAILER" sourceId={selectedTrailer.id} canUpload={canCreate('trailers') || canUpdate('trailers')} canDelete={canDelete('trailers')} />
             </div>
           )}
           <DialogFooter>

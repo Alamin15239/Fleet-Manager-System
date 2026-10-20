@@ -1,7 +1,5 @@
-'use client'
+import { redirect } from 'next/navigation'
 
-import { FleetPlanningWorkspace } from '@/components/fleet-planning-workspace'
-
-export default function FleetPlanningPage() {
-  return <FleetPlanningWorkspace />
+export default function FleetPlanningRedirect() {
+  redirect('/document-expiry')
 }

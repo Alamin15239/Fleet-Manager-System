@@ -4,8 +4,10 @@ import { requireRolePermission } from '@/lib/permission-middleware'
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    await requireRolePermission(request, 'trucks', 'read')
     const { id } = await params
+    const owner = await db.vehicleDocument.findUnique({ where: { id }, select: { truckId: true, trailerId: true } })
+    if (!owner) return NextResponse.json({ error: 'Document not found' }, { status: 404 })
+    await requireRolePermission(request, owner.trailerId ? 'trailers' : 'trucks', 'read')
     const document = await db.vehicleDocument.findUnique({ where: { id }, select: { fileName: true, mimeType: true, fileData: true } })
     if (!document) return NextResponse.json({ error: 'Document not found' }, { status: 404 })
     const bytes = new Uint8Array(document.fileData)
@@ -25,8 +27,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    await requireRolePermission(request, 'trucks', 'delete')
     const { id } = await params
+    const owner = await db.vehicleDocument.findUnique({ where: { id }, select: { truckId: true, trailerId: true } })
+    if (!owner) return NextResponse.json({ error: 'Document not found' }, { status: 404 })
+    await requireRolePermission(request, owner.trailerId ? 'trailers' : 'trucks', 'delete')
     await db.vehicleDocument.delete({ where: { id } })
     return NextResponse.json({ success: true })
   } catch (error) {

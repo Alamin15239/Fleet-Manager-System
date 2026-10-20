@@ -15,6 +15,7 @@ import { toast } from '@/lib/localized-toast'
 import { usePermissions } from '@/contexts/permissions-context'
 import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api'
 import { useLanguage } from '@/contexts/language-context'
+import { ProtectionCardDocuments } from '@/components/protection-card-documents'
 
 interface Truck {
   id: string
@@ -766,7 +767,7 @@ export default function TrucksPage() {
 
       {/* View Truck Dialog */}
       <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[600px]">
           <DialogHeader>
             <DialogTitle>
               {t('trucks.truckDetails')} - {selectedTruck?.licensePlate}
@@ -828,6 +829,7 @@ export default function TrucksPage() {
                   <p className="text-sm">{new Date(selectedTruck.updatedAt).toLocaleDateString()}</p>
                 </div>
               </div>
+              <ProtectionCardDocuments sourceType="TRUCK" sourceId={selectedTruck.id} canUpload={canCreate('trucks') || canUpdate('trucks')} canDelete={canDelete('trucks')} />
             </div>
           )}
           <DialogFooter>

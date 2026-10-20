@@ -21,6 +21,7 @@ const managedRoutes: RouteAccess[] = [
   { path: '/advanced-analytics', resource: 'advanced-analytics' },
   { path: '/purchase-invoices', resource: 'purchase-invoices' },
   { path: '/tire-management', resource: 'tire-management' },
+  { path: '/document-expiry', resource: 'trucks' },
   { path: '/fleet-planning', resource: 'trucks' },
   { path: '/excel-imports', resource: 'excel-imports' },
   { path: '/job-cards', resource: 'maintenance' },
@@ -40,7 +41,7 @@ const managedRoutes: RouteAccess[] = [
 const availablePages: RouteAccess[] = [
   { path: '/', resource: 'dashboard' },
   { path: '/trucks', resource: 'trucks' },
-  { path: '/fleet-planning', resource: 'trucks' },
+  { path: '/document-expiry', resource: 'trucks' },
   { path: '/trailers', resource: 'trailers' },
   { path: '/tire-management', resource: 'tire-management' },
   { path: '/job-cards', resource: 'maintenance' },
