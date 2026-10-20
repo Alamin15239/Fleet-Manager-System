@@ -325,6 +325,21 @@ export default function HomePage() {
             <Image src="/fleet-manager-mark.svg" alt="" width={28} height={28} />
             <span>Fleet Manager Pro · Fleet maintenance software</span>
           </div>
+          <a
+            href="https://websitelaunches.com/site/fleetmaintenance.site"
+            target="_blank"
+            rel="noopener"
+            className="inline-flex w-fit max-w-full items-center"
+          >
+            <img
+              src="https://websitelaunches.com/badge/fleetmaintenance.site.svg"
+              alt="Established online - Public launch record"
+              width="255"
+              height="55"
+              loading="lazy"
+              className="h-auto max-w-full"
+            />
+          </a>
           <nav aria-label="Legal and help links" className="flex flex-wrap gap-x-5 gap-y-2">
             <Link href="/help" className="hover:text-blue-700 dark:hover:text-blue-300">User guide</Link>
             <Link href="/privacy" className="hover:text-blue-700 dark:hover:text-blue-300">Privacy</Link>
