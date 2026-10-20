@@ -31,9 +31,9 @@ export const metadata: Metadata = {
   keywords: ["fleet management", "truck maintenance", "tire management", "fleet tracking", "vehicle maintenance", "fleet analytics", "truck fleet", "maintenance software", "fleet operations", "vehicle tracking"],
   authors: [{ name: "Fleet Manager Pro Team" }],
   icons: {
-    icon: ['/favicon.ico', '/favicon.svg'],
-    shortcut: '/favicon.ico',
-    apple: '/favicon.svg',
+    icon: ['/favicon.svg', '/icon-192.png'],
+    shortcut: '/favicon.svg',
+    apple: '/icon-192.png',
   },
   openGraph: {
     title: "Fleet Manager Pro - Complete Truck Fleet Management System",

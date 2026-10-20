@@ -9,8 +9,8 @@ export default function manifest(): MetadataRoute.Manifest {
     scope: '/',
     id: '/',
     display: 'standalone',
-    background_color: '#ffffff',
-    theme_color: '#1d4ed8',
+    background_color: '#f5faff',
+    theme_color: '#0b1f3a',
     icons: [
       {
         src: '/icon-192.png',
@@ -21,6 +21,12 @@ export default function manifest(): MetadataRoute.Manifest {
         src: '/icon-512.png',
         sizes: '512x512',
         type: 'image/png',
+      },
+      {
+        src: '/fleet-manager-mark.svg',
+        sizes: 'any',
+        type: 'image/svg+xml',
+        purpose: 'maskable',
       },
     ],
   };

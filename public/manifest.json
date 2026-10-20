@@ -6,8 +6,8 @@
   "scope": "/",
   "id": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#1d4ed8",
+  "background_color": "#f5faff",
+  "theme_color": "#0b1f3a",
   "icons": [
     {
       "src": "/icon-192.png",
@@ -20,9 +20,10 @@
       "type": "image/png"
     },
     {
-      "src": "/logo.svg",
+      "src": "/fleet-manager-mark.svg",
       "sizes": "any",
-      "type": "image/svg+xml"
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
     }
   ]
 }

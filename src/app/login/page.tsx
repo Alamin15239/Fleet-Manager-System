@@ -2,6 +2,7 @@
 import { LocalizedText } from '@/components/localized-text'
 
 import { useState, useEffect, useRef, Suspense } from 'react'
+import Image from 'next/image'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -9,7 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 
-import { Truck, Shield, Mail, Loader2, Clock, Lock, Building2 } from 'lucide-react'
+import { Mail, Loader2, Clock, Lock, Building2 } from 'lucide-react'
 import { toast } from '@/lib/localized-toast'
 import { useAuth } from '@/contexts/auth-context'
 import { useLanguage } from '@/contexts/language-context'
@@ -202,10 +203,7 @@ export default function LoginPage() {
         {/* Logo and Title */}
         <div className="text-center">
           <div className="flex justify-center">
-            <div className="flex items-center space-x-2">
-              <Truck className="h-8 w-8 text-blue-600" />
-              <Shield className="h-8 w-8 text-green-600" />
-            </div>
+            <Image src="/fleet-manager-mark.svg" alt="Fleet Manager Pro" width={72} height={72} priority className="h-[4.5rem] w-[4.5rem] rounded-2xl shadow-lg shadow-blue-950/15" />
           </div>
           <h1 className="mt-6 text-3xl font-bold text-gray-900 dark:text-white">
             {t('auth.welcome')}

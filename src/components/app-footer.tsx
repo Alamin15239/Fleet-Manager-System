@@ -1,11 +1,11 @@
 'use client'
 import { LocalizedText } from '@/components/localized-text'
+import Image from 'next/image'
 
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { 
-  Truck, 
   Heart, 
   Github, 
   Mail, 
@@ -28,9 +28,7 @@ export function AppFooter() {
           {/* Brand Section */}
           <div className="space-y-4">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-                <Truck className="h-5 w-5 text-white" />
-              </div>
+              <Image src="/fleet-manager-mark.svg" alt="" width={36} height={36} className="h-9 w-9 rounded-lg" />
               <span className="font-bold text-lg"><LocalizedText>Fleet Manager</LocalizedText></span>
             </div>
             <p className="text-sm text-gray-600">

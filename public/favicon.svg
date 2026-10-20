@@ -1,7 +1,26 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-  <path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/>
-  <path d="M15 18H9"/>
-  <path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/>
-  <circle cx="17" cy="18" r="2"/>
-  <circle cx="7" cy="18" r="2"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title">
+  <title id="title">Fleet Manager</title>
+  <defs>
+    <linearGradient id="brand" x1="12" y1="8" x2="116" y2="124" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#164E9B"/>
+      <stop offset="1" stop-color="#071B35"/>
+    </linearGradient>
+    <linearGradient id="shine" x1="26" y1="13" x2="93" y2="80" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#fff" stop-opacity=".18"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <rect x="4" y="4" width="120" height="120" rx="31" fill="url(#brand)"/>
+  <path d="M35 12h58c10 0 18 8 18 18v29c-20-17-51-28-92-31C19 27 24 12 35 12Z" fill="url(#shine)"/>
+  <path d="M20 31 64 14l44 17v33c0 22-14 39-44 52C34 103 20 86 20 64V31Z" fill="none" stroke="#8BD4FF" stroke-opacity=".58" stroke-width="2"/>
+  <path d="M27 49a4 4 0 0 1 4-4h41a4 4 0 0 1 4 4v25H27V49Z" fill="#F7FBFF"/>
+  <path d="M76 54h14c3 0 5 1 7 4l8 11v5H76V54Z" fill="#E9F4FF"/>
+  <path d="M81 58h9c1 0 2 .5 3 2l5 7H81v-9Z" fill="#75C8F6"/>
+  <path d="M32 51h33v3H32z" fill="#B7DDF8"/>
+  <path d="M27 69h47v3H27z" fill="#D5EAFB"/>
+  <path d="M26 76h79v5H26z" fill="#DCEBFA"/>
+  <circle cx="45" cy="80" r="9" fill="#10294A" stroke="#B5D4F0" stroke-width="3"/>
+  <circle cx="86" cy="80" r="9" fill="#10294A" stroke="#B5D4F0" stroke-width="3"/>
+  <path d="M27 91c12 7 25 10 38 10 15 0 27-4 38-12" fill="none" stroke="#38D39F" stroke-linecap="round" stroke-width="5"/>
+  <path d="m96 87 8 2-3 8" fill="none" stroke="#38D39F" stroke-linecap="round" stroke-linejoin="round" stroke-width="4"/>
 </svg>

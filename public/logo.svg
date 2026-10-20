@@ -1,46 +1,42 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 120" width="200" height="120">
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title description">
+  <title id="title">Fleet Manager Pro</title>
+  <desc id="description">Fleet maintenance, vehicle records, tires, and fleet reporting.</desc>
   <defs>
-    <linearGradient id="truckGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#2563eb;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#1d4ed8;stop-opacity:1" />
+    <linearGradient id="background" x1="56" y1="20" x2="1110" y2="630" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F5FAFF"/>
+      <stop offset="1" stop-color="#E7F0FA"/>
     </linearGradient>
-    <linearGradient id="wheelGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#374151;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#1f2937;stop-opacity:1" />
+    <radialGradient id="glow" cx="0" cy="0" r="1" gradientTransform="matrix(450 320 -270 380 1030 80)" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#9DD8FF" stop-opacity=".32"/>
+      <stop offset="1" stop-color="#9DD8FF" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="brand" x1="12" y1="8" x2="116" y2="124" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#164E9B"/>
+      <stop offset="1" stop-color="#071B35"/>
+    </linearGradient>
+    <linearGradient id="shine" x1="26" y1="13" x2="93" y2="80" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#fff" stop-opacity=".18"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="0"/>
     </linearGradient>
   </defs>
-  
-  <!-- Truck Body -->
-  <rect x="20" y="40" width="120" height="40" rx="4" fill="url(#truckGradient)" stroke="#1e40af" stroke-width="1"/>
-  
-  <!-- Truck Cab -->
-  <rect x="140" y="30" width="40" height="50" rx="4" fill="url(#truckGradient)" stroke="#1e40af" stroke-width="1"/>
-  
-  <!-- Windshield -->
-  <rect x="145" y="35" width="30" height="20" rx="2" fill="#e5e7eb" stroke="#9ca3af" stroke-width="1"/>
-  
-  <!-- Front Grille -->
-  <rect x="175" y="45" width="5" height="20" fill="#374151"/>
-  <line x1="177" y1="48" x2="177" y2="62" stroke="#6b7280" stroke-width="1"/>
-  
-  <!-- Wheels -->
-  <circle cx="50" cy="90" r="12" fill="url(#wheelGradient)" stroke="#111827" stroke-width="2"/>
-  <circle cx="50" cy="90" r="6" fill="#6b7280"/>
-  
-  <circle cx="110" cy="90" r="12" fill="url(#wheelGradient)" stroke="#111827" stroke-width="2"/>
-  <circle cx="110" cy="90" r="6" fill="#6b7280"/>
-  
-  <circle cx="160" cy="90" r="12" fill="url(#wheelGradient)" stroke="#111827" stroke-width="2"/>
-  <circle cx="160" cy="90" r="6" fill="#6b7280"/>
-  
-  <!-- Headlight -->
-  <circle cx="175" cy="40" r="4" fill="#fbbf24" stroke="#f59e0b" stroke-width="1"/>
-  
-  <!-- Side Details -->
-  <rect x="25" y="45" width="110" height="2" fill="#1e40af"/>
-  <rect x="25" y="70" width="110" height="2" fill="#1e40af"/>
-  
-  <!-- Door Handle -->
-  <rect x="150" y="55" width="3" height="8" rx="1" fill="#374151"/>
+  <path fill="url(#background)" d="M0 0h1200v630H0z"/>
+  <path fill="url(#glow)" d="M0 0h1200v630H0z"/>
+  <rect x="130" y="205" width="220" height="220" rx="54" fill="url(#brand)"/>
+  <path d="M190 220h100c18 0 33 15 33 33v57c-36-31-94-51-170-57-1-17 12-33 37-33Z" fill="url(#shine)"/>
+  <path d="m174 255 66-26 66 26v49c0 33-21 58-66 77-45-19-66-44-66-77v-49Z" fill="none" stroke="#8BD4FF" stroke-opacity=".58" stroke-width="3"/>
+  <path d="M185 282a6 6 0 0 1 6-6h61a6 6 0 0 1 6 6v37h-73v-37Z" fill="#F7FBFF"/>
+  <path d="M258 290h21c5 0 8 2 11 6l12 17v7h-44v-30Z" fill="#E9F4FF"/>
+  <path d="M265 295h13c2 0 4 1 5 3l8 10h-26v-13Z" fill="#75C8F6"/>
+  <path d="M193 285h49v4h-49zM185 311h70v4h-70zM183 322h116v7H183z" fill="#D5EAFB"/>
+  <circle cx="212" cy="329" r="13" fill="#10294A" stroke="#B5D4F0" stroke-width="4"/>
+  <circle cx="273" cy="329" r="13" fill="#10294A" stroke="#B5D4F0" stroke-width="4"/>
+  <path d="M185 347c18 10 38 15 59 15 22 0 40-6 57-18" fill="none" stroke="#38D39F" stroke-linecap="round" stroke-width="7"/>
+  <path d="m292 338 12 3-5 12" fill="none" stroke="#38D39F" stroke-linecap="round" stroke-linejoin="round" stroke-width="6"/>
+  <text x="405" y="300" fill="#0B1F3A" font-family="Arial, Helvetica, sans-serif" font-size="76" font-weight="700" letter-spacing="-3">Fleet Manager</text>
+  <rect x="409" y="326" width="75" height="35" rx="17.5" fill="#DDF7EF"/>
+  <text x="446.5" y="350" fill="#08795D" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700" letter-spacing="2" text-anchor="middle">PRO</text>
+  <text x="409" y="405" fill="#52677E" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="600" letter-spacing="4">FLEET OPERATIONS PLATFORM</text>
+  <path d="M409 439h92" stroke="#33C99A" stroke-linecap="round" stroke-width="5"/>
+  <text x="409" y="485" fill="#65798E" font-family="Arial, Helvetica, sans-serif" font-size="24">Maintenance, assets, and reporting in one place.</text>
+  <text x="409" y="554" fill="#8294A8" font-family="Arial, Helvetica, sans-serif" font-size="17" font-weight="600" letter-spacing="3">FLEETMAINTENANCE.SITE</text>
 </svg>

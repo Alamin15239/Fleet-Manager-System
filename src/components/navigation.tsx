@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { LocalizedText } from '@/components/localized-text'
 import { ProfilePicture } from '@/components/profile-picture'
@@ -116,9 +117,8 @@ export function Navigation() {
   const brandClassName = cn('group flex min-w-0 items-center gap-3 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring', !isSidebarOpen && 'md:justify-center')
   const brandContent = (
     <>
-      <span className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-sky-500 to-blue-700 text-white shadow-md shadow-blue-900/20 transition-transform group-hover:scale-[1.03]">
-        <Truck className="h-[1.2rem] w-[1.2rem]" strokeWidth={2.2} />
-        <span className="absolute -bottom-0.5 -end-0.5 h-3 w-3 rounded-full border-2 border-sidebar bg-emerald-400" />
+      <span className="relative flex h-11 w-11 shrink-0 items-center justify-center transition-transform group-hover:scale-[1.03]">
+        <Image src="/fleet-manager-mark.svg" alt="" width={44} height={44} priority className="h-11 w-11 rounded-xl shadow-md shadow-blue-900/20" />
       </span>
       {isSidebarOpen && (
         <span className="min-w-0">
