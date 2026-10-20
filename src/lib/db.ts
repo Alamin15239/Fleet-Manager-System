@@ -34,6 +34,50 @@ if (process.env.NODE_ENV !== 'production') globalForPrisma.fleetControlPrisma = 
 const tenantClients = globalForPrisma.fleetOrganizationPrismas ?? new Map<string, PrismaClient>()
 if (process.env.NODE_ENV !== 'production') globalForPrisma.fleetOrganizationPrismas = tenantClients
 
+// Tenant databases created before fleet planning was introduced are upgraded
+// lazily the first time one of the new Prisma models is used. The DDL is
+// idempotent so separate serverless instances can safely race on first use.
+const fleetPlanningModels = new Set(['vehicleType', 'fleetVehicle', 'vehicleDocument', 'maintenanceType'])
+const fleetPlanningMigrations = new WeakMap<PrismaClient, Promise<void>>()
+
+async function ensureFleetPlanningSchema(client: PrismaClient) {
+  const existing = fleetPlanningMigrations.get(client)
+  if (existing) return existing
+  const migration = (async () => {
+    const statements = [
+      `CREATE TABLE IF NOT EXISTS "vehicle_types" ("id" TEXT NOT NULL, "name" TEXT NOT NULL, "description" TEXT, "isActive" BOOLEAN NOT NULL DEFAULT TRUE, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT "vehicle_types_pkey" PRIMARY KEY ("id"))`,
+      `CREATE UNIQUE INDEX IF NOT EXISTS "vehicle_types_name_key" ON "vehicle_types"("name")`,
+      `CREATE TABLE IF NOT EXISTS "fleet_vehicles" ("id" TEXT NOT NULL, "vehicleNumber" TEXT NOT NULL, "vehicleTypeId" TEXT NOT NULL, "vin" TEXT, "registrationNo" TEXT, "make" TEXT, "model" TEXT, "year" INTEGER, "currentMileage" INTEGER, "engineHours" INTEGER, "driverName" TEXT, "status" TEXT NOT NULL DEFAULT 'ACTIVE', "notes" TEXT, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT "fleet_vehicles_pkey" PRIMARY KEY ("id"), CONSTRAINT "fleet_vehicles_vehicleTypeId_fkey" FOREIGN KEY ("vehicleTypeId") REFERENCES "vehicle_types"("id") ON DELETE RESTRICT ON UPDATE CASCADE)`,
+      `CREATE UNIQUE INDEX IF NOT EXISTS "fleet_vehicles_vehicleNumber_key" ON "fleet_vehicles"("vehicleNumber")`,
+      `CREATE UNIQUE INDEX IF NOT EXISTS "fleet_vehicles_vin_key" ON "fleet_vehicles"("vin")`,
+      `CREATE INDEX IF NOT EXISTS "fleet_vehicles_vehicleTypeId_idx" ON "fleet_vehicles"("vehicleTypeId")`,
+      `CREATE INDEX IF NOT EXISTS "fleet_vehicles_status_idx" ON "fleet_vehicles"("status")`,
+      `CREATE INDEX IF NOT EXISTS "fleet_vehicles_vehicleNumber_idx" ON "fleet_vehicles"("vehicleNumber")`,
+      `CREATE TABLE IF NOT EXISTS "vehicle_documents" ("id" TEXT NOT NULL, "vehicleId" TEXT, "truckId" TEXT, "trailerId" TEXT, "title" TEXT NOT NULL, "documentType" TEXT NOT NULL, "fileName" TEXT NOT NULL, "mimeType" TEXT NOT NULL, "fileSize" INTEGER NOT NULL, "fileData" BYTEA NOT NULL, "validFrom" TIMESTAMP(3), "validUntil" TIMESTAMP(3), "reminderStartDate" TIMESTAMP(3), "notes" TEXT, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT "vehicle_documents_pkey" PRIMARY KEY ("id"), CONSTRAINT "vehicle_documents_vehicleId_fkey" FOREIGN KEY ("vehicleId") REFERENCES "fleet_vehicles"("id") ON DELETE CASCADE ON UPDATE CASCADE, CONSTRAINT "vehicle_documents_truckId_fkey" FOREIGN KEY ("truckId") REFERENCES "trucks"("id") ON DELETE CASCADE ON UPDATE CASCADE, CONSTRAINT "vehicle_documents_trailerId_fkey" FOREIGN KEY ("trailerId") REFERENCES "trailers"("id") ON DELETE CASCADE ON UPDATE CASCADE)`,
+      `ALTER TABLE "vehicle_documents" ALTER COLUMN "vehicleId" DROP NOT NULL`,
+      `ALTER TABLE "vehicle_documents" ADD COLUMN IF NOT EXISTS "truckId" TEXT`,
+      `ALTER TABLE "vehicle_documents" ADD COLUMN IF NOT EXISTS "trailerId" TEXT`,
+      `DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'vehicle_documents_truckId_fkey') THEN ALTER TABLE "vehicle_documents" ADD CONSTRAINT "vehicle_documents_truckId_fkey" FOREIGN KEY ("truckId") REFERENCES "trucks"("id") ON DELETE CASCADE ON UPDATE CASCADE; END IF; IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'vehicle_documents_trailerId_fkey') THEN ALTER TABLE "vehicle_documents" ADD CONSTRAINT "vehicle_documents_trailerId_fkey" FOREIGN KEY ("trailerId") REFERENCES "trailers"("id") ON DELETE CASCADE ON UPDATE CASCADE; END IF; END $$`,
+      `CREATE INDEX IF NOT EXISTS "vehicle_documents_vehicleId_idx" ON "vehicle_documents"("vehicleId")`,
+      `CREATE INDEX IF NOT EXISTS "vehicle_documents_validUntil_idx" ON "vehicle_documents"("validUntil")`,
+      `CREATE INDEX IF NOT EXISTS "vehicle_documents_reminderStartDate_idx" ON "vehicle_documents"("reminderStartDate")`,
+      `CREATE UNIQUE INDEX IF NOT EXISTS "vehicle_documents_vehicleId_documentType_key" ON "vehicle_documents"("vehicleId", "documentType")`,
+      `CREATE UNIQUE INDEX IF NOT EXISTS "vehicle_documents_truckId_documentType_key" ON "vehicle_documents"("truckId", "documentType")`,
+      `CREATE UNIQUE INDEX IF NOT EXISTS "vehicle_documents_trailerId_documentType_key" ON "vehicle_documents"("trailerId", "documentType")`,
+      `CREATE INDEX IF NOT EXISTS "vehicle_documents_truckId_idx" ON "vehicle_documents"("truckId")`,
+      `CREATE INDEX IF NOT EXISTS "vehicle_documents_trailerId_idx" ON "vehicle_documents"("trailerId")`,
+      `CREATE TABLE IF NOT EXISTS "maintenance_types" ("id" TEXT NOT NULL, "name" TEXT NOT NULL, "description" TEXT, "intervalDays" INTEGER, "intervalMileage" INTEGER, "reminderDaysBefore" INTEGER NOT NULL DEFAULT 14, "isActive" BOOLEAN NOT NULL DEFAULT TRUE, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT "maintenance_types_pkey" PRIMARY KEY ("id"))`,
+      `CREATE UNIQUE INDEX IF NOT EXISTS "maintenance_types_name_key" ON "maintenance_types"("name")`,
+      `CREATE TABLE IF NOT EXISTS "_MaintenanceTypeToVehicleType" ("A" TEXT NOT NULL, "B" TEXT NOT NULL, CONSTRAINT "_MaintenanceTypeToVehicleType_A_fkey" FOREIGN KEY ("A") REFERENCES "maintenance_types"("id") ON DELETE CASCADE ON UPDATE CASCADE, CONSTRAINT "_MaintenanceTypeToVehicleType_B_fkey" FOREIGN KEY ("B") REFERENCES "vehicle_types"("id") ON DELETE CASCADE ON UPDATE CASCADE)`,
+      `CREATE UNIQUE INDEX IF NOT EXISTS "_MaintenanceTypeToVehicleType_AB_unique" ON "_MaintenanceTypeToVehicleType"("A", "B")`,
+      `CREATE INDEX IF NOT EXISTS "_MaintenanceTypeToVehicleType_B_index" ON "_MaintenanceTypeToVehicleType"("B")`
+    ]
+    for (const statement of statements) await client.$executeRawUnsafe(statement)
+  })()
+  fleetPlanningMigrations.set(client, migration)
+  try { await migration } catch (error) { fleetPlanningMigrations.delete(client); throw error }
+}
+
 const databaseScope = new AsyncLocalStorage<DatabaseScope>()
 
 function getEncryptionKey(): Buffer {
@@ -367,6 +411,7 @@ export const db = new Proxy({} as PrismaClient, {
         if (method === 'then') return undefined
         if (typeof method !== 'string') return undefined
         return (...args: unknown[]) => getRequestDatabaseClient().then((client) => {
+          if (client !== controlDb && fleetPlanningModels.has(property)) return ensureFleetPlanningSchema(client).then(() => (client as any)[property][method](...args))
           const delegate = (client as any)[property]
           return delegate[method](...args)
         })

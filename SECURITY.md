@@ -1,6 +1,6 @@
 # Security Policy
 
-Fleet Manager is a business application for authorized fleet and workshop staff. Security issues should be reported privately to the Company administrator or saad@saadfreeh.com. Do not include passwords, access tokens, database URLs, or secret values in a report.
+Fleet Manager is a business application for authorized fleet and workshop staff. Security issues should be reported privately to the Company administrator or alaminkhan.xiaomi@gmail.com. Do not include passwords, access tokens, database URLs, or secret values in a report.
 
 ## Supported release
 

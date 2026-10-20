@@ -59,6 +59,13 @@ const siteStructuredData = {
       name: 'Fleet Manager Pro',
       url: siteUrl,
       logo: siteUrl + '/fleet-manager-mark.svg',
+      email: 'alaminkhan.xiaomi@gmail.com',
+      contactPoint: {
+        '@type': 'ContactPoint',
+        email: 'alaminkhan.xiaomi@gmail.com',
+        contactType: 'customer support',
+        availableLanguage: ['English', 'Arabic'],
+      },
       description:
         'Fleet maintenance and operations software for managing trucks, trailers, workshop work, tire records, and fleet expenses.',
     },

@@ -2,7 +2,7 @@
 
 Effective date: 17 October 2026
 Operator: Saadfreeh Transport Est. (“Company”, “we”, “us”)
-Privacy contact: saad@saadfreeh.com or the Company administrator
+Privacy contact: alaminkhan.xiaomi@gmail.com or the Company administrator
 
 ## 1. Scope
 
@@ -70,7 +70,7 @@ Contact the Company to request review, correction, or deletion. Applicable legal
 
 You can update profile fields available in your account. You may contact the Company to request access to, a copy of, correction/completion/update of, or destruction of personal data, or to address consent where consent is the applicable legal basis. Requests are subject to identity verification, applicable law, and exceptions.
 
-Send requests to saad@saadfreeh.com or the Company administrator. Identify the account and request; do not send a password or access token.
+Send requests to alaminkhan.xiaomi@gmail.com or the Company administrator. Identify the account and request; do not send a password or access token.
 
 ## 10. Security
 
@@ -80,7 +80,7 @@ The application uses authentication, role and user permission checks, audit logg
 
 Fleet Manager is a workforce business application and is not intended for children. This policy may be updated when the service or its data handling changes. The effective date above identifies the current version.
 
-For questions or privacy requests, contact saad@saadfreeh.com or the Company administrator.
+For questions or privacy requests, contact alaminkhan.xiaomi@gmail.com or the Company administrator.
 
 ## 12. Official Saudi references
 

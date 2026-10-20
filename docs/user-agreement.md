@@ -2,7 +2,7 @@
 
 Effective date: 16 October 2026
 Operator: Saadfreeh Transport Est. (“Company”)
-Contact: Company administrator or saad@saadfreeh.com
+Contact: Company administrator or alaminkhan.xiaomi@gmail.com
 
 ## 1. Agreement and authorized use
 
@@ -60,4 +60,4 @@ The application is provided as an operational recordkeeping tool. To the extent 
 
 The Company may update these terms as the service or operating requirements change. Continued use after an update means use of the current version, subject to any notice or acceptance requirement imposed by applicable law.
 
-These terms are governed by the laws of the Kingdom of Saudi Arabia, subject to mandatory rules that apply. For questions, contact the Company administrator or saad@saadfreeh.com.
+These terms are governed by the laws of the Kingdom of Saudi Arabia, subject to mandatory rules that apply. For questions, contact the Company administrator or alaminkhan.xiaomi@gmail.com.

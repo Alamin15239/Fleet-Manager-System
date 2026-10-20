@@ -30,7 +30,9 @@ export async function apiFetch(url: string, options: RequestInit = {}) {
   }
   
   const headers = new Headers(options.headers)
-  if (!headers.has('Content-Type')) headers.set('Content-Type', 'application/json')
+  // Let the browser set the multipart boundary when uploading files.
+  const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData
+  if (!headers.has('Content-Type') && !isFormData) headers.set('Content-Type', 'application/json')
 
   // Add authorization header if token exists
   if (token) {

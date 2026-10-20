@@ -95,6 +95,7 @@ model Truck {
   notifications      Notification[]
   predictiveAlerts   PredictiveAlert[]
   purchaseInvoiceLines PurchaseInvoiceLine[]
+  vehicleDocuments   VehicleDocument[]
   ledgerAccount      FleetLedgerAccount?
 
   @@map("trucks")
@@ -119,6 +120,7 @@ model Trailer {
   trailerNotifications      TrailerNotification[]
   trailerPredictiveAlerts   TrailerPredictiveAlert[]
   purchaseInvoiceLines      PurchaseInvoiceLine[]
+  vehicleDocuments          VehicleDocument[]
   ledgerAccount             FleetLedgerAccount?
 
   @@map("trailers")
@@ -657,6 +659,91 @@ model Vehicle {
   @@index([driverName])
   @@index([isActive])
   @@map("vehicles")
+}
+
+model VehicleType {
+  id               String           @id @default(cuid())
+  name             String           @unique
+  description      String?
+  isActive         Boolean          @default(true)
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  vehicles         FleetVehicle[]
+  maintenanceTypes MaintenanceType[]
+
+  @@map("vehicle_types")
+}
+
+model FleetVehicle {
+  id              String           @id @default(cuid())
+  vehicleNumber   String           @unique
+  vehicleTypeId   String
+  vin             String?          @unique
+  registrationNo  String?
+  make            String?
+  model           String?
+  year            Int?
+  currentMileage  Int?
+  engineHours     Int?
+  driverName      String?
+  status          String           @default("ACTIVE")
+  notes           String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  vehicleType     VehicleType      @relation(fields: [vehicleTypeId], references: [id], onDelete: Restrict)
+  documents       VehicleDocument[]
+
+  @@index([vehicleTypeId])
+  @@index([status])
+  @@index([vehicleNumber])
+  @@map("fleet_vehicles")
+}
+
+model VehicleDocument {
+  id                String       @id @default(cuid())
+  vehicleId         String?
+  title             String
+  documentType      String
+  fileName          String
+  mimeType          String
+  fileSize          Int
+  fileData          Bytes
+  validFrom         DateTime?
+  validUntil        DateTime?
+  reminderStartDate DateTime?
+  notes             String?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  truckId           String?
+  trailerId         String?
+  vehicle           FleetVehicle? @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  truck             Truck?        @relation(fields: [truckId], references: [id], onDelete: Cascade)
+  trailer           Trailer?      @relation(fields: [trailerId], references: [id], onDelete: Cascade)
+
+  @@unique([vehicleId, documentType])
+  @@unique([truckId, documentType])
+  @@unique([trailerId, documentType])
+  @@index([vehicleId])
+  @@index([truckId])
+  @@index([trailerId])
+  @@index([validUntil])
+  @@index([reminderStartDate])
+  @@map("vehicle_documents")
+}
+
+model MaintenanceType {
+  id                       String           @id @default(cuid())
+  name                     String           @unique
+  description              String?
+  intervalDays             Int?
+  intervalMileage          Int?
+  reminderDaysBefore       Int              @default(14)
+  isActive                 Boolean          @default(true)
+  createdAt                DateTime         @default(now())
+  updatedAt                DateTime         @updatedAt
+  vehicleTypes             VehicleType[]
+
+  @@map("maintenance_types")
 }
 
 model Tire {

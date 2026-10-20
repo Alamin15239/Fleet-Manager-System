@@ -7,14 +7,26 @@ import { syncOneDriveWorkbookAfterChange } from '@/lib/onedrive-excel-sync'
 export async function GET(request: NextRequest) {
   try {
     await requireRolePermission(request, 'maintenance', 'read')
-    const [jobCards, settings] = await Promise.all([db.workshopJobCard.findMany({
-      include: {
-        truck: { select: { id: true, make: true, model: true, year: true, vin: true, licensePlate: true, currentMileage: true } },
-        trailer: { select: { id: true, number: true } }
-      },
-      orderBy: [{ serviceDate: 'desc' }, { createdAt: 'desc' }],
-      take: 500
-    }), db.settings.findFirst({ select: { companyName: true, companyAddress: true, companyPhone: true, companyEmail: true } })])
+    const trackingView = new URL(request.url).searchParams.get('tracking') === '1'
+    const cardsQuery = trackingView
+      ? db.workshopJobCard.findMany({
+          select: {
+            id: true, jobNumber: true, truckId: true, trailerId: true, serviceDate: true,
+            serviceType: true, status: true, nextServiceOdometer: true, nextServiceDate: true, createdAt: true,
+            truck: { select: { id: true, make: true, model: true, year: true, vin: true, licensePlate: true, currentMileage: true } },
+            trailer: { select: { id: true, number: true } }
+          },
+          orderBy: [{ serviceDate: 'desc' }, { createdAt: 'desc' }]
+        })
+      : db.workshopJobCard.findMany({
+          include: {
+            truck: { select: { id: true, make: true, model: true, year: true, vin: true, licensePlate: true, currentMileage: true } },
+            trailer: { select: { id: true, number: true } }
+          },
+          orderBy: [{ serviceDate: 'desc' }, { createdAt: 'desc' }],
+          take: 500
+        })
+    const [jobCards, settings] = await Promise.all([cardsQuery, db.settings.findFirst({ select: { companyName: true, companyAddress: true, companyPhone: true, companyEmail: true } })])
     return NextResponse.json({ jobCards, company: settings })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to fetch job cards'

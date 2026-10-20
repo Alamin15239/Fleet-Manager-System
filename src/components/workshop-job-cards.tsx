@@ -29,6 +29,7 @@ type JobForm = {
 type Vehicle = { id: string; label: string; driverName?: string | null; mileage?: number }
 type JobCard = any
 type Company = { companyName?: string | null; companyAddress?: string | null; companyPhone?: string | null; companyEmail?: string | null }
+type MaintenanceTypeOption = { id: string; name: string; intervalDays?: number | null; intervalMileage?: number | null; vehicleTypes: Array<{ name: string }> }
 
 const checklistItems = [
   ['engineOil', 'Engine oil & filter', 'زيت المحرك والفلتر'], ['airFilter', 'Air filter', 'فلتر الهواء'],
@@ -46,6 +47,13 @@ const blankForm = (): JobForm => ({
 const escapeMap: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }
 const esc = (value: unknown) => String(value ?? '').replace(/[&<>"']/g, char => escapeMap[char] || char)
 const dateText = (value?: string | Date | null) => value ? new Date(value).toLocaleDateString('en-GB') : '—'
+function addDaysToDate(value: string, days: number) {
+  if (!value || !Number.isFinite(days)) return ''
+  const date = new Date(`${value}T12:00:00`)
+  if (Number.isNaN(date.getTime())) return ''
+  date.setDate(date.getDate() + days)
+  return date.toISOString().slice(0, 10)
+}
 
 export default function WorkshopJobCards() {
   const { canCreate, canUpdate } = usePermissions()
@@ -53,6 +61,7 @@ export default function WorkshopJobCards() {
   const [company, setCompany] = useState<Company | null>(null)
   const [trucks, setTrucks] = useState<Vehicle[]>([])
   const [trailers, setTrailers] = useState<Vehicle[]>([])
+  const [maintenanceTypes, setMaintenanceTypes] = useState<MaintenanceTypeOption[]>([])
   const [form, setForm] = useState<JobForm>(blankForm)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [open, setOpen] = useState(false)
@@ -60,16 +69,21 @@ export default function WorkshopJobCards() {
   const [downloadingId, setDownloadingId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const vehicles = form.vehicleType === 'truck' ? trucks : trailers
+  const applicableMaintenanceTypes = maintenanceTypes.filter(type => !type.vehicleTypes.length || type.vehicleTypes.some(vehicleType => vehicleType.name.toLowerCase().includes(form.vehicleType)))
 
   const load = async () => {
     try {
-      const [cardsResponse, optionsResponse] = await Promise.all([apiGet('/api/job-cards'), apiGet('/api/job-cards/options')])
+      const [cardsResponse, optionsResponse, maintenanceTypesResponse] = await Promise.all([apiGet('/api/job-cards'), apiGet('/api/job-cards/options'), apiGet('/api/maintenance-types')])
       if (!cardsResponse.ok || !optionsResponse.ok) throw new Error('Unable to load workshop job cards')
       const [cardsData, options] = await Promise.all([cardsResponse.json(), optionsResponse.json()])
       setCards(cardsData.jobCards || [])
       setCompany(cardsData.company || null)
       setTrucks((options.trucks || []).map((truck: any) => ({ id: truck.id, label: `${truck.licensePlate} · ${truck.year} ${truck.make} ${truck.model}`, driverName: truck.driverName, mileage: truck.currentMileage })))
       setTrailers((options.trailers || []).map((trailer: any) => ({ id: trailer.id, label: `Trailer ${trailer.number}`, driverName: trailer.driverName })))
+      if (maintenanceTypesResponse.ok) {
+        const catalog = await maintenanceTypesResponse.json().catch(() => ({}))
+        setMaintenanceTypes(catalog.maintenanceTypes || [])
+      } else setMaintenanceTypes([])
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Unable to load job cards')
     } finally { setLoading(false) }
@@ -178,7 +192,7 @@ export default function WorkshopJobCards() {
           <div className="space-y-1 sm:col-span-2"><Label><LocalizedText>Truck / Trailer · المركبة</LocalizedText></Label><Select value={form.vehicleId} onValueChange={changeVehicle}><SelectTrigger><SelectValue placeholder="Select a vehicle"/></SelectTrigger><SelectContent>{vehicles.map(vehicle => <SelectItem key={vehicle.id} value={vehicle.id}>{vehicle.label}</SelectItem>)}</SelectContent></Select>{vehicles.length === 0 && <p className="text-xs text-amber-700">No active {form.vehicleType}s are available.</p>}</div>
           <div className="space-y-1"><Label><LocalizedText>Service Date · التاريخ</LocalizedText></Label><Input type="date" required value={form.serviceDate} onChange={e => setForm({ ...form, serviceDate: e.target.value })}/></div>
           <div className="space-y-1"><Label><LocalizedText>Odometer (km) · العداد</LocalizedText></Label><Input type="number" min="0" value={form.odometerKm} onChange={e => setForm({ ...form, odometerKm: e.target.value })}/></div>
-          <div className="space-y-1"><Label><LocalizedText>Service Type · نوع الصيانة</LocalizedText></Label><Input required value={form.serviceType} placeholder="Preventive maintenance, repair…" onChange={e => setForm({ ...form, serviceType: e.target.value })}/></div>
+          <div className="space-y-1"><Label><LocalizedText>Service Type · نوع الصيانة</LocalizedText></Label><Input required list="maintenance-type-options" value={form.serviceType} placeholder="Preventive maintenance, repair…" onChange={e => { const serviceType = e.target.value; const selected = applicableMaintenanceTypes.find(type => type.name.toLocaleLowerCase() === serviceType.trim().toLocaleLowerCase()); setForm(current => ({ ...current, serviceType, nextServiceDate: selected?.intervalDays ? addDaysToDate(current.serviceDate, selected.intervalDays) : current.nextServiceDate, nextServiceOdometer: selected?.intervalMileage && current.odometerKm ? String(Number(current.odometerKm) + selected.intervalMileage) : current.nextServiceOdometer })) }}/><datalist id="maintenance-type-options">{applicableMaintenanceTypes.map(type => <option key={type.id} value={type.name}>{[type.intervalDays ? `Every ${type.intervalDays} days` : '', type.intervalMileage ? `Every ${type.intervalMileage.toLocaleString()} km` : ''].filter(Boolean).join(' · ')}</option>)}</datalist></div>
           <div className="space-y-1"><Label><LocalizedText>Status · الحالة</LocalizedText></Label><Select value={form.status} onValueChange={status => setForm({ ...form, status })}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="OPEN"><LocalizedText>Open</LocalizedText></SelectItem><SelectItem value="IN_PROGRESS"><LocalizedText>In Progress</LocalizedText></SelectItem><SelectItem value="COMPLETED"><LocalizedText>Completed</LocalizedText></SelectItem><SelectItem value="CANCELLED"><LocalizedText>Cancelled</LocalizedText></SelectItem></SelectContent></Select></div>
           <div className="space-y-1"><Label><LocalizedText>Priority · الأولوية</LocalizedText></Label><Select value={form.priority} onValueChange={priority => setForm({ ...form, priority })}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="LOW"><LocalizedText>Low</LocalizedText></SelectItem><SelectItem value="NORMAL"><LocalizedText>Normal</LocalizedText></SelectItem><SelectItem value="HIGH"><LocalizedText>High</LocalizedText></SelectItem><SelectItem value="URGENT"><LocalizedText>Urgent</LocalizedText></SelectItem></SelectContent></Select></div>
           <div className="space-y-1"><Label><LocalizedText>Technician · الفني</LocalizedText></Label><Input value={form.technicianName} onChange={e => setForm({ ...form, technicianName: e.target.value })}/></div><div className="space-y-1"><Label><LocalizedText>Driver · السائق</LocalizedText></Label><Input value={form.driverName} onChange={e => setForm({ ...form, driverName: e.target.value })}/></div>

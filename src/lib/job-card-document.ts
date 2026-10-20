@@ -19,7 +19,7 @@ export async function renderJobCardDocument(card: any, company: Company | null, 
     const companyName = company?.companyName || 'Saadfreeh Transport Est.'
     const companyAddress = company?.companyAddress || 'Second Industrial Area, Kingdom of Saudi Arabia'
     const companyPhone = company?.companyPhone || '+966 5 766 24440'
-    const companyEmail = company?.companyEmail || 'saad@saadfreeh.com'
+    const companyEmail = company?.companyEmail || 'alaminkhan.xiaomi@gmail.com'
     const printDateText = (value?: string | Date | null) => value
       ? new Date(value).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).replace(/ /g, '-')
       : '—'

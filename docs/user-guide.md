@@ -26,6 +26,14 @@ Update the record when driver or mileage changes. Accurate current values feed d
 
 Use Trailers to manage trailer number, status, driver, inspection information, and maintenance history. Select the correct trailer when creating a workshop job card or recording related work.
 
+## Vehicle Master and Expiry Tracking
+
+Open Vehicle Master & Tracking to view existing trucks and trailers alongside any additional fleet vehicles. Vehicle Types defines categories such as trucks, trailers, forklifts, and saloon cars. Authorized users can add a master vehicle and attach its identifying details.
+
+From a vehicle row, open its documents to upload a fire extinguisher certificate, operation card, Istimara, insurance certificate, driver card, or Fahas inspection. Record the expiry date and the date reminders should begin. The tracker highlights expired and reminder-period documents, and the Reports tab can export vehicle, document-validity, and job-card maintenance tracking data. Uploading the same document category for the same vehicle replaces its current file.
+
+Maintenance Types is a reusable service catalog. Authorized users can define what a service covers, its repeat interval, reminder lead time, and applicable vehicle types. Select a catalog item on a job card to reuse that service information; job cards remain the maintenance records and drive the upcoming/overdue service tracker.
+
 ## Tire Management
 
 Tire Management stores tire issue/out records. Available fields include tire size, Out Qty, truck or trailer, driver, serial number, manufacturer/origin, date, and notes.
@@ -112,4 +120,4 @@ Admin pages include administrative activity and monitoring views. Backup files a
 - **Email notification missing:** ask an administrator to verify notification settings, sender configuration, and mail logs.
 - **Incorrect report:** review the date range, filters, selected assets, and source record values.
 
-For support, contact the Company administrator or saad@saadfreeh.com. Do not send passwords, tokens, or secret keys.
+For support, contact the Company administrator or alaminkhan.xiaomi@gmail.com. Do not send passwords, tokens, or secret keys.
