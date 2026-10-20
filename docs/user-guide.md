@@ -28,7 +28,7 @@ Use Trailers to manage trailer number, status, driver, inspection information, a
 
 ## Document Expiry Tracker and Protection Cards
 
-Use Document Expiry Tracker for each truck’s fire extinguisher, operation card, Istimara, insurance, driver card, and Fahas documents. Enter an expiry date and reminder start date, then upload the current file. The tracker shows missing, current, reminder-started, and expired entries. Each truck can have one current file per document type; uploading the same type again replaces that file.
+Use Document Expiry Tracker for each truck’s fire extinguisher, operation card, Istimara, insurance, driver card, and Fahas records. Enter an expiry date; the reminder starts automatically 10 days earlier. Fire extinguisher records need no uploaded file. Upload a file for the other five document types. The tracker shows missing, current, reminder-started, and expired entries. Each truck can have one current file per document type; uploading the same type again replaces that file.
 
 For a truck or trailer’s Protection Card, open the vehicle’s details from its existing page and use the Protection Card section. Each vehicle has its own private file, with no expiry dates or reminders. Uploading again replaces that vehicle’s current Protection Card file. Job cards remain the maintenance records and drive maintenance tracking.
 

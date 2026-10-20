@@ -704,10 +704,10 @@ model VehicleDocument {
   vehicleId         String?
   title             String
   documentType      String
-  fileName          String
-  mimeType          String
-  fileSize          Int
-  fileData          Bytes
+  fileName          String?
+  mimeType          String?
+  fileSize          Int?
+  fileData          Bytes?
   validFrom         DateTime?
   validUntil        DateTime?
   reminderStartDate DateTime?

@@ -10,9 +10,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     await requireRolePermission(request, owner.trailerId ? 'trailers' : 'trucks', 'read')
     const document = await db.vehicleDocument.findUnique({ where: { id }, select: { fileName: true, mimeType: true, fileData: true } })
     if (!document) return NextResponse.json({ error: 'Document not found' }, { status: 404 })
+    if (!document.fileData || !document.fileName) return NextResponse.json({ error: 'This record does not have an uploaded file.' }, { status: 404 })
     const bytes = new Uint8Array(document.fileData)
     return new NextResponse(bytes, { headers: {
-      'Content-Type': document.mimeType,
+      'Content-Type': document.mimeType || 'application/octet-stream',
       'Content-Length': String(bytes.byteLength),
       'Content-Disposition': `inline; filename="${document.fileName.replace(/[\r\n"\\]/g, '_')}"`,
       'Cache-Control': 'private, no-store',

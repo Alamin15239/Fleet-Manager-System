@@ -77,10 +77,12 @@ export async function POST(request: NextRequest) {
     if (isExpiryDocument && sourceType !== 'TRUCK') {
       return NextResponse.json({ error: 'Expiry tracking documents are attached to trucks.' }, { status: 400 })
     }
-    const file = form.get('file')
-    if (!(file instanceof File) || file.size === 0) return NextResponse.json({ error: 'Choose a document file.' }, { status: 400 })
-    if (file.size > maxFileBytes) return NextResponse.json({ error: 'Vehicle documents must be 4 MB or smaller.' }, { status: 400 })
-    if (!allowedFiles.has(file.type)) return NextResponse.json({ error: 'Upload a PDF, JPG, PNG, or WEBP file.' }, { status: 400 })
+    const submittedFile = form.get('file')
+    const file = submittedFile instanceof File && submittedFile.size > 0 ? submittedFile : null
+    const fileRequired = documentType !== 'Fire extinguisher'
+    if (fileRequired && !file) return NextResponse.json({ error: 'Choose a document file.' }, { status: 400 })
+    if (file && file.size > maxFileBytes) return NextResponse.json({ error: 'Vehicle documents must be 4 MB or smaller.' }, { status: 400 })
+    if (file && !allowedFiles.has(file.type)) return NextResponse.json({ error: 'Upload a PDF, JPG, PNG, or WEBP file.' }, { status: 400 })
 
     if (sourceType === 'TRUCK' && !await db.truck.findFirst({ where: { id: sourceId, isDeleted: false }, select: { id: true } })) {
       return NextResponse.json({ error: 'Active truck not found.' }, { status: 404 })
@@ -91,39 +93,35 @@ export async function POST(request: NextRequest) {
 
     const validFromText = String(form.get('validFrom') || '').trim()
     const validUntilText = String(form.get('validUntil') || '').trim()
-    const reminderText = String(form.get('reminderStartDate') || '').trim()
-    if (isExpiryDocument && (!validUntilText || !reminderText)) {
-      return NextResponse.json({ error: 'Expiry date and reminder start date are required.' }, { status: 400 })
+    if (isExpiryDocument && !validUntilText) {
+      return NextResponse.json({ error: 'Expiry date is required.' }, { status: 400 })
     }
-    const validFrom = validFromText ? new Date(validFromText) : null
-    const validUntil = validUntilText ? new Date(validUntilText) : null
-    const reminderStartDate = reminderText ? new Date(reminderText) : null
+    const validFrom = validFromText ? new Date(`${validFromText.slice(0, 10)}T00:00:00.000Z`) : null
+    const validUntil = validUntilText ? new Date(`${validUntilText.slice(0, 10)}T00:00:00.000Z`) : null
+    const reminderStartDate = validUntil ? new Date(validUntil.getTime() - 10 * 24 * 60 * 60 * 1000) : null
     if ([validFrom, validUntil, reminderStartDate].some(date => date && Number.isNaN(date.getTime()))) {
       return NextResponse.json({ error: 'Enter valid document dates.' }, { status: 400 })
     }
     if (validFrom && validUntil && validUntil < validFrom) {
       return NextResponse.json({ error: 'Expiry date must be after the valid-from date.' }, { status: 400 })
     }
-    if (reminderStartDate && validUntil && reminderStartDate > validUntil) {
-      return NextResponse.json({ error: 'Reminder must start on or before the expiry date.' }, { status: 400 })
-    }
-
     const uniqueWhere = sourceType === 'TRUCK'
       ? { truckId_documentType: { truckId: sourceId, documentType } }
       : { trailerId_documentType: { trailerId: sourceId, documentType } }
     const existingDocument = await db.vehicleDocument.findUnique({ where: uniqueWhere as any, select: { id: true } })
     await requireRolePermission(request, sourceType === 'TRUCK' ? 'trucks' : 'trailers', existingDocument ? 'update' : 'create')
-    const fileData = Buffer.from(await file.arrayBuffer())
+    const fileFields = file ? {
+      fileName: file.name.replace(/[\r\n"\\/]/g, '_').slice(0, 180),
+      mimeType: file.type,
+      fileSize: file.size,
+      fileData: Buffer.from(await file.arrayBuffer()),
+    } : { fileName: null, mimeType: null, fileSize: null, fileData: null }
     const data = {
       truckId: sourceType === 'TRUCK' ? sourceId : null,
       trailerId: sourceType === 'TRAILER' ? sourceId : null,
       vehicleId: null,
-      title: String(form.get('title') || file.name).trim().slice(0, 120) || file.name,
+      title: String(form.get('title') || file?.name || documentType).trim().slice(0, 120) || documentType,
       documentType,
-      fileName: file.name.replace(/[\r\n"\\/]/g, '_').slice(0, 180),
-      mimeType: file.type,
-      fileSize: file.size,
-      fileData,
       validFrom: isExpiryDocument ? validFrom : null,
       validUntil: isExpiryDocument ? validUntil : null,
       reminderStartDate: isExpiryDocument ? reminderStartDate : null,
@@ -131,8 +129,8 @@ export async function POST(request: NextRequest) {
     }
     const document = await db.vehicleDocument.upsert({
       where: uniqueWhere as any,
-      create: data,
-      update: { ...data, truckId: undefined, trailerId: undefined, vehicleId: undefined },
+      create: { ...data, ...fileFields },
+      update: { ...data, truckId: undefined, trailerId: undefined, vehicleId: undefined, ...(file ? fileFields : {}) },
       select: { id: true, title: true, documentType: true, fileName: true, mimeType: true, fileSize: true, validFrom: true, validUntil: true, reminderStartDate: true, notes: true, createdAt: true },
     })
     return NextResponse.json({ document })
