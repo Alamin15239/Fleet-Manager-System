@@ -384,7 +384,7 @@ export function ProtectedRoute({
           <button 
             onClick={() => {
               if (typeof window !== 'undefined') {
-                window.location.href = '/'
+                window.location.href = '/dashboard'
               }
             }}
             className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"

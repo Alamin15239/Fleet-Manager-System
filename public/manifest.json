@@ -2,7 +2,7 @@
   "name": "Fleet Manager",
   "short_name": "FleetManager",
   "description": "Fleet and Tire Management System",
-  "start_url": "/",
+  "start_url": "/dashboard",
   "scope": "/",
   "id": "/",
   "display": "standalone",

@@ -50,7 +50,7 @@ const getNavigationGroups = (t: (key: string) => string) => [
   {
     label: 'Workspace',
     items: [
-      { name: t('nav.dashboard'), href: '/', icon: Gauge, iconColor: 'text-violet-600 dark:text-violet-400', iconBackground: 'bg-violet-500/10', resource: 'dashboard', action: 'read' },
+      { name: t('nav.dashboard'), href: '/dashboard', icon: Gauge, iconColor: 'text-violet-600 dark:text-violet-400', iconBackground: 'bg-violet-500/10', resource: 'dashboard', action: 'read' },
     ],
   },
   {
@@ -158,7 +158,7 @@ export function Navigation() {
         isSidebarOpen ? 'justify-between px-4' : 'justify-center px-2',
       )}>
         {hasPermission('dashboard', 'read') ? (
-          <Link href="/" onClick={() => window.matchMedia('(max-width: 767px)').matches && closeSidebar()} className={brandClassName} aria-label={t('Fleet Manager home')}>
+        <Link href="/dashboard" onClick={() => window.matchMedia('(max-width: 767px)').matches && closeSidebar()} className={brandClassName} aria-label={t('Fleet Manager home')}>
             {brandContent}
           </Link>
         ) : (
@@ -208,9 +208,7 @@ export function Navigation() {
             )}
             <div className="space-y-1">
               {group.items.map((item: NavItem) => {
-                const isActive = item.href === '/'
-                  ? pathname === '/'
-                  : pathname === item.href || (pathname ?? '').startsWith(`${item.href}/`)
+                const isActive = pathname === item.href || (pathname ?? '').startsWith(`${item.href}/`)
 
                 return (
                   <Link

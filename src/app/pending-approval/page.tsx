@@ -33,7 +33,7 @@ export default function PendingApprovalPage() {
         const data = await response.json()
         if (data.user.isApproved) {
           // User is now approved, redirect to dashboard
-          router.push('/')
+          router.push('/dashboard')
         }
       }
     } catch (error) {

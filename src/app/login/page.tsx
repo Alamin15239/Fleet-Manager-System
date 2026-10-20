@@ -62,7 +62,7 @@ export default function LoginPage() {
       return
     }
     if (!isLoading && isAuthenticated) {
-      router.push('/')
+      router.push('/dashboard')
     }
   }, [organizationSlug, organizationResolved, isAuthenticated, isLoading, router, user?.organizationSlug])
 

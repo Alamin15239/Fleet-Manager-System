@@ -5,7 +5,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: 'Fleet Manager System',
     short_name: 'Fleet Manager',
     description: 'Comprehensive fleet and tire management system',
-    start_url: '/',
+    start_url: '/dashboard',
     scope: '/',
     id: '/',
     display: 'standalone',

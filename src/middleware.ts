@@ -2,8 +2,6 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { rateLimit } from './lib/rate-limiter'
 
-const publicRoutes = ['/login', '/register', '/forgot-password', '/reset-password', '/verify-email', '/verify-otp']
-
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
   
@@ -22,19 +20,21 @@ export function middleware(request: NextRequest) {
     }
   }
 
-  // Skip auth check for public routes, API routes, and static files
+  // Keep internal app screens, authentication pages, and shared records out of search results.
+  // The public marketing, help, and legal pages remain crawlable.
+  const indexablePaths = new Set(['/', '/help', '/privacy', '/agreement'])
+  const response = NextResponse.next()
+
   if (
-    publicRoutes.includes(pathname) ||
-    pathname.startsWith('/api/') ||
-    pathname.startsWith('/_next/') ||
-    pathname.includes('.') // Static files
+    !indexablePaths.has(pathname) &&
+    !pathname.startsWith('/_next/') &&
+    !pathname.includes('.')
   ) {
-    return NextResponse.next()
+    response.headers.set('X-Robots-Tag', 'noindex, nofollow')
   }
 
-  // For protected routes, let the client-side handle authentication
-  // This prevents server-side redirects that can interfere with navigation
-  return NextResponse.next()
+  // Authentication stays client-side to preserve the current sign-in flow.
+  return response
 }
 
 export const config = {
