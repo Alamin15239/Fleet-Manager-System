@@ -118,7 +118,9 @@ export async function POST(request: NextRequest) {
         : { trailerId_documentType: { trailerId: sourceId, documentType } }
     const existingDocument = await db.vehicleDocument.findUnique({ where: uniqueWhere as any, select: { id: true, title: true, notes: true } })
     await requireRolePermission(request, sourceType === 'TRAILER' ? 'trailers' : 'trucks', existingDocument ? 'update' : 'create')
-    const fileRequired = documentType !== 'Fire extinguisher' && !existingDocument
+    // Expiry records can be stored without a file. Protection Card creation is
+    // itself a file upload, so only that document type requires a file payload.
+    const fileRequired = isProtectionCard && !existingDocument
     if (fileRequired && !file) return NextResponse.json({ error: 'Choose a document file.' }, { status: 400 })
 
     const validFromText = String(form.get('validFrom') || '').trim()
