@@ -1,0 +1,290 @@
+type OcrWorker = {
+  recognize: (image: HTMLCanvasElement) => Promise<{ data: { text: string } }>
+}
+
+type TesseractApi = {
+  createWorker: (languages: string | string[]) => Promise<OcrWorker>
+}
+
+export type DocumentDates = {
+  validFrom?: string
+  validUntil?: string
+}
+
+declare global {
+  interface Window {
+    Tesseract?: TesseractApi
+  }
+}
+
+const tesseractVersion = '7.0.0'
+let tesseractLoad: Promise<TesseractApi> | null = null
+let ocrWorker: Promise<OcrWorker> | null = null
+
+function loadTesseract(): Promise<TesseractApi> {
+  if (typeof window === 'undefined') return Promise.reject(new Error('Document OCR is available in the browser.'))
+  if (window.Tesseract) return Promise.resolve(window.Tesseract)
+  if (tesseractLoad) return tesseractLoad
+
+  tesseractLoad = new Promise<TesseractApi>((resolve, reject) => {
+    const script = document.createElement('script')
+    script.src = `https://cdn.jsdelivr.net/npm/tesseract.js@${tesseractVersion}/dist/tesseract.min.js`
+    script.async = true
+    script.crossOrigin = 'anonymous'
+    script.onload = () => window.Tesseract
+      ? resolve(window.Tesseract)
+      : reject(new Error('Could not initialize document OCR.'))
+    script.onerror = () => reject(new Error('Could not load document OCR.'))
+    document.head.appendChild(script)
+  }).catch(error => {
+    tesseractLoad = null
+    throw error
+  })
+
+  return tesseractLoad
+}
+
+function getWorker() {
+  if (!ocrWorker) {
+    ocrWorker = loadTesseract()
+      .then(tesseract => tesseract.createWorker(['eng', 'ara']))
+      .catch(error => {
+        ocrWorker = null
+        throw error
+      })
+  }
+  return ocrWorker
+}
+
+function normalizeDigits(value: string) {
+  const arabicDigits = '٠١٢٣٤٥٦٧٨٩'
+  const persianDigits = '۰۱۲۳۴۵۶۷۸۹'
+  return value
+    .replace(/[٠-٩]/g, digit => String(arabicDigits.indexOf(digit)))
+    .replace(/[۰-۹]/g, digit => String(persianDigits.indexOf(digit)))
+    .replace(/[\u064B-\u065F\u0670]/g, '')
+}
+
+function dateKey(year: number, month: number, day: number) {
+  if (year >= 1300 && year <= 1600) return hijriDateKey(year, month, day)
+  if (year < 1900 || year > 2100 || month < 1 || month > 12 || day < 1 || day > 31) return null
+  const date = new Date(Date.UTC(year, month - 1, day))
+  if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) return null
+  return date.toISOString().slice(0, 10)
+}
+
+function expandShortYear(year: number) {
+  if (year >= 100) return year
+  return year <= 49 ? 2000 + year : 1900 + year
+}
+
+function hijriDateKey(year: number, month: number, day: number) {
+  if (month < 1 || month > 12 || day < 1 || day > 30) return null
+  try {
+    const formatter = new Intl.DateTimeFormat('en-US-u-ca-islamic-umalqura-nu-latn', {
+      year: 'numeric', month: 'numeric', day: 'numeric', timeZone: 'UTC',
+    })
+    const approximateYear = year + 579
+    const start = Date.UTC(approximateYear - 1, 0, 1)
+    const end = Date.UTC(approximateYear + 2, 0, 1)
+    for (let timestamp = start; timestamp < end; timestamp += 86_400_000) {
+      const parts = formatter.formatToParts(new Date(timestamp))
+      const values = Object.fromEntries(parts.map(part => [part.type, part.value]))
+      if (Number(values.year) === year && Number(values.month) === month && Number(values.day) === day) {
+        return new Date(timestamp).toISOString().slice(0, 10)
+      }
+    }
+  } catch {
+    return null
+  }
+  return null
+}
+
+type DateCandidate = { value: string; index: number; end: number; label?: 'issue' | 'expiry' }
+
+const monthNumbers: Record<string, number> = {
+  jan: 1, january: 1, feb: 2, february: 2, mar: 3, march: 3, apr: 4, april: 4,
+  may: 5, jun: 6, june: 6, jul: 7, july: 7, aug: 8, august: 8,
+  sep: 9, sept: 9, september: 9, oct: 10, october: 10, nov: 11, november: 11,
+  dec: 12, december: 12,
+}
+
+const issueWords = ['issue date', 'date of issue', 'issued on', 'issued', 'valid from', 'effective from', 'start date', 'تاريخ الإصدار', 'تاريخ الاصدار', 'تاريخ اصدار', 'تاريخ البداية', 'صادر في']
+const expiryWords = ['expiry date', 'expiration date', 'expires on', 'expiry', 'expiration', 'expires', 'valid until', 'valid to', 'end date', 'تاريخ الانتهاء', 'تاريخ انتهاء', 'تاريخ الصلاحية', 'انتهاء', 'صالحة حتى', 'صالح حتى', 'يسري حتى', 'ساري حتى']
+
+function normalizeLabelText(value: string) {
+  return value.toLocaleLowerCase().replace(/[أإآ]/g, 'ا').replace(/ى/g, 'ي')
+}
+
+function nearestWordDistance(text: string, words: string[], index: number) {
+  const normalized = normalizeLabelText(text)
+  let nearest = Number.POSITIVE_INFINITY
+  for (const word of words) {
+    const needle = normalizeLabelText(word)
+    let position = normalized.indexOf(needle)
+    while (position >= 0) {
+      const distance = index < position ? position - index : index > position + needle.length ? index - position - needle.length : 0
+      nearest = Math.min(nearest, distance)
+      position = normalized.indexOf(needle, position + 1)
+    }
+  }
+  return nearest
+}
+
+function labelCandidates(text: string, candidates: DateCandidate[]) {
+  return candidates.map(candidate => {
+    const start = Math.max(0, candidate.index - 90)
+    const end = Math.min(text.length, candidate.end + 90)
+    const context = text.slice(start, end)
+    const issueDistance = nearestWordDistance(context, issueWords, candidate.index - start)
+    const expiryDistance = nearestWordDistance(context, expiryWords, candidate.index - start)
+    const issueIsNear = issueDistance <= 70
+    const expiryIsNear = expiryDistance <= 70
+    const label = issueIsNear && (!expiryIsNear || issueDistance < expiryDistance)
+      ? 'issue'
+      : expiryIsNear && (!issueIsNear || expiryDistance < issueDistance)
+        ? 'expiry'
+        : undefined
+    return { ...candidate, label }
+  })
+}
+
+function parseDateCandidates(rawText: string): DateCandidate[] {
+  const text = normalizeDigits(rawText).replace(/\u066B/g, '.').replace(/\u066C/g, ',')
+  const candidates: DateCandidate[] = []
+  const numericDate = /(?<!\d)(\d{1,4})\s*[./-]\s*(\d{1,2})\s*[./-]\s*(\d{1,4})(?!\d)/g
+  for (const match of text.matchAll(numericDate)) {
+    const first = Number(match[1])
+    const second = Number(match[2])
+    const third = expandShortYear(Number(match[3]))
+    const yearFirst = match[1].length === 4
+    const value = yearFirst ? dateKey(first, second, third) : dateKey(third, second, first)
+    if (value && match.index !== undefined) candidates.push({ value, index: match.index, end: match.index + match[0].length })
+  }
+
+  const monthPattern = /(?:(\d{1,2})\s+([a-z]{3,9})\.?[,]?\s+((?:19|20)\d{2})|\b([a-z]{3,9})\.?\s+(\d{1,2}),?\s+((?:19|20)\d{2}))/gi
+  for (const match of text.matchAll(monthPattern)) {
+    const day = Number(match[1] || match[5])
+    const month = monthNumbers[(match[2] || match[4] || '').toLowerCase()]
+    const year = Number(match[3] || match[6])
+    const value = month ? dateKey(year, month, day) : null
+    if (value && match.index !== undefined) candidates.push({ value, index: match.index, end: match.index + match[0].length })
+  }
+
+  const labeled = labelCandidates(text, candidates).sort((a, b) => a.index - b.index)
+  return labeled.filter((candidate, index) => labeled.findIndex(item => item.value === candidate.value) === index)
+}
+
+export function extractDocumentDates(rawText: string): DocumentDates {
+  const candidates = parseDateCandidates(rawText)
+  if (!candidates.length) return {}
+
+  const issueCandidates = candidates.filter(candidate => candidate.label === 'issue')
+  const expiryCandidates = candidates.filter(candidate => candidate.label === 'expiry')
+  let validFrom = issueCandidates[0]?.value
+  let validUntil = expiryCandidates[expiryCandidates.length - 1]?.value
+
+  if (!validFrom && !validUntil) {
+    const chronological = [...new Set(candidates.map(candidate => candidate.value))].sort()
+    if (chronological.length > 1) {
+      validFrom = chronological[0]
+      validUntil = chronological[chronological.length - 1]
+    } else {
+      validUntil = chronological[0]
+    }
+  }
+
+  return { validFrom, validUntil }
+}
+
+async function imageToCanvas(file: File) {
+  let image: CanvasImageSource
+  let width: number
+  let height: number
+  if (typeof createImageBitmap === 'function') {
+    const bitmap = await createImageBitmap(file)
+    image = bitmap
+    width = bitmap.width
+    height = bitmap.height
+  } else {
+    const url = URL.createObjectURL(file)
+    try {
+      const element = new Image()
+      element.src = url
+      await element.decode()
+      image = element
+      width = element.naturalWidth
+      height = element.naturalHeight
+    } finally {
+      URL.revokeObjectURL(url)
+    }
+  }
+
+  const scale = Math.min(1, 2200 / Math.max(width, height))
+  const canvas = document.createElement('canvas')
+  canvas.width = Math.max(1, Math.round(width * scale))
+  canvas.height = Math.max(1, Math.round(height * scale))
+  const context = canvas.getContext('2d')
+  if (!context) throw new Error('Could not prepare the image for date reading.')
+  context.filter = 'grayscale(1) contrast(1.15)'
+  context.drawImage(image, 0, 0, canvas.width, canvas.height)
+  if ('close' in image && typeof image.close === 'function') image.close()
+  return canvas
+}
+
+async function readPdfDates(file: File): Promise<DocumentDates> {
+  const { pdfjs } = await import('react-pdf')
+  pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`
+  const loadingTask = pdfjs.getDocument({ data: new Uint8Array(await file.arrayBuffer()) })
+  try {
+    const pdf = await loadingTask.promise
+    const pageCount = Math.min(pdf.numPages, 3)
+    const pages: Array<{ page: Awaited<ReturnType<typeof pdf.getPage>>; text: string }> = []
+    let text = ''
+    for (let pageNumber = 1; pageNumber <= pageCount; pageNumber += 1) {
+      const page = await pdf.getPage(pageNumber)
+      const content = await page.getTextContent()
+      const pageText = content.items.map(item => 'str' in item ? item.str : '').join(' ')
+      pages.push({ page, text: pageText })
+      text += `${pageText}\n`
+    }
+
+    let dates = extractDocumentDates(text)
+    if (dates.validFrom && dates.validUntil) return dates
+
+    const worker = await getWorker()
+    for (const { page } of pages) {
+      const baseViewport = page.getViewport({ scale: 1 })
+      const scale = Math.min(1.8, 2200 / Math.max(baseViewport.width, baseViewport.height))
+      const viewport = page.getViewport({ scale })
+      const canvas = document.createElement('canvas')
+      canvas.width = Math.max(1, Math.ceil(viewport.width))
+      canvas.height = Math.max(1, Math.ceil(viewport.height))
+      const context = canvas.getContext('2d')
+      if (!context) continue
+      await page.render({ canvas, canvasContext: context, viewport }).promise
+      const recognized = await worker.recognize(canvas)
+      text += `${recognized.data.text}\n`
+      dates = extractDocumentDates(text)
+      canvas.width = 0
+      canvas.height = 0
+      if (dates.validFrom && dates.validUntil) return dates
+    }
+    return dates
+  } finally {
+    await loadingTask.destroy()
+  }
+}
+
+export async function readDocumentDates(file: File): Promise<DocumentDates> {
+  const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')
+  if (isPdf) return readPdfDates(file)
+  const canvas = await imageToCanvas(file)
+  try {
+    const recognized = await (await getWorker()).recognize(canvas)
+    return extractDocumentDates(recognized.data.text)
+  } finally {
+    canvas.width = 0
+    canvas.height = 0
+  }
+}

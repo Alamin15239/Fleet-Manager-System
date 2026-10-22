@@ -11,6 +11,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { DocumentFileInput } from '@/components/document-file-input'
 import { LocalizedText } from '@/components/localized-text'
+import { readDocumentDates, type DocumentDates } from '@/lib/document-date-ocr'
 import { usePermissions } from '@/contexts/permissions-context'
 import { useLanguage } from '@/contexts/language-context'
 import { toast } from '@/lib/localized-toast'
@@ -26,6 +27,14 @@ type DriverOption = { id: string; name: string; phone: string | null; vehicleDoc
 type DriverTrackerRow = { driver: DriverOption; document?: ExpiryDocument; status: TrackerRow['status'] }
 type DocumentDraft = { validFrom: string; validUntil: string; file: File | null }
 type DocumentDrafts = Record<DocumentType, DocumentDraft>
+type DateReadState = 'reading' | 'detected' | 'none' | 'failed'
+
+const dateReadStateText: Record<DateReadState, string> = {
+  reading: 'Reading dates from document…',
+  detected: 'Dates detected. Change them if needed.',
+  none: 'No dates detected. Enter the dates manually.',
+  failed: 'Could not read dates. Enter the dates manually.',
+}
 
 function emptyDocumentDrafts(): DocumentDrafts {
   return Object.fromEntries(documentTypes.map(type => [type, { validFrom: '', validUntil: '', file: null }])) as DocumentDrafts
@@ -79,6 +88,7 @@ export function VehicleExpiryTracker() {
   const [drivers, setDrivers] = useState<DriverOption[]>([])
   const [selectedTruck, setSelectedTruck] = useState('')
   const [truckPickerOpen, setTruckPickerOpen] = useState(false)
+  const [dateReadStates, setDateReadStates] = useState<Record<string, DateReadState>>({})
   const [selectedDriverId, setSelectedDriverId] = useState('')
   const [newDriverName, setNewDriverName] = useState('')
   const [showAddDriver, setShowAddDriver] = useState(false)
@@ -96,6 +106,7 @@ export function VehicleExpiryTracker() {
   const fileInputRefs = useRef<Partial<Record<DocumentType, HTMLInputElement | null>>>({})
   const driverFileInputRef = useRef<HTMLInputElement>(null)
   const driverCardFormRef = useRef<HTMLDivElement>(null)
+  const dateReadRequestIds = useRef<Record<string, number>>({})
   const selectedTruckData = useMemo(() => trucks.find(truck => truck.id === selectedTruck), [trucks, selectedTruck])
   const selectedDriver = useMemo(() => drivers.find(driver => driver.id === selectedDriverId), [drivers, selectedDriverId])
   const selectedDriverCard = selectedDriver?.vehicleDocuments.find(document => document.documentType === driverCardType)
@@ -151,6 +162,86 @@ export function VehicleExpiryTracker() {
     }))
   }
 
+  const startDateRead = (key: string, file: File, applyDates: (dates: DocumentDates) => void) => {
+    const requestId = (dateReadRequestIds.current[key] || 0) + 1
+    dateReadRequestIds.current[key] = requestId
+    setDateReadStates(current => ({ ...current, [key]: 'reading' }))
+    void readDocumentDates(file).then(dates => {
+      if (dateReadRequestIds.current[key] !== requestId) return
+      if (!dates.validFrom && !dates.validUntil) {
+        setDateReadStates(current => ({ ...current, [key]: 'none' }))
+        return
+      }
+      applyDates(dates)
+      setDateReadStates(current => ({ ...current, [key]: 'detected' }))
+    }).catch(error => {
+      console.warn('Could not read dates from the uploaded document.', error)
+      if (dateReadRequestIds.current[key] === requestId) {
+        setDateReadStates(current => ({ ...current, [key]: 'failed' }))
+      }
+    })
+  }
+
+  const handleTruckDocumentFile = (type: DocumentType, file: File | null) => {
+    const truckId = selectedTruck
+    const ocrKey = `${truckId}:${type}`
+    updateDraft(type, { file })
+    if (!file || !truckId) {
+      dateReadRequestIds.current[ocrKey] = (dateReadRequestIds.current[ocrKey] || 0) + 1
+      setDateReadStates(current => {
+        const next = { ...current }
+        delete next[ocrKey]
+        return next
+      })
+      return
+    }
+
+    const initialDraft = documentDrafts[type]
+    startDateRead(ocrKey, file, dates => {
+      setDraftsByTruck(current => {
+        const truckDrafts = current[truckId] || draftsForTruck(trucks.find(truck => truck.id === truckId))
+        const currentDraft = truckDrafts[type]
+        if (currentDraft.file !== file) return current
+        const suggestedIssueDate = dates.validFrom || (dates.validUntil ? inferredIssueDateKey(dates.validUntil) : '')
+        return {
+          ...current,
+          [truckId]: {
+            ...truckDrafts,
+            [type]: {
+              ...currentDraft,
+              validFrom: currentDraft.validFrom === initialDraft.validFrom && suggestedIssueDate ? suggestedIssueDate : currentDraft.validFrom,
+              validUntil: currentDraft.validUntil === initialDraft.validUntil && dates.validUntil ? dates.validUntil : currentDraft.validUntil,
+            },
+          },
+        }
+      })
+    })
+  }
+
+  const handleDriverCardFile = (file: File | null) => {
+    setDriverFile(file)
+    const driverId = selectedDriverId
+    const ocrKey = `driver:${driverId}`
+    if (!file || !driverId) {
+      dateReadRequestIds.current[ocrKey] = (dateReadRequestIds.current[ocrKey] || 0) + 1
+      setDateReadStates(current => {
+        const next = { ...current }
+        delete next[ocrKey]
+        return next
+      })
+      return
+    }
+
+    const initialValidFrom = driverValidFrom
+    const initialValidUntil = driverValidUntil
+    startDateRead(ocrKey, file, dates => {
+      if (selectedDriverId !== driverId) return
+      const suggestedIssueDate = dates.validFrom || (dates.validUntil ? inferredIssueDateKey(dates.validUntil) : '')
+      if (suggestedIssueDate) setDriverValidFrom(current => current === initialValidFrom ? suggestedIssueDate : current)
+      if (dates.validUntil) setDriverValidUntil(current => current === initialValidUntil ? dates.validUntil! : current)
+    })
+  }
+
   const rows = useMemo<TrackerRow[]>(() => {
     const today = localDateKey()
     return trucks.flatMap(truck => documentTypes.map(type => {
@@ -197,12 +288,16 @@ export function VehicleExpiryTracker() {
       toast.error('Select a truck.')
       return
     }
+    if (documentTypes.some(type => dateReadStates[`${selectedTruck}:${type}`] === 'reading')) {
+      toast.error('Wait for document date reading to finish.')
+      return
+    }
     const missingDates = documentTypes.filter(type => {
       const draft = documentDrafts[type]
       return !draft.validUntil || (draft.validFrom && draft.validUntil < draft.validFrom)
     })
     if (missingDates.length) {
-      toast.error('Enter valid issue and expiry dates for all five truck document types.')
+      toast.error('Enter an expiry date for each truck document and check any issue dates entered.')
       return
     }
     const invalidFile = documentTypes.find(type => {
@@ -306,8 +401,12 @@ export function VehicleExpiryTracker() {
       toast.error('Select or add a driver first.')
       return
     }
+    if (dateReadStates[`driver:${selectedDriver.id}`] === 'reading') {
+      toast.error('Wait for document date reading to finish.')
+      return
+    }
     if (!driverValidUntil || (driverValidFrom && driverValidUntil < driverValidFrom)) {
-      toast.error('Check the valid-from and expiry dates.')
+      toast.error('Enter a valid expiry date and check the issue date if provided.')
       return
     }
     if (driverFile && (driverFile.size > 4 * 1024 * 1024 || !['application/pdf', 'image/jpeg', 'image/png', 'image/webp'].includes(driverFile.type))) {
@@ -398,7 +497,7 @@ export function VehicleExpiryTracker() {
         <Card className="glass-card">
           <CardHeader>
             <CardTitle className="flex items-center gap-2"><FileText className="h-5 w-5 text-violet-600"/><LocalizedText>Driver card documents</LocalizedText></CardTitle>
-            <CardDescription><LocalizedText>Driver Cards belong to people, so they are saved to a driver record and stay with that driver if the assigned truck changes.</LocalizedText></CardDescription>
+            <CardDescription><LocalizedText>Driver Cards belong to people, so they are saved to a driver record and stay with that driver if the assigned truck changes.</LocalizedText> <LocalizedText>When you select a file, the app tries to prefill dates. You can adjust them before saving.</LocalizedText></CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
@@ -431,14 +530,15 @@ export function VehicleExpiryTracker() {
               </div>
               <div className="space-y-1.5 xl:col-span-2">
                 <Label htmlFor="driverCardFile"><LocalizedText>{selectedDriverCard?.fileName ? 'Replace driver card file (optional)' : 'Driver card file (optional)'}</LocalizedText></Label>
-                <DocumentFileInput key={selectedDriverId} ref={driverFileInputRef} id="driverCardFile" accept="application/pdf,image/jpeg,image/png,image/webp" disabled={!selectedDriverId || driverBusy} onFileSelected={setDriverFile}/>
+                <DocumentFileInput key={selectedDriverId} ref={driverFileInputRef} id="driverCardFile" accept="application/pdf,image/jpeg,image/png,image/webp" disabled={!selectedDriverId || driverBusy} onFileSelected={handleDriverCardFile}/>
+                {dateReadStates[`driver:${selectedDriverId}`] && <p role="status" className="text-xs text-sky-700 dark:text-sky-300"><LocalizedText>{dateReadStateText[dateReadStates[`driver:${selectedDriverId}`]]}</LocalizedText></p>}
                 <p className="text-xs text-muted-foreground">
                   {driverFile ? <><LocalizedText>Selected file</LocalizedText>: {driverFile.name}. </> : selectedDriverCard?.fileName ? <><LocalizedText>Current file</LocalizedText>: {selectedDriverCard.fileName}. </> : null}
                   <LocalizedText>{selectedDriverCard?.fileName ? 'A new file replaces only this driver card.' : 'PDF, JPG, PNG, or WEBP · maximum 4 MB · optional'}</LocalizedText>
                 </p>
               </div>
               <div className="flex items-end">
-                <Button type="submit" disabled={driverBusy || !selectedDriver || !driverValidUntil} className="w-full">
+                <Button type="submit" disabled={driverBusy || !selectedDriver || !driverValidUntil || dateReadStates[`driver:${selectedDriverId}`] === 'reading'} className="w-full">
                   {driverBusy ? <><RefreshCw className="me-2 h-4 w-4 animate-spin"/><LocalizedText>Saving…</LocalizedText></> : <><Upload className="me-2 h-4 w-4"/><LocalizedText>{selectedDriverCard ? 'Update driver card' : 'Save driver card'}</LocalizedText></>}
                 </Button>
               </div>
@@ -455,7 +555,7 @@ export function VehicleExpiryTracker() {
               <LocalizedText>All truck documents</LocalizedText>
             </CardTitle>
             <CardDescription>
-              <LocalizedText>Enter dates for all five truck document types. Every document file is optional, and Fire Extinguisher is date-only. Driver Cards are managed separately under their driver.</LocalizedText>
+              <LocalizedText>Enter dates for all five truck document types. Every document file is optional, and Fire Extinguisher is date-only. Driver Cards are managed separately under their driver.</LocalizedText> <LocalizedText>When you select a file, the app tries to prefill dates. You can adjust them before saving.</LocalizedText>
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -512,6 +612,8 @@ export function VehicleExpiryTracker() {
                   const draft = documentDrafts[type]
                   const currentDocument = selectedTruckData?.vehicleDocuments.find(document => document.documentType === type)
                   const key = type.toLowerCase().replace(/[^a-z0-9]+/g, '-')
+                  const dateReadKey = `${selectedTruck}:${type}`
+                  const dateReadState = dateReadStates[dateReadKey]
                   const isFireExtinguisher = type === 'Fire extinguisher'
                   return <section key={type} ref={element => { documentSlotRefs.current[type] = element }} className="space-y-3 rounded-xl border bg-background/60 p-4">
                     <div className="flex items-start justify-between gap-2">
@@ -533,7 +635,8 @@ export function VehicleExpiryTracker() {
                     </div>
                     {isFireExtinguisher ? <p className="rounded-lg bg-sky-500/5 p-2 text-xs text-muted-foreground"><LocalizedText>Fire Extinguisher is date-tracked only; no file is required.</LocalizedText></p> : <div className="space-y-1.5">
                       <Label htmlFor={`document-file-${key}`}><LocalizedText>{currentDocument?.fileName ? 'Replace this document file (optional)' : 'Document file (optional)'}</LocalizedText></Label>
-                      <DocumentFileInput key={`${selectedTruck}-${type}`} ref={element => { fileInputRefs.current[type] = element }} id={`document-file-${key}`} accept="application/pdf,image/jpeg,image/png,image/webp" disabled={!selectedTruck || busy} onFileSelected={file => updateDraft(type, { file })}/>
+                      <DocumentFileInput key={`${selectedTruck}-${type}`} ref={element => { fileInputRefs.current[type] = element }} id={`document-file-${key}`} accept="application/pdf,image/jpeg,image/png,image/webp" disabled={!selectedTruck || busy} onFileSelected={file => handleTruckDocumentFile(type, file)}/>
+                      {dateReadState && <p role="status" className="text-xs text-sky-700 dark:text-sky-300"><LocalizedText>{dateReadStateText[dateReadState]}</LocalizedText></p>}
                       <p className="text-xs text-muted-foreground">
                         {draft.file ? <><LocalizedText>Selected file</LocalizedText>: {draft.file.name}. </> : currentDocument?.fileName ? <><LocalizedText>Current file</LocalizedText>: {currentDocument.fileName}. </> : null}
                         <LocalizedText>{currentDocument?.fileName ? 'A new file replaces only this document type.' : 'PDF, JPG, PNG, or WEBP · maximum 4 MB · optional'}</LocalizedText>
@@ -545,7 +648,7 @@ export function VehicleExpiryTracker() {
               </div>
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-xs text-muted-foreground"><LocalizedText>Expiry dates are required. Upload any document files you have; files are optional.</LocalizedText></p>
-                <Button type="submit" disabled={busy || loading || !selectedTruck} className="w-full sm:w-auto">
+                <Button type="submit" disabled={busy || loading || !selectedTruck || documentTypes.some(type => dateReadStates[`${selectedTruck}:${type}`] === 'reading')} className="w-full sm:w-auto">
                   {busy ? <><RefreshCw className="me-2 h-4 w-4 animate-spin"/><LocalizedText>Saving all documents…</LocalizedText></> : <><Upload className="me-2 h-4 w-4"/><LocalizedText>Save all truck documents</LocalizedText></>}
                 </Button>
               </div>
