@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { DocumentFileInput } from '@/components/document-file-input'
 import { LocalizedText } from '@/components/localized-text'
 import { usePermissions } from '@/contexts/permissions-context'
 import { useLanguage } from '@/contexts/language-context'
@@ -430,7 +431,7 @@ export function VehicleExpiryTracker() {
               </div>
               <div className="space-y-1.5 xl:col-span-2">
                 <Label htmlFor="driverCardFile"><LocalizedText>{selectedDriverCard?.fileName ? 'Replace driver card file (optional)' : 'Driver card file (optional)'}</LocalizedText></Label>
-                <Input key={selectedDriverId} ref={driverFileInputRef} id="driverCardFile" type="file" accept="application/pdf,image/jpeg,image/png,image/webp" disabled={!selectedDriverId || driverBusy} onChange={event => setDriverFile(event.target.files?.[0] || null)}/>
+                <DocumentFileInput key={selectedDriverId} ref={driverFileInputRef} id="driverCardFile" accept="application/pdf,image/jpeg,image/png,image/webp" disabled={!selectedDriverId || driverBusy} onFileSelected={setDriverFile}/>
                 <p className="text-xs text-muted-foreground">
                   {driverFile ? <><LocalizedText>Selected file</LocalizedText>: {driverFile.name}. </> : selectedDriverCard?.fileName ? <><LocalizedText>Current file</LocalizedText>: {selectedDriverCard.fileName}. </> : null}
                   <LocalizedText>{selectedDriverCard?.fileName ? 'A new file replaces only this driver card.' : 'PDF, JPG, PNG, or WEBP · maximum 4 MB · optional'}</LocalizedText>
@@ -532,7 +533,7 @@ export function VehicleExpiryTracker() {
                     </div>
                     {isFireExtinguisher ? <p className="rounded-lg bg-sky-500/5 p-2 text-xs text-muted-foreground"><LocalizedText>Fire Extinguisher is date-tracked only; no file is required.</LocalizedText></p> : <div className="space-y-1.5">
                       <Label htmlFor={`document-file-${key}`}><LocalizedText>{currentDocument?.fileName ? 'Replace this document file (optional)' : 'Document file (optional)'}</LocalizedText></Label>
-                      <Input key={`${selectedTruck}-${type}`} ref={element => { fileInputRefs.current[type] = element }} id={`document-file-${key}`} type="file" accept="application/pdf,image/jpeg,image/png,image/webp" disabled={!selectedTruck || busy} onChange={event => updateDraft(type, { file: event.target.files?.[0] || null })}/>
+                      <DocumentFileInput key={`${selectedTruck}-${type}`} ref={element => { fileInputRefs.current[type] = element }} id={`document-file-${key}`} accept="application/pdf,image/jpeg,image/png,image/webp" disabled={!selectedTruck || busy} onFileSelected={file => updateDraft(type, { file })}/>
                       <p className="text-xs text-muted-foreground">
                         {draft.file ? <><LocalizedText>Selected file</LocalizedText>: {draft.file.name}. </> : currentDocument?.fileName ? <><LocalizedText>Current file</LocalizedText>: {currentDocument.fileName}. </> : null}
                         <LocalizedText>{currentDocument?.fileName ? 'A new file replaces only this document type.' : 'PDF, JPG, PNG, or WEBP · maximum 4 MB · optional'}</LocalizedText>

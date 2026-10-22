@@ -1,6 +1,6 @@
 'use client'
 
-import { ReactNode } from 'react'
+import { ReactNode, useEffect } from 'react'
 import { Navigation } from './navigation'
 import { Header } from './header'
 import { useAuth } from '@/contexts/auth-context'
@@ -19,6 +19,24 @@ export function Layout({ children, isAuthenticated: forceAuthenticated = false }
   const { isAuthenticated } = useAuth()
   const { isSidebarOpen, closeSidebar } = useSidebar()
   const { t } = useLanguage()
+
+  useEffect(() => {
+    const preventBrowserFileOpen = (event: DragEvent) => {
+      const transfer = event.dataTransfer
+      const containsFiles = !!transfer && (
+        Array.from(transfer.types).includes('Files') ||
+        Array.from(transfer.items).some(item => item.kind === 'file')
+      )
+      if (containsFiles) event.preventDefault()
+    }
+
+    window.addEventListener('dragover', preventBrowserFileOpen, true)
+    window.addEventListener('drop', preventBrowserFileOpen, true)
+    return () => {
+      window.removeEventListener('dragover', preventBrowserFileOpen, true)
+      window.removeEventListener('drop', preventBrowserFileOpen, true)
+    }
+  }, [])
 
   // If forceAuthenticated is true, bypass authentication check
   const effectiveIsAuthenticated = forceAuthenticated || isAuthenticated

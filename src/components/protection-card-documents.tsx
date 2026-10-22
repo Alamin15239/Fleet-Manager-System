@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { FileText, LoaderCircle, ShieldCheck, Trash2, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
+import { DocumentFileInput } from '@/components/document-file-input'
 import { Label } from '@/components/ui/label'
 import { LocalizedText } from '@/components/localized-text'
 import { toast } from '@/lib/localized-toast'
@@ -118,7 +118,7 @@ export function ProtectionCardDocuments({
             <div className="flex gap-2"><Button type="button" size="sm" variant="outline" onClick={() => void openDocument()}><LocalizedText>View</LocalizedText></Button>{canDelete && <Button type="button" size="icon" variant="ghost" aria-label="Delete protection card" disabled={busy} onClick={() => void deleteDocument()}><Trash2 className="h-4 w-4 text-destructive"/></Button>}</div>
           </div>
         ) : <p className="text-sm text-muted-foreground"><LocalizedText>No protection card uploaded.</LocalizedText></p>}
-        {canUpload && <div className="flex flex-col gap-2 sm:flex-row sm:items-end"><div className="min-w-0 flex-1 space-y-1.5"><Label htmlFor={`protection-file-${sourceType}-${sourceId}`}><LocalizedText>Upload or replace file (optional)</LocalizedText></Label><Input id={`protection-file-${sourceType}-${sourceId}`} type="file" accept="application/pdf,image/jpeg,image/png,image/webp" onChange={event => setFile(event.target.files?.[0] || null)}/><p className="text-xs text-muted-foreground"><LocalizedText>PDF, JPG, PNG, or WEBP · maximum 4 MB · optional</LocalizedText></p></div><Button type="button" disabled={!file || busy} onClick={() => void upload()}><Upload className="me-2 h-4 w-4"/>{busy ? <LocalizedText>Saving…</LocalizedText> : <LocalizedText>Save protection card</LocalizedText>}</Button></div>}
+        {canUpload && <div className="flex flex-col gap-2 sm:flex-row sm:items-end"><div className="min-w-0 flex-1 space-y-1.5"><Label htmlFor={`protection-file-${sourceType}-${sourceId}`}><LocalizedText>Upload or replace file (optional)</LocalizedText></Label><DocumentFileInput id={`protection-file-${sourceType}-${sourceId}`} accept="application/pdf,image/jpeg,image/png,image/webp" disabled={busy} onFileSelected={setFile}/><p className="text-xs text-muted-foreground"><LocalizedText>PDF, JPG, PNG, or WEBP · maximum 4 MB · optional</LocalizedText></p></div><Button type="button" disabled={!file || busy} onClick={() => void upload()}><Upload className="me-2 h-4 w-4"/>{busy ? <LocalizedText>Saving…</LocalizedText> : <LocalizedText>Save protection card</LocalizedText>}</Button></div>}
       </CardContent>
     </Card>
   )
