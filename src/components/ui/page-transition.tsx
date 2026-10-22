@@ -14,6 +14,7 @@ export function PageTransition({ children }: PageTransitionProps) {
   return (
     <motion.div
       key={pathname}
+      className="w-full min-w-0"
       initial={prefersReducedMotion ? false : { opacity: 0, y: 5 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: prefersReducedMotion ? 0 : 0.18, ease: 'easeOut' }}
