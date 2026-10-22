@@ -1,12 +1,14 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { AlertTriangle, CalendarClock, CheckCircle2, Clock3, FileText, Pencil, RefreshCw, ShieldAlert, Upload } from 'lucide-react'
+import { AlertTriangle, CalendarClock, Check, CheckCircle2, ChevronsUpDown, Clock3, FileText, Pencil, RefreshCw, ShieldAlert, Upload } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { LocalizedText } from '@/components/localized-text'
 import { usePermissions } from '@/contexts/permissions-context'
 import { useLanguage } from '@/contexts/language-context'
@@ -75,6 +77,7 @@ export function VehicleExpiryTracker() {
   const [trucks, setTrucks] = useState<ExpiryTruck[]>([])
   const [drivers, setDrivers] = useState<DriverOption[]>([])
   const [selectedTruck, setSelectedTruck] = useState('')
+  const [truckPickerOpen, setTruckPickerOpen] = useState(false)
   const [selectedDriverId, setSelectedDriverId] = useState('')
   const [newDriverName, setNewDriverName] = useState('')
   const [showAddDriver, setShowAddDriver] = useState(false)
@@ -458,10 +461,50 @@ export function VehicleExpiryTracker() {
             <form onSubmit={upload} className="space-y-4">
               <div className="max-w-xl space-y-1.5">
                 <Label htmlFor="expiryTruck"><LocalizedText>Truck</LocalizedText></Label>
-                <select id="expiryTruck" required className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={selectedTruck} onChange={event => setSelectedTruck(event.target.value)}>
-                  <option value=""><LocalizedText>Select truck</LocalizedText></option>
-                  {trucks.map(truck => <option key={truck.id} value={truck.id}>{truck.licensePlate} · {truck.make} {truck.model}</option>)}
-                </select>
+                <Popover open={truckPickerOpen} onOpenChange={setTruckPickerOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      id="expiryTruck"
+                      type="button"
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={truckPickerOpen}
+                      aria-required="true"
+                      disabled={loading || busy || trucks.length === 0}
+                      className="h-10 w-full justify-between font-normal"
+                    >
+                      <span className="truncate text-start">
+                        {selectedTruckData
+                          ? `${selectedTruckData.licensePlate} · ${selectedTruckData.make} ${selectedTruckData.model}`
+                          : t('Select truck')}
+                      </span>
+                      <ChevronsUpDown className="ms-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent align="start" className="w-[var(--radix-popover-trigger-width)] p-0">
+                    <Command>
+                      <CommandInput placeholder={t('Search trucks…')} />
+                      <CommandList>
+                        <CommandEmpty>{t('No trucks found')}</CommandEmpty>
+                        <CommandGroup>
+                          {trucks.map(truck => (
+                            <CommandItem
+                              key={truck.id}
+                              value={`${truck.licensePlate} ${truck.make} ${truck.model} ${truck.year} ${truck.driverName || ''}`}
+                              onSelect={() => {
+                                setSelectedTruck(truck.id)
+                                setTruckPickerOpen(false)
+                              }}
+                            >
+                              <Check className={`me-2 h-4 w-4 ${selectedTruck === truck.id ? 'opacity-100' : 'opacity-0'}`} />
+                              <span className="truncate">{truck.licensePlate} · {truck.make} {truck.model} ({truck.year})</span>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
               </div>
               <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
                 {documentTypes.map(type => {
