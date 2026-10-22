@@ -158,12 +158,21 @@ export async function POST(request: NextRequest) {
       reminderStartDate: tracksExpiry ? reminderStartDate : null,
       notes: String(form.get('notes') || '').trim().slice(0, 2000) || existingDocument?.notes || null,
     }
-    const document = await db.vehicleDocument.upsert({
-      where: uniqueWhere as any,
-      create: { ...data, ...fileFields },
-      update: { ...data, truckId: undefined, trailerId: undefined, driverId: undefined, vehicleId: undefined, ...(file ? fileFields : {}) },
-      select: { id: true, title: true, documentType: true, fileName: true, mimeType: true, fileSize: true, validFrom: true, validUntil: true, reminderStartDate: true, notes: true, createdAt: true },
-    })
+    const select = { id: true, title: true, documentType: true, fileName: true, mimeType: true, fileSize: true, validFrom: true, validUntil: true, reminderStartDate: true, notes: true, createdAt: true }
+    const document = existingDocument && file
+      ? await db.$transaction(async transaction => {
+          // Remove the previous document row and its stored bytes before saving
+          // the replacement. The transaction keeps the existing document safe
+          // if creating the new row fails.
+          await transaction.vehicleDocument.delete({ where: { id: existingDocument.id } })
+          return transaction.vehicleDocument.create({ data: { ...data, ...fileFields }, select })
+        })
+      : await db.vehicleDocument.upsert({
+          where: uniqueWhere as any,
+          create: { ...data, ...fileFields },
+          update: { ...data, truckId: undefined, trailerId: undefined, driverId: undefined, vehicleId: undefined, ...(file ? fileFields : {}) },
+          select,
+        })
     return NextResponse.json({ document })
   } catch (error) {
     const status = statusFor(error)
