@@ -17,6 +17,19 @@ import { useLanguage } from '@/contexts/language-context'
 import { TruckLoader } from '@/components/ui/truck-loader'
 import Link from 'next/link'
 import { LegalDocumentLinks } from '@/components/legal-document-links'
+import { AuthDivider, GoogleAuthButton } from '@/components/google-auth-button'
+
+const GOOGLE_AUTH_ERROR_KEYS: Record<string, string> = {
+  not_configured: 'auth.googleNotConfigured',
+  invalid_organization: 'auth.googleInvalidOrganization',
+  pending_approval: 'auth.googlePendingApproval',
+  account_deleted: 'auth.googleAccountDeleted',
+  account_disabled: 'auth.googleAccountDisabled',
+  email_unverified: 'auth.googleEmailUnverified',
+  cancelled: 'auth.googleCancelled',
+  session: 'auth.googleSessionFailed',
+  failed: 'auth.googleFailed',
+}
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -26,6 +39,7 @@ export default function LoginPage() {
   const [otp, setOtp] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [googleErrorCode, setGoogleErrorCode] = useState('')
   const [otpRequested, setOtpRequested] = useState(false)
   const [otpCooldown, setOtpCooldown] = useState(0)
   const [isRedirecting, setIsRedirecting] = useState(false)
@@ -34,6 +48,10 @@ export default function LoginPage() {
   const { t } = useLanguage()
   const router = useRouter()
   const switchingOrganization = useRef(false)
+  const googleCompletionStarted = useRef(false)
+  const googleError = googleErrorCode
+    ? t(GOOGLE_AUTH_ERROR_KEYS[googleErrorCode] || 'auth.googleFailed')
+    : ''
 
   // An organization login link is also a workspace switch. Drop the current
   // browser session before rendering its data, then ask for the target org login.
@@ -68,6 +86,42 @@ export default function LoginPage() {
       const redirect = searchParams.get('redirect')
       if (redirect) localStorage.setItem('redirectAfterLogin', redirect)
       setOrganizationResolved(true)
+
+      const googleStatus = searchParams.get('google')
+      if (googleStatus === 'complete' && !googleCompletionStarted.current) {
+        googleCompletionStarted.current = true
+        setIsRedirecting(true)
+        void (async () => {
+          try {
+            const response = await fetch('/api/auth/google/session', {
+              method: 'GET',
+              credentials: 'include',
+              cache: 'no-store',
+            })
+            const data = await response.json()
+            if (!response.ok || !data.token || !data.user) {
+              setGoogleErrorCode(response.status === 403 ? 'pending_approval' : 'session')
+              return
+            }
+
+            localStorage.setItem('authToken', data.token)
+            localStorage.setItem('user', JSON.stringify(data.user))
+            const requestedRedirect = localStorage.getItem('redirectAfterLogin') || '/'
+            localStorage.removeItem('redirectAfterLogin')
+            const redirectPath = requestedRedirect.startsWith('/') && !requestedRedirect.startsWith('//')
+              ? requestedRedirect
+              : '/'
+            window.location.replace(redirectPath)
+          } catch {
+            console.error('Could not finish Google sign-in')
+            setGoogleErrorCode('session')
+          } finally {
+            setIsRedirecting(false)
+          }
+        })()
+      } else if (googleStatus) {
+        setGoogleErrorCode(googleStatus)
+      }
     }
   }, [])
 
@@ -235,9 +289,9 @@ export default function LoginPage() {
             </div>
 
             <form onSubmit={loginMethod === 'password' ? handlePasswordLogin : handleOtpLogin} className="space-y-4">
-              {error && (
+              {(error || googleError) && (
                 <Alert variant="destructive">
-                  <AlertDescription>{error}</AlertDescription>
+                  <AlertDescription>{error || googleError}</AlertDescription>
                 </Alert>
               )}
 
@@ -256,6 +310,9 @@ export default function LoginPage() {
                 </div>
                 <p className="text-xs text-muted-foreground"><LocalizedText>Leave blank for the original Fleet Manager organization.</LocalizedText></p>
               </div>
+
+              <GoogleAuthButton organizationSlug={organizationSlug} flow="login" />
+              <AuthDivider />
 
               <div className="space-y-2">
                 <Label htmlFor="email"><LocalizedText>Email</LocalizedText></Label>

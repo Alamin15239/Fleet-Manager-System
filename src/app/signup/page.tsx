@@ -13,6 +13,7 @@ import { Truck, Shield, Mail, Lock, User, Building, Loader2, CheckCircle } from 
 import { toast } from '@/lib/localized-toast'
 import Link from 'next/link'
 import { LegalDocumentLinks } from '@/components/legal-document-links'
+import { AuthDivider, GoogleAuthButton } from '@/components/google-auth-button'
 
 export default function SignupPage() {
   const [formData, setFormData] = useState({
@@ -162,6 +163,10 @@ export default function SignupPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
+            <div className="mb-5 space-y-4">
+              <GoogleAuthButton organizationSlug={organizationSlug} flow="signup" />
+              <AuthDivider />
+            </div>
             <form onSubmit={handleSubmit} className="space-y-4">
               {error && (
                 <Alert variant="destructive">

@@ -46,6 +46,16 @@ Requirements: Node.js 20 or newer, npm, and a PostgreSQL database.
 
 Do not use a production database for local development or commit any environment file containing secrets.
 
+### Google sign-in
+
+Google sign-in and signup are optional. Create a Google OAuth client with the **Web application** type, add `https://fleetmaintenance.site` to its authorized JavaScript origins, and add this authorized redirect URI:
+
+```
+https://fleetmaintenance.site/api/auth/google/callback
+```
+
+For local development, use `http://localhost:3000/api/auth/google/callback`. Set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` in `.env.local` and the deployment environment. New Google accounts are created as regular users and still require administrator approval; Google confirms the email address so a separate email OTP is not required.
+
 ## Stack and data
 
 - Next.js 15 App Router and React 19
