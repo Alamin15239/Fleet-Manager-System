@@ -17,24 +17,31 @@ import {
 const siteUrl = 'https://fleetmaintenance.site'
 
 export const metadata: Metadata = {
-  title: 'Fleet Maintenance Software for Trucks & Trailers | Fleet Manager Pro',
+  title: 'Truck & Trailer Fleet Maintenance Software | Fleet Manager Pro',
   description:
-    'Manage trucks, trailers, preventive maintenance, workshop job cards, tires, oil changes, invoices, and reports in one fleet maintenance platform.',
+    'Fleet management software for transport teams. Track truck and trailer maintenance, job cards, tires, oil changes, invoices, document expiry, and reports.',
   keywords: [
     'fleet maintenance software',
-    'fleet management software',
-    'truck maintenance system',
-    'trailer fleet management',
-    'fleet maintenance Saudi Arabia',
-    'vehicle service records',
+    'fleet management software for transport companies',
+    'truck fleet maintenance system',
+    'trailer fleet management software',
+    'vehicle maintenance tracking software',
+    'workshop job card software',
+    'fleet tire management software',
+    'fleet tyre inventory management',
+    'fleet oil change tracking',
+    'fleet expense and invoice management',
+    'vehicle document expiry reminders',
+    'fleet operations software',
     'برنامج إدارة الأسطول',
     'برنامج صيانة الشاحنات',
+    'نظام إدارة صيانة المركبات',
   ],
   alternates: { canonical: siteUrl },
   openGraph: {
-    title: 'Fleet Manager Pro | Fleet Maintenance Software',
+    title: 'Truck & Trailer Fleet Maintenance Software | Fleet Manager Pro',
     description:
-      'One workspace for truck and trailer records, maintenance, job cards, tires, oil changes, invoices, and fleet reports.',
+      'Manage truck and trailer records, workshop job cards, tire and tyre service, oil changes, document expiry reminders, invoices, and fleet reports.',
     url: siteUrl,
     siteName: 'Fleet Manager Pro',
     type: 'website',
@@ -42,9 +49,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Fleet Manager Pro | Fleet Maintenance Software',
-    description:
-      'Manage truck and trailer maintenance, workshop job cards, tires, oil changes, invoices, and reports in one place.',
+    title: 'Truck & Trailer Fleet Maintenance Software | Fleet Manager Pro',
+    description: 'Manage vehicle service, job cards, tires, oil changes, document reminders, invoices, and fleet reports.',
     images: ['/logo.svg'],
   },
   robots: { index: true, follow: true },
@@ -67,7 +73,7 @@ const siteStructuredData = {
         availableLanguage: ['English', 'Arabic'],
       },
       description:
-        'Fleet maintenance and operations software for managing trucks, trailers, workshop work, tire records, and fleet expenses.',
+        'Fleet maintenance and operations software for transport teams to manage trucks, trailers, workshop job cards, tire and tyre records, oil changes, vehicle document expiry, and fleet expenses.',
     },
     {
       '@type': 'WebSite',
@@ -83,7 +89,7 @@ const siteStructuredData = {
       name: 'Fleet Maintenance Software for Trucks and Trailers',
       url: siteUrl,
       description:
-        'Manage fleet vehicles, preventive maintenance, job cards, tires, oil changes, invoices, and reports.',
+        'Fleet maintenance software for truck and trailer fleets, with workshop job cards, tire and tyre management, oil change tracking, document expiry reminders, invoices, and reports.',
       isPartOf: { '@id': siteUrl + '/#website' },
       about: { '@id': siteUrl + '/#organization' },
       inLanguage: 'en',
@@ -131,8 +137,45 @@ const features = [
     icon: FileText,
     title: 'Invoices and fleet reports',
     description:
-      'Assign maintenance and parts expenses to a truck or trailer, separate VAT, and generate reports.',
+      'Assign maintenance and parts expenses to a truck or trailer, separate VAT, and generate fleet cost reports.',
     color: 'text-violet-700 bg-violet-100 dark:text-violet-300 dark:bg-violet-400/10',
+  },
+  {
+    icon: ShieldCheck,
+    title: 'Vehicle document expiry reminders',
+    description:
+      'Track important vehicle and driver document dates and see upcoming expiry reminders in one place.',
+    color: 'text-teal-700 bg-teal-100 dark:text-teal-300 dark:bg-teal-400/10',
+  },
+  {
+    icon: BarChart3,
+    title: 'Fleet data and Excel sync',
+    description:
+      'Connect a OneDrive workbook, sync fleet records, and review workbook changes before applying them.',
+    color: 'text-indigo-700 bg-indigo-100 dark:text-indigo-300 dark:bg-indigo-400/10',
+  },
+]
+
+const faqs = [
+  {
+    question: 'What does fleet maintenance software help a team manage?',
+    answer:
+      'It keeps vehicle records, maintenance history, workshop job cards, tire and tyre activity, oil changes, document expiry dates, and vehicle expenses organized for the team.',
+  },
+  {
+    question: 'Can Fleet Manager Pro manage both trucks and trailers?',
+    answer:
+      'Yes. Teams can maintain separate truck and trailer records and assign relevant service and expense entries to the correct vehicle.',
+  },
+  {
+    question: 'Can I track fleet maintenance costs and VAT?',
+    answer:
+      'Purchase invoices can assign expense lines to trucks or trailers and record VAT separately for VAT invoices. Reports help review fleet and maintenance activity.',
+  },
+  {
+    question: 'Does Fleet Manager Pro support Arabic and English?',
+    answer:
+      'The app supports English and Arabic. Teams can use the fleet workspace and available tools in either language.',
   },
 ]
 
@@ -297,8 +340,8 @@ export default function HomePage() {
           <p className="text-sm font-semibold text-blue-700 dark:text-blue-300">إدارة أسطول المركبات وصيانتها</p>
           <h2 className="mt-3 text-3xl font-bold tracking-tight">نظام إدارة الأسطول وصيانة الشاحنات والمقطورات</h2>
           <p className="mx-auto mt-4 max-w-3xl leading-8 text-slate-700 dark:text-slate-200">
-            يساعد Fleet Manager Pro فرق النقل والورش على تنظيم بيانات الشاحنات والمقطورات، ومتابعة الصيانة الدورية
-            وبطاقات العمل، وإدارة الإطارات وتغييرات الزيت والفلاتر والفواتير وتقارير الأسطول في مكان واحد.
+            يساعد Fleet Manager Pro شركات النقل والورش على إدارة أسطول الشاحنات والمقطورات، ومتابعة صيانة المركبات
+            وبطاقات العمل، وإدارة الإطارات والزيوت والفلاتر، ومراقبة انتهاء صلاحية المستندات، والفواتير والتقارير في مكان واحد.
           </p>
         </div>
       </section>
@@ -315,6 +358,23 @@ export default function HomePage() {
             <Link href="/signup" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-white px-5 py-3 font-semibold text-blue-900 transition hover:bg-blue-50">
               Create an account <ArrowRight className="h-4 w-4" />
             </Link>
+          </div>
+        </div>
+      </section>
+
+      <section aria-labelledby="fleet-faq-heading" className="border-y border-slate-200/70 bg-white/55 py-16 dark:border-white/10 dark:bg-white/[0.02] sm:py-20">
+        <div className="mx-auto max-w-4xl px-5 sm:px-8">
+          <div className="text-center">
+            <p className="text-sm font-semibold uppercase tracking-[0.16em] text-blue-700 dark:text-blue-300">Fleet management questions</p>
+            <h2 id="fleet-faq-heading" className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">Fleet maintenance software for everyday operations</h2>
+          </div>
+          <div className="mt-9 grid gap-4 sm:grid-cols-2">
+            {faqs.map(({ question, answer }) => (
+              <article key={question} className="rounded-2xl border border-slate-200/80 bg-white/80 p-5 shadow-sm dark:border-white/10 dark:bg-slate-900/70">
+                <h3 className="font-semibold">{question}</h3>
+                <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">{answer}</p>
+              </article>
+            ))}
           </div>
         </div>
       </section>
