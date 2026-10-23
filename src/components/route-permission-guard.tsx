@@ -40,7 +40,7 @@ const managedRoutes: RouteAccess[] = [
 ]
 
 const availablePages: RouteAccess[] = [
-  { path: '/', resource: 'dashboard' },
+  { path: '/dashboard', resource: 'dashboard' },
   { path: '/trucks', resource: 'trucks' },
   { path: '/document-expiry', resource: 'trucks' },
   { path: '/trailers', resource: 'trailers' },
@@ -68,15 +68,19 @@ export function RoutePermissionGuard({ children }: { children: React.ReactNode }
   const { hasPermission, loading, permissionManager, refreshPermissions } = usePermissions()
   const { t } = useLanguage()
   const access = getRouteAccess(pathname)
+  const canOpenCurrentRoute = access
+    ? hasPermission(access.resource, access.action || 'read')
+    : true
   const destination = availablePages.find(page => hasPermission(page.resource, page.action || 'read'))
 
-  // A user can sign in successfully while their role has dashboard access
-  // disabled. Send them to an app section they can use instead of leaving them
-  // on a dashboard denial screen immediately after login.
+  // A saved post-login URL may point to a section that this user's role cannot
+  // open. Route them to the first allowed app section so sign-in does not end
+  // on a permission-denied page.
   useEffect(() => {
-    if (loading || access?.path !== '/dashboard' || hasPermission('dashboard', 'read') || !destination) return
+    if (loading || !permissionManager || !access || canOpenCurrentRoute || !destination) return
+    if (destination.path === pathname) return
     router.replace(destination.path)
-  }, [access?.path, destination?.path, hasPermission, loading, router])
+  }, [access, canOpenCurrentRoute, destination?.path, loading, pathname, permissionManager, router])
 
   if (!access) return <>{children}</>
 
@@ -99,7 +103,11 @@ export function RoutePermissionGuard({ children }: { children: React.ReactNode }
     )
   }
 
-  if (!hasPermission(access.resource, access.action || 'read')) {
+  if (!canOpenCurrentRoute) {
+    if (destination) {
+      return <div className="flex min-h-[55vh] items-center justify-center"><TruckLoader size="md" /></div>
+    }
+
     return (
       <div className="mx-auto flex min-h-[55vh] w-full max-w-xl items-center px-4">
         <Card className="w-full shadow-sm">
