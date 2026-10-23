@@ -11,16 +11,38 @@ export async function createJobCardPdfBlob(documentHtml: string): Promise<Blob> 
     frameDocument.open()
     frameDocument.write(documentHtml)
     frameDocument.close()
-    await new Promise<void>((resolve, reject) => {
-      const timer = window.setTimeout(() => reject(new Error('Timed out loading the job card for PDF')), 10000)
-      frame!.onload = () => { window.clearTimeout(timer); resolve() }
-    })
+
+    // document.write/close parses synchronously. Waiting for iframe.onload here
+    // is unreliable: its load event can fire before a late handler is attached,
+    // leaving the preview tab stuck on its "Preparing PDF" page forever.
+    await new Promise<void>(resolve => window.setTimeout(resolve, 50))
 
     const images = Array.from(frameDocument.images)
-    await Promise.all(images.map(image => image.complete ? Promise.resolve() : new Promise<void>((resolve, reject) => {
-      image.onload = () => resolve()
-      image.onerror = () => reject(new Error('Unable to load an image for the job-card PDF'))
-    })))
+    await Promise.all(images.map(image => {
+      if (image.complete) {
+        return image.naturalWidth > 0
+          ? Promise.resolve()
+          : Promise.reject(new Error('Unable to load an image for the job-card PDF'))
+      }
+      return new Promise<void>((resolve, reject) => {
+        const timer = window.setTimeout(() => {
+          cleanup()
+          reject(new Error('Timed out loading an image for the job-card PDF'))
+        }, 15000)
+        const cleanup = () => {
+          window.clearTimeout(timer)
+          image.removeEventListener('load', onLoad)
+          image.removeEventListener('error', onError)
+        }
+        const onLoad = () => { cleanup(); resolve() }
+        const onError = () => { cleanup(); reject(new Error('Unable to load an image for the job-card PDF')) }
+        image.addEventListener('load', onLoad, { once: true })
+        image.addEventListener('error', onError, { once: true })
+        // Recheck after subscribing in case the image completed between the
+        // initial complete check and listener registration.
+        if (image.complete) image.naturalWidth > 0 ? onLoad() : onError()
+      })
+    }))
 
     const page = frameDocument.querySelector<HTMLElement>('.print-page')
     if (!page) throw new Error('Unable to render the job card')
@@ -37,7 +59,7 @@ export async function createJobCardPdfBlob(documentHtml: string): Promise<Blob> 
     page.style.height = 'auto'
     const contentHeight = page.scrollHeight
     page.style.zoom = String(Math.min(1, renderHeight / contentHeight))
-    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+    await new Promise<void>(resolve => window.setTimeout(resolve, 50))
 
     // html2canvas can misplace nested-frame images when the page is CSS-zoomed.
     // Capture the QR's layout box, omit it from the raster, then draw it at that

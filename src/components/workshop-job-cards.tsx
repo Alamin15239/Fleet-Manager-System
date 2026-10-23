@@ -150,15 +150,33 @@ export default function WorkshopJobCards() {
   const viewCardPdf = async (card: JobCard) => {
     const viewer = window.open('about:blank', '_blank')
     if (!viewer) { toast.error('Allow pop-ups to open the job-card PDF'); return }
-    viewer.document.write('<!doctype html><title>Preparing job-card PDF</title><p style="font:16px Arial;padding:24px">Preparing job-card PDF…</p>')
+    viewer.document.open()
+    viewer.document.write('<!doctype html><title>Preparing job-card PDF</title><meta name="viewport" content="width=device-width,initial-scale=1"><body style="font:16px Arial,sans-serif;padding:24px;color:#334155"><p>Preparing job-card PDF…</p></body>')
+    viewer.document.close()
     try {
-      const blob = await createJobCardPdfBlob(await renderCardDocument(card))
+      let timeoutId = 0
+      const timeout = new Promise<never>((_, reject) => {
+        timeoutId = window.setTimeout(() => reject(new Error('Preparing the job-card PDF took too long. Please try again.')), 60000)
+      })
+      let blob: Blob
+      try {
+        blob = await Promise.race([renderCardDocument(card).then(createJobCardPdfBlob), timeout])
+      } finally {
+        window.clearTimeout(timeoutId)
+      }
+      if (viewer.closed) return
       const url = URL.createObjectURL(blob)
-      viewer.location.href = url
-      window.setTimeout(() => URL.revokeObjectURL(url), 60000)
+      viewer.location.replace(url)
+      window.setTimeout(() => URL.revokeObjectURL(url), 5 * 60 * 1000)
     } catch (error) {
-      viewer.close()
-      toast.error(error instanceof Error ? error.message : 'Unable to prepare the job-card PDF')
+      const message = error instanceof Error ? error.message : 'Unable to prepare the job-card PDF'
+      if (!viewer.closed) {
+        viewer.document.open()
+        viewer.document.write('<!doctype html><title>Job-card PDF unavailable</title><meta name="viewport" content="width=device-width,initial-scale=1"><body style="font:16px Arial,sans-serif;padding:24px;color:#991b1b"><h1 style="font-size:20px">Could not prepare the job-card PDF</h1></body>')
+        viewer.document.close()
+        viewer.document.body.append(viewer.document.createTextNode(message))
+      }
+      toast.error(message)
     }
   }
 
