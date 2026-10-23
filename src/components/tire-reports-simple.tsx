@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge'
 import { 
   FileText, 
   Download, 
+  Eye,
   BarChart3,
   PieChart,
   TrendingUp,
@@ -33,6 +34,138 @@ interface ReportData {
   originStats: { name: string; count: number; percentage: number }[]
   vehicleTypeStats: { trucks: number; trailers: number }
   recentTires: any[]
+  tireRows: any[]
+}
+
+async function createTireReportPdf(data: ReportData, dateRange: { start: string; end: string }) {
+  const { jsPDF } = await import('jspdf')
+  const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true })
+  const pageWidth = 210
+  const margin = 10
+  const right = pageWidth - margin
+  const colors = { ink: [31, 48, 40] as const, muted: [103, 120, 111] as const, green: [32, 76, 58] as const, line: [216, 226, 220] as const }
+  const pageTitle = (page: number) => {
+    pdf.setFillColor(...colors.green)
+    pdf.rect(0, 0, pageWidth, page === 1 ? 34 : 20, 'F')
+    pdf.setTextColor(255, 255, 255)
+    pdf.setFont('helvetica', 'bold')
+    pdf.setFontSize(page === 1 ? 17 : 11)
+    pdf.text('TIRE MANAGEMENT REPORT', margin, page === 1 ? 14 : 13)
+    pdf.setFont('helvetica', 'normal')
+    pdf.setFontSize(page === 1 ? 8 : 7)
+    pdf.text(page === 1 ? `Report period: ${dateRange.start} to ${dateRange.end}  |  Generated: ${format(new Date(), 'dd MMM yyyy, HH:mm')}` : `Detailed tire inventory  |  ${dateRange.start} to ${dateRange.end}`, margin, page === 1 ? 24 : 17)
+    pdf.setTextColor(...colors.ink)
+  }
+
+  pageTitle(1)
+  const metrics = [
+    ['Total tires', data.totalTires],
+    ['Vehicles', data.totalVehicles],
+    ['Truck tires', data.vehicleTypeStats.trucks],
+    ['Trailer tires', data.vehicleTypeStats.trailers],
+  ] as const
+  const gap = 3
+  const cardWidth = (right - margin - gap * 3) / 4
+  metrics.forEach(([label, value], index) => {
+    const x = margin + index * (cardWidth + gap)
+    pdf.setDrawColor(...colors.line)
+    pdf.setFillColor(247, 250, 248)
+    pdf.roundedRect(x, 40, cardWidth, 19, 2, 2, 'FD')
+    pdf.setTextColor(...colors.muted)
+    pdf.setFont('helvetica', 'normal')
+    pdf.setFontSize(7)
+    pdf.text(label.toUpperCase(), x + 3, 47)
+    pdf.setTextColor(...colors.ink)
+    pdf.setFont('helvetica', 'bold')
+    pdf.setFontSize(12)
+    pdf.text(Number(value || 0).toLocaleString(), x + 3, 55)
+  })
+
+  const summaryBlock = (title: string, rows: Array<{ name: string; count: number; percentage: number }>, x: number) => {
+    pdf.setFont('helvetica', 'bold')
+    pdf.setFontSize(9)
+    pdf.setTextColor(...colors.green)
+    pdf.text(title, x, 69)
+    pdf.setDrawColor(...colors.line)
+    pdf.line(x, 72, x + 90, 72)
+    pdf.setFont('helvetica', 'normal')
+    pdf.setFontSize(7.5)
+    pdf.setTextColor(...colors.ink)
+    rows.slice(0, 5).forEach((row, index) => {
+      const y = 78 + index * 6
+      pdf.text(String(row.name || 'Unspecified').slice(0, 28), x, y)
+      pdf.text(`${Number(row.count || 0).toLocaleString()} (${row.percentage}%)`, x + 89, y, { align: 'right' })
+    })
+  }
+  summaryBlock('TOP MANUFACTURERS', data.manufacturerStats, margin)
+  summaryBlock('TIRE ORIGINS', data.originStats, margin + 100)
+
+  const columns = [
+    { label: 'Size', x: 10, width: 22 },
+    { label: 'Manufacturer', x: 32, width: 22 },
+    { label: 'Origin', x: 54, width: 18 },
+    { label: 'Truck / trailer', x: 72, width: 28 },
+    { label: 'Driver', x: 100, width: 24 },
+    { label: 'Qty', x: 124, width: 11 },
+    { label: 'Serial number', x: 135, width: 49 },
+    { label: 'Date', x: 184, width: 16 },
+  ]
+  const drawTableHeader = (y: number) => {
+    pdf.setFillColor(235, 242, 237)
+    pdf.rect(margin, y - 4, right - margin, 7, 'F')
+    pdf.setFont('helvetica', 'bold')
+    pdf.setFontSize(6.2)
+    pdf.setTextColor(...colors.ink)
+    columns.forEach(column => pdf.text(column.label, column.x + 1, y))
+    pdf.setDrawColor(...colors.line)
+    pdf.line(margin, y + 3, right, y + 3)
+    return y + 7
+  }
+
+  let y = drawTableHeader(106)
+  pdf.setFont('helvetica', 'normal')
+  pdf.setFontSize(6)
+  const tires = data.tireRows || []
+  tires.forEach((tire, index) => {
+    const values = [
+      tire.tireSize || '—',
+      tire.manufacturer || '—',
+      tire.origin || '—',
+      tire.trailerNumber || tire.plateNumber || '—',
+      tire.driverName || '—',
+      String(tire.quantity ?? 0),
+      String(tire.serialNumber || '—'),
+      tire.createdAt ? format(new Date(tire.createdAt), 'dd/MM/yy') : '—',
+    ]
+    const cellLines = values.map((value, i) => pdf.splitTextToSize(String(value), columns[i].width - 2).slice(0, 4) as string[])
+    const rowHeight = Math.max(6, ...cellLines.map(lines => lines.length * 2.8 + 2))
+    if (y + rowHeight > 285) {
+      pdf.addPage('a4', 'portrait')
+      pageTitle(pdf.getNumberOfPages())
+      y = drawTableHeader(28)
+    }
+    if (index % 2 === 1) {
+      pdf.setFillColor(249, 251, 249)
+      pdf.rect(margin, y - 3.5, right - margin, rowHeight, 'F')
+    }
+    pdf.setTextColor(...colors.ink)
+    cellLines.forEach((lines, i) => pdf.text(lines, columns[i].x + 1, y + 0.5, { lineHeightFactor: 1.05 }))
+    pdf.setDrawColor(...colors.line)
+    pdf.line(margin, y + rowHeight - 1, right, y + rowHeight - 1)
+    y += rowHeight
+  })
+
+  const totalPages = pdf.getNumberOfPages()
+  for (let page = 1; page <= totalPages; page++) {
+    pdf.setPage(page)
+    pdf.setFont('helvetica', 'normal')
+    pdf.setFontSize(7)
+    pdf.setTextColor(...colors.muted)
+    pdf.text(`${tires.length.toLocaleString()} tire records`, margin, 292)
+    pdf.text(`Page ${page} of ${totalPages}`, right, 292, { align: 'right' })
+  }
+  pdf.setProperties({ title: 'Tire Management Report', subject: `Fleet tire report from ${dateRange.start} to ${dateRange.end}` })
+  return pdf.output('blob')
 }
 
 export default function TireReportsSimple() {
@@ -110,7 +243,8 @@ export default function TireReportsSimple() {
           manufacturerStats,
           originStats,
           vehicleTypeStats: { trucks: truckTires, trailers: trailerTires },
-          recentTires: tires.slice(0, 10)
+          recentTires: tires.slice(0, 10),
+          tireRows: tires
         })
       } else {
         setError('Failed to generate report')
@@ -158,6 +292,48 @@ export default function TireReportsSimple() {
     window.URL.revokeObjectURL(url)
   }
 
+  const openPdf = async (download = false) => {
+    if (!reportData) return
+    const viewer = download ? null : window.open('about:blank', '_blank')
+    if (!download && !viewer) {
+      setError('Allow pop-ups to view the tire report PDF in a browser tab')
+      return
+    }
+    if (viewer) {
+      viewer.document.open()
+      viewer.document.write('<!doctype html><title>Preparing tire report PDF</title><meta name="viewport" content="width=device-width,initial-scale=1"><body style="font:16px Arial,sans-serif;padding:24px;color:#334155">Preparing tire report PDF…</body>')
+      viewer.document.close()
+    }
+    setError(null)
+    try {
+      const blob = await createTireReportPdf(reportData, dateRange)
+      const url = URL.createObjectURL(blob)
+      if (download) {
+        const anchor = document.createElement('a')
+        anchor.href = url
+        anchor.download = `tire-report-${format(new Date(), 'yyyy-MM-dd')}.pdf`
+        document.body.appendChild(anchor)
+        anchor.click()
+        anchor.remove()
+        window.setTimeout(() => URL.revokeObjectURL(url), 60000)
+      } else if (viewer && !viewer.closed) {
+        viewer.location.replace(url)
+        window.setTimeout(() => URL.revokeObjectURL(url), 5 * 60 * 1000)
+      } else {
+        URL.revokeObjectURL(url)
+      }
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : 'Unable to prepare the tire report PDF'
+      setError(message)
+      if (viewer && !viewer.closed) {
+        viewer.document.open()
+        viewer.document.write('<!doctype html><title>Tire report PDF unavailable</title><body style="font:16px Arial,sans-serif;padding:24px;color:#991b1b"><h1 style="font-size:20px">Could not prepare the tire report PDF</h1></body>')
+        viewer.document.close()
+        viewer.document.body.append(viewer.document.createTextNode(message))
+      }
+    }
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -172,10 +348,20 @@ export default function TireReportsSimple() {
             {loading ? 'Loading...' : 'Refresh'}
           </Button>
           {reportData && (
-            <Button onClick={downloadCSV}>
-              <Download className="mr-2 h-4 w-4" />
-              Export CSV
-            </Button>
+            <>
+              <Button variant="outline" onClick={() => void openPdf()}>
+                <Eye className="mr-2 h-4 w-4" />
+                <LocalizedText>View PDF</LocalizedText>
+              </Button>
+              <Button variant="outline" onClick={() => void openPdf(true)}>
+                <FileText className="mr-2 h-4 w-4" />
+                <LocalizedText>Download PDF</LocalizedText>
+              </Button>
+              <Button onClick={downloadCSV}>
+                <Download className="mr-2 h-4 w-4" />
+                <LocalizedText>Export CSV</LocalizedText>
+              </Button>
+            </>
           )}
         </div>
       </div>

@@ -1,11 +1,15 @@
-export async function createJobCardPdfBlob(documentHtml: string): Promise<Blob> {
+export async function createJobCardPdfBlob(documentHtml: string, renderWindow: Window = window): Promise<Blob> {
   const [{ default: html2canvas }, { jsPDF }] = await Promise.all([import('html2canvas'), import('jspdf')])
   let frame: HTMLIFrameElement | null = null
 
   try {
-    frame = document.createElement('iframe')
-    frame.style.cssText = 'position:fixed;left:-10000px;top:0;width:744px;height:1080px;border:0;background:#fff'
-    document.body.appendChild(frame)
+    // Render in the destination tab for browser previews. Browsers throttle
+    // requestAnimationFrame in a backgrounded opener, which can stall
+    // html2canvas while the newly opened PDF tab remains on its loading page.
+    const renderDocument = renderWindow.document
+    frame = renderDocument.createElement('iframe')
+    frame.style.cssText = 'position:fixed;left:0;top:0;width:744px;height:1080px;border:0;background:#fff;opacity:.001;pointer-events:none;z-index:2147483647'
+    renderDocument.body.appendChild(frame)
     const frameDocument = frame.contentDocument
     if (!frameDocument) throw new Error('Unable to prepare the PDF document')
     frameDocument.open()
@@ -15,7 +19,7 @@ export async function createJobCardPdfBlob(documentHtml: string): Promise<Blob> 
     // document.write/close parses synchronously. Waiting for iframe.onload here
     // is unreliable: its load event can fire before a late handler is attached,
     // leaving the preview tab stuck on its "Preparing PDF" page forever.
-    await new Promise<void>(resolve => window.setTimeout(resolve, 50))
+    await new Promise<void>(resolve => renderWindow.setTimeout(resolve, 50))
 
     const images = Array.from(frameDocument.images)
     await Promise.all(images.map(image => {
@@ -25,12 +29,12 @@ export async function createJobCardPdfBlob(documentHtml: string): Promise<Blob> 
           : Promise.reject(new Error('Unable to load an image for the job-card PDF'))
       }
       return new Promise<void>((resolve, reject) => {
-        const timer = window.setTimeout(() => {
+        const timer = renderWindow.setTimeout(() => {
           cleanup()
           reject(new Error('Timed out loading an image for the job-card PDF'))
         }, 15000)
         const cleanup = () => {
-          window.clearTimeout(timer)
+          renderWindow.clearTimeout(timer)
           image.removeEventListener('load', onLoad)
           image.removeEventListener('error', onError)
         }
@@ -59,7 +63,7 @@ export async function createJobCardPdfBlob(documentHtml: string): Promise<Blob> 
     page.style.height = 'auto'
     const contentHeight = page.scrollHeight
     page.style.zoom = String(Math.min(1, renderHeight / contentHeight))
-    await new Promise<void>(resolve => window.setTimeout(resolve, 50))
+    await new Promise<void>(resolve => renderWindow.setTimeout(resolve, 50))
 
     // html2canvas can misplace nested-frame images when the page is CSS-zoomed.
     // Capture the QR's layout box, omit it from the raster, then draw it at that

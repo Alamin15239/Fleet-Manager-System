@@ -156,13 +156,14 @@ export default function WorkshopJobCards() {
     try {
       let timeoutId = 0
       const timeout = new Promise<never>((_, reject) => {
-        timeoutId = window.setTimeout(() => reject(new Error('Preparing the job-card PDF took too long. Please try again.')), 60000)
+        timeoutId = viewer.setTimeout(() => reject(new Error('Preparing the job-card PDF took too long. Please try again.')), 60000)
       })
       let blob: Blob
       try {
-        blob = await Promise.race([renderCardDocument(card).then(createJobCardPdfBlob), timeout])
+        const documentHtml = await renderCardDocument(card)
+        blob = await Promise.race([createJobCardPdfBlob(documentHtml, viewer), timeout])
       } finally {
-        window.clearTimeout(timeoutId)
+        viewer.clearTimeout(timeoutId)
       }
       if (viewer.closed) return
       const url = URL.createObjectURL(blob)
