@@ -20,7 +20,7 @@ type OAuthState = jwt.JwtPayload & {
   flow: 'login' | 'signup'
 }
 
-type GoogleJwk = JsonWebKey & { kid?: string; kty?: string; use?: string; alg?: string }
+type GoogleJwk = JsonWebKey & { [key: string]: unknown; kid?: string; kty?: string; use?: string; alg?: string }
 type GoogleIdentity = {
   sub: string
   email: string

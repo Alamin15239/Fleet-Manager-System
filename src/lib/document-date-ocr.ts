@@ -140,7 +140,7 @@ function labelCandidates(text: string, candidates: DateCandidate[]) {
     const expiryDistance = nearestWordDistance(context, expiryWords, candidate.index - start)
     const issueIsNear = issueDistance <= 70
     const expiryIsNear = expiryDistance <= 70
-    const label = issueIsNear && (!expiryIsNear || issueDistance < expiryDistance)
+    const label: DateCandidate['label'] = issueIsNear && (!expiryIsNear || issueDistance < expiryDistance)
       ? 'issue'
       : expiryIsNear && (!issueIsNear || expiryDistance < issueDistance)
         ? 'expiry'
