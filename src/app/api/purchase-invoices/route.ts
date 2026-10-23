@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
   try {
     await requireRolePermission(request, 'purchase-invoices', 'read')
 
-    const [invoices, vendors, trucks, trailers, accounts, balances, totals] = await Promise.all([
+    const [invoices, vendors, trucks, trailers, accounts, balances, totals, company] = await Promise.all([
       db.purchaseInvoice.findMany({
         include: {
           vendor: true,
@@ -57,6 +57,7 @@ export async function GET(request: NextRequest) {
         _count: { _all: true },
         _sum: { subtotal: true, vatTotal: true, grandTotal: true },
       }),
+      db.settings.findFirst({ select: { companyName: true, companyAddress: true, companyPhone: true, companyEmail: true } }),
     ])
 
     const balanceByAccount = new Map(balances.map((row) => [row.accountId, {
@@ -90,6 +91,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
+      company,
       invoices: invoices.map(serializeInvoice),
       vendors,
       trucks,

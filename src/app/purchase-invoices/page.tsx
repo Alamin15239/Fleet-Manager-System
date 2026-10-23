@@ -14,13 +14,14 @@ import { useLanguage } from '@/contexts/language-context'
 import { apiGet, apiPatch, apiPost } from '@/lib/api'
 import { formatCurrency } from '@/lib/currency'
 import { toast } from '@/lib/localized-toast'
-import { Activity, ArrowLeft, BadgeCheck, BookOpen, Building2, Calculator, CalendarDays, Copy, Download, ExternalLink, FilePlus2, FileText, Filter, Loader2, Plus, Printer, Receipt, Search, ShieldCheck, Truck, Undo2, X } from 'lucide-react'
+import { Activity, ArrowLeft, BadgeCheck, BookOpen, Building2, Calculator, CalendarDays, CheckCheck, Copy, Download, ExternalLink, FileBarChart, FilePlus2, FileText, Filter, Loader2, Plus, Printer, Receipt, Search, ShieldCheck, Truck, Undo2, X } from 'lucide-react'
 import { combinePurchaseInvoiceDocuments, renderPurchaseInvoiceDocument, type PurchaseInvoiceCompany, type PurchaseInvoiceDocumentData } from '@/lib/purchase-invoice-document'
 import { downloadPurchaseInvoicePdf } from '@/lib/purchase-invoice-pdf'
+import { renderPurchaseInvoiceReportDocument, type PurchaseInvoiceReportCompany, type PurchaseInvoiceReportEntry } from '@/lib/purchase-invoice-report'
 
 type Category = 'MAINTENANCE' | 'SPARE_PARTS' | 'TIRE' | 'BATTERY' | 'OIL_FILTER' | 'OTHER'
 type AssetType = 'TRUCK' | 'TRAILER'
-type Tab = 'invoices' | 'vehicle-accounts' | 'vendor-accounts' | 'vat'
+type Tab = 'invoices' | 'reports' | 'vehicle-accounts' | 'vendor-accounts' | 'vat'
 
 interface Vendor {
   id: string
@@ -84,6 +85,12 @@ interface PurchaseInvoice {
   lines: InvoiceLine[]
 }
 
+interface PurchaseInvoiceReportMatch {
+  invoice: PurchaseInvoice
+  lines: InvoiceLine[]
+  payable: number
+}
+
 interface AccountRow {
   id: string | null
   assetType?: AssetType
@@ -138,6 +145,7 @@ export default function PurchaseInvoicesPage() {
   const [saving, setSaving] = useState(false)
   const [dataError, setDataError] = useState('')
   const [invoices, setInvoices] = useState<PurchaseInvoice[]>([])
+  const [company, setCompany] = useState<PurchaseInvoiceReportCompany | null>(null)
   const [vendors, setVendors] = useState<Vendor[]>([])
   const [trucks, setTrucks] = useState<TruckOption[]>([])
   const [trailers, setTrailers] = useState<TrailerOption[]>([])
@@ -157,6 +165,21 @@ export default function PurchaseInvoicesPage() {
   const [batchDocumentHtml, setBatchDocumentHtml] = useState('')
   const [batchBusy, setBatchBusy] = useState(false)
   const batchPreviewRef = useRef<HTMLIFrameElement>(null)
+  const [reportSearch, setReportSearch] = useState('')
+  const [reportAssetSearch, setReportAssetSearch] = useState('')
+  const [reportAssetIds, setReportAssetIds] = useState<string[]>([])
+  const [reportDateFrom, setReportDateFrom] = useState('')
+  const [reportDateTo, setReportDateTo] = useState('')
+  const [reportAmountMin, setReportAmountMin] = useState('')
+  const [reportAmountMax, setReportAmountMax] = useState('')
+  const [reportStatusFilter, setReportStatusFilter] = useState<'POSTED' | 'VOID' | 'ALL'>('POSTED')
+  const [reportInvoices, setReportInvoices] = useState<PurchaseInvoiceReportMatch[]>([])
+  const [reportLoading, setReportLoading] = useState(false)
+  const [reportError, setReportError] = useState('')
+  const [reportDialogOpen, setReportDialogOpen] = useState(false)
+  const [reportDocumentHtml, setReportDocumentHtml] = useState('')
+  const [reportBusy, setReportBusy] = useState(false)
+  const reportPreviewRef = useRef<HTMLIFrameElement>(null)
   const [entryMode, setEntryMode] = useState<'invoice' | 'vendor' | null>(null)
   const [vendorReturnsToInvoice, setVendorReturnsToInvoice] = useState(false)
   const [selectedInvoice, setSelectedInvoice] = useState<PurchaseInvoice | null>(null)
@@ -225,6 +248,7 @@ export default function PurchaseInvoicesPage() {
       const payload = await response.json()
       if (!response.ok) throw new Error(payload.error || 'Could not load purchase accounts')
       setInvoices(payload.invoices || [])
+      setCompany(payload.company || null)
       setVendors(payload.vendors || [])
       setTrucks(payload.trucks || [])
       setTrailers(payload.trailers || [])
@@ -293,9 +317,67 @@ export default function PurchaseInvoicesPage() {
   }, [ledgerSelection])
 
   const assetOptions = useMemo(() => [
-    ...trucks.map((truck) => ({ type: 'TRUCK' as const, id: truck.id, label: `${truck.licensePlate} · ${truck.make} ${truck.model} (${truck.year})` })),
-    ...trailers.map((trailer) => ({ type: 'TRAILER' as const, id: trailer.id, label: `Trailer ${trailer.number}` })),
+    ...trucks.map((truck) => ({ type: 'TRUCK' as const, id: truck.id, key: `TRUCK:${truck.id}`, label: `${truck.licensePlate} · ${truck.make} ${truck.model} (${truck.year})` })),
+    ...trailers.map((trailer) => ({ type: 'TRAILER' as const, id: trailer.id, key: `TRAILER:${trailer.id}`, label: `Trailer ${trailer.number}` })),
   ], [trucks, trailers])
+
+  const matchingReportAssets = useMemo(() => {
+    const query = reportAssetSearch.trim().toLowerCase()
+    return assetOptions.filter((asset) => !query || asset.label.toLowerCase().includes(query))
+  }, [assetOptions, reportAssetSearch])
+
+  useEffect(() => {
+    if (!reportAssetIds.length) {
+      setReportInvoices([])
+      setReportError('')
+      setReportLoading(false)
+      return
+    }
+    setReportLoading(true)
+    setReportInvoices([])
+    let cancelled = false
+    const timer = window.setTimeout(async () => {
+      setReportLoading(true)
+      setReportError('')
+      try {
+        const response = await apiPost('/api/purchase-invoices/report', {
+          assetKeys: reportAssetIds,
+          search: reportSearch,
+          dateFrom: reportDateFrom,
+          dateTo: reportDateTo,
+          amountMin: reportAmountMin,
+          amountMax: reportAmountMax,
+          status: reportStatusFilter,
+        })
+        const payload = await response.json()
+        if (!response.ok) throw new Error(payload.error || 'Could not load matching invoices')
+        if (!cancelled) {
+          setReportInvoices(payload.invoices || [])
+          setCompany(payload.company || null)
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setReportInvoices([])
+          setReportError(error instanceof Error ? error.message : 'Could not load matching invoices')
+        }
+      } finally {
+        if (!cancelled) setReportLoading(false)
+      }
+    }, 250)
+    return () => {
+      cancelled = true
+      window.clearTimeout(timer)
+    }
+  }, [reportAssetIds, reportSearch, reportDateFrom, reportDateTo, reportAmountMin, reportAmountMax, reportStatusFilter])
+
+  const reportTotals = useMemo(() => reportInvoices.reduce((totals, row) => {
+    if (row.invoice.status !== 'POSTED') return totals
+    return row.lines.reduce((current, line) => ({
+      expense: current.expense + line.netAmount,
+      vat: current.vat + line.vatAmount,
+      payable: current.payable + line.totalAmount,
+    }), totals)
+  }, { expense: 0, vat: 0, payable: 0 }), [reportInvoices])
 
   const lineTotals = (line: DraftLine) => {
     const quantity = Number(line.quantity) || 0
@@ -529,6 +611,106 @@ export default function PurchaseInvoicesPage() {
     }
   }
 
+  const toggleReportAsset = (key: string) => setReportAssetIds((current) => current.includes(key) ? current.filter((id) => id !== key) : [...current, key])
+
+  const selectVisibleReportAssets = () => setReportAssetIds((current) => Array.from(new Set([...current, ...matchingReportAssets.map((asset) => asset.key)])))
+
+  const clearReportFilters = () => {
+    setReportSearch('')
+    setReportAssetSearch('')
+    setReportAssetIds([])
+    setReportDateFrom('')
+    setReportDateTo('')
+    setReportAmountMin('')
+    setReportAmountMax('')
+    setReportStatusFilter('POSTED')
+  }
+
+  const prepareReportEntries = (): PurchaseInvoiceReportEntry[] => reportInvoices.flatMap(({ invoice, lines }) => {
+    const entries: PurchaseInvoiceReportEntry[] = lines.map((line) => {
+      const assetKey = getInvoiceLineAssetKey(line)
+      const asset = assetOptions.find((option) => option.key === assetKey)
+      return {
+        date: invoice.invoiceDate,
+        invoiceNumber: invoice.internalNumber,
+        vendorInvoiceNumber: invoice.vendorInvoiceNumber,
+        vendor: invoice.vendor.name,
+        account: asset?.label || (line.truck ? `Truck ${line.truck.licensePlate}` : `Trailer ${line.trailer?.number || ''}`),
+        description: `${categoryLabels[line.category]} · ${line.description}`,
+        debit: line.netAmount,
+        credit: 0,
+        status: invoice.status,
+      }
+    })
+    const vat = lines.reduce((sum, line) => sum + line.vatAmount, 0)
+    if (vat > 0) entries.push({
+      date: invoice.invoiceDate,
+      invoiceNumber: invoice.internalNumber,
+      vendorInvoiceNumber: invoice.vendorInvoiceNumber,
+      vendor: invoice.vendor.name,
+      account: 'Input VAT · Tax Authority',
+      description: `Input VAT · ${invoice.internalNumber}`,
+      debit: vat,
+      credit: 0,
+      status: invoice.status,
+    })
+    entries.push({
+      date: invoice.invoiceDate,
+      invoiceNumber: invoice.internalNumber,
+      vendorInvoiceNumber: invoice.vendorInvoiceNumber,
+      vendor: invoice.vendor.name,
+      account: `Vendor payable · ${invoice.vendor.name}`,
+      description: `Supplier payable · ${invoice.internalNumber}`,
+      debit: 0,
+      credit: lines.reduce((sum, line) => sum + line.totalAmount, 0),
+      status: invoice.status,
+    })
+    return entries
+  })
+
+  const openReportPreview = () => {
+    if (!reportAssetIds.length) return toast.error('Select at least one truck or trailer for the report')
+    if (!reportInvoices.length) return toast.error('No invoices match the selected vehicles and filters')
+    const selectedAssets = assetOptions.filter((asset) => reportAssetIds.includes(asset.key)).map((asset) => asset.label)
+    const generatedAt = new Date().toLocaleString('en-GB', { timeZone: 'Asia/Riyadh', dateStyle: 'medium', timeStyle: 'short' })
+    const period = `${reportDateFrom ? formatDate(`${reportDateFrom}T12:00:00`) : 'All dates'} – ${reportDateTo ? formatDate(`${reportDateTo}T12:00:00`) : 'Present'}`
+    const statusLabel = reportStatusFilter === 'ALL' ? 'Posted and reversed' : reportStatusFilter === 'VOID' ? 'Reversed' : 'Posted'
+    setReportDocumentHtml(renderPurchaseInvoiceReportDocument({
+      company,
+      entries: prepareReportEntries(),
+      assets: selectedAssets,
+      period,
+      statusLabel,
+      invoiceCount: reportInvoices.length,
+      expenseTotal: reportTotals.expense,
+      vatTotal: reportTotals.vat,
+      payableTotal: reportTotals.payable,
+      generatedAt,
+    }))
+    setReportDialogOpen(true)
+  }
+
+  const printPurchaseInvoiceReport = () => {
+    const printWindow = reportPreviewRef.current?.contentWindow
+    if (!printWindow || !reportDocumentHtml) return
+    printWindow.focus()
+    printWindow.print()
+  }
+
+  const downloadPurchaseInvoiceReport = async () => {
+    if (!reportDocumentHtml) return
+    setReportBusy(true)
+    try {
+      await downloadPurchaseInvoicePdf(reportDocumentHtml, `vehicle-purchase-invoice-report-${new Date().toISOString().slice(0, 10)}.pdf`, {
+        orientation: 'landscape', pageWidthPx: 1123, pageHeightPx: 794,
+      })
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Unable to download the purchase invoice report')
+    } finally {
+      setReportBusy(false)
+    }
+  }
+
   const tabButton = (key: Tab, label: string, Icon: typeof FileText, count?: number) => (
     <button key={key} type="button" onClick={() => { setTab(key); setSearch(''); setLedgerSelection(null) }} aria-pressed={tab === key} className={`flex shrink-0 items-center gap-2 whitespace-nowrap rounded-xl px-3.5 py-2.5 text-sm font-medium transition sm:px-4 ${tab === key ? 'bg-slate-950 text-white shadow-sm dark:bg-white dark:text-slate-950' : 'text-muted-foreground hover:bg-muted/80 hover:text-foreground'}`}>
       <Icon className="h-4 w-4" /><LocalizedText>{label}</LocalizedText>
@@ -580,10 +762,11 @@ export default function PurchaseInvoicesPage() {
         <CardHeader className="gap-5 border-b border-border/60 bg-gradient-to-r from-slate-50/80 to-white/50 pb-4 dark:from-slate-900/70 dark:to-slate-950/40">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div><div className="flex items-center gap-2"><CardTitle className="text-lg tracking-tight"><LocalizedText>Accounts & invoices</LocalizedText></CardTitle><Badge variant="outline" className="rounded-full bg-white/60 text-[10px] font-medium dark:bg-slate-900/60"><LocalizedText>Ledger</LocalizedText></Badge></div><p className="mt-1 text-sm text-muted-foreground"><LocalizedText>Every posted invoice is balanced and traceable to its vehicle and vendor.</LocalizedText></p></div>
-            <div className="relative w-full lg:max-w-md"><Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t('Invoice no., vendor, truck, trailer, or description')} className="h-11 rounded-xl border-slate-200 bg-white/85 ps-9 shadow-sm dark:border-slate-700 dark:bg-slate-950/70" /></div>
+             {tab !== 'reports' && <div className="relative w-full lg:max-w-md"><Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t('Invoice no., vendor, truck, trailer, or description')} className="h-11 rounded-xl border-slate-200 bg-white/85 ps-9 shadow-sm dark:border-slate-700 dark:bg-slate-950/70" /></div>}
           </div>
           <div className="flex gap-2 overflow-x-auto pb-1" aria-label={t('Account sections')}>
             {tabButton('invoices', 'Invoices', FileText, invoices.length)}
+            {tabButton('reports', 'Vehicle reports', FileBarChart)}
             {tabButton('vehicle-accounts', 'Truck & trailer accounts', Truck, vehicleAccounts.length)}
             {tabButton('vendor-accounts', 'Vendor accounts', Building2, vendorAccounts.length)}
             {tabButton('vat', 'Input VAT', ShieldCheck)}
@@ -657,6 +840,57 @@ export default function PurchaseInvoicesPage() {
               </div>
             </>}
             {invoices.length >= 500 && <p className="mt-4 text-xs text-muted-foreground"><LocalizedText>Showing the most recent 500 invoices. Account balances include all posted and reversed entries.</LocalizedText></p>}
+          </>}
+
+          {tab === 'reports' && <>
+            <div className="mb-5 flex flex-col gap-3 rounded-2xl border border-indigo-200/70 bg-gradient-to-r from-indigo-50/80 via-white/70 to-sky-50/70 p-4 dark:border-indigo-400/20 dark:from-indigo-950/25 dark:via-slate-950/30 dark:to-sky-950/20 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+              <div className="flex items-start gap-3"><div className="rounded-xl border border-indigo-200/70 bg-white/80 p-2.5 text-indigo-700 shadow-sm dark:border-indigo-400/20 dark:bg-slate-900/70 dark:text-indigo-300"><FileBarChart className="h-5 w-5" /></div><div><h3 className="font-semibold"><LocalizedText>Purchase invoice report</LocalizedText></h3><p className="mt-1 max-w-2xl text-sm text-muted-foreground"><LocalizedText>Select one or more trucks or trailers to create a journal-style report of their expense debits, separate input VAT, and vendor payable credits.</LocalizedText></p></div></div>
+              <Button type="button" onClick={openReportPreview} disabled={!reportInvoices.length || reportBusy || reportLoading} className="shrink-0 shadow-sm"><FileBarChart className="me-2 h-4 w-4" /><LocalizedText>Preview report</LocalizedText></Button>
+            </div>
+
+            <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(320px,.82fr)]">
+              <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white/70 dark:border-slate-800 dark:bg-slate-950/35">
+                <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border/60 p-4"><div><h3 className="font-semibold"><LocalizedText>Select truck and trailer accounts</LocalizedText></h3><p className="mt-1 text-xs text-muted-foreground"><LocalizedText>Choose one vehicle for a single-asset report, or combine any number of trucks and trailers.</LocalizedText></p></div><Badge variant="secondary" className="rounded-full">{reportAssetIds.length} <LocalizedText>selected</LocalizedText></Badge></div>
+                <div className="space-y-3 p-4">
+                  <div className="relative"><Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input value={reportAssetSearch} onChange={(event) => setReportAssetSearch(event.target.value)} placeholder={t('Search trucks and trailers')} className="ps-9" /></div>
+                  <div className="flex flex-wrap gap-2"><Button type="button" variant="outline" size="sm" onClick={selectVisibleReportAssets} disabled={!matchingReportAssets.length}><CheckCheck className="me-2 h-4 w-4" /><LocalizedText>Select all shown</LocalizedText></Button><Button type="button" variant="ghost" size="sm" onClick={() => setReportAssetIds([])} disabled={!reportAssetIds.length}><X className="me-1 h-4 w-4" /><LocalizedText>Clear vehicles</LocalizedText></Button></div>
+                  <div className="max-h-[360px] space-y-4 overflow-y-auto rounded-xl border bg-background/60 p-3">
+                    {(['TRUCK', 'TRAILER'] as const).map((type) => {
+                      const options = matchingReportAssets.filter((asset) => asset.type === type)
+                      if (!options.length) return null
+                      return <fieldset key={type} className="space-y-1.5"><legend className="sticky top-0 z-10 mb-2 rounded-md bg-background/95 px-1 py-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground backdrop-blur">{type === 'TRUCK' ? <LocalizedText>Trucks</LocalizedText> : <LocalizedText>Trailers</LocalizedText>} · {options.length}</legend>{options.map((asset) => <label key={asset.key} className={`flex cursor-pointer items-start gap-3 rounded-lg border px-3 py-2.5 text-sm transition ${reportAssetIds.includes(asset.key) ? 'border-indigo-300 bg-indigo-50/70 dark:border-indigo-500/40 dark:bg-indigo-950/25' : 'border-transparent hover:bg-muted/70'}`}><input type="checkbox" checked={reportAssetIds.includes(asset.key)} onChange={() => toggleReportAsset(asset.key)} className="mt-0.5 h-4 w-4 shrink-0 rounded border-input accent-primary" /><span className="min-w-0">{asset.label}</span></label>)}</fieldset>
+                    })}
+                    {!matchingReportAssets.length && <p className="py-8 text-center text-sm text-muted-foreground"><LocalizedText>No trucks or trailers match this search.</LocalizedText></p>}
+                  </div>
+                  {reportAssetIds.length > 0 && <p className="text-xs text-muted-foreground">{assetOptions.filter((asset) => reportAssetIds.includes(asset.key)).slice(0, 4).map((asset) => asset.label).join(' · ')}{reportAssetIds.length > 4 ? ` · +${reportAssetIds.length - 4}` : ''}</p>}
+                </div>
+              </section>
+
+              <section className="space-y-4 rounded-2xl border border-slate-200/80 bg-slate-50/65 p-4 dark:border-slate-800 dark:bg-slate-900/35">
+                <div className="flex items-center justify-between gap-3"><div><h3 className="font-semibold"><LocalizedText>Report filters</LocalizedText></h3><p className="mt-1 text-xs text-muted-foreground"><LocalizedText>Search invoices and narrow the vehicle expense period and amounts.</LocalizedText></p></div><Button type="button" variant="ghost" size="sm" onClick={clearReportFilters}><X className="me-1 h-3.5 w-3.5" /><LocalizedText>Reset</LocalizedText></Button></div>
+                <div className="relative"><Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input value={reportSearch} onChange={(event) => setReportSearch(event.target.value)} placeholder={t('Invoice no., vendor, asset, or description')} className="ps-9" /></div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-1.5"><Label htmlFor="purchase-report-status" className="text-xs text-muted-foreground"><LocalizedText>Invoice status</LocalizedText></Label><select id="purchase-report-status" value={reportStatusFilter} onChange={(event) => setReportStatusFilter(event.target.value as 'POSTED' | 'VOID' | 'ALL')} className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm"><option value="POSTED">{t('Posted only')}</option><option value="ALL">{t('Posted and reversed')}</option><option value="VOID">{t('Reversed only')}</option></select></div>
+                  <div className="space-y-1.5"><Label className="text-xs text-muted-foreground"><LocalizedText>Matching invoices</LocalizedText></Label><div className="flex h-10 items-center rounded-lg border bg-background px-3 text-sm font-semibold tabular-nums">{reportInvoices.length}</div></div>
+                  <div className="space-y-1.5"><Label htmlFor="purchase-report-from" className="text-xs text-muted-foreground"><LocalizedText>Date from</LocalizedText></Label><Input id="purchase-report-from" type="date" max={reportDateTo || undefined} value={reportDateFrom} onChange={(event) => setReportDateFrom(event.target.value)} /></div>
+                  <div className="space-y-1.5"><Label htmlFor="purchase-report-to" className="text-xs text-muted-foreground"><LocalizedText>Date to</LocalizedText></Label><Input id="purchase-report-to" type="date" min={reportDateFrom || undefined} value={reportDateTo} onChange={(event) => setReportDateTo(event.target.value)} /></div>
+                  <div className="space-y-1.5"><Label htmlFor="purchase-report-min" className="text-xs text-muted-foreground"><LocalizedText>Minimum payable (SAR)</LocalizedText></Label><Input id="purchase-report-min" type="number" min="0" max={reportAmountMax || undefined} step="0.01" inputMode="decimal" placeholder={t('Any amount')} value={reportAmountMin} onChange={(event) => setReportAmountMin(event.target.value)} /></div>
+                  <div className="space-y-1.5"><Label htmlFor="purchase-report-max" className="text-xs text-muted-foreground"><LocalizedText>Maximum payable (SAR)</LocalizedText></Label><Input id="purchase-report-max" type="number" min={reportAmountMin || '0'} step="0.01" inputMode="decimal" placeholder={t('Any amount')} value={reportAmountMax} onChange={(event) => setReportAmountMax(event.target.value)} /></div>
+                </div>
+                <p className="rounded-xl border border-slate-200/80 bg-white/80 p-3 text-xs leading-5 text-muted-foreground dark:border-slate-800 dark:bg-slate-950/50"><LocalizedText>Amount filters use the selected vehicles’ matching invoice lines, including VAT. Reversed invoices can be included for audit, but are excluded from posted totals.</LocalizedText></p>
+              </section>
+            </div>
+
+            {reportAssetIds.length > 0 && reportLoading && <div className="mt-4 flex items-center gap-2 rounded-xl border bg-muted/30 px-4 py-3 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /><LocalizedText>Loading the complete invoice history for the selected vehicles…</LocalizedText></div>}
+            {reportError && <div role="alert" className="mt-4 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">{reportError}</div>}
+            {reportAssetIds.length > 0 && !reportLoading && <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <MetricCard icon={FileText} label="Matching invoices" value={reportInvoices.length.toLocaleString()} foot="For the selected vehicles and filters" tone="blue" />
+              <MetricCard icon={Truck} label="Vehicle expense" value={formatCurrency(reportTotals.expense)} foot="Posted expense debits · excluding VAT" tone="violet" />
+              <MetricCard icon={ShieldCheck} label="Input VAT" value={formatCurrency(reportTotals.vat)} foot="Posted VAT debits · separate account" tone="amber" />
+              <MetricCard icon={Building2} label="Vendor payable" value={formatCurrency(reportTotals.payable)} foot="Posted credits · balances with debits" tone="emerald" />
+            </div>}
+
+            <div className="mt-4 flex flex-col gap-2 rounded-xl border border-border/70 bg-background/60 p-3 text-sm sm:flex-row sm:items-center sm:justify-between"><p className="text-muted-foreground">{reportLoading ? <span className="inline-flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /><LocalizedText>Checking all matching invoices…</LocalizedText></span> : reportInvoices.length ? <><strong className="text-foreground">{reportInvoices.length}</strong> <LocalizedText>matching invoices</LocalizedText></> : reportAssetIds.length ? <LocalizedText>No invoices match the selected vehicles and filters.</LocalizedText> : <LocalizedText>Select at least one truck or trailer and adjust the filters to find invoice entries.</LocalizedText>}</p><Button type="button" onClick={openReportPreview} disabled={!reportInvoices.length || reportBusy || reportLoading}><FileBarChart className="me-2 h-4 w-4" /><LocalizedText>Generate and preview</LocalizedText></Button></div>
           </>}
 
           {tab === 'vehicle-accounts' && <>
@@ -764,6 +998,13 @@ export default function PurchaseInvoicesPage() {
         </DialogContent>
       </Dialog>
 
+      <Dialog open={reportDialogOpen} onOpenChange={setReportDialogOpen}>
+        <DialogContent className="flex max-h-[96dvh] max-w-6xl flex-col overflow-hidden p-4 sm:p-6"><DialogHeader className="shrink-0"><DialogTitle><LocalizedText>Vehicle purchase invoice report</LocalizedText></DialogTitle><DialogDescription><LocalizedText>Landscape A4 journal detail. Vehicle expense and input VAT appear as debits; vendor payable appears as a credit.</LocalizedText></DialogDescription></DialogHeader>
+          <div className="min-h-0 flex-1 overflow-auto rounded-lg border bg-slate-100">{reportDocumentHtml ? <iframe ref={reportPreviewRef} title="Vehicle purchase invoice report preview" srcDoc={reportDocumentHtml} className="h-[min(70dvh,850px)] min-h-[480px] w-full bg-white" /> : <div className="flex h-[min(70dvh,850px)] min-h-[480px] items-center justify-center text-sm text-muted-foreground"><LocalizedText>No report document is prepared.</LocalizedText></div>}</div>
+          <DialogFooter className="shrink-0 flex-wrap gap-2"><Button type="button" variant="outline" onClick={printPurchaseInvoiceReport} disabled={!reportDocumentHtml || reportBusy}><Printer className="me-2 h-4 w-4" /><LocalizedText>Print report</LocalizedText></Button><Button type="button" onClick={() => void downloadPurchaseInvoiceReport()} disabled={!reportDocumentHtml || reportBusy}><Download className="me-2 h-4 w-4" />{reportBusy ? <LocalizedText>Preparing PDF…</LocalizedText> : <LocalizedText>Download report PDF</LocalizedText>}</Button><Button type="button" variant="ghost" onClick={() => setReportDialogOpen(false)}><LocalizedText>Close</LocalizedText></Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={!!ledgerSelection} onOpenChange={(open) => { if (!open) setLedgerSelection(null) }}>
         <DialogContent className="max-h-[90dvh] max-w-4xl overflow-y-auto"><DialogHeader><DialogTitle><LocalizedText>Account activity</LocalizedText></DialogTitle><DialogDescription>{ledgerSelection?.label} · {ledgerSelection?.code}</DialogDescription></DialogHeader><div className="flex items-center justify-between rounded-xl bg-muted/40 p-4"><span className="text-sm text-muted-foreground"><LocalizedText>Current posted balance</LocalizedText></span><strong className="text-lg tabular-nums">{formatCurrency(ledgerSelection?.type === 'VAT' ? inputVatBalance : ledgerSelection?.balance || 0)}</strong></div>{ledgerLoading ? <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div> : ledgerLines.length === 0 ? <EmptyState title="No account activity yet" description="Posted invoices assigned to this account will appear here." icon={Activity} /> : <div className="overflow-x-auto rounded-xl border"><table className="w-full min-w-[700px] text-sm"><thead className="bg-muted/50 text-xs uppercase text-muted-foreground"><tr><th className="p-3 text-start"><LocalizedText>Date / invoice</LocalizedText></th><th className="p-3 text-start"><LocalizedText>Vendor</LocalizedText></th><th className="p-3 text-start"><LocalizedText>Description</LocalizedText></th><th className="p-3 text-end"><LocalizedText>Debit</LocalizedText></th><th className="p-3 text-end"><LocalizedText>Credit</LocalizedText></th></tr></thead><tbody>{ledgerLines.map((line) => <tr key={line.id} className="border-t"><td className="p-3">{formatDate(line.date)}<p className="text-xs text-muted-foreground">{line.invoiceNumber}{line.vendorInvoiceNumber ? ` · ${line.vendorInvoiceNumber}` : ''}</p></td><td className="p-3">{line.vendor}</td><td className="p-3">{line.description}{line.category && <p className="text-xs text-muted-foreground">{categoryLabels[line.category]}</p>}</td><td className="p-3 text-end tabular-nums">{formatCurrency(line.debit)}</td><td className="p-3 text-end tabular-nums">{formatCurrency(line.credit)}</td></tr>)}</tbody></table></div>}<DialogFooter><Button variant="outline" onClick={() => setLedgerSelection(null)}><LocalizedText>Close</LocalizedText></Button></DialogFooter></DialogContent>
       </Dialog>
@@ -797,6 +1038,12 @@ function TrailerIcon({ className }: { className?: string }) {
 
 function getInvoiceAssets(invoice: PurchaseInvoice) {
   return Array.from(new Set(invoice.lines.map((line) => line.truck?.licensePlate || (line.trailer?.number ? `Trailer ${line.trailer.number}` : '')).filter(Boolean)))
+}
+
+function getInvoiceLineAssetKey(line: InvoiceLine) {
+  if (line.truck?.id) return `TRUCK:${line.truck.id}`
+  if (line.trailer?.id) return `TRAILER:${line.trailer.id}`
+  return ''
 }
 
 function SummaryRow({ label, value, strong = false }: { label: string; value: string; strong?: boolean }) {
