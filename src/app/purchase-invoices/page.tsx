@@ -14,7 +14,7 @@ import { useLanguage } from '@/contexts/language-context'
 import { apiGet, apiPatch, apiPost } from '@/lib/api'
 import { formatCurrency } from '@/lib/currency'
 import { toast } from '@/lib/localized-toast'
-import { Activity, BadgeCheck, BookOpen, Building2, Calculator, CalendarDays, CarFront, Copy, Download, ExternalLink, FilePlus2, FileText, Filter, Loader2, Plus, Printer, Receipt, Search, ShieldCheck, Truck, Undo2, X } from 'lucide-react'
+import { Activity, BadgeCheck, BookOpen, Building2, Calculator, CalendarDays, Copy, Download, ExternalLink, FilePlus2, FileText, Filter, Loader2, Plus, Printer, Receipt, Search, ShieldCheck, Truck, Undo2, X } from 'lucide-react'
 import { combinePurchaseInvoiceDocuments, renderPurchaseInvoiceDocument, type PurchaseInvoiceCompany, type PurchaseInvoiceDocumentData } from '@/lib/purchase-invoice-document'
 import { downloadPurchaseInvoicePdf } from '@/lib/purchase-invoice-pdf'
 
@@ -489,9 +489,10 @@ export default function PurchaseInvoicesPage() {
     }
   }
 
-  const tabButton = (key: Tab, label: string, Icon: typeof FileText) => (
-    <button key={key} onClick={() => { setTab(key); setSearch(''); setLedgerSelection(null) }} className={`flex items-center gap-2 whitespace-nowrap rounded-xl px-4 py-2.5 text-sm font-medium transition ${tab === key ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}>
+  const tabButton = (key: Tab, label: string, Icon: typeof FileText, count?: number) => (
+    <button key={key} type="button" onClick={() => { setTab(key); setSearch(''); setLedgerSelection(null) }} aria-pressed={tab === key} className={`flex shrink-0 items-center gap-2 whitespace-nowrap rounded-xl px-3.5 py-2.5 text-sm font-medium transition sm:px-4 ${tab === key ? 'bg-slate-950 text-white shadow-sm dark:bg-white dark:text-slate-950' : 'text-muted-foreground hover:bg-muted/80 hover:text-foreground'}`}>
       <Icon className="h-4 w-4" /><LocalizedText>{label}</LocalizedText>
+      {count !== undefined && <span className={`rounded-full px-2 py-0.5 text-[11px] tabular-nums ${tab === key ? 'bg-white/15 text-current dark:bg-slate-950/10' : 'bg-muted text-muted-foreground'}`}>{count.toLocaleString()}</span>}
     </button>
   )
 
@@ -500,44 +501,56 @@ export default function PurchaseInvoicesPage() {
 
   return (
     <div className="container mx-auto max-w-7xl space-y-6 p-4 sm:p-6">
-      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <div className="mb-2 flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.14em] text-primary"><Receipt className="h-4 w-4" /><LocalizedText>Fleet accounts</LocalizedText></div>
-          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl"><LocalizedText>Purchase invoices</LocalizedText></h1>
-          <p className="mt-1 max-w-2xl text-sm text-muted-foreground"><LocalizedText>Post maintenance, spare parts, tires, batteries, and oil invoices directly to each truck or trailer, with separate input VAT and vendor balances.</LocalizedText></p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="outline" onClick={() => setVendorDialogOpen(true)} disabled={!canWrite}><Building2 className="me-2 h-4 w-4" /><LocalizedText>Add vendor</LocalizedText></Button>
-          <Button onClick={() => setInvoiceDialogOpen(true)} disabled={!canWrite}><FilePlus2 className="me-2 h-4 w-4" /><LocalizedText>New invoice</LocalizedText></Button>
+      <header className="relative isolate overflow-hidden rounded-[28px] border border-slate-200/80 bg-gradient-to-br from-white via-slate-50 to-indigo-50/70 p-5 shadow-sm dark:border-slate-800 dark:from-slate-950 dark:via-slate-950 dark:to-indigo-950/30 sm:p-7">
+        <div aria-hidden="true" className="pointer-events-none absolute -end-12 -top-24 -z-10 h-64 w-64 rounded-full bg-indigo-400/10 blur-3xl" />
+        <div aria-hidden="true" className="pointer-events-none absolute -bottom-36 start-1/3 -z-10 h-64 w-64 rounded-full bg-sky-300/10 blur-3xl" />
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex min-w-0 items-start gap-4">
+            <div className="hidden rounded-2xl border border-indigo-200/70 bg-white/80 p-3.5 text-indigo-700 shadow-sm backdrop-blur dark:border-indigo-400/20 dark:bg-slate-900/80 dark:text-indigo-300 sm:block"><Receipt className="h-6 w-6" /></div>
+            <div className="min-w-0">
+              <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-indigo-700 dark:text-indigo-300"><span className="rounded-full bg-indigo-500/10 px-2.5 py-1"><LocalizedText>Fleet finance</LocalizedText></span><span className="text-slate-400">/</span><LocalizedText>Accounts payable</LocalizedText></div>
+              <h1 className="text-2xl font-bold tracking-tight text-slate-950 dark:text-white sm:text-3xl"><LocalizedText>Purchase invoices</LocalizedText></h1>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-300"><LocalizedText>Record supplier costs against each truck or trailer, keep VAT separate, and follow every payable from one controlled ledger.</LocalizedText></p>
+              <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-500 dark:text-slate-400">
+                <span className="inline-flex items-center gap-1.5"><ShieldCheck className="h-3.5 w-3.5 text-emerald-600" /><LocalizedText>Audit-ready postings</LocalizedText></span>
+                <span className="hidden h-3 w-px bg-slate-300 dark:bg-slate-700 sm:block" />
+                <span><LocalizedText>A4 invoices · QR-linked PDFs</LocalizedText></span>
+              </div>
+            </div>
+          </div>
+          <div className="flex w-full flex-col gap-2 sm:flex-row lg:w-auto lg:shrink-0">
+            <Button variant="outline" className="h-11 border-slate-300/80 bg-white/70 shadow-sm backdrop-blur hover:bg-white dark:border-slate-700 dark:bg-slate-900/70 dark:hover:bg-slate-900" onClick={() => setVendorDialogOpen(true)} disabled={!canWrite}><Building2 className="me-2 h-4 w-4" /><LocalizedText>Add vendor</LocalizedText></Button>
+            <Button className="h-11 shadow-sm" onClick={() => setInvoiceDialogOpen(true)} disabled={!canWrite}><FilePlus2 className="me-2 h-4 w-4" /><LocalizedText>New invoice</LocalizedText></Button>
+          </div>
         </div>
       </header>
 
       {dataError && <Card className="border-destructive/40"><CardContent className="flex flex-col gap-3 py-5 sm:flex-row sm:items-center sm:justify-between"><p className="text-sm text-destructive">{dataError}</p><Button variant="outline" size="sm" onClick={() => { setLoading(true); void loadData() }}><LocalizedText>Try again</LocalizedText></Button></CardContent></Card>}
 
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <section aria-label={t('Accounts overview')} className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard icon={FileText} label="Posted invoices" value={summary.invoiceCount.toLocaleString()} foot="All posted purchase invoices" tone="blue" />
         <MetricCard icon={Calculator} label="Vehicle expenses" value={formatCurrency(summary.subtotal)} foot="Before input VAT" tone="violet" />
         <MetricCard icon={ShieldCheck} label="Input VAT" value={formatCurrency(summary.vatTotal)} foot="Recorded separately for VAT invoices" tone="amber" />
         <MetricCard icon={Building2} label="Vendor payables" value={formatCurrency(summary.payableTotal)} foot="Posted invoice total · before payments" tone="emerald" />
       </section>
 
-      <Card className="overflow-hidden">
-        <CardHeader className="gap-4 border-b border-border/60 pb-4">
+      <Card className="overflow-hidden rounded-[26px] border-slate-200/80 bg-white/75 shadow-sm backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/65">
+        <CardHeader className="gap-5 border-b border-border/60 bg-gradient-to-r from-slate-50/80 to-white/50 pb-4 dark:from-slate-900/70 dark:to-slate-950/40">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div><CardTitle className="text-lg"><LocalizedText>Accounts & invoices</LocalizedText></CardTitle><p className="mt-1 text-sm text-muted-foreground"><LocalizedText>Every posted invoice is balanced and traceable to its vehicle and vendor.</LocalizedText></p></div>
-            <div className="relative w-full lg:max-w-md"><Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t('Invoice no., vendor, truck, trailer, or description')} className="ps-9" /></div>
+            <div><div className="flex items-center gap-2"><CardTitle className="text-lg tracking-tight"><LocalizedText>Accounts & invoices</LocalizedText></CardTitle><Badge variant="outline" className="rounded-full bg-white/60 text-[10px] font-medium dark:bg-slate-900/60"><LocalizedText>Ledger</LocalizedText></Badge></div><p className="mt-1 text-sm text-muted-foreground"><LocalizedText>Every posted invoice is balanced and traceable to its vehicle and vendor.</LocalizedText></p></div>
+            <div className="relative w-full lg:max-w-md"><Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t('Invoice no., vendor, truck, trailer, or description')} className="h-11 rounded-xl border-slate-200 bg-white/85 ps-9 shadow-sm dark:border-slate-700 dark:bg-slate-950/70" /></div>
           </div>
-          <div className="flex gap-2 overflow-x-auto pb-1">
-            {tabButton('invoices', 'Invoices', FileText)}
-            {tabButton('vehicle-accounts', 'Truck & trailer accounts', Truck)}
-            {tabButton('vendor-accounts', 'Vendor accounts', Building2)}
+          <div className="flex gap-2 overflow-x-auto pb-1" aria-label={t('Account sections')}>
+            {tabButton('invoices', 'Invoices', FileText, invoices.length)}
+            {tabButton('vehicle-accounts', 'Truck & trailer accounts', Truck, vehicleAccounts.length)}
+            {tabButton('vendor-accounts', 'Vendor accounts', Building2, vendorAccounts.length)}
             {tabButton('vat', 'Input VAT', ShieldCheck)}
           </div>
         </CardHeader>
 
         <CardContent className="p-4 sm:p-6">
           {tab === 'invoices' && <>
-            <div className="mb-5 rounded-2xl border border-border/70 bg-muted/[0.16] p-4 sm:p-5">
+            <div className="mb-5 rounded-2xl border border-slate-200/80 bg-slate-50/75 p-4 dark:border-slate-800 dark:bg-slate-900/45 sm:p-5">
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3"><div className="flex items-center gap-2"><div className="rounded-lg bg-primary/10 p-2 text-primary"><Filter className="h-4 w-4" /></div><div><h3 className="text-sm font-semibold"><LocalizedText>Find and filter invoices</LocalizedText></h3><p className="text-xs text-muted-foreground"><LocalizedText>Search by date, payable amount, status, or invoice details.</LocalizedText></p></div></div><Button type="button" variant="ghost" size="sm" onClick={resetInvoiceFilters} disabled={!hasInvoiceCriteria}><X className="me-1 h-3.5 w-3.5" /><LocalizedText>Clear filters</LocalizedText></Button></div>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
                 <div className="space-y-1.5"><Label htmlFor="invoice-status-filter" className="text-xs text-muted-foreground"><LocalizedText>Status</LocalizedText></Label><select id="invoice-status-filter" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm"><option value="ALL">{t('All statuses')}</option><option value="POSTED">{t('Posted')}</option><option value="VOID">{t('Reversed')}</option></select></div>
@@ -548,21 +561,59 @@ export default function PurchaseInvoicesPage() {
               </div>
               <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-border/60 pt-3"><p className="text-xs text-muted-foreground">{filteredInvoices.length} <LocalizedText>matching invoices</LocalizedText></p><p className="text-xs text-muted-foreground"><LocalizedText>Amount filters use the total payable including VAT.</LocalizedText></p></div>
             </div>
-            {filteredInvoices.length > 0 && <div className="mb-3 flex flex-col gap-3 rounded-xl border border-primary/20 bg-primary/[0.035] p-3 sm:flex-row sm:items-center sm:justify-between">
+            {filteredInvoices.length > 0 && <div className="mb-3 flex flex-col gap-3 rounded-2xl border border-indigo-200/70 bg-indigo-50/55 p-3.5 dark:border-indigo-400/20 dark:bg-indigo-950/20 sm:flex-row sm:items-center sm:justify-between">
               <label className="flex cursor-pointer items-center gap-2 text-sm"><input type="checkbox" checked={allFilteredInvoicesSelected} onChange={toggleAllFilteredInvoices} className="h-4 w-4 rounded border-input accent-primary" /><span><LocalizedText>Select all matching</LocalizedText> ({filteredInvoices.length})</span></label>
-              <div className="flex flex-wrap items-center gap-2"><span className="text-xs text-muted-foreground">{selectedInvoiceIds.length} <LocalizedText>selected · batch limit 50</LocalizedText></span>{selectedInvoiceIds.length > 0 && <><Button type="button" size="sm" onClick={() => void openBatchPreview()} disabled={batchBusy}><Printer className="me-2 h-4 w-4" />{batchBusy ? <LocalizedText>Preparing…</LocalizedText> : <LocalizedText>Preview selected</LocalizedText>}</Button><Button type="button" variant="ghost" size="sm" onClick={() => setSelectedInvoiceIds([])}><LocalizedText>Clear selection</LocalizedText></Button></>}</div>
+              <div className="flex flex-wrap items-center gap-2"><span className="text-xs text-muted-foreground">{selectedInvoiceIds.length} <LocalizedText>selected · batch limit 50</LocalizedText></span>{selectedInvoiceIds.length > 0 && <><Button type="button" size="sm" className="shadow-sm" onClick={() => void openBatchPreview()} disabled={batchBusy}><Printer className="me-2 h-4 w-4" />{batchBusy ? <LocalizedText>Preparing…</LocalizedText> : <LocalizedText>Preview selected</LocalizedText>}</Button><Button type="button" variant="ghost" size="sm" onClick={() => setSelectedInvoiceIds([])}><LocalizedText>Clear selection</LocalizedText></Button></>}</div>
             </div>}
-            {filteredInvoices.length === 0 ? <EmptyState title={hasInvoiceCriteria ? 'No matching invoices' : 'Search to view invoices'} description={hasInvoiceCriteria ? 'No invoices match these search and filter values. Try adjusting the date range or amount.' : 'Invoices are kept out of the list until you search or set a filter. Search by invoice number, supplier, description, truck or trailer.'} icon={hasInvoiceCriteria ? Receipt : Search} /> : <div className="space-y-2.5">
-              {filteredInvoices.map((invoice) => <div key={invoice.id} className={`flex items-stretch gap-3 rounded-2xl border p-3 transition sm:items-center sm:p-4 ${selectedInvoiceIds.includes(invoice.id) ? 'border-primary/40 bg-primary/[0.035]' : 'border-border/70 hover:border-primary/25 hover:bg-muted/[0.18]'}`}>
-                <label className="flex shrink-0 cursor-pointer items-center px-1" aria-label={`Select ${invoice.internalNumber}`}><input type="checkbox" checked={selectedInvoiceIds.includes(invoice.id)} onChange={() => toggleInvoiceSelection(invoice.id)} className="h-4 w-4 rounded border-input accent-primary" /></label>
-                <button type="button" onClick={() => setSelectedInvoice(invoice)} className="grid min-w-0 flex-1 gap-3 text-start sm:grid-cols-[minmax(0,1.5fr)_minmax(120px,.8fr)_minmax(125px,.8fr)_auto] sm:items-center">
-                  <div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><span className="font-semibold">{invoice.internalNumber}</span><StatusBadge status={invoice.status} /></div><p className="mt-1 truncate text-sm text-muted-foreground">{invoice.vendor.name}{invoice.vendorInvoiceNumber ? ` · ${invoice.vendorInvoiceNumber}` : ''}</p></div>
-                  <div className="text-sm"><p>{formatDate(invoice.invoiceDate)}</p><p className="mt-1 text-xs text-muted-foreground">{invoice.lines.length} <LocalizedText>lines</LocalizedText> · {invoice.isVatInvoice ? `${invoice.vatRate}% VAT` : 'No VAT'}</p></div>
-                  <div className="flex gap-4 text-xs text-muted-foreground sm:block sm:text-sm"><p><LocalizedText>Expense</LocalizedText> {formatCurrency(invoice.subtotal)}</p><p className="sm:mt-1"><LocalizedText>VAT</LocalizedText> {formatCurrency(invoice.vatTotal)}</p></div>
-                  <div className="text-end"><p className="font-semibold tabular-nums">{formatCurrency(invoice.grandTotal)}</p><p className="mt-1 text-xs text-muted-foreground"><LocalizedText>Total payable</LocalizedText></p></div>
-                </button>
-              </div>)}
-            </div>}
+            {filteredInvoices.length === 0 ? <EmptyState title={hasInvoiceCriteria ? 'No matching invoices' : 'Search to view invoices'} description={hasInvoiceCriteria ? 'No invoices match these search and filter values. Try adjusting the date range or amount.' : 'Invoices are kept out of the list until you search or set a filter. Search by invoice number, supplier, description, truck or trailer.'} icon={hasInvoiceCriteria ? Receipt : Search} /> : <>
+              <div className="hidden overflow-hidden rounded-2xl border border-slate-200/80 bg-white dark:border-slate-800 dark:bg-slate-950/40 md:block">
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[980px] text-sm">
+                    <thead className="bg-slate-50/90 text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:bg-slate-900/70 dark:text-slate-400">
+                      <tr><th className="w-12 px-4 py-3 text-start"><span className="sr-only"><LocalizedText>Select invoice</LocalizedText></span></th><th className="px-4 py-3 text-start"><LocalizedText>Invoice / vendor</LocalizedText></th><th className="px-4 py-3 text-start"><LocalizedText>Vehicle account</LocalizedText></th><th className="px-4 py-3 text-start"><LocalizedText>Invoice date</LocalizedText></th><th className="px-4 py-3 text-end"><LocalizedText>Expense</LocalizedText></th><th className="px-4 py-3 text-end"><LocalizedText>VAT</LocalizedText></th><th className="px-4 py-3 text-end"><LocalizedText>Payable</LocalizedText></th><th className="px-4 py-3 text-start"><LocalizedText>Status</LocalizedText></th><th className="w-24 px-4 py-3"><span className="sr-only"><LocalizedText>Actions</LocalizedText></span></th></tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                      {filteredInvoices.map((invoice) => {
+                        const assets = getInvoiceAssets(invoice)
+                        const selected = selectedInvoiceIds.includes(invoice.id)
+                        return <tr key={invoice.id} className={`transition-colors ${selected ? 'bg-indigo-50/60 dark:bg-indigo-950/20' : 'hover:bg-slate-50/70 dark:hover:bg-slate-900/40'}`}>
+                          <td className="px-4 py-3.5"><input aria-label={`${t('Select')} ${invoice.internalNumber}`} type="checkbox" checked={selected} onChange={() => toggleInvoiceSelection(invoice.id)} className="h-4 w-4 rounded border-input accent-primary" /></td>
+                          <td className="px-4 py-3.5"><button type="button" onClick={() => setSelectedInvoice(invoice)} className="group text-start"><span className="font-semibold text-slate-900 group-hover:text-primary dark:text-slate-100">{invoice.internalNumber}</span><span className="mt-1 block max-w-56 truncate text-xs text-muted-foreground">{invoice.vendor.name}{invoice.vendorInvoiceNumber ? ` · ${invoice.vendorInvoiceNumber}` : ''}</span></button></td>
+                          <td className="px-4 py-3.5"><p className="max-w-48 truncate font-medium">{assets.slice(0, 2).join(', ') || '—'}{assets.length > 2 ? ` +${assets.length - 2}` : ''}</p><p className="mt-1 text-xs text-muted-foreground">{invoice.lines.length} <LocalizedText>expense lines</LocalizedText></p></td>
+                          <td className="px-4 py-3.5 whitespace-nowrap">{formatDate(invoice.invoiceDate)}<p className="mt-1 text-xs text-muted-foreground">{invoice.isVatInvoice ? `${invoice.vatRate}% VAT` : t('No VAT')}</p></td>
+                          <td className="px-4 py-3.5 text-end tabular-nums">{formatCurrency(invoice.subtotal)}</td>
+                          <td className="px-4 py-3.5 text-end tabular-nums text-muted-foreground">{formatCurrency(invoice.vatTotal)}</td>
+                          <td className="px-4 py-3.5 text-end font-semibold tabular-nums">{formatCurrency(invoice.grandTotal)}</td>
+                          <td className="px-4 py-3.5"><StatusBadge status={invoice.status} /></td>
+                          <td className="px-4 py-3.5 text-end"><Button type="button" variant="ghost" size="sm" onClick={() => setSelectedInvoice(invoice)}><LocalizedText>View</LocalizedText></Button></td>
+                        </tr>
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              <div className="space-y-3 md:hidden">
+                {filteredInvoices.map((invoice) => {
+                  const assets = getInvoiceAssets(invoice)
+                  const selected = selectedInvoiceIds.includes(invoice.id)
+                  return <article key={invoice.id} className={`rounded-2xl border p-4 shadow-sm transition ${selected ? 'border-indigo-300 bg-indigo-50/50 dark:border-indigo-500/40 dark:bg-indigo-950/20' : 'border-slate-200/80 bg-white/80 dark:border-slate-800 dark:bg-slate-950/45'}`}>
+                    <div className="flex items-start gap-3">
+                      <input aria-label={`${t('Select')} ${invoice.internalNumber}`} type="checkbox" checked={selected} onChange={() => toggleInvoiceSelection(invoice.id)} className="mt-1 h-4 w-4 shrink-0 rounded border-input accent-primary" />
+                      <button type="button" onClick={() => setSelectedInvoice(invoice)} className="min-w-0 flex-1 text-start">
+                        <div className="flex flex-wrap items-center justify-between gap-2"><span className="font-semibold tracking-tight">{invoice.internalNumber}</span><StatusBadge status={invoice.status} /></div>
+                        <p className="mt-1 truncate text-sm text-muted-foreground">{invoice.vendor.name}{invoice.vendorInvoiceNumber ? ` · ${invoice.vendorInvoiceNumber}` : ''}</p>
+                      </button>
+                    </div>
+                    <div className="mt-4 grid grid-cols-2 gap-3 border-y border-slate-100 py-3 text-sm dark:border-slate-800">
+                      <div><p className="text-[11px] uppercase tracking-wide text-muted-foreground"><LocalizedText>Invoice date</LocalizedText></p><p className="mt-1 font-medium">{formatDate(invoice.invoiceDate)}</p></div>
+                      <div className="min-w-0"><p className="text-[11px] uppercase tracking-wide text-muted-foreground"><LocalizedText>Vehicle account</LocalizedText></p><p className="mt-1 truncate font-medium">{assets.slice(0, 2).join(', ') || '—'}{assets.length > 2 ? ` +${assets.length - 2}` : ''}</p></div>
+                    </div>
+                    <div className="mt-3 flex items-end justify-between gap-3"><div className="flex gap-4 text-xs text-muted-foreground"><span><LocalizedText>Expense</LocalizedText> {formatCurrency(invoice.subtotal)}</span><span><LocalizedText>VAT</LocalizedText> {formatCurrency(invoice.vatTotal)}</span></div><div className="text-end"><p className="text-[11px] uppercase tracking-wide text-muted-foreground"><LocalizedText>Total payable</LocalizedText></p><p className="mt-0.5 font-bold tabular-nums">{formatCurrency(invoice.grandTotal)}</p></div></div>
+                    <Button type="button" variant="ghost" size="sm" className="mt-2 h-8 px-0 text-primary" onClick={() => setSelectedInvoice(invoice)}><LocalizedText>Open invoice</LocalizedText><span className="ms-1" aria-hidden="true">→</span></Button>
+                  </article>
+                })}
+              </div>
+            </>}
             {invoices.length >= 500 && <p className="mt-4 text-xs text-muted-foreground"><LocalizedText>Showing the most recent 500 invoices. Account balances include all posted and reversed entries.</LocalizedText></p>}
           </>}
 
@@ -585,35 +636,36 @@ export default function PurchaseInvoicesPage() {
         </CardContent>
       </Card>
 
-      <div className="flex items-start gap-3 rounded-xl border border-border/60 bg-muted/30 p-4 text-sm text-muted-foreground"><BadgeCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" /><p><LocalizedText>Posting records the vehicle expense as a debit, input VAT as a separate debit when applicable, and the full invoice total as a vendor payable credit. Posted invoices are locked; authorized users can reverse them with an audit-safe counter-entry.</LocalizedText></p></div>
+      <div className="flex items-start gap-3 rounded-2xl border border-emerald-200/70 bg-emerald-50/60 p-4 text-sm text-emerald-950/80 shadow-sm dark:border-emerald-500/20 dark:bg-emerald-950/20 dark:text-emerald-100/80"><BadgeCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" /><p><LocalizedText>Posting records the vehicle expense as a debit, input VAT as a separate debit when applicable, and the full invoice total as a vendor payable credit. Posted invoices are locked; authorized users can reverse them with an audit-safe counter-entry.</LocalizedText></p></div>
 
       <Dialog open={invoiceDialogOpen} onOpenChange={setInvoiceDialogOpen}>
-        <DialogContent className="max-h-[94dvh] max-w-5xl overflow-y-auto p-0">
+        <DialogContent className="max-h-[94dvh] max-w-6xl overflow-y-auto rounded-3xl border-slate-200/80 p-0 shadow-2xl dark:border-slate-800">
           <form onSubmit={submitInvoice}>
-            <DialogHeader className="sticky top-0 z-10 border-b bg-background/95 px-5 py-4 text-start backdrop-blur sm:px-7"><DialogTitle><LocalizedText>Enter purchase invoice</LocalizedText></DialogTitle><DialogDescription><LocalizedText>Choose the vendor, invoice tax treatment, and assign every cost line to its truck or trailer.</LocalizedText></DialogDescription></DialogHeader>
+            <DialogHeader className="sticky top-0 z-10 border-b border-slate-200/70 bg-white/95 px-5 py-4 text-start backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/95 sm:px-7"><div className="flex items-start gap-3"><div className="rounded-xl border border-indigo-200/70 bg-indigo-50 p-2.5 text-indigo-700 dark:border-indigo-400/20 dark:bg-indigo-950/40 dark:text-indigo-300"><FilePlus2 className="h-5 w-5" /></div><div><DialogTitle className="text-lg tracking-tight"><LocalizedText>Enter purchase invoice</LocalizedText></DialogTitle><DialogDescription className="mt-1"><LocalizedText>Choose the vendor, invoice tax treatment, and assign every cost line to its truck or trailer.</LocalizedText></DialogDescription></div></div></DialogHeader>
             <div className="space-y-6 px-5 py-5 sm:px-7">
-              <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <section className="grid gap-4 rounded-2xl border border-slate-200/80 bg-white/70 p-4 dark:border-slate-800 dark:bg-slate-950/30 md:grid-cols-2 xl:grid-cols-4 sm:p-5">
+                <div className="flex items-center gap-3 xl:col-span-4"><span className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-100 text-xs font-bold text-indigo-700 dark:bg-indigo-400/15 dark:text-indigo-300">01</span><div><h3 className="text-sm font-semibold"><LocalizedText>Supplier & invoice details</LocalizedText></h3><p className="mt-0.5 text-xs text-muted-foreground"><LocalizedText>Choose who issued the invoice and record its dates.</LocalizedText></p></div></div>
                 <div className="space-y-2 xl:col-span-2"><Label><LocalizedText>Vendor</LocalizedText> *</Label><div className="flex gap-2"><div className="relative min-w-0 flex-1"><Input required value={vendorSearch || vendors.find((vendor) => vendor.id === invoiceForm.vendorId)?.name || ''} onFocus={() => setVendorPickerOpen(true)} onChange={(event) => { setVendorSearch(event.target.value); setVendorPickerOpen(true); setInvoiceForm((current) => ({ ...current, vendorId: '' })) }} placeholder="Search vendors" autoComplete="off" />{vendorPickerOpen && <div className="absolute inset-x-0 top-full z-30 mt-1 max-h-52 overflow-y-auto rounded-xl border bg-popover p-1 shadow-xl">{vendors.filter((vendor) => vendor.isActive && (!vendorSearch || vendor.name.toLowerCase().includes(vendorSearch.toLowerCase()) || vendor.vatRegistration?.toLowerCase().includes(vendorSearch.toLowerCase()))).slice(0, 12).map((vendor) => <button key={vendor.id} type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => { setInvoiceForm((current) => ({ ...current, vendorId: vendor.id })); setVendorSearch(vendor.name); setVendorPickerOpen(false) }} className="block w-full rounded-lg px-3 py-2 text-start text-sm hover:bg-accent">{vendor.name}{vendor.vatRegistration ? <span className="ms-2 text-xs text-muted-foreground">VAT {vendor.vatRegistration}</span> : null}</button>)}{vendors.filter((vendor) => vendor.isActive && (!vendorSearch || vendor.name.toLowerCase().includes(vendorSearch.toLowerCase()) || vendor.vatRegistration?.toLowerCase().includes(vendorSearch.toLowerCase()))).length === 0 && <p className="px-3 py-3 text-sm text-muted-foreground"><LocalizedText>No matching vendors</LocalizedText></p>}</div>}</div><Button type="button" variant="outline" size="icon" title="Add vendor" onClick={() => { setVendorPickerOpen(false); setVendorDialogOpen(true) }}><Plus className="h-4 w-4" /></Button></div>{vendors.filter((vendor) => vendor.isActive).length === 0 && <p className="text-xs text-amber-700"><LocalizedText>Add a vendor before posting your first invoice.</LocalizedText></p>}</div>
                 <div className="space-y-2"><Label><LocalizedText>Vendor invoice no.</LocalizedText></Label><Input value={invoiceForm.vendorInvoiceNumber} onChange={(event) => setInvoiceForm((current) => ({ ...current, vendorInvoiceNumber: event.target.value }))} placeholder="Invoice number from supplier" /></div>
                 <div className="space-y-2"><Label><LocalizedText>Invoice date</LocalizedText> *</Label><Input type="date" required value={invoiceForm.invoiceDate} onChange={(event) => setInvoiceForm((current) => ({ ...current, invoiceDate: event.target.value }))} /></div>
                 <div className="space-y-2"><Label><LocalizedText>Due date</LocalizedText></Label><Input type="date" value={invoiceForm.dueDate} onChange={(event) => setInvoiceForm((current) => ({ ...current, dueDate: event.target.value }))} /></div>
               </section>
 
-              <section className="rounded-2xl border border-border/70 p-4 sm:p-5">
-                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between"><div><h3 className="font-semibold"><LocalizedText>Tax treatment</LocalizedText></h3><p className="mt-1 text-xs text-muted-foreground"><LocalizedText>Select the type shown on the supplier invoice.</LocalizedText></p></div><div className="flex rounded-xl bg-muted p-1"><button type="button" onClick={() => setInvoiceForm((current) => ({ ...current, isVatInvoice: true }))} className={`rounded-lg px-4 py-2 text-sm font-semibold ${invoiceForm.isVatInvoice ? 'bg-background shadow-sm' : 'text-muted-foreground'}`}><LocalizedText>VAT invoice</LocalizedText></button><button type="button" onClick={() => setInvoiceForm((current) => ({ ...current, isVatInvoice: false, pricesIncludeVat: false }))} className={`rounded-lg px-4 py-2 text-sm font-semibold ${!invoiceForm.isVatInvoice ? 'bg-background shadow-sm' : 'text-muted-foreground'}`}><LocalizedText>No VAT</LocalizedText></button></div></div>
+              <section className="rounded-2xl border border-slate-200/80 bg-slate-50/60 p-4 dark:border-slate-800 dark:bg-slate-900/35 sm:p-5">
+                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between"><div className="flex items-center gap-3"><span className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-100 text-xs font-bold text-indigo-700 dark:bg-indigo-400/15 dark:text-indigo-300">02</span><div><h3 className="font-semibold"><LocalizedText>Tax treatment</LocalizedText></h3><p className="mt-1 text-xs text-muted-foreground"><LocalizedText>Select the type shown on the supplier invoice.</LocalizedText></p></div></div><div className="flex rounded-xl border border-slate-200 bg-white p-1 shadow-sm dark:border-slate-700 dark:bg-slate-950"><button type="button" aria-pressed={invoiceForm.isVatInvoice} onClick={() => setInvoiceForm((current) => ({ ...current, isVatInvoice: true }))} className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${invoiceForm.isVatInvoice ? 'bg-indigo-600 text-white shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}><LocalizedText>VAT invoice</LocalizedText></button><button type="button" aria-pressed={!invoiceForm.isVatInvoice} onClick={() => setInvoiceForm((current) => ({ ...current, isVatInvoice: false, pricesIncludeVat: false }))} className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${!invoiceForm.isVatInvoice ? 'bg-indigo-600 text-white shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}><LocalizedText>No VAT</LocalizedText></button></div></div>
                 {invoiceForm.isVatInvoice ? <div className="mt-4 grid gap-4 sm:grid-cols-2"><div className="space-y-2"><Label><LocalizedText>VAT rate (%)</LocalizedText></Label><Input type="number" min="0" max="100" step="0.01" value={invoiceForm.vatRate} onChange={(event) => setInvoiceForm((current) => ({ ...current, vatRate: event.target.value }))} /><p className="text-xs text-muted-foreground"><LocalizedText>Saudi standard VAT default: 15%. Change only to match the invoice.</LocalizedText></p></div><div className="space-y-2"><Label><LocalizedText>Prices on invoice</LocalizedText></Label><select value={invoiceForm.pricesIncludeVat ? 'INCLUSIVE' : 'EXCLUSIVE'} onChange={(event) => setInvoiceForm((current) => ({ ...current, pricesIncludeVat: event.target.value === 'INCLUSIVE' }))} className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm"><option value="EXCLUSIVE">Before VAT · add VAT to unit price</option><option value="INCLUSIVE">VAT included · extract VAT from unit price</option></select></div></div> : <p className="mt-4 rounded-xl bg-muted/50 p-3 text-sm text-muted-foreground"><LocalizedText>No VAT will be added or posted to the input-VAT account for this invoice.</LocalizedText></p>}
               </section>
 
-              <section className="space-y-3">
-                <div className="flex items-center justify-between"><div><h3 className="font-semibold"><LocalizedText>Expense lines</LocalizedText></h3><p className="mt-1 text-xs text-muted-foreground"><LocalizedText>Assign each line to exactly one truck or trailer account.</LocalizedText></p></div><Button type="button" variant="outline" size="sm" onClick={() => setInvoiceForm((current) => ({ ...current, lines: [...current.lines, blankLine()] }))}><Plus className="me-2 h-4 w-4" /><LocalizedText>Add line</LocalizedText></Button></div>
+              <section className="space-y-3 rounded-2xl border border-slate-200/80 bg-white/70 p-4 dark:border-slate-800 dark:bg-slate-950/30 sm:p-5">
+                <div className="flex flex-wrap items-center justify-between gap-3"><div className="flex items-center gap-3"><span className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-100 text-xs font-bold text-indigo-700 dark:bg-indigo-400/15 dark:text-indigo-300">03</span><div><h3 className="font-semibold"><LocalizedText>Expense lines</LocalizedText></h3><p className="mt-1 text-xs text-muted-foreground"><LocalizedText>Assign each line to exactly one truck or trailer account.</LocalizedText></p></div></div><Button type="button" variant="outline" size="sm" className="rounded-xl" onClick={() => setInvoiceForm((current) => ({ ...current, lines: [...current.lines, blankLine()] }))}><Plus className="me-2 h-4 w-4" /><LocalizedText>Add line</LocalizedText></Button></div>
                 {invoiceForm.lines.map((line, index) => {
                   const availableAssets = assetOptions.filter((asset) => asset.type === line.assetType)
                   const chosenAsset = availableAssets.find((asset) => asset.id === line.assetId)
                   const query = assetSearch[line.key] ?? chosenAsset?.label ?? ''
                   const matches = availableAssets.filter((asset) => !query || asset.label.toLowerCase().includes(query.toLowerCase()))
                   const totals = lineTotals(line)
-                  return <div key={line.key} className="rounded-2xl border border-border/70 bg-muted/[0.18] p-4">
-                    <div className="mb-3 flex items-center justify-between"><p className="text-sm font-semibold"><LocalizedText>Line</LocalizedText> {index + 1}</p>{invoiceForm.lines.length > 1 && <Button type="button" variant="ghost" size="icon" aria-label="Remove line" onClick={() => setInvoiceForm((current) => ({ ...current, lines: current.lines.filter((row) => row.key !== line.key) }))}><X className="h-4 w-4" /></Button>}</div>
+                  return <div key={line.key} className="rounded-2xl border border-slate-200/80 bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-900/40">
+                    <div className="mb-3 flex items-center justify-between"><p className="text-sm font-semibold"><span className="me-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-white text-xs text-slate-600 shadow-sm dark:bg-slate-800 dark:text-slate-300">{index + 1}</span><LocalizedText>Expense line</LocalizedText></p>{invoiceForm.lines.length > 1 && <Button type="button" variant="ghost" size="icon" aria-label="Remove line" onClick={() => setInvoiceForm((current) => ({ ...current, lines: current.lines.filter((row) => row.key !== line.key) }))}><X className="h-4 w-4" /></Button>}</div>
                     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-12">
                       <div className="space-y-2 xl:col-span-3"><Label><LocalizedText>Expense category</LocalizedText></Label><select value={line.category} onChange={(event) => patchLine(line.key, { category: event.target.value as Category })} className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm">{Object.entries(categoryLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div>
                       <div className="space-y-2 xl:col-span-3"><Label><LocalizedText>Asset type</LocalizedText></Label><select value={line.assetType} onChange={(event) => { patchLine(line.key, { assetType: event.target.value as AssetType, assetId: '' }); setAssetSearch((current) => ({ ...current, [line.key]: '' })) }} className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm"><option value="TRUCK">Truck</option><option value="TRAILER">Trailer</option></select></div>
@@ -627,7 +679,7 @@ export default function PurchaseInvoicesPage() {
                 })}
               </section>
 
-              <div className="grid gap-4 lg:grid-cols-[1fr_320px]"><div className="space-y-2"><Label><LocalizedText>Invoice notes</LocalizedText></Label><Textarea value={invoiceForm.notes} onChange={(event) => setInvoiceForm((current) => ({ ...current, notes: event.target.value }))} placeholder="Optional notes for the accounting record" /></div><div className="rounded-2xl border bg-muted/30 p-4"><h3 className="font-semibold"><LocalizedText>Posting preview</LocalizedText></h3><dl className="mt-3 space-y-2 text-sm"><SummaryRow label="Vehicle expenses" value={formatCurrency(draftTotals.net)} /><SummaryRow label="Input VAT" value={formatCurrency(draftTotals.vat)} /><div className="border-t pt-2"><SummaryRow label="Vendor payable" value={formatCurrency(draftTotals.total)} strong /></div></dl><p className="mt-3 text-xs leading-5 text-muted-foreground"><LocalizedText>These entries balance before they are posted. VAT is separated only for a VAT invoice.</LocalizedText></p></div></div>
+              <div className="grid gap-4 lg:grid-cols-[1fr_340px]"><div className="space-y-2"><Label><LocalizedText>Invoice notes</LocalizedText></Label><Textarea value={invoiceForm.notes} onChange={(event) => setInvoiceForm((current) => ({ ...current, notes: event.target.value }))} placeholder="Optional notes for the accounting record" className="min-h-28 rounded-xl bg-white/80 dark:bg-slate-950/60" /></div><div className="rounded-2xl border border-indigo-200/70 bg-gradient-to-br from-indigo-50/80 to-white p-4 shadow-sm dark:border-indigo-400/20 dark:from-indigo-950/30 dark:to-slate-950/70 lg:sticky lg:top-4 lg:self-start sm:p-5"><div className="flex items-center justify-between gap-3"><h3 className="font-semibold"><LocalizedText>Posting preview</LocalizedText></h3><Calculator className="h-4 w-4 text-indigo-600 dark:text-indigo-300" /></div><dl className="mt-4 space-y-3 text-sm"><SummaryRow label="Vehicle expenses" value={formatCurrency(draftTotals.net)} /><SummaryRow label="Input VAT" value={formatCurrency(draftTotals.vat)} /><div className="border-t border-indigo-200/70 pt-3 dark:border-indigo-400/20"><SummaryRow label="Vendor payable" value={formatCurrency(draftTotals.total)} strong /></div></dl><p className="mt-3 text-xs leading-5 text-muted-foreground"><LocalizedText>These entries balance before they are posted. VAT is separated only for a VAT invoice.</LocalizedText></p></div></div>
             </div>
             <DialogFooter className="sticky bottom-0 border-t bg-background/95 px-5 py-4 backdrop-blur sm:px-7"><Button type="button" variant="outline" onClick={() => setInvoiceDialogOpen(false)} disabled={saving}><LocalizedText>Cancel</LocalizedText></Button><Button type="submit" disabled={saving || !canWrite || !vendors.some((vendor) => vendor.id === invoiceForm.vendorId)}>{saving && <Loader2 className="me-2 h-4 w-4 animate-spin" />}<LocalizedText>Post invoice</LocalizedText></Button></DialogFooter>
           </form>
@@ -660,12 +712,30 @@ export default function PurchaseInvoicesPage() {
 }
 
 function MetricCard({ icon: Icon, label, value, foot, tone }: { icon: typeof FileText; label: string; value: string; foot: string; tone: 'blue' | 'violet' | 'amber' | 'emerald' }) {
-  const tones = { blue: 'bg-blue-500/10 text-blue-700 dark:text-blue-300', violet: 'bg-violet-500/10 text-violet-700 dark:text-violet-300', amber: 'bg-amber-500/10 text-amber-700 dark:text-amber-300', emerald: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' }
-  return <Card><CardContent className="flex items-center gap-4 p-5"><div className={`rounded-xl p-3 ${tones[tone]}`}><Icon className="h-5 w-5" /></div><div className="min-w-0"><p className="text-xs font-medium text-muted-foreground"><LocalizedText>{label}</LocalizedText></p><p className="mt-1 truncate text-xl font-bold tabular-nums">{value}</p><p className="mt-1 truncate text-xs text-muted-foreground"><LocalizedText>{foot}</LocalizedText></p></div></CardContent></Card>
+  const tones = {
+    blue: 'border-blue-200/70 bg-blue-50/70 text-blue-700 dark:border-blue-400/15 dark:bg-blue-950/25 dark:text-blue-300',
+    violet: 'border-violet-200/70 bg-violet-50/70 text-violet-700 dark:border-violet-400/15 dark:bg-violet-950/25 dark:text-violet-300',
+    amber: 'border-amber-200/70 bg-amber-50/70 text-amber-700 dark:border-amber-400/15 dark:bg-amber-950/25 dark:text-amber-300',
+    emerald: 'border-emerald-200/70 bg-emerald-50/70 text-emerald-700 dark:border-emerald-400/15 dark:bg-emerald-950/25 dark:text-emerald-300',
+  }
+  return <Card className="group overflow-hidden rounded-2xl border-slate-200/80 bg-white/75 shadow-sm backdrop-blur-xl transition duration-200 hover:-translate-y-0.5 hover:shadow-md dark:border-slate-800 dark:bg-slate-950/60">
+    <CardContent className="relative flex min-h-32 items-start justify-between gap-4 p-4 sm:p-5">
+      <div className="min-w-0"><p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground"><LocalizedText>{label}</LocalizedText></p><p className="mt-2 truncate text-2xl font-bold tracking-tight text-slate-950 tabular-nums dark:text-white">{value}</p><p className="mt-1.5 truncate text-xs text-muted-foreground"><LocalizedText>{foot}</LocalizedText></p></div>
+      <div className={`rounded-xl border p-2.5 shadow-sm ${tones[tone]}`}><Icon className="h-5 w-5" /></div>
+    </CardContent>
+  </Card>
 }
 
 function AccountGrid({ rows, onSelect }: { rows: AccountRow[]; onSelect: (row: AccountRow) => void }) {
-  return <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{rows.map((account) => <button key={`${account.assetType || 'VENDOR'}-${account.assetId || account.vendorId}`} onClick={() => onSelect(account)} className="rounded-2xl border border-border/70 p-4 text-start transition hover:border-primary/40 hover:bg-muted/30"><div className="flex items-start justify-between gap-3"><div className="flex min-w-0 items-start gap-3"><div className="rounded-xl bg-primary/10 p-2.5 text-primary">{account.assetType === 'TRAILER' ? <CarFront className="h-4 w-4" /> : account.assetType === 'TRUCK' ? <Truck className="h-4 w-4" /> : <Building2 className="h-4 w-4" />}</div><div className="min-w-0"><p className="truncate font-semibold">{account.label}</p><p className="mt-1 truncate text-xs text-muted-foreground">{account.code}</p></div></div><BookOpen className="h-4 w-4 shrink-0 text-muted-foreground" /></div><div className="mt-4 flex items-end justify-between"><span className="text-xs text-muted-foreground"><LocalizedText>{account.assetType ? 'Lifetime expense total' : 'Amount payable to vendor'}</LocalizedText></span><span className="font-semibold tabular-nums">{formatCurrency(account.balance)}</span></div></button>)}</div>
+  return <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{rows.map((account) => <button key={`${account.assetType || 'VENDOR'}-${account.assetId || account.vendorId}`} onClick={() => onSelect(account)} className="group rounded-2xl border border-slate-200/80 bg-white/75 p-4 text-start shadow-sm backdrop-blur-xl transition hover:-translate-y-0.5 hover:border-indigo-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-950/50 dark:hover:border-indigo-400/40"><div className="flex items-start justify-between gap-3"><div className="flex min-w-0 items-start gap-3"><div className={`rounded-xl border p-2.5 ${account.assetType === 'TRAILER' ? 'border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-400/20 dark:bg-orange-950/30 dark:text-orange-300' : account.assetType === 'TRUCK' ? 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-400/20 dark:bg-blue-950/30 dark:text-blue-300' : 'border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-400/20 dark:bg-violet-950/30 dark:text-violet-300'}`}>{account.assetType === 'TRAILER' ? <TrailerIcon className="h-4 w-4" /> : account.assetType === 'TRUCK' ? <Truck className="h-4 w-4" /> : <Building2 className="h-4 w-4" />}</div><div className="min-w-0"><p className="truncate font-semibold text-slate-900 dark:text-slate-100">{account.label}</p><p className="mt-1 truncate text-xs text-muted-foreground">{account.code}</p></div></div><BookOpen className="h-4 w-4 shrink-0 text-slate-400 transition group-hover:text-primary" /></div><div className="mt-5 flex items-end justify-between gap-3 border-t border-slate-100 pt-3 dark:border-slate-800"><span className="text-xs text-muted-foreground"><LocalizedText>{account.assetType ? 'Lifetime expense total' : 'Amount payable to vendor'}</LocalizedText></span><span className="text-base font-bold tabular-nums text-slate-950 dark:text-white">{formatCurrency(account.balance)}</span></div></button>)}</div>
+}
+
+function TrailerIcon({ className }: { className?: string }) {
+  return <svg aria-hidden="true" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6.5h13.5a2 2 0 0 1 2 2v7.25H3z" /><path d="M18.5 10h2l1.5 2.5v3.25h-3.5M5 15.75v2M15.5 15.75v2" /><circle cx="6.5" cy="18" r="1.5" /><circle cx="15.5" cy="18" r="1.5" /></svg>
+}
+
+function getInvoiceAssets(invoice: PurchaseInvoice) {
+  return Array.from(new Set(invoice.lines.map((line) => line.truck?.licensePlate || (line.trailer?.number ? `Trailer ${line.trailer.number}` : '')).filter(Boolean)))
 }
 
 function SummaryRow({ label, value, strong = false }: { label: string; value: string; strong?: boolean }) {
