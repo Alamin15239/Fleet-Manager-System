@@ -13,9 +13,9 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { toast } from '@/lib/localized-toast'
-import { FileText, Plus, Printer, Download, Pencil, Trash2 } from 'lucide-react'
+import { FileText, Plus, Printer, Download, Pencil, Trash2, Eye } from 'lucide-react'
 import { renderJobCardDocument } from '@/lib/job-card-document'
-import { downloadJobCardPdf } from '@/lib/job-card-pdf'
+import { createJobCardPdfBlob, downloadJobCardPdf } from '@/lib/job-card-pdf'
 import { usePermissions } from '@/contexts/permissions-context'
 
 type VehicleType = 'truck' | 'trailer'
@@ -147,6 +147,21 @@ export default function WorkshopJobCards() {
     }
   }
 
+  const viewCardPdf = async (card: JobCard) => {
+    const viewer = window.open('about:blank', '_blank')
+    if (!viewer) { toast.error('Allow pop-ups to open the job-card PDF'); return }
+    viewer.document.write('<!doctype html><title>Preparing job-card PDF</title><p style="font:16px Arial;padding:24px">Preparing job-card PDF…</p>')
+    try {
+      const blob = await createJobCardPdfBlob(await renderCardDocument(card))
+      const url = URL.createObjectURL(blob)
+      viewer.location.href = url
+      window.setTimeout(() => URL.revokeObjectURL(url), 60000)
+    } catch (error) {
+      viewer.close()
+      toast.error(error instanceof Error ? error.message : 'Unable to prepare the job-card PDF')
+    }
+  }
+
   const downloadCard = async (card: JobCard) => {
     setDownloadingId(card.id)
     try {
@@ -167,7 +182,7 @@ export default function WorkshopJobCards() {
     <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between"><div><h2 className="text-xl font-semibold"><LocalizedText>Workshop Job Cards</LocalizedText></h2><p className="text-sm text-muted-foreground"><LocalizedText>Create, track, and print the bilingual workshop form.</LocalizedText></p></div>{canCreate('maintenance') && <Button onClick={startNew}><Plus className="mr-2 h-4 w-4"/>New Job Card</Button>}</div>
     <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">{[['Total Job Cards', summary.total], ['Open', summary.open], ['In Progress', summary.inProgress], ['Completed', summary.completed]].map(([label, value]) => <Card key={label}><CardContent className="p-4"><p className="text-xs text-muted-foreground">{label}</p><p className="mt-1 text-2xl font-semibold">{value}</p></CardContent></Card>)}</div>
     <Card><CardHeader><CardTitle><LocalizedText>Job Card Register</LocalizedText></CardTitle><CardDescription>{cards.length} saved job cards</CardDescription></CardHeader><CardContent>
-       {loading ? <p className="py-8 text-center text-muted-foreground"><LocalizedText>Loading job cards…</LocalizedText></p> : cards.length === 0 ? <div className="py-10 text-center"><FileText className="mx-auto mb-3 h-10 w-10 text-muted-foreground"/><p className="font-medium"><LocalizedText>No job cards yet</LocalizedText></p><p className="text-sm text-muted-foreground"><LocalizedText>Create the first workshop job card when a vehicle arrives for service.</LocalizedText></p></div> : <div className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead><LocalizedText>Job No.</LocalizedText></TableHead><TableHead><LocalizedText>Date</LocalizedText></TableHead><TableHead><LocalizedText>Vehicle</LocalizedText></TableHead><TableHead><LocalizedText>Service</LocalizedText></TableHead><TableHead><LocalizedText>Technician</LocalizedText></TableHead><TableHead><LocalizedText>Status</LocalizedText></TableHead><TableHead><LocalizedText>Actions</LocalizedText></TableHead></TableRow></TableHeader><TableBody>{cards.map(card => <TableRow key={card.id}><TableCell className="font-medium">{card.jobNumber}</TableCell><TableCell>{dateText(card.serviceDate)}</TableCell><TableCell>{vehicleLabel(card)}</TableCell><TableCell>{card.serviceType}</TableCell><TableCell>{card.technicianName || '—'}</TableCell><TableCell><Badge variant={card.status === 'COMPLETED' ? 'default' : 'secondary'}>{statusLabel(card.status)}</Badge></TableCell><TableCell><div className="flex gap-1"><Button size="sm" variant="ghost" title="Print job card" aria-label={`Print job card ${card.jobNumber}`} onClick={() => printCard(card)}><Printer className="h-4 w-4"/></Button><Button size="sm" variant="ghost" title="Download PDF" aria-label={`Download PDF for ${card.jobNumber}`} disabled={downloadingId === card.id} onClick={() => downloadCard(card)}><Download className="h-4 w-4"/></Button><Button size="sm" variant="ghost" hidden={!canUpdate('maintenance')} title="Edit job card" aria-label={`Edit job card ${card.jobNumber}`} onClick={() => startEdit(card)}><Pencil className="h-4 w-4"/></Button></div></TableCell></TableRow>)}</TableBody></Table></div>}
+       {loading ? <p className="py-8 text-center text-muted-foreground"><LocalizedText>Loading job cards…</LocalizedText></p> : cards.length === 0 ? <div className="py-10 text-center"><FileText className="mx-auto mb-3 h-10 w-10 text-muted-foreground"/><p className="font-medium"><LocalizedText>No job cards yet</LocalizedText></p><p className="text-sm text-muted-foreground"><LocalizedText>Create the first workshop job card when a vehicle arrives for service.</LocalizedText></p></div> : <div className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead><LocalizedText>Job No.</LocalizedText></TableHead><TableHead><LocalizedText>Date</LocalizedText></TableHead><TableHead><LocalizedText>Vehicle</LocalizedText></TableHead><TableHead><LocalizedText>Service</LocalizedText></TableHead><TableHead><LocalizedText>Technician</LocalizedText></TableHead><TableHead><LocalizedText>Status</LocalizedText></TableHead><TableHead><LocalizedText>Actions</LocalizedText></TableHead></TableRow></TableHeader><TableBody>{cards.map(card => <TableRow key={card.id}><TableCell className="font-medium">{card.jobNumber}</TableCell><TableCell>{dateText(card.serviceDate)}</TableCell><TableCell>{vehicleLabel(card)}</TableCell><TableCell>{card.serviceType}</TableCell><TableCell>{card.technicianName || '—'}</TableCell><TableCell><Badge variant={card.status === 'COMPLETED' ? 'default' : 'secondary'}>{statusLabel(card.status)}</Badge></TableCell><TableCell><div className="flex gap-1"><Button size="sm" variant="ghost" title="View PDF in browser" aria-label={`View PDF for ${card.jobNumber}`} onClick={() => viewCardPdf(card)}><Eye className="h-4 w-4"/></Button><Button size="sm" variant="ghost" title="Print job card" aria-label={`Print job card ${card.jobNumber}`} onClick={() => printCard(card)}><Printer className="h-4 w-4"/></Button><Button size="sm" variant="ghost" title="Download PDF" aria-label={`Download PDF for ${card.jobNumber}`} disabled={downloadingId === card.id} onClick={() => downloadCard(card)}><Download className="h-4 w-4"/></Button><Button size="sm" variant="ghost" hidden={!canUpdate('maintenance')} title="Edit job card" aria-label={`Edit job card ${card.jobNumber}`} onClick={() => startEdit(card)}><Pencil className="h-4 w-4"/></Button></div></TableCell></TableRow>)}</TableBody></Table></div>}
     </CardContent></Card>
 
     <Dialog open={open} onOpenChange={setOpen}><DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-4xl"><DialogHeader><DialogTitle>{editingId ? 'Edit Workshop Job Card' : 'New Workshop Job Card'}</DialogTitle><DialogDescription><LocalizedText>Bilingual A4 form · بيانات أمر الشغل</LocalizedText></DialogDescription></DialogHeader>

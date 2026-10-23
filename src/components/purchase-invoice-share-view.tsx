@@ -2,10 +2,11 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'next/navigation'
-import { Download, Loader2, Printer } from 'lucide-react'
+import { Download, ExternalLink, Loader2, Printer } from 'lucide-react'
 import { LocalizedText } from '@/components/localized-text'
 import { renderPurchaseInvoiceDocument, type PurchaseInvoiceCompany, type PurchaseInvoiceDocumentData } from '@/lib/purchase-invoice-document'
 import { downloadPurchaseInvoicePdf } from '@/lib/purchase-invoice-pdf'
+import { usePurchaseInvoicePdfUrl } from '@/hooks/use-purchase-invoice-pdf-url'
 
 export default function PurchaseInvoiceShareView() {
   const params = useParams<{ id: string }>()
@@ -17,6 +18,7 @@ export default function PurchaseInvoiceShareView() {
   const [loading, setLoading] = useState(true)
   const [downloading, setDownloading] = useState(false)
   const [error, setError] = useState('')
+  const { url: pdfUrl, loading: pdfLoading, error: pdfError } = usePurchaseInvoicePdfUrl(documentHtml)
 
   useEffect(() => {
     let cancelled = false
@@ -71,12 +73,13 @@ export default function PurchaseInvoiceShareView() {
     <main className="min-h-dvh bg-slate-100 text-slate-900">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
         <div><p className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-800">{companyName}</p><h1 className="text-lg font-semibold">{invoiceNumber}</h1></div>
-        {documentHtml && <div className="flex gap-2">
+        {pdfUrl && <div className="flex flex-wrap gap-2">
+          <button type="button" onClick={() => window.open(pdfUrl, '_blank', 'noopener,noreferrer')} className="inline-flex min-h-10 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 text-sm font-medium shadow-sm hover:bg-slate-50"><ExternalLink className="h-4 w-4" /><LocalizedText>Open PDF in browser</LocalizedText></button>
           <button type="button" onClick={print} className="inline-flex min-h-10 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 text-sm font-medium shadow-sm hover:bg-slate-50"><Printer className="h-4 w-4" /><LocalizedText>Print</LocalizedText></button>
           <button type="button" onClick={downloadPdf} disabled={downloading} className="inline-flex min-h-10 items-center gap-2 rounded-md bg-emerald-800 px-3 text-sm font-semibold text-white shadow-sm hover:bg-emerald-900 disabled:cursor-wait disabled:opacity-60"><Download className="h-4 w-4" />{downloading ? <LocalizedText>Preparing PDF…</LocalizedText> : <LocalizedText>Download PDF</LocalizedText>}</button>
         </div>}
       </div>
-      {error ? <div role="alert" className="mx-4 mt-6 rounded-lg border border-red-200 bg-white p-5 text-sm text-red-700 sm:mx-auto sm:max-w-2xl">{error}</div> : loading ? <div className="flex items-center justify-center gap-2 px-4 py-16 text-sm text-slate-600"><Loader2 className="h-4 w-4 animate-spin" /><LocalizedText>Loading invoice…</LocalizedText></div> : <div className="mx-auto max-w-6xl px-2 pb-6 sm:px-6"><iframe ref={previewRef} title={`${invoiceNumber} preview`} srcDoc={documentHtml} className="h-[calc(100dvh-88px)] min-h-[640px] w-full rounded-lg border border-slate-300 bg-white shadow-lg" /></div>}
+      {error ? <div role="alert" className="mx-4 mt-6 rounded-lg border border-red-200 bg-white p-5 text-sm text-red-700 sm:mx-auto sm:max-w-2xl">{error}</div> : loading || pdfLoading ? <div className="flex items-center justify-center gap-2 px-4 py-16 text-sm text-slate-600"><Loader2 className="h-4 w-4 animate-spin" /><LocalizedText>Preparing invoice PDF…</LocalizedText></div> : pdfError ? <div role="alert" className="mx-4 mt-6 rounded-lg border border-red-200 bg-white p-5 text-sm text-red-700 sm:mx-auto sm:max-w-2xl">{pdfError}</div> : <div className="mx-auto max-w-6xl px-2 pb-6 sm:px-6"><iframe ref={previewRef} title={`${invoiceNumber} PDF`} src={pdfUrl} className="h-[calc(100dvh-88px)] min-h-[640px] w-full rounded-lg border border-slate-300 bg-white shadow-lg" /></div>}
     </main>
   )
 }

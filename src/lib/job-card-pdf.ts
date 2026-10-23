@@ -1,4 +1,4 @@
-export async function downloadJobCardPdf(documentHtml: string, filename: string) {
+export async function createJobCardPdfBlob(documentHtml: string): Promise<Blob> {
   const [{ default: html2canvas }, { jsPDF }] = await Promise.all([import('html2canvas'), import('jspdf')])
   let frame: HTMLIFrameElement | null = null
 
@@ -73,8 +73,21 @@ export async function downloadJobCardPdf(documentHtml: string, filename: string)
       pdf.addImage(qrSource, 'PNG', qrX, qrY, qrWidth, qrHeight)
     }
 
-    pdf.save(filename)
+    return pdf.output('blob')
   } finally {
     frame?.remove()
   }
+}
+
+
+export async function downloadJobCardPdf(documentHtml: string, filename: string) {
+  const blob = await createJobCardPdfBlob(documentHtml)
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000)
 }

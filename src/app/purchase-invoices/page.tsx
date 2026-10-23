@@ -17,7 +17,9 @@ import { toast } from '@/lib/localized-toast'
 import { Activity, ArrowLeft, BadgeCheck, BookOpen, Building2, Calculator, CalendarDays, CheckCheck, Copy, Download, ExternalLink, FileBarChart, FilePlus2, FileText, Filter, Loader2, Plus, Printer, Receipt, Search, ShieldCheck, Truck, Undo2, X } from 'lucide-react'
 import { combinePurchaseInvoiceDocuments, renderPurchaseInvoiceDocument, type PurchaseInvoiceCompany, type PurchaseInvoiceDocumentData } from '@/lib/purchase-invoice-document'
 import { downloadPurchaseInvoicePdf } from '@/lib/purchase-invoice-pdf'
-import { renderPurchaseInvoiceReportDocument, type PurchaseInvoiceReportCompany, type PurchaseInvoiceReportEntry } from '@/lib/purchase-invoice-report'
+import { buildPurchaseInvoiceReportEntries, renderPurchaseInvoiceReportDocument, type PurchaseInvoiceReportCompany } from '@/lib/purchase-invoice-report'
+import { usePurchaseInvoicePdfUrl } from '@/hooks/use-purchase-invoice-pdf-url'
+import { createPurchaseInvoiceReportQrDataUrl } from '@/lib/purchase-invoice-report-qr'
 
 type Category = 'MAINTENANCE' | 'SPARE_PARTS' | 'TIRE' | 'BATTERY' | 'OIL_FILTER' | 'OTHER'
 type AssetType = 'TRUCK' | 'TRAILER'
@@ -178,6 +180,7 @@ export default function PurchaseInvoicesPage() {
   const [reportError, setReportError] = useState('')
   const [reportDialogOpen, setReportDialogOpen] = useState(false)
   const [reportDocumentHtml, setReportDocumentHtml] = useState('')
+  const [reportShareUrl, setReportShareUrl] = useState('')
   const [reportBusy, setReportBusy] = useState(false)
   const reportPreviewRef = useRef<HTMLIFrameElement>(null)
   const [entryMode, setEntryMode] = useState<'invoice' | 'vendor' | null>(null)
@@ -198,6 +201,9 @@ export default function PurchaseInvoicesPage() {
     vendorId: '', vendorInvoiceNumber: '', invoiceDate: new Date().toISOString().slice(0, 10), dueDate: '',
     isVatInvoice: true, pricesIncludeVat: false, vatRate: '15', notes: '', lines: [blankLine()],
   })
+  const invoicePdf = usePurchaseInvoicePdfUrl(invoiceDocumentHtml)
+  const batchPdf = usePurchaseInvoicePdfUrl(batchDocumentHtml)
+  const reportPdf = usePurchaseInvoicePdfUrl(reportDocumentHtml)
   const canRead = canAccess('purchase-invoices')
   const canWrite = canCreate('purchase-invoices')
   const canReverse = canUpdate('purchase-invoices')
@@ -330,11 +336,13 @@ export default function PurchaseInvoicesPage() {
     if (!reportAssetIds.length) {
       setReportInvoices([])
       setReportError('')
+      setReportShareUrl('')
       setReportLoading(false)
       return
     }
     setReportLoading(true)
     setReportInvoices([])
+    setReportShareUrl('')
     let cancelled = false
     const timer = window.setTimeout(async () => {
       setReportLoading(true)
@@ -354,6 +362,7 @@ export default function PurchaseInvoicesPage() {
         if (!cancelled) {
           setReportInvoices(payload.invoices || [])
           setCompany(payload.company || null)
+          setReportShareUrl(payload.shareUrl || '')
         }
       } catch (error) {
         if (!cancelled) {
@@ -626,68 +635,42 @@ export default function PurchaseInvoicesPage() {
     setReportStatusFilter('POSTED')
   }
 
-  const prepareReportEntries = (): PurchaseInvoiceReportEntry[] => reportInvoices.flatMap(({ invoice, lines }) => {
-    const entries: PurchaseInvoiceReportEntry[] = lines.map((line) => {
-      const assetKey = getInvoiceLineAssetKey(line)
-      const asset = assetOptions.find((option) => option.key === assetKey)
-      return {
-        date: invoice.invoiceDate,
-        invoiceNumber: invoice.internalNumber,
-        vendorInvoiceNumber: invoice.vendorInvoiceNumber,
-        vendor: invoice.vendor.name,
-        account: asset?.label || (line.truck ? `Truck ${line.truck.licensePlate}` : `Trailer ${line.trailer?.number || ''}`),
-        description: `${categoryLabels[line.category]} · ${line.description}`,
-        debit: line.netAmount,
-        credit: 0,
-        status: invoice.status,
-      }
-    })
-    const vat = lines.reduce((sum, line) => sum + line.vatAmount, 0)
-    if (vat > 0) entries.push({
-      date: invoice.invoiceDate,
-      invoiceNumber: invoice.internalNumber,
-      vendorInvoiceNumber: invoice.vendorInvoiceNumber,
-      vendor: invoice.vendor.name,
-      account: 'Input VAT · Tax Authority',
-      description: `Input VAT · ${invoice.internalNumber}`,
-      debit: vat,
-      credit: 0,
-      status: invoice.status,
-    })
-    entries.push({
-      date: invoice.invoiceDate,
-      invoiceNumber: invoice.internalNumber,
-      vendorInvoiceNumber: invoice.vendorInvoiceNumber,
-      vendor: invoice.vendor.name,
-      account: `Vendor payable · ${invoice.vendor.name}`,
-      description: `Supplier payable · ${invoice.internalNumber}`,
-      debit: 0,
-      credit: lines.reduce((sum, line) => sum + line.totalAmount, 0),
-      status: invoice.status,
-    })
-    return entries
-  })
+  const prepareReportEntries = () => buildPurchaseInvoiceReportEntries(
+    reportInvoices,
+    Object.fromEntries(assetOptions.map((asset) => [asset.key, asset.label])),
+  )
 
-  const openReportPreview = () => {
+  const openReportPreview = async () => {
     if (!reportAssetIds.length) return toast.error('Select at least one truck or trailer for the report')
     if (!reportInvoices.length) return toast.error('No invoices match the selected vehicles and filters')
-    const selectedAssets = assetOptions.filter((asset) => reportAssetIds.includes(asset.key)).map((asset) => asset.label)
-    const generatedAt = new Date().toLocaleString('en-GB', { timeZone: 'Asia/Riyadh', dateStyle: 'medium', timeStyle: 'short' })
-    const period = `${reportDateFrom ? formatDate(`${reportDateFrom}T12:00:00`) : 'All dates'} – ${reportDateTo ? formatDate(`${reportDateTo}T12:00:00`) : 'Present'}`
-    const statusLabel = reportStatusFilter === 'ALL' ? 'Posted and reversed' : reportStatusFilter === 'VOID' ? 'Reversed' : 'Posted'
-    setReportDocumentHtml(renderPurchaseInvoiceReportDocument({
-      company,
-      entries: prepareReportEntries(),
-      assets: selectedAssets,
-      period,
-      statusLabel,
-      invoiceCount: reportInvoices.length,
-      expenseTotal: reportTotals.expense,
-      vatTotal: reportTotals.vat,
-      payableTotal: reportTotals.payable,
-      generatedAt,
-    }))
-    setReportDialogOpen(true)
+    if (!reportShareUrl) return toast.error('Refresh the report data before generating its share link')
+    setReportBusy(true)
+    try {
+      const selectedAssets = assetOptions.filter((asset) => reportAssetIds.includes(asset.key)).map((asset) => asset.label)
+      const generatedAt = new Date().toLocaleString('en-GB', { timeZone: 'Asia/Riyadh', dateStyle: 'medium', timeStyle: 'short' })
+      const period = (reportDateFrom ? formatDate(reportDateFrom + 'T12:00:00') : 'All dates') + ' – ' + (reportDateTo ? formatDate(reportDateTo + 'T12:00:00') : 'Present')
+      const statusLabel = reportStatusFilter === 'ALL' ? 'Posted and reversed' : reportStatusFilter === 'VOID' ? 'Reversed' : 'Posted'
+      const qrDataUrl = await createPurchaseInvoiceReportQrDataUrl(reportShareUrl)
+      setReportDocumentHtml(renderPurchaseInvoiceReportDocument({
+        company,
+        entries: prepareReportEntries(),
+        assets: selectedAssets,
+        period,
+        statusLabel,
+        invoiceCount: reportInvoices.length,
+        expenseTotal: reportTotals.expense,
+        vatTotal: reportTotals.vat,
+        payableTotal: reportTotals.payable,
+        generatedAt,
+        shareUrl: reportShareUrl,
+        qrDataUrl,
+      }))
+      setReportDialogOpen(true)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Unable to prepare the vehicle report')
+    } finally {
+      setReportBusy(false)
+    }
   }
 
   const printPurchaseInvoiceReport = () => {
@@ -702,7 +685,7 @@ export default function PurchaseInvoicesPage() {
     setReportBusy(true)
     try {
       await downloadPurchaseInvoicePdf(reportDocumentHtml, `vehicle-purchase-invoice-report-${new Date().toISOString().slice(0, 10)}.pdf`, {
-        orientation: 'landscape', pageWidthPx: 1123, pageHeightPx: 794,
+        orientation: 'portrait', pageWidthPx: 794, pageHeightPx: 1123,
       })
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Unable to download the purchase invoice report')
@@ -986,22 +969,22 @@ export default function PurchaseInvoicesPage() {
       {!entryMode && <>
       <Dialog open={!!selectedInvoice} onOpenChange={(open) => { if (!open) setSelectedInvoice(null) }}>
         <DialogContent className="flex max-h-[96dvh] max-w-5xl flex-col overflow-hidden p-4 sm:p-6"><DialogHeader className="shrink-0"><div className="flex items-center gap-2"><DialogTitle>{selectedInvoice?.internalNumber}</DialogTitle>{selectedInvoice && <StatusBadge status={selectedInvoice.status} />}</div><DialogDescription>{selectedInvoice?.vendor.name}{selectedInvoice?.vendorInvoiceNumber ? ` · ${selectedInvoice.vendorInvoiceNumber}` : ''}</DialogDescription></DialogHeader>
-          <div className="min-h-0 flex-1 overflow-hidden rounded-lg border bg-slate-100">{invoiceDocumentHtml ? <iframe ref={invoicePreviewRef} title={`${selectedInvoice?.internalNumber} invoice preview`} srcDoc={invoiceDocumentHtml} className="h-[min(70dvh,850px)] min-h-[480px] w-full bg-white" /> : <div className="flex h-[min(70dvh,850px)] min-h-[480px] items-center justify-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin" /><LocalizedText>Preparing invoice preview and QR code</LocalizedText></div>}</div>
-          <DialogFooter className="shrink-0 flex-wrap gap-2 sm:justify-between">{selectedInvoice?.status === 'POSTED' && canReverse ? <Button variant="destructive" onClick={() => selectedInvoice && void reverseInvoice(selectedInvoice)} disabled={saving}><Undo2 className="me-2 h-4 w-4" /><LocalizedText>Reverse invoice</LocalizedText></Button> : <span />}{selectedInvoice?.status === 'VOID' && <p className="me-auto text-xs text-muted-foreground"><LocalizedText>This invoice is reversed; its original and counter-entry remain in the ledger.</LocalizedText></p>}<div className="flex flex-wrap gap-2"><Button variant="outline" onClick={() => void copyInvoiceShareLink()} disabled={!invoiceShareUrl}><Copy className="me-2 h-4 w-4" /><LocalizedText>Copy QR link</LocalizedText></Button>{invoiceShareUrl && <Button variant="outline" asChild><a href={invoiceShareUrl} target="_blank" rel="noreferrer"><ExternalLink className="me-2 h-4 w-4" /><LocalizedText>Open link</LocalizedText></a></Button>}<Button variant="outline" onClick={printSelectedInvoice} disabled={!invoiceDocumentHtml}><Printer className="me-2 h-4 w-4" /><LocalizedText>Print</LocalizedText></Button><Button onClick={() => void downloadSelectedInvoice()} disabled={!invoiceDocumentHtml || saving}><Download className="me-2 h-4 w-4" /><LocalizedText>Download PDF</LocalizedText></Button><Button variant="ghost" onClick={() => setSelectedInvoice(null)}><LocalizedText>Close</LocalizedText></Button></div></DialogFooter>
+          <div className="min-h-0 flex-1 overflow-hidden rounded-lg border bg-slate-100">{invoicePdf.url ? <iframe ref={invoicePreviewRef} title={`${selectedInvoice?.internalNumber} invoice preview`} src={invoicePdf.url} className="h-[min(70dvh,850px)] min-h-[480px] w-full bg-white" /> : <div className="flex h-[min(70dvh,850px)] min-h-[480px] items-center justify-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin" /><LocalizedText>Preparing invoice PDF preview</LocalizedText></div>}</div>
+          <DialogFooter className="shrink-0 flex-wrap gap-2 sm:justify-between">{selectedInvoice?.status === 'POSTED' && canReverse ? <Button variant="destructive" onClick={() => selectedInvoice && void reverseInvoice(selectedInvoice)} disabled={saving}><Undo2 className="me-2 h-4 w-4" /><LocalizedText>Reverse invoice</LocalizedText></Button> : <span />}{selectedInvoice?.status === 'VOID' && <p className="me-auto text-xs text-muted-foreground"><LocalizedText>This invoice is reversed; its original and counter-entry remain in the ledger.</LocalizedText></p>}<div className="flex flex-wrap gap-2"><Button variant="outline" asChild disabled={!invoicePdf.url}><a href={invoicePdf.url || undefined} target="_blank" rel="noreferrer"><ExternalLink className="me-2 h-4 w-4" /><LocalizedText>Open PDF</LocalizedText></a></Button><Button variant="outline" onClick={() => void copyInvoiceShareLink()} disabled={!invoiceShareUrl}><Copy className="me-2 h-4 w-4" /><LocalizedText>Copy QR link</LocalizedText></Button>{invoiceShareUrl && <Button variant="outline" asChild><a href={invoiceShareUrl} target="_blank" rel="noreferrer"><ExternalLink className="me-2 h-4 w-4" /><LocalizedText>Open link</LocalizedText></a></Button>}<Button variant="outline" onClick={printSelectedInvoice} disabled={!invoicePdf.url}><Printer className="me-2 h-4 w-4" /><LocalizedText>Print</LocalizedText></Button><Button onClick={() => void downloadSelectedInvoice()} disabled={!invoicePdf.url || saving}><Download className="me-2 h-4 w-4" /><LocalizedText>Download PDF</LocalizedText></Button><Button variant="ghost" onClick={() => setSelectedInvoice(null)}><LocalizedText>Close</LocalizedText></Button></div></DialogFooter>
         </DialogContent>
       </Dialog>
 
       <Dialog open={batchDialogOpen} onOpenChange={setBatchDialogOpen}>
         <DialogContent className="flex max-h-[96dvh] max-w-5xl flex-col overflow-hidden p-4 sm:p-6"><DialogHeader className="shrink-0"><DialogTitle><LocalizedText>Batch invoice preview</LocalizedText> · {selectedInvoiceIds.length}</DialogTitle><DialogDescription><LocalizedText>Selected invoices are combined in one A4 document. Each page keeps its own invoice QR link.</LocalizedText></DialogDescription></DialogHeader>
-          <div className="min-h-0 flex-1 overflow-hidden rounded-lg border bg-slate-100">{batchDocumentHtml ? <iframe ref={batchPreviewRef} title="Selected purchase invoices preview" srcDoc={batchDocumentHtml} className="h-[min(70dvh,850px)] min-h-[480px] w-full bg-white" /> : <div className="flex h-[min(70dvh,850px)] min-h-[480px] items-center justify-center text-sm text-muted-foreground"><LocalizedText>No invoice document is prepared.</LocalizedText></div>}</div>
-          <DialogFooter className="shrink-0 flex-wrap gap-2"><Button type="button" variant="outline" onClick={printBatchInvoices} disabled={!batchDocumentHtml || batchBusy}><Printer className="me-2 h-4 w-4" /><LocalizedText>Print all</LocalizedText></Button><Button type="button" onClick={() => void downloadBatchInvoices()} disabled={!batchDocumentHtml || batchBusy}><Download className="me-2 h-4 w-4" />{batchBusy ? <LocalizedText>Preparing PDF…</LocalizedText> : <LocalizedText>Download combined PDF</LocalizedText>}</Button><Button type="button" variant="ghost" onClick={() => setBatchDialogOpen(false)}><LocalizedText>Close</LocalizedText></Button></DialogFooter>
+          <div className="min-h-0 flex-1 overflow-hidden rounded-lg border bg-slate-100">{batchPdf.url ? <iframe ref={batchPreviewRef} title="Selected purchase invoices preview" src={batchPdf.url} className="h-[min(70dvh,850px)] min-h-[480px] w-full bg-white" /> : <div className="flex h-[min(70dvh,850px)] min-h-[480px] items-center justify-center text-sm text-muted-foreground">{batchPdf.error || (batchPdf.loading ? 'Preparing combined PDF preview…' : 'No invoice document is prepared.')}</div>}</div>
+          <DialogFooter className="shrink-0 flex-wrap gap-2"><Button type="button" variant="outline" asChild disabled={!batchPdf.url}><a href={batchPdf.url || undefined} target="_blank" rel="noreferrer"><ExternalLink className="me-2 h-4 w-4" /><LocalizedText>Open PDF</LocalizedText></a></Button><Button type="button" variant="outline" onClick={printBatchInvoices} disabled={!batchPdf.url || batchBusy}><Printer className="me-2 h-4 w-4" /><LocalizedText>Print all</LocalizedText></Button><Button type="button" onClick={() => void downloadBatchInvoices()} disabled={!batchPdf.url || batchBusy}><Download className="me-2 h-4 w-4" />{batchBusy ? <LocalizedText>Preparing PDF…</LocalizedText> : <LocalizedText>Download combined PDF</LocalizedText>}</Button><Button type="button" variant="ghost" onClick={() => setBatchDialogOpen(false)}><LocalizedText>Close</LocalizedText></Button></DialogFooter>
         </DialogContent>
       </Dialog>
 
       <Dialog open={reportDialogOpen} onOpenChange={setReportDialogOpen}>
-        <DialogContent className="flex max-h-[96dvh] max-w-6xl flex-col overflow-hidden p-4 sm:p-6"><DialogHeader className="shrink-0"><DialogTitle><LocalizedText>Vehicle purchase invoice report</LocalizedText></DialogTitle><DialogDescription><LocalizedText>Landscape A4 journal detail. Vehicle expense and input VAT appear as debits; vendor payable appears as a credit.</LocalizedText></DialogDescription></DialogHeader>
-          <div className="min-h-0 flex-1 overflow-auto rounded-lg border bg-slate-100">{reportDocumentHtml ? <iframe ref={reportPreviewRef} title="Vehicle purchase invoice report preview" srcDoc={reportDocumentHtml} className="h-[min(70dvh,850px)] min-h-[480px] w-full bg-white" /> : <div className="flex h-[min(70dvh,850px)] min-h-[480px] items-center justify-center text-sm text-muted-foreground"><LocalizedText>No report document is prepared.</LocalizedText></div>}</div>
-          <DialogFooter className="shrink-0 flex-wrap gap-2"><Button type="button" variant="outline" onClick={printPurchaseInvoiceReport} disabled={!reportDocumentHtml || reportBusy}><Printer className="me-2 h-4 w-4" /><LocalizedText>Print report</LocalizedText></Button><Button type="button" onClick={() => void downloadPurchaseInvoiceReport()} disabled={!reportDocumentHtml || reportBusy}><Download className="me-2 h-4 w-4" />{reportBusy ? <LocalizedText>Preparing PDF…</LocalizedText> : <LocalizedText>Download report PDF</LocalizedText>}</Button><Button type="button" variant="ghost" onClick={() => setReportDialogOpen(false)}><LocalizedText>Close</LocalizedText></Button></DialogFooter>
+        <DialogContent className="flex max-h-[96dvh] max-w-6xl flex-col overflow-hidden p-4 sm:p-6"><DialogHeader className="shrink-0"><DialogTitle><LocalizedText>Vehicle purchase invoice report</LocalizedText></DialogTitle><DialogDescription><LocalizedText>A4 portrait report with a scannable link to its online PDF. Vehicle expense and input VAT are debits; vendor payable is a credit.</LocalizedText></DialogDescription></DialogHeader>
+          <div className="min-h-0 flex-1 overflow-auto rounded-lg border bg-slate-100">{reportPdf.url ? <iframe ref={reportPreviewRef} title="Vehicle purchase invoice report preview" src={reportPdf.url} className="h-[min(70dvh,850px)] min-h-[480px] w-full bg-white" /> : <div className="flex h-[min(70dvh,850px)] min-h-[480px] items-center justify-center text-sm text-muted-foreground">{reportPdf.error || (reportPdf.loading ? 'Preparing report PDF preview…' : 'No report document is prepared.')}</div>}</div>
+          <DialogFooter className="shrink-0 flex-wrap gap-2"><Button type="button" variant="outline" asChild disabled={!reportPdf.url}><a href={reportPdf.url || undefined} target="_blank" rel="noreferrer"><ExternalLink className="me-2 h-4 w-4" /><LocalizedText>Open PDF</LocalizedText></a></Button>{reportShareUrl && <Button type="button" variant="outline" asChild><a href={reportShareUrl} target="_blank" rel="noreferrer"><ExternalLink className="me-2 h-4 w-4" /><LocalizedText>Open report link</LocalizedText></a></Button>}<Button type="button" variant="outline" onClick={printPurchaseInvoiceReport} disabled={!reportPdf.url || reportBusy}><Printer className="me-2 h-4 w-4" /><LocalizedText>Print report</LocalizedText></Button><Button type="button" onClick={() => void downloadPurchaseInvoiceReport()} disabled={!reportPdf.url || reportBusy}><Download className="me-2 h-4 w-4" />{reportBusy ? <LocalizedText>Preparing PDF…</LocalizedText> : <LocalizedText>Download report PDF</LocalizedText>}</Button><Button type="button" variant="ghost" onClick={() => setReportDialogOpen(false)}><LocalizedText>Close</LocalizedText></Button></DialogFooter>
         </DialogContent>
       </Dialog>
 

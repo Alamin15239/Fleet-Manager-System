@@ -1,11 +1,12 @@
-interface PurchaseInvoicePdfOptions {
+export interface PurchaseInvoicePdfOptions {
   orientation?: 'portrait' | 'landscape'
   pageSelector?: string
   pageWidthPx?: number
   pageHeightPx?: number
 }
 
-export async function downloadPurchaseInvoicePdf(documentHtml: string, filename: string, options: PurchaseInvoicePdfOptions = {}) {
+/** Render report or invoice HTML into a PDF Blob suitable for inline browser viewing. */
+export async function createPurchaseInvoicePdfBlob(documentHtml: string, options: PurchaseInvoicePdfOptions = {}): Promise<Blob> {
   const [{ default: html2canvas }, { jsPDF }] = await Promise.all([import('html2canvas'), import('jspdf')])
   const orientation = options.orientation || 'portrait'
   const pageWidthPx = options.pageWidthPx || 794
@@ -32,7 +33,7 @@ export async function downloadPurchaseInvoicePdf(documentHtml: string, filename:
 
     await Promise.all(Array.from(frameDocument.images).map((image) => image.complete ? Promise.resolve() : new Promise<void>((resolve, reject) => {
       image.onload = () => resolve()
-      image.onerror = () => reject(new Error('Unable to load the invoice QR code'))
+      image.onerror = () => reject(new Error('Unable to load an image in the PDF'))
     })))
 
     const pages = Array.from(frameDocument.querySelectorAll<HTMLElement>(pageSelector))
@@ -62,8 +63,20 @@ export async function downloadPurchaseInvoicePdf(documentHtml: string, filename:
       }
     }
 
-    pdf.save(filename)
+    return pdf.output('blob')
   } finally {
     frame?.remove()
   }
+}
+
+export async function downloadPurchaseInvoicePdf(documentHtml: string, filename: string, options: PurchaseInvoicePdfOptions = {}) {
+  const blob = await createPurchaseInvoicePdfBlob(documentHtml, options)
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000)
 }

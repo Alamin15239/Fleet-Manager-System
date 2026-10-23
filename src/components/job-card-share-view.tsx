@@ -3,9 +3,9 @@ import { LocalizedText } from '@/components/localized-text'
 
 import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'next/navigation'
-import { Download, Printer } from 'lucide-react'
+import { Download, ExternalLink, Loader2, Printer } from 'lucide-react'
 import { renderJobCardDocument } from '@/lib/job-card-document'
-import { downloadJobCardPdf } from '@/lib/job-card-pdf'
+import { createJobCardPdfBlob, downloadJobCardPdf } from '@/lib/job-card-pdf'
 
 export default function JobCardShareView() {
   const params = useParams<{ id: string }>()
@@ -17,6 +17,8 @@ export default function JobCardShareView() {
   const [loading, setLoading] = useState(true)
   const [downloading, setDownloading] = useState(false)
   const [error, setError] = useState('')
+  const [pdfUrl, setPdfUrl] = useState('')
+  const [pdfLoading, setPdfLoading] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -46,6 +48,22 @@ export default function JobCardShareView() {
     return () => { cancelled = true }
   }, [id])
 
+  useEffect(() => {
+    let cancelled = false
+    let objectUrl = ''
+    setPdfUrl('')
+    if (!documentHtml) { setPdfLoading(false); return }
+    setPdfLoading(true)
+    void createJobCardPdfBlob(documentHtml).then(blob => {
+      if (cancelled) return
+      objectUrl = URL.createObjectURL(blob)
+      setPdfUrl(objectUrl)
+    }).catch(cause => {
+      if (!cancelled) setError(cause instanceof Error ? cause.message : 'Unable to prepare the job-card PDF')
+    }).finally(() => { if (!cancelled) setPdfLoading(false) })
+    return () => { cancelled = true; if (objectUrl) URL.revokeObjectURL(objectUrl) }
+  }, [documentHtml])
+
   const downloadPdf = async () => {
     if (!documentHtml) return
     setDownloading(true)
@@ -72,12 +90,13 @@ export default function JobCardShareView() {
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-800">{companyName}</p>
           <h1 className="text-lg font-semibold">{jobNumber}</h1>
         </div>
-        {documentHtml && <div className="flex gap-2">
+        {pdfUrl && <div className="flex flex-wrap gap-2">
+          <button type="button" onClick={() => window.open(pdfUrl, '_blank', 'noopener,noreferrer')} className="inline-flex min-h-10 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 text-sm font-medium shadow-sm hover:bg-slate-50"><ExternalLink className="h-4 w-4"/><LocalizedText>Open PDF in browser</LocalizedText></button>
           <button type="button" onClick={print} className="inline-flex min-h-10 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 text-sm font-medium shadow-sm hover:bg-slate-50"><Printer className="h-4 w-4"/>Print</button>
           <button type="button" onClick={downloadPdf} disabled={downloading} className="inline-flex min-h-10 items-center gap-2 rounded-md bg-emerald-800 px-3 text-sm font-semibold text-white shadow-sm hover:bg-emerald-900 disabled:cursor-wait disabled:opacity-60"><Download className="h-4 w-4"/>{downloading ? 'Preparing PDF…' : 'Download PDF'}</button>
         </div>}
       </div>
-      {error ? <div role="alert" className="mx-4 mt-6 rounded-lg border border-red-200 bg-white p-5 text-sm text-red-700 sm:mx-auto sm:max-w-2xl">{error}</div> : loading ? <div className="px-4 py-16 text-center text-sm text-slate-600"><LocalizedText>Loading job card…</LocalizedText></div> : <div className="mx-auto max-w-6xl px-2 pb-6 sm:px-6"><iframe ref={previewRef} title={`${jobNumber} PDF preview`} srcDoc={documentHtml} className="h-[calc(100dvh-88px)] min-h-[640px] w-full rounded-lg border border-slate-300 bg-white shadow-lg"/></div>}
+      {error ? <div role="alert" className="mx-4 mt-6 rounded-lg border border-red-200 bg-white p-5 text-sm text-red-700 sm:mx-auto sm:max-w-2xl">{error}</div> : loading || pdfLoading ? <div className="flex items-center justify-center gap-2 px-4 py-16 text-sm text-slate-600"><Loader2 className="h-4 w-4 animate-spin"/><LocalizedText>Preparing job-card PDF…</LocalizedText></div> : pdfUrl ? <div className="mx-auto max-w-6xl px-2 pb-6 sm:px-6"><iframe ref={previewRef} title={`${jobNumber} PDF`} src={pdfUrl} className="h-[calc(100dvh-88px)] min-h-[640px] w-full rounded-lg border border-slate-300 bg-white shadow-lg"/></div> : null}
     </main>
   )
 }

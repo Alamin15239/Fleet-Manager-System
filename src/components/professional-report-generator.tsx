@@ -329,6 +329,26 @@ export default function ProfessionalReportGenerator() {
     }
   }
 
+  const viewReportPdf = async () => {
+    if (!reportData || reportData?.isEmpty || selectedTires.length === 0) return
+    const viewer = window.open('about:blank', '_blank')
+    if (!viewer) { setError('Allow pop-ups to view the PDF in a new browser tab'); return }
+    viewer.document.write('<!doctype html><title>Preparing tire report PDF</title><p style="font:16px Arial;padding:24px">Preparing PDF…</p>')
+    setGenerating(true)
+    setError(null)
+    try {
+      const blob = await generatePDFContent()
+      const url = URL.createObjectURL(blob)
+      viewer.location.href = url
+      window.setTimeout(() => URL.revokeObjectURL(url), 60000)
+    } catch (cause) {
+      viewer.close()
+      setError(cause instanceof Error ? cause.message : 'Unable to prepare the PDF')
+    } finally {
+      setGenerating(false)
+    }
+  }
+
   const generateCSVContent = () => {
     // Report Header Section
     const reportHeader = [
@@ -1287,7 +1307,16 @@ export default function ProfessionalReportGenerator() {
               <X className="mr-2 h-4 w-4" />
               Close
             </Button>
-            <Button 
+            {reportConfig.format === 'pdf' && <Button
+              variant="outline"
+              onClick={viewReportPdf}
+              disabled={generating || !reportData || reportData?.isEmpty || !reportData?.tires || selectedTires.length === 0}
+              className="w-full sm:w-auto"
+            >
+              <Eye className="mr-2 h-4 w-4" />
+              <LocalizedText>Open PDF in browser</LocalizedText>
+            </Button>}
+            <Button
               onClick={downloadReport} 
               disabled={!reportData || reportData?.isEmpty || !reportData?.tires || selectedTires.length === 0}
               className="w-full sm:w-auto"
