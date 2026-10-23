@@ -32,6 +32,14 @@ const GOOGLE_AUTH_ERROR_KEYS: Record<string, string> = {
   failed: 'auth.googleFailed',
 }
 
+function getPostLoginRedirect() {
+  const requestedRedirect = localStorage.getItem('redirectAfterLogin')
+  localStorage.removeItem('redirectAfterLogin')
+  return requestedRedirect?.startsWith('/') && requestedRedirect !== '/' && !requestedRedirect.startsWith('//')
+    ? requestedRedirect
+    : '/dashboard'
+}
+
 export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [organizationSlug, setOrganizationSlug] = useState('')
@@ -86,10 +94,7 @@ export default function LoginPage() {
 
       localStorage.setItem('authToken', data.token)
       localStorage.setItem('user', JSON.stringify(data.user))
-      const requestedRedirect = localStorage.getItem('redirectAfterLogin') || '/'
-      localStorage.removeItem('redirectAfterLogin')
-      const redirectPath = requestedRedirect.startsWith('/') && !requestedRedirect.startsWith('//') ? requestedRedirect : '/'
-      window.location.replace(redirectPath)
+      window.location.replace(getPostLoginRedirect())
     } catch (passkeyError) {
       setError(t(passkeyError instanceof Error ? passkeyError.message : 'Passkey sign-in failed. Please try again.'))
       setPasskeyLoading(false)
@@ -149,12 +154,7 @@ export default function LoginPage() {
 
             localStorage.setItem('authToken', data.token)
             localStorage.setItem('user', JSON.stringify(data.user))
-            const requestedRedirect = localStorage.getItem('redirectAfterLogin') || '/'
-            localStorage.removeItem('redirectAfterLogin')
-            const redirectPath = requestedRedirect.startsWith('/') && !requestedRedirect.startsWith('//')
-              ? requestedRedirect
-              : '/'
-            window.location.replace(redirectPath)
+            window.location.replace(getPostLoginRedirect())
           } catch {
             console.error('Could not finish Google sign-in')
             setGoogleErrorCode('session')
@@ -214,9 +214,7 @@ export default function LoginPage() {
         setIsRedirecting(true)
         toast.success('Login successful!')
         
-        const redirectPath = localStorage.getItem('redirectAfterLogin') || '/'
-        localStorage.removeItem('redirectAfterLogin')
-        window.location.href = redirectPath
+        window.location.href = getPostLoginRedirect()
       }
     } catch (error: any) {
       console.error('Login error:', error)
@@ -238,9 +236,7 @@ export default function LoginPage() {
         setIsRedirecting(true)
         toast.success('Login successful!')
         
-        const redirectPath = localStorage.getItem('redirectAfterLogin') || '/'
-        localStorage.removeItem('redirectAfterLogin')
-        window.location.href = redirectPath
+        window.location.href = getPostLoginRedirect()
       }
     } catch (error: any) {
       console.error('Login error:', error)
