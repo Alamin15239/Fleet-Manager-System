@@ -1,7 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
+import { useEffect } from 'react'
 import { ShieldAlert, ShieldCheck } from 'lucide-react'
 import { usePermissions } from '@/contexts/permissions-context'
 import { useLanguage } from '@/contexts/language-context'
@@ -63,9 +64,19 @@ function getRouteAccess(pathname: string | null) {
 
 export function RoutePermissionGuard({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
+  const router = useRouter()
   const { hasPermission, loading, permissionManager, refreshPermissions } = usePermissions()
   const { t } = useLanguage()
   const access = getRouteAccess(pathname)
+  const destination = availablePages.find(page => hasPermission(page.resource, page.action || 'read'))
+
+  // A user can sign in successfully while their role has dashboard access
+  // disabled. Send them to an app section they can use instead of leaving them
+  // on a dashboard denial screen immediately after login.
+  useEffect(() => {
+    if (loading || access?.path !== '/dashboard' || hasPermission('dashboard', 'read') || !destination) return
+    router.replace(destination.path)
+  }, [access?.path, destination?.path, hasPermission, loading, router])
 
   if (!access) return <>{children}</>
 
@@ -89,7 +100,6 @@ export function RoutePermissionGuard({ children }: { children: React.ReactNode }
   }
 
   if (!hasPermission(access.resource, access.action || 'read')) {
-    const destination = availablePages.find(page => hasPermission(page.resource, page.action || 'read'))
     return (
       <div className="mx-auto flex min-h-[55vh] w-full max-w-xl items-center px-4">
         <Card className="w-full shadow-sm">
