@@ -391,6 +391,25 @@ model Organization {
   failureReason        String?
   oneDriveAccountId        String?
   oneDriveAccountEmailHash String?
+  billingProvider          String?
+  billingStatus            String?
+  billingAmountMinor       Int?
+  billingCurrency          String?
+  billingCurrentPeriodStart DateTime?
+  billingCurrentPeriodEnd   DateTime?
+  billingGraceUntil         DateTime?
+  billingCancelAtPeriodEnd  Boolean            @default(false)
+  billingConsentAt          DateTime?
+  billingConsentVersion     String?
+  billingLastAttemptAt      DateTime?
+  billingAttemptId          String?
+  tapCustomerId             String?
+  tapCardId                 String?
+  tapCardBrand              String?
+  tapCardLast4              String?
+  tapPaymentAgreementId     String?
+  tapPendingChargeId        String?
+  tapRenewalLockUntil       DateTime?
   createdAt            DateTime           @default(now())
   updatedAt            DateTime           @updatedAt
 
@@ -398,6 +417,26 @@ model Organization {
   @@index([oneDriveAccountId])
   @@index([oneDriveAccountEmailHash])
   @@map("organizations")
+}
+
+model OrganizationBillingPayment {
+  id             String   @id @default(cuid())
+  organizationId String
+  provider       String
+  providerReference String @unique
+  kind           String
+  amountMinor    Int
+  currency       String   @default("SAR")
+  status         String
+  periodStart    DateTime?
+  periodEnd      DateTime?
+  failureReason  String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([organizationId, createdAt])
+  @@index([status, createdAt])
+  @@map("organization_billing_payments")
 }
 
 model Vendor {

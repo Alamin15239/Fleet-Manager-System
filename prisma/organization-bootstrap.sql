@@ -346,10 +346,47 @@ CREATE TABLE "organizations" (
     "failureReason" TEXT,
     "oneDriveAccountId" TEXT,
     "oneDriveAccountEmailHash" TEXT,
+    "billingProvider" TEXT,
+    "billingStatus" TEXT,
+    "billingAmountMinor" INTEGER,
+    "billingCurrency" TEXT,
+    "billingCurrentPeriodStart" TIMESTAMP(3),
+    "billingCurrentPeriodEnd" TIMESTAMP(3),
+    "billingGraceUntil" TIMESTAMP(3),
+    "billingCancelAtPeriodEnd" BOOLEAN NOT NULL DEFAULT false,
+    "billingConsentAt" TIMESTAMP(3),
+    "billingConsentVersion" TEXT,
+    "billingLastAttemptAt" TIMESTAMP(3),
+    "billingAttemptId" TEXT,
+    "tapCustomerId" TEXT,
+    "tapCardId" TEXT,
+    "tapCardBrand" TEXT,
+    "tapCardLast4" TEXT,
+    "tapPaymentAgreementId" TEXT,
+    "tapPendingChargeId" TEXT,
+    "tapRenewalLockUntil" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "organizations_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "organization_billing_payments" (
+    "id" TEXT NOT NULL,
+    "organizationId" TEXT NOT NULL,
+    "provider" TEXT NOT NULL,
+    "providerReference" TEXT NOT NULL,
+    "kind" TEXT NOT NULL,
+    "amountMinor" INTEGER NOT NULL,
+    "currency" TEXT NOT NULL DEFAULT 'SAR',
+    "status" TEXT NOT NULL,
+    "periodStart" TIMESTAMP(3),
+    "periodEnd" TIMESTAMP(3),
+    "failureReason" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    CONSTRAINT "organization_billing_payments_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -694,6 +731,15 @@ CREATE INDEX "organizations_oneDriveAccountEmailHash_idx" ON "organizations"("on
 
 -- CreateIndex
 CREATE INDEX "organizations_status_idx" ON "organizations"("status");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "organization_billing_payments_providerReference_key" ON "organization_billing_payments"("providerReference");
+
+-- CreateIndex
+CREATE INDEX "organization_billing_payments_organizationId_createdAt_idx" ON "organization_billing_payments"("organizationId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "organization_billing_payments_status_createdAt_idx" ON "organization_billing_payments"("status", "createdAt");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "vendors_vatRegistration_key" ON "vendors"("vatRegistration");

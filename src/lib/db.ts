@@ -13,6 +13,9 @@ export type OrganizationRecord = {
   encryptedDatabaseUrl: string | null
   oneDriveAccountId: string | null
   oneDriveAccountEmailHash: string | null
+  billingStatus?: string | null
+  billingCurrentPeriodEnd?: Date | null
+  billingGraceUntil?: Date | null
 }
 
 type DatabaseScope = { organizationId: string; client: PrismaClient }
@@ -155,13 +158,31 @@ export async function findOrganizationBySlug(slug?: string | null): Promise<Orga
   const normalizedSlug = slug.trim().toLowerCase()
   const organization = await (controlDb as any).organization.findUnique({ where: { slug: normalizedSlug } }) as OrganizationRecord | null
   if (!organization || organization.status !== 'ACTIVE') throw new Error('Organization was not found or is not ready')
+  assertOrganizationSubscriptionAccess(organization)
   return organization
 }
 
 export async function findOrganizationById(id: string): Promise<OrganizationRecord> {
   const organization = await (controlDb as any).organization.findUnique({ where: { id } }) as OrganizationRecord | null
   if (!organization || organization.status !== 'ACTIVE') throw new Error('Organization was not found or is not ready')
+  assertOrganizationSubscriptionAccess(organization)
   return organization
+}
+
+function assertOrganizationSubscriptionAccess(organization: OrganizationRecord) {
+  const billingStatus = organization.billingStatus?.toUpperCase()
+  if (!billingStatus) return
+  const now = Date.now()
+  const periodEnd = organization.billingCurrentPeriodEnd?.getTime() ?? 0
+  const graceEnd = organization.billingGraceUntil?.getTime() ?? 0
+  // The daily renewal job can run shortly before/after a plan's anniversary.
+  // Keep the workspace available for up to 36 hours while the Tap result lands.
+  const renewalProcessingWindow = 36 * 60 * 60 * 1000
+  const hasActiveTerm = ['ACTIVE', 'PAST_DUE', 'CANCEL_AT_PERIOD_END'].includes(billingStatus) && periodEnd + renewalProcessingWindow > now
+  const hasGraceAccess = billingStatus === 'PAST_DUE' && graceEnd > now
+  if (!hasActiveTerm && !hasGraceAccess) {
+    throw new Error('This organization subscription has expired. Contact the organization owner to renew it.')
+  }
 }
 
 export class OneDriveAccountAlreadyConnectedError extends Error {
@@ -340,6 +361,7 @@ export async function getRequestOrganization(): Promise<OrganizationRecord> {
 
 export async function getOrganizationPrismaClient(organization: OrganizationRecord): Promise<PrismaClient> {
   if (organization.status !== 'ACTIVE') throw new Error('Organization is not ready')
+  assertOrganizationSubscriptionAccess(organization)
   if (organization.isPrimary) return controlDb
   if (!organization.encryptedDatabaseUrl) throw new Error('Organization database is not configured')
 
