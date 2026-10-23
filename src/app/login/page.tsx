@@ -1,9 +1,9 @@
 'use client'
 import { LocalizedText } from '@/components/localized-text'
 
-import { useState, useEffect, useRef, Suspense } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Image from 'next/image'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -17,20 +17,6 @@ import { useLanguage } from '@/contexts/language-context'
 import { TruckLoader } from '@/components/ui/truck-loader'
 import Link from 'next/link'
 import { LegalDocumentLinks } from '@/components/legal-document-links'
-
-function SearchParamsHandler() {
-  const searchParams = useSearchParams()
-  
-  useEffect(() => {
-    // Check for redirect parameter
-    const redirect = searchParams?.get('redirect')
-    if (redirect) {
-      localStorage.setItem('redirectAfterLogin', redirect)
-    }
-  }, [searchParams])
-  
-  return null
-}
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -77,7 +63,10 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      setOrganizationSlug(new URLSearchParams(window.location.search).get('org') || '')
+      const searchParams = new URLSearchParams(window.location.search)
+      setOrganizationSlug(searchParams.get('org') || '')
+      const redirect = searchParams.get('redirect')
+      if (redirect) localStorage.setItem('redirectAfterLogin', redirect)
       setOrganizationResolved(true)
     }
   }, [])
@@ -183,6 +172,9 @@ export default function LoginPage() {
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
         <div className="text-center">
           <TruckLoader size="md" className="mx-auto mb-4" />
+          <h1 className="mb-2 text-2xl font-bold text-gray-900 dark:text-white">
+            {t('Sign in to Fleet Manager Pro')}
+          </h1>
           <p className="text-gray-600 dark:text-gray-400">
             {isRedirecting ? 'Redirecting...' : 'Loading...'}
           </p>
@@ -192,12 +184,6 @@ export default function LoginPage() {
   }
 
   return (
-    <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
-        <TruckLoader size="lg" className="mx-auto" />
-      </div>
-    }>
-      <SearchParamsHandler />
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
       <div className="w-full max-w-md space-y-8">
         {/* Logo and Title */}
@@ -206,7 +192,7 @@ export default function LoginPage() {
             <Image src="/fleet-manager-mark.svg" alt="Fleet Manager Pro" width={72} height={72} priority className="h-[4.5rem] w-[4.5rem] rounded-2xl shadow-lg shadow-blue-950/15" />
           </div>
           <h1 className="mt-6 text-3xl font-bold text-gray-900 dark:text-white">
-            {t('auth.welcome')}
+            {t('Sign in to Fleet Manager Pro')}
           </h1>
           <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
             {t('auth.loginSubtitle')}
@@ -438,6 +424,5 @@ export default function LoginPage() {
         </Card>
       </div>
     </div>
-    </Suspense>
   )
 }

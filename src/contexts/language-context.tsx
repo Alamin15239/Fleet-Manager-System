@@ -1520,6 +1520,7 @@ const phraseTranslations: Record<string, string> = {
   'Document Preview': 'معاينة المستند',
   'Could not read dates. Enter the dates manually.': 'تعذرت قراءة التواريخ. أدخل التواريخ يدويًا.',
   'Dates detected. Change them if needed.': 'تم اكتشاف التواريخ. عدّلها إذا لزم الأمر.',
+  'Sign in to Fleet Manager Pro': 'تسجيل الدخول إلى Fleet Manager Pro',
   'Drop files here or click to upload': 'أفلت الملفات هنا أو انقر لرفعها',
   'Email Verified Successfully!': 'تم التحقق من البريد الإلكتروني بنجاح!',
   'Explore Analytics': 'استكشف التحليلات',
