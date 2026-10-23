@@ -1,7 +1,10 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { ArrowRight, BadgeCheck, Building2, CircleDot, ClipboardCheck, FileText, ShieldCheck, Truck, Wrench } from 'lucide-react'
-import { annualOrganizationPriceSar, isTapBillingReady } from '@/lib/organization-billing'
+import { annualOrganizationPriceSar, isOrganizationBillingReady, organizationBillingProvider } from '@/lib/organization-billing'
+import { getConfiguredPaddlePrice } from '@/lib/paddle-billing'
+
+export const dynamic = 'force-dynamic'
 
 export const metadata: Metadata = {
   title: 'Annual Fleet Management Plan | Fleet Manager Pro',
@@ -17,9 +20,21 @@ const included = [
   { icon: ClipboardCheck, title: 'A separate company workspace and database' }
 ]
 
-export default function PricingPage() {
-  const price = annualOrganizationPriceSar()
-  const ready = isTapBillingReady()
+export default async function PricingPage() {
+  const provider = organizationBillingProvider()
+  const ready = isOrganizationBillingReady()
+  let priceMinor = annualOrganizationPriceSar() * 100
+  let currency = 'SAR'
+  if (provider === 'PADDLE' && ready) {
+    try {
+      const paddlePrice = await getConfiguredPaddlePrice()
+      priceMinor = Number(paddlePrice.unit_price?.amount)
+      currency = String(paddlePrice.unit_price?.currency_code || 'USD').toUpperCase()
+    } catch (error) {
+      console.error('Paddle annual price could not be loaded for pricing page:', error instanceof Error ? error.message : 'Unknown error')
+    }
+  }
+  const price = new Intl.NumberFormat('en', { style: 'currency', currency, maximumFractionDigits: 2 }).format(priceMinor / 100)
   return (
     <main className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-blue-50 px-5 py-8 text-slate-950 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900 dark:text-slate-50 sm:py-14">
       <div className="mx-auto max-w-5xl">
@@ -39,10 +54,10 @@ export default function PricingPage() {
             <h2 className="mt-6 text-2xl font-bold">Organization plan</h2>
             <p className="mt-2 text-sm leading-6 text-blue-100">One annual subscription creates a separate workspace and provisions an isolated fleet database after payment.</p>
             <div className="mt-8 flex items-end gap-2">
-              <span className="text-4xl font-bold">SAR {price.toLocaleString('en-US')}</span>
+              <span className="text-4xl font-bold">{price}</span>
               <span className="pb-1 text-sm text-blue-100">/ year</span>
             </div>
-            <p className="mt-2 text-xs text-blue-100">Annual auto-renewal. Cancel renewal from the workspace billing page.</p>
+            <p className="mt-2 text-xs text-blue-100">Annual auto-renewal. Cancel renewal from the workspace billing page. Tax and localized currency are shown at checkout.</p>
             <Link href="/purchase" className="mt-7 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-white px-5 py-3 font-semibold text-blue-900 transition hover:bg-blue-50">
               Purchase annual plan <ArrowRight className="h-4 w-4" />
             </Link>
@@ -62,7 +77,7 @@ export default function PricingPage() {
             <div className="mt-7 rounded-2xl border border-blue-100 bg-blue-50/80 p-4 text-sm leading-6 text-blue-950 dark:border-blue-300/10 dark:bg-blue-400/5 dark:text-blue-100">
               Your fleet records stay separate from other organizations. The plan renews annually until the organization administrator cancels it.
             </div>
-            <p className="mt-4 text-xs leading-5 text-slate-500 dark:text-slate-400">Payments are processed on Tap’s secure checkout. The app does not collect or store full card details.</p>
+            <p className="mt-4 text-xs leading-5 text-slate-500 dark:text-slate-400">Payments are processed through secure hosted checkout. Fleet Manager does not collect or store full card details.</p>
           </div>
         </section>
         <p className="mt-7 text-center text-sm text-slate-500 dark:text-slate-400">Questions about a larger fleet? <a className="font-medium text-blue-700 underline underline-offset-4 dark:text-blue-300" href="mailto:alaminkhan.xiaomi@gmail.com">Contact us</a>.</p>

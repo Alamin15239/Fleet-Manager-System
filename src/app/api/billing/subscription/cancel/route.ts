@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth'
 import { controlDb } from '@/lib/db'
+import { updatePaddleSubscriptionRenewal } from '@/lib/paddle-billing'
 
 export const dynamic = 'force-dynamic'
 
@@ -12,7 +13,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'The original workspace does not have a paid subscription to cancel.' }, { status: 400 })
     }
     const organization = await (controlDb as any).organization.findUnique({ where: { id: user.organizationId } })
-    if (!organization || organization.billingProvider !== 'TAP' || !['ACTIVE', 'PAST_DUE', 'CANCEL_AT_PERIOD_END'].includes(organization.billingStatus)) {
+    if (!organization || !['TAP', 'PADDLE'].includes(organization.billingProvider) || !['ACTIVE', 'PAST_DUE', 'CANCEL_AT_PERIOD_END'].includes(organization.billingStatus)) {
       return NextResponse.json({ error: 'There is no active annual subscription to change.' }, { status: 409 })
     }
     if (!organization.billingCurrentPeriodEnd || organization.billingCurrentPeriodEnd <= new Date()) {
@@ -21,6 +22,15 @@ export async function POST(request: NextRequest) {
     const action = (await request.json().catch(() => ({})))?.action
     if (action !== 'cancel' && action !== 'resume') return NextResponse.json({ error: 'Choose cancel or resume.' }, { status: 400 })
     const cancel = action === 'cancel'
+    if (organization.billingProvider === 'PADDLE') {
+      if (!organization.paddleSubscriptionId) return NextResponse.json({ error: 'Paddle has not linked a subscription to this workspace yet.' }, { status: 409 })
+      try {
+        await updatePaddleSubscriptionRenewal(organization.paddleSubscriptionId, action)
+      } catch (error) {
+        console.error('Paddle subscription renewal setting could not be changed:', error instanceof Error ? error.message : 'Unknown error')
+        return NextResponse.json({ error: 'Paddle could not update the subscription. Please try again.' }, { status: 502 })
+      }
+    }
     await (controlDb as any).organization.update({
       where: { id: organization.id },
       data: { billingCancelAtPeriodEnd: cancel, billingStatus: cancel ? 'CANCEL_AT_PERIOD_END' : 'ACTIVE' }

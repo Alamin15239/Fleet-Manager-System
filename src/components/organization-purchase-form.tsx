@@ -4,12 +4,34 @@ import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { ArrowLeft, ArrowRight, LoaderCircle, ShieldCheck } from 'lucide-react'
 
+async function loadPaddleScript() {
+  const browser = window as any
+  if (browser.Paddle) return browser.Paddle
+  await new Promise<void>((resolve, reject) => {
+    const existing = document.querySelector<HTMLScriptElement>('script[data-paddle-js="true"]')
+    if (existing) {
+      existing.addEventListener('load', () => resolve(), { once: true })
+      existing.addEventListener('error', () => reject(new Error('Could not load Paddle checkout.')), { once: true })
+      return
+    }
+    const script = document.createElement('script')
+    script.src = 'https://cdn.paddle.com/paddle/v2/paddle.js'
+    script.async = true
+    script.dataset.paddleJs = 'true'
+    script.onload = () => resolve()
+    script.onerror = () => reject(new Error('Could not load Paddle checkout.'))
+    document.head.appendChild(script)
+  })
+  if (!browser.Paddle) throw new Error('Paddle checkout did not initialize.')
+  return browser.Paddle
+}
+
 function slugFromName(value: string) {
   return value.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
     .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 48)
 }
 
-export function OrganizationPurchaseForm({ annualPriceSar, available }: { annualPriceSar: number; available: boolean }) {
+export function OrganizationPurchaseForm({ annualPriceMinor, currency, available }: { annualPriceMinor: number; currency: string; available: boolean }) {
   const [name, setName] = useState('')
   const [slug, setSlug] = useState('')
   const [slugTouched, setSlugTouched] = useState(false)
@@ -20,7 +42,7 @@ export function OrganizationPurchaseForm({ annualPriceSar, available }: { annual
   const [agree, setAgree] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
-  const price = useMemo(() => `SAR ${annualPriceSar.toLocaleString('en-US')}`, [annualPriceSar])
+  const price = useMemo(() => new Intl.NumberFormat('en', { style: 'currency', currency, maximumFractionDigits: 2 }).format(annualPriceMinor / 100), [annualPriceMinor, currency])
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -34,6 +56,28 @@ export function OrganizationPurchaseForm({ annualPriceSar, available }: { annual
       })
       const result = await response.json().catch(() => ({}))
       if (!response.ok) throw new Error(result.error || 'Could not start secure checkout.')
+      if (result.provider === 'PADDLE' && result.paddle) {
+        const paddle = await loadPaddleScript()
+        const browser = window as any
+        if (!browser.__fleetPaddleInitialized) {
+          if (result.paddle.environment === 'sandbox') paddle.Environment.set('sandbox')
+          paddle.Initialize({
+            token: result.paddle.clientToken,
+            eventCallback: (event: any) => {
+              if (event?.name === 'checkout.error') setError(event?.data?.detail || 'Paddle could not open checkout. Please try again.')
+            }
+          })
+          browser.__fleetPaddleInitialized = true
+        }
+        paddle.Checkout.open({
+          items: [{ priceId: result.paddle.priceId, quantity: 1 }],
+          customer: { email: result.paddle.customerEmail },
+          customData: { organizationId: result.paddle.organizationId, attemptId: result.paddle.attemptId },
+          settings: { successUrl: result.paddle.successUrl }
+        })
+        setSaving(false)
+        return
+      }
       if (!result.redirectUrl) throw new Error('Secure checkout did not return a payment link.')
       window.location.assign(result.redirectUrl)
     } catch (caught) {
@@ -50,7 +94,7 @@ export function OrganizationPurchaseForm({ annualPriceSar, available }: { annual
           <section className="rounded-3xl border border-slate-200 bg-white/90 p-6 shadow-lg dark:border-white/10 dark:bg-slate-900/85 sm:p-8">
             <h1 className="text-2xl font-bold tracking-tight">Set up your organization</h1>
             <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">After successful payment, Fleet Manager creates a separate database and sends the first administrator to the workspace sign-in.</p>
-            {!available && <div className="mt-5 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950 dark:border-amber-300/20 dark:bg-amber-400/10 dark:text-amber-100">Secure checkout is not enabled yet. The app owner must finish Tap merchant setup before purchases can be accepted.</div>}
+            {!available && <div className="mt-5 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950 dark:border-amber-300/20 dark:bg-amber-400/10 dark:text-amber-100">Secure checkout is not enabled yet. The app owner must finish payment provider setup before purchases can be accepted.</div>}
             {error && <div role="alert" className="mt-5 rounded-xl border border-red-300 bg-red-50 p-3 text-sm text-red-800 dark:border-red-400/20 dark:bg-red-400/10 dark:text-red-200">{error}</div>}
             <form className="mt-6 space-y-4" onSubmit={submit}>
               <div className="space-y-1.5"><label className="text-sm font-medium" htmlFor="purchase-company">Organization name</label><input id="purchase-company" required maxLength={80} value={name} onChange={(event) => { setName(event.target.value); if (!slugTouched) setSlug(slugFromName(event.target.value)) }} className="h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15 dark:border-white/15 dark:bg-slate-950" placeholder="Company name" /></div>
@@ -63,10 +107,10 @@ export function OrganizationPurchaseForm({ annualPriceSar, available }: { annual
               </div>
               <label className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs leading-5 dark:border-white/10 dark:bg-white/[0.03]">
                 <input type="checkbox" required checked={agree} onChange={(event) => setAgree(event.target.checked)} className="mt-1 h-4 w-4 shrink-0 accent-blue-700" />
-                <span>I authorize an annual renewal of {price} through Tap using the payment method saved there. I can cancel renewal from workspace billing before the next renewal date. I agree to the <Link href="/agreement" target="_blank" className="font-medium text-blue-700 underline dark:text-blue-300">user agreement</Link>.</span>
+                <span>I authorize the annual plan to renew automatically through the payment provider. I can cancel renewal from workspace billing before the next renewal date. I agree to the <Link href="/agreement" target="_blank" className="font-medium text-blue-700 underline dark:text-blue-300">user agreement</Link>.</span>
               </label>
               <button type="submit" disabled={!available || saving || !agree} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-blue-700 px-5 py-3 font-semibold text-white shadow-md shadow-blue-900/15 transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-55">
-                {saving ? <><LoaderCircle className="h-4 w-4 animate-spin" /> Opening secure checkout…</> : <>Continue to Tap checkout <ArrowRight className="h-4 w-4" /></>}
+                {saving ? <><LoaderCircle className="h-4 w-4 animate-spin" /> Opening secure checkout…</> : <>Continue to secure checkout <ArrowRight className="h-4 w-4" /></>}
               </button>
             </form>
           </section>
@@ -77,7 +121,7 @@ export function OrganizationPurchaseForm({ annualPriceSar, available }: { annual
             <div className="my-5 border-t border-blue-200 dark:border-white/10" />
             <div className="flex justify-between gap-4 text-sm"><span>Annual subscription</span><span>{price}</span></div>
             <div className="mt-2 flex justify-between gap-4 text-sm"><span>Billing frequency</span><span>Once per year</span></div>
-            <p className="mt-5 text-xs leading-5 text-slate-500 dark:text-slate-400">Tap hosts the card checkout and stores card information. Fleet Manager receives payment references needed for renewals, not the card number.</p>
+            <p className="mt-5 text-xs leading-5 text-slate-500 dark:text-slate-400">The listed price uses the plan currency. Paddle may show a localized currency and applicable tax before payment. Checkout is hosted securely; Fleet Manager does not receive full card details.</p>
           </aside>
         </div>
       </div>

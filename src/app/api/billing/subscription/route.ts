@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
       ? await (controlDb as any).organization.findUnique({ where: { id: user.organizationId } })
       : await getPrimaryOrganization()
     if (!organization) return NextResponse.json({ error: 'Workspace billing information was not found.' }, { status: 404 })
-    const payments = organization.billingProvider === 'TAP'
+    const payments = organization.billingProvider === 'TAP' || organization.billingProvider === 'PADDLE'
       ? await (controlDb as any).organizationBillingPayment.findMany({
           where: { organizationId: organization.id },
           orderBy: { createdAt: 'desc' },
@@ -36,9 +36,11 @@ export async function GET(request: NextRequest) {
         periodStart: organization.billingCurrentPeriodStart,
         periodEnd: organization.billingCurrentPeriodEnd,
         cancelAtPeriodEnd: organization.billingCancelAtPeriodEnd,
-        renewalConfigured: Boolean(organization.tapCustomerId && organization.tapCardId && organization.tapPaymentAgreementId),
-        cardBrand: organization.tapCardBrand,
-        cardLast4: organization.tapCardLast4,
+        renewalConfigured: organization.billingProvider === 'PADDLE'
+          ? Boolean(organization.paddleSubscriptionId)
+          : Boolean(organization.tapCustomerId && organization.tapCardId && organization.tapPaymentAgreementId),
+        cardBrand: organization.billingProvider === 'TAP' ? organization.tapCardBrand : null,
+        cardLast4: organization.billingProvider === 'TAP' ? organization.tapCardLast4 : null,
         payments
       } : null,
       canManage: user.role === 'ADMIN' && !organization.isPrimary

@@ -123,7 +123,7 @@ export default function BillingPage() {
           <CardHeader>
             <div className="mb-2 flex h-11 w-11 items-center justify-center rounded-xl bg-blue-500/10 text-blue-700 dark:text-blue-300"><Building2 className="h-5 w-5" /></div>
             <CardTitle>No paid plan found</CardTitle>
-            <CardDescription>This workspace does not have an annual subscription managed by Tap.</CardDescription>
+            <CardDescription>This workspace does not have an annual paid subscription.</CardDescription>
           </CardHeader>
           <CardContent><Link href="/pricing" className="inline-flex items-center gap-2 text-sm font-semibold text-blue-700 underline underline-offset-4 dark:text-blue-300">View the annual plan <ArrowUpRight className="h-4 w-4" /></Link></CardContent>
         </Card>
@@ -156,7 +156,7 @@ export default function BillingPage() {
                 ) : (
                   <div className="rounded-xl border border-blue-200 bg-blue-50/70 p-4 text-sm leading-6 text-blue-950 dark:border-blue-300/10 dark:bg-blue-400/5 dark:text-blue-100">Your plan renews once per year. You can cancel the next renewal here; workspace access remains active until the paid-through date.</div>
                 )}
-                {!subscription.renewalConfigured && <p className="text-sm text-amber-700 dark:text-amber-300">Tap has not returned the saved-card agreement required for automatic renewal. Contact support before relying on renewal.</p>}
+                {!subscription.renewalConfigured && <p className="text-sm text-amber-700 dark:text-amber-300">The payment provider has not linked a recurring subscription yet. Contact support before relying on renewal.</p>}
                 {state?.canManage && subscription.periodEnd && ['ACTIVE', 'PAST_DUE', 'CANCEL_AT_PERIOD_END'].includes(subscription.status) && (
                   <Button variant={subscription.cancelAtPeriodEnd ? 'default' : 'outline'} onClick={() => void changeRenewal(subscription.cancelAtPeriodEnd ? 'resume' : 'cancel')} disabled={saving} className="rounded-xl">
                     {saving ? <LoaderCircle className="me-2 h-4 w-4 animate-spin" /> : <CalendarDays className="me-2 h-4 w-4" />}
@@ -169,10 +169,10 @@ export default function BillingPage() {
             <Card className="rounded-2xl border-border/70 shadow-sm">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-emerald-600" /> Payment security</CardTitle>
-                <CardDescription>Card checkout is handled by Tap Payments.</CardDescription>
+                  <CardDescription>Card checkout is handled by {subscription.provider === 'PADDLE' ? 'Paddle' : 'Tap Payments'}.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-3 text-sm leading-6 text-muted-foreground">
-                <p>Fleet Manager stores Tap payment references for subscription renewal. It does not store full card numbers or security codes.</p>
+                <p>Fleet Manager stores payment and subscription references for renewal. It does not store full card numbers or security codes.</p>
                 <p>Questions about a charge or changing your card? <a className="font-medium text-blue-700 underline underline-offset-4 dark:text-blue-300" href="mailto:alaminkhan.xiaomi@gmail.com">Contact support</a>.</p>
               </CardContent>
             </Card>

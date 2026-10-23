@@ -51,7 +51,7 @@ export function PurchaseCompletionStatus() {
         <p className="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-300">
           {ready
             ? 'Payment is confirmed and the separate organization database has been provisioned. The first administrator can now sign in.'
-            : state?.error || 'Tap will send payment confirmation to Fleet Manager. The workspace opens once payment and database setup are complete.'}
+            : state?.error || 'The payment provider will send confirmation to Fleet Manager. The workspace opens once payment and database setup are complete.'}
         </p>
         {state?.error && <div className="mt-5 flex items-start gap-2 rounded-xl border border-amber-300 bg-amber-50 p-3 text-left text-xs leading-5 text-amber-950 dark:border-amber-300/20 dark:bg-amber-400/10 dark:text-amber-100"><CircleAlert className="mt-0.5 h-4 w-4 shrink-0" />{state.error}</div>}
         {state?.payment && !ready && <p className="mt-4 text-xs text-slate-500 dark:text-slate-400">Payment state: {state.payment} · setup state: {state.setup}</p>}

@@ -365,6 +365,9 @@ CREATE TABLE "organizations" (
     "tapPaymentAgreementId" TEXT,
     "tapPendingChargeId" TEXT,
     "tapRenewalLockUntil" TIMESTAMP(3),
+    "paddleCustomerId" TEXT,
+    "paddleSubscriptionId" TEXT,
+    "paddlePriceId" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -722,6 +725,7 @@ CREATE UNIQUE INDEX "organizations_slug_key" ON "organizations"("slug");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "organizations_neonProjectId_key" ON "organizations"("neonProjectId");
+CREATE UNIQUE INDEX "organizations_paddleSubscriptionId_key" ON "organizations"("paddleSubscriptionId");
 
 -- CreateIndex
 CREATE INDEX "organizations_oneDriveAccountId_idx" ON "organizations"("oneDriveAccountId");

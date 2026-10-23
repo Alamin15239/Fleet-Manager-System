@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server'
-import { annualOrganizationPriceSar, isTapBillingReady } from '@/lib/organization-billing'
+import { annualOrganizationPriceSar, isOrganizationBillingReady, organizationBillingProvider } from '@/lib/organization-billing'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET() {
   return NextResponse.json({
-    available: isTapBillingReady(),
+    available: isOrganizationBillingReady(),
+    provider: organizationBillingProvider(),
     annualPriceSar: annualOrganizationPriceSar(),
     currency: 'SAR',
     interval: 'year'

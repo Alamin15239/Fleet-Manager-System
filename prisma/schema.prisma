@@ -410,6 +410,9 @@ model Organization {
   tapPaymentAgreementId     String?
   tapPendingChargeId        String?
   tapRenewalLockUntil       DateTime?
+  paddleCustomerId          String?
+  paddleSubscriptionId      String?            @unique
+  paddlePriceId             String?
   createdAt            DateTime           @default(now())
   updatedAt            DateTime           @updatedAt
 

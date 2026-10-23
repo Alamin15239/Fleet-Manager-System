@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { randomUUID } from 'node:crypto'
 import { z } from 'zod'
 import { controlDb } from '@/lib/db'
-import { annualOrganizationPriceSar, applyTapCharge, createTapInitialCharge, isTapBillingReady, ORGANIZATION_BILLING_CONSENT_VERSION } from '@/lib/organization-billing'
+import { annualOrganizationPriceSar, applyTapCharge, createTapInitialCharge, isOrganizationBillingReady, organizationBillingProvider, ORGANIZATION_BILLING_CONSENT_VERSION } from '@/lib/organization-billing'
+import { getConfiguredPaddlePrice } from '@/lib/paddle-billing'
 
 export const runtime = 'nodejs'
 export const maxDuration = 30
@@ -25,8 +26,9 @@ function siteOrigin(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  if (!isTapBillingReady()) {
-    return NextResponse.json({ error: 'Annual checkout is not enabled yet. The administrator must configure Tap recurring payments.' }, { status: 503 })
+  const provider = organizationBillingProvider()
+  if (!isOrganizationBillingReady()) {
+    return NextResponse.json({ error: `Annual checkout is not enabled yet. The administrator must finish ${provider === 'PADDLE' ? 'Paddle Sandbox' : 'Tap'} setup.` }, { status: 503 })
   }
   const parsed = checkoutSchema.safeParse(await request.json().catch(() => null))
   if (!parsed.success) {
@@ -45,7 +47,15 @@ export async function POST(request: NextRequest) {
   }
 
   const attemptId = randomUUID()
-  const amountMinor = annualOrganizationPriceSar() * 100
+  let priceDetails: Awaited<ReturnType<typeof getConfiguredPaddlePrice>> | null = null
+  try {
+    if (provider === 'PADDLE') priceDetails = await getConfiguredPaddlePrice()
+  } catch (error) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : 'Paddle price is not ready.' }, { status: 503 })
+  }
+  const amountMinor = provider === 'PADDLE' && priceDetails
+    ? Number(priceDetails.unit_price?.amount)
+    : annualOrganizationPriceSar() * 100
   let organization: any
   try {
     const data = {
@@ -54,20 +64,42 @@ export async function POST(request: NextRequest) {
       ownerEmail: values.ownerEmail.toLowerCase(),
       status: 'PROVISIONING',
       isPrimary: false,
-      billingProvider: 'TAP',
+      billingProvider: provider,
       billingStatus: 'PENDING_PAYMENT',
       billingAmountMinor: amountMinor,
-      billingCurrency: 'SAR',
+      billingCurrency: provider === 'PADDLE' && priceDetails ? priceDetails.unit_price?.currency_code : 'SAR',
       billingAttemptId: attemptId,
       billingCancelAtPeriodEnd: false,
       billingConsentAt: new Date(),
       billingConsentVersion: ORGANIZATION_BILLING_CONSENT_VERSION,
       tapPendingChargeId: null,
-      tapRenewalLockUntil: null
+      tapRenewalLockUntil: null,
+      paddleCustomerId: null,
+      paddleSubscriptionId: null,
+      paddlePriceId: provider === 'PADDLE' ? priceDetails?.id : null
     }
     organization = existing
       ? await organizationModel.update({ where: { id: existing.id }, data })
       : await organizationModel.create({ data: { ...data, slug: values.slug } })
+
+    if (provider === 'PADDLE') {
+      const origin = siteOrigin(request)
+      const clientToken = process.env.PADDLE_CLIENT_TOKEN?.trim()
+      if (!clientToken || !priceDetails?.id) throw new Error('Paddle Sandbox checkout configuration is incomplete.')
+      return NextResponse.json({
+        success: true,
+        provider: 'PADDLE',
+        paddle: {
+          clientToken,
+          environment: process.env.PADDLE_ENVIRONMENT?.trim().toLowerCase() === 'sandbox' ? 'sandbox' : 'production',
+          priceId: priceDetails.id,
+          organizationId: organization.id,
+          attemptId,
+          customerEmail: values.ownerEmail.toLowerCase(),
+          successUrl: `${origin}/purchase/complete?org=${encodeURIComponent(organization.slug)}`
+        }
+      }, { status: 201, headers: { 'Cache-Control': 'no-store' } })
+    }
 
     const charge = await createTapInitialCharge({
       organizationId: organization.id,

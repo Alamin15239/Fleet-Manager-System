@@ -1,6 +1,7 @@
 import { createHmac, randomUUID, timingSafeEqual } from 'node:crypto'
 import { controlDb } from '@/lib/db'
 import { provisionOrganization } from '@/lib/organization-provisioning'
+import { isPaddleBillingReady } from '@/lib/paddle-billing'
 
 const TAP_API = 'https://api.tap.company/v2'
 
@@ -26,6 +27,14 @@ export function annualOrganizationPriceSar() {
 
 export function isTapBillingReady() {
   return Boolean(process.env.TAP_SECRET_KEY?.trim()) && process.env.TAP_RECURRING_ENABLED === 'true'
+}
+
+export function organizationBillingProvider(): 'PADDLE' | 'TAP' {
+  return process.env.ORGANIZATION_PAYMENT_PROVIDER?.trim().toUpperCase() === 'PADDLE' ? 'PADDLE' : 'TAP'
+}
+
+export function isOrganizationBillingReady() {
+  return organizationBillingProvider() === 'PADDLE' ? isPaddleBillingReady() : isTapBillingReady()
 }
 
 async function tapRequest(path: string, body?: Record<string, unknown>) {
