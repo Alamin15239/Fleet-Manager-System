@@ -14,7 +14,7 @@ import { useLanguage } from '@/contexts/language-context'
 import { apiGet, apiPatch, apiPost } from '@/lib/api'
 import { formatCurrency } from '@/lib/currency'
 import { toast } from '@/lib/localized-toast'
-import { Activity, BadgeCheck, BookOpen, Building2, Calculator, CalendarDays, Copy, Download, ExternalLink, FilePlus2, FileText, Filter, Loader2, Plus, Printer, Receipt, Search, ShieldCheck, Truck, Undo2, X } from 'lucide-react'
+import { Activity, ArrowLeft, BadgeCheck, BookOpen, Building2, Calculator, CalendarDays, Copy, Download, ExternalLink, FilePlus2, FileText, Filter, Loader2, Plus, Printer, Receipt, Search, ShieldCheck, Truck, Undo2, X } from 'lucide-react'
 import { combinePurchaseInvoiceDocuments, renderPurchaseInvoiceDocument, type PurchaseInvoiceCompany, type PurchaseInvoiceDocumentData } from '@/lib/purchase-invoice-document'
 import { downloadPurchaseInvoicePdf } from '@/lib/purchase-invoice-pdf'
 
@@ -157,8 +157,8 @@ export default function PurchaseInvoicesPage() {
   const [batchDocumentHtml, setBatchDocumentHtml] = useState('')
   const [batchBusy, setBatchBusy] = useState(false)
   const batchPreviewRef = useRef<HTMLIFrameElement>(null)
-  const [invoiceDialogOpen, setInvoiceDialogOpen] = useState(false)
-  const [vendorDialogOpen, setVendorDialogOpen] = useState(false)
+  const [entryMode, setEntryMode] = useState<'invoice' | 'vendor' | null>(null)
+  const [vendorReturnsToInvoice, setVendorReturnsToInvoice] = useState(false)
   const [selectedInvoice, setSelectedInvoice] = useState<PurchaseInvoice | null>(null)
   const [invoiceDocumentHtml, setInvoiceDocumentHtml] = useState('')
   const [invoiceShareUrl, setInvoiceShareUrl] = useState('')
@@ -178,6 +178,45 @@ export default function PurchaseInvoicesPage() {
   const canRead = canAccess('purchase-invoices')
   const canWrite = canCreate('purchase-invoices')
   const canReverse = canUpdate('purchase-invoices')
+
+  const updateEntryUrl = (mode: 'invoice' | 'vendor' | null, returnToInvoice = false, replace = false) => {
+    const url = new URL(window.location.href)
+    if (mode) {
+      url.searchParams.set('entry', mode)
+      if (returnToInvoice) url.searchParams.set('returnTo', 'invoice')
+      else url.searchParams.delete('returnTo')
+    } else {
+      url.searchParams.delete('entry')
+      url.searchParams.delete('returnTo')
+    }
+    const nextUrl = `${url.pathname}${url.search}${url.hash}`
+    if (replace) window.history.replaceState(window.history.state, '', nextUrl)
+    else window.history.pushState({ ...(window.history.state || {}), purchaseInvoiceEntry: true }, '', nextUrl)
+    setEntryMode(mode)
+    setVendorReturnsToInvoice(returnToInvoice)
+  }
+
+  const openInvoiceEntry = () => updateEntryUrl('invoice')
+  const openVendorEntry = (returnToInvoice = false) => updateEntryUrl('vendor', returnToInvoice)
+  const closeEntry = () => {
+    if (window.history.state?.purchaseInvoiceEntry) {
+      window.history.back()
+      return
+    }
+    updateEntryUrl(null, false, true)
+  }
+
+  useEffect(() => {
+    const syncEntryFromUrl = () => {
+      const params = new URLSearchParams(window.location.search)
+      const mode = params.get('entry')
+      setEntryMode(mode === 'invoice' || mode === 'vendor' ? mode : null)
+      setVendorReturnsToInvoice(params.get('returnTo') === 'invoice')
+    }
+    syncEntryFromUrl()
+    window.addEventListener('popstate', syncEntryFromUrl)
+    return () => window.removeEventListener('popstate', syncEntryFromUrl)
+  }, [])
 
   const loadData = async () => {
     setDataError('')
@@ -317,10 +356,11 @@ export default function PurchaseInvoicesPage() {
       if (!response.ok) throw new Error(payload.error || 'Could not create vendor')
       toast.success('Vendor account created')
       setVendorForm({ name: '', vatRegistration: '', phone: '', email: '', address: '' })
-      setVendorDialogOpen(false)
       await loadData()
       setInvoiceForm((current) => ({ ...current, vendorId: payload.vendor.id }))
       setVendorSearch(payload.vendor.name)
+      if (vendorReturnsToInvoice) updateEntryUrl('invoice', false, true)
+      else closeEntry()
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Could not create vendor')
     } finally {
@@ -342,7 +382,7 @@ export default function PurchaseInvoicesPage() {
       const payload = await response.json()
       if (!response.ok) throw new Error(payload.error || 'Could not post purchase invoice')
       toast.success(`Invoice ${payload.invoice.internalNumber} posted to the vehicle, VAT, and vendor accounts`)
-      setInvoiceDialogOpen(false)
+      closeEntry()
       setSearch('')
       setInvoiceForm({ vendorId: '', vendorInvoiceNumber: '', invoiceDate: new Date().toISOString().slice(0, 10), dueDate: '', isVatInvoice: true, pricesIncludeVat: false, vatRate: '15', notes: '', lines: [blankLine()] })
       setVendorSearch('')
@@ -498,9 +538,11 @@ export default function PurchaseInvoicesPage() {
 
   if (permissionsLoading || loading) return <div className="flex min-h-[55vh] items-center justify-center"><Loader2 className="h-7 w-7 animate-spin text-primary" /></div>
   if (!canRead) return <div className="container mx-auto p-6"><Card><CardContent className="py-12 text-center"><ShieldCheck className="mx-auto mb-3 h-9 w-9 text-muted-foreground" /><p className="font-semibold"><LocalizedText>You do not have access to purchase invoices</LocalizedText></p></CardContent></Card></div>
+  if (entryMode && !canWrite) return <div className="container mx-auto p-6"><Card><CardContent className="py-12 text-center"><ShieldCheck className="mx-auto mb-3 h-9 w-9 text-muted-foreground" /><p className="font-semibold"><LocalizedText>You do not have permission to create purchase invoices or vendors</LocalizedText></p><Button className="mt-4" variant="outline" onClick={closeEntry}><LocalizedText>Back to invoices</LocalizedText></Button></CardContent></Card></div>
 
   return (
     <div className="container mx-auto max-w-7xl space-y-6 p-4 sm:p-6">
+      {!entryMode && <>
       <header className="relative isolate overflow-hidden rounded-[28px] border border-slate-200/80 bg-gradient-to-br from-white via-slate-50 to-indigo-50/70 p-5 shadow-sm dark:border-slate-800 dark:from-slate-950 dark:via-slate-950 dark:to-indigo-950/30 sm:p-7">
         <div aria-hidden="true" className="pointer-events-none absolute -end-12 -top-24 -z-10 h-64 w-64 rounded-full bg-indigo-400/10 blur-3xl" />
         <div aria-hidden="true" className="pointer-events-none absolute -bottom-36 start-1/3 -z-10 h-64 w-64 rounded-full bg-sky-300/10 blur-3xl" />
@@ -519,8 +561,8 @@ export default function PurchaseInvoicesPage() {
             </div>
           </div>
           <div className="flex w-full flex-col gap-2 sm:flex-row lg:w-auto lg:shrink-0">
-            <Button variant="outline" className="h-11 border-slate-300/80 bg-white/70 shadow-sm backdrop-blur hover:bg-white dark:border-slate-700 dark:bg-slate-900/70 dark:hover:bg-slate-900" onClick={() => setVendorDialogOpen(true)} disabled={!canWrite}><Building2 className="me-2 h-4 w-4" /><LocalizedText>Add vendor</LocalizedText></Button>
-            <Button className="h-11 shadow-sm" onClick={() => setInvoiceDialogOpen(true)} disabled={!canWrite}><FilePlus2 className="me-2 h-4 w-4" /><LocalizedText>New invoice</LocalizedText></Button>
+            <Button variant="outline" className="h-11 border-slate-300/80 bg-white/70 shadow-sm backdrop-blur hover:bg-white dark:border-slate-700 dark:bg-slate-900/70 dark:hover:bg-slate-900" onClick={() => openVendorEntry()} disabled={!canWrite}><Building2 className="me-2 h-4 w-4" /><LocalizedText>Add vendor</LocalizedText></Button>
+            <Button className="h-11 shadow-sm" onClick={openInvoiceEntry} disabled={!canWrite}><FilePlus2 className="me-2 h-4 w-4" /><LocalizedText>New invoice</LocalizedText></Button>
           </div>
         </div>
       </header>
@@ -624,7 +666,7 @@ export default function PurchaseInvoicesPage() {
 
           {tab === 'vendor-accounts' && <>
             <p className="mb-4 text-sm text-muted-foreground"><LocalizedText>Vendor accounts show posted invoice payables. Payments are not recorded in this invoice-entry workflow yet.</LocalizedText></p>
-            {filteredVendorAccounts.length === 0 ? <EmptyState title="No vendors found" description="Add a vendor before creating a purchase invoice." icon={Building2} action={canWrite ? <Button variant="outline" onClick={() => setVendorDialogOpen(true)}><Plus className="me-2 h-4 w-4" /><LocalizedText>Add vendor</LocalizedText></Button> : undefined} /> : <AccountGrid rows={filteredVendorAccounts} onSelect={(account) => openAccount(account, 'VENDOR')} />}
+            {filteredVendorAccounts.length === 0 ? <EmptyState title="No vendors found" description="Add a vendor before creating a purchase invoice." icon={Building2} action={canWrite ? <Button variant="outline" onClick={() => openVendorEntry()}><Plus className="me-2 h-4 w-4" /><LocalizedText>Add vendor</LocalizedText></Button> : undefined} /> : <AccountGrid rows={filteredVendorAccounts} onSelect={(account) => openAccount(account, 'VENDOR')} />}
           </>}
 
           {tab === 'vat' && <>
@@ -637,15 +679,26 @@ export default function PurchaseInvoicesPage() {
       </Card>
 
       <div className="flex items-start gap-3 rounded-2xl border border-emerald-200/70 bg-emerald-50/60 p-4 text-sm text-emerald-950/80 shadow-sm dark:border-emerald-500/20 dark:bg-emerald-950/20 dark:text-emerald-100/80"><BadgeCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" /><p><LocalizedText>Posting records the vehicle expense as a debit, input VAT as a separate debit when applicable, and the full invoice total as a vendor payable credit. Posted invoices are locked; authorized users can reverse them with an audit-safe counter-entry.</LocalizedText></p></div>
+      </>}
 
-      <Dialog open={invoiceDialogOpen} onOpenChange={setInvoiceDialogOpen}>
-        <DialogContent className="max-h-[94dvh] max-w-6xl overflow-y-auto rounded-3xl border-slate-200/80 p-0 shadow-2xl dark:border-slate-800">
+      {entryMode && (
+        <header className="flex flex-col gap-4 rounded-3xl border border-slate-200/80 bg-gradient-to-br from-white via-slate-50 to-indigo-50/60 p-5 shadow-sm dark:border-slate-800 dark:from-slate-950 dark:via-slate-950 dark:to-indigo-950/30 sm:flex-row sm:items-center sm:p-6">
+          <Button type="button" variant="outline" onClick={closeEntry} className="h-10 w-fit rounded-xl bg-white/70 dark:bg-slate-900/70"><ArrowLeft className="me-2 h-4 w-4" /><LocalizedText>Back to invoices</LocalizedText></Button>
+          <div className="min-w-0 sm:border-s sm:border-slate-200 sm:ps-5 dark:sm:border-slate-800">
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-indigo-700 dark:text-indigo-300"><LocalizedText>Fleet finance</LocalizedText> / <LocalizedText>Accounts payable</LocalizedText></p>
+            <h1 className="mt-1 text-xl font-bold tracking-tight sm:text-2xl">{entryMode === 'invoice' ? <LocalizedText>Enter purchase invoice</LocalizedText> : <LocalizedText>Add vendor</LocalizedText>}</h1>
+            <p className="mt-1 text-sm text-muted-foreground">{entryMode === 'invoice' ? <LocalizedText>Choose the supplier, enter tax details, then assign each cost to a vehicle.</LocalizedText> : <LocalizedText>Create a supplier record for purchase invoices.</LocalizedText>}</p>
+          </div>
+        </header>
+      )}
+
+      {entryMode === 'invoice' && (
+        <section className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white/80 shadow-sm backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/65">
           <form onSubmit={submitInvoice}>
-            <DialogHeader className="sticky top-0 z-10 border-b border-slate-200/70 bg-white/95 px-5 py-4 text-start backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/95 sm:px-7"><div className="flex items-start gap-3"><div className="rounded-xl border border-indigo-200/70 bg-indigo-50 p-2.5 text-indigo-700 dark:border-indigo-400/20 dark:bg-indigo-950/40 dark:text-indigo-300"><FilePlus2 className="h-5 w-5" /></div><div><DialogTitle className="text-lg tracking-tight"><LocalizedText>Enter purchase invoice</LocalizedText></DialogTitle><DialogDescription className="mt-1"><LocalizedText>Choose the vendor, invoice tax treatment, and assign every cost line to its truck or trailer.</LocalizedText></DialogDescription></div></div></DialogHeader>
             <div className="space-y-6 px-5 py-5 sm:px-7">
               <section className="grid gap-4 rounded-2xl border border-slate-200/80 bg-white/70 p-4 dark:border-slate-800 dark:bg-slate-950/30 md:grid-cols-2 xl:grid-cols-4 sm:p-5">
                 <div className="flex items-center gap-3 xl:col-span-4"><span className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-100 text-xs font-bold text-indigo-700 dark:bg-indigo-400/15 dark:text-indigo-300">01</span><div><h3 className="text-sm font-semibold"><LocalizedText>Supplier & invoice details</LocalizedText></h3><p className="mt-0.5 text-xs text-muted-foreground"><LocalizedText>Choose who issued the invoice and record its dates.</LocalizedText></p></div></div>
-                <div className="space-y-2 xl:col-span-2"><Label><LocalizedText>Vendor</LocalizedText> *</Label><div className="flex gap-2"><div className="relative min-w-0 flex-1"><Input required value={vendorSearch || vendors.find((vendor) => vendor.id === invoiceForm.vendorId)?.name || ''} onFocus={() => setVendorPickerOpen(true)} onChange={(event) => { setVendorSearch(event.target.value); setVendorPickerOpen(true); setInvoiceForm((current) => ({ ...current, vendorId: '' })) }} placeholder="Search vendors" autoComplete="off" />{vendorPickerOpen && <div className="absolute inset-x-0 top-full z-30 mt-1 max-h-52 overflow-y-auto rounded-xl border bg-popover p-1 shadow-xl">{vendors.filter((vendor) => vendor.isActive && (!vendorSearch || vendor.name.toLowerCase().includes(vendorSearch.toLowerCase()) || vendor.vatRegistration?.toLowerCase().includes(vendorSearch.toLowerCase()))).slice(0, 12).map((vendor) => <button key={vendor.id} type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => { setInvoiceForm((current) => ({ ...current, vendorId: vendor.id })); setVendorSearch(vendor.name); setVendorPickerOpen(false) }} className="block w-full rounded-lg px-3 py-2 text-start text-sm hover:bg-accent">{vendor.name}{vendor.vatRegistration ? <span className="ms-2 text-xs text-muted-foreground">VAT {vendor.vatRegistration}</span> : null}</button>)}{vendors.filter((vendor) => vendor.isActive && (!vendorSearch || vendor.name.toLowerCase().includes(vendorSearch.toLowerCase()) || vendor.vatRegistration?.toLowerCase().includes(vendorSearch.toLowerCase()))).length === 0 && <p className="px-3 py-3 text-sm text-muted-foreground"><LocalizedText>No matching vendors</LocalizedText></p>}</div>}</div><Button type="button" variant="outline" size="icon" title="Add vendor" onClick={() => { setVendorPickerOpen(false); setVendorDialogOpen(true) }}><Plus className="h-4 w-4" /></Button></div>{vendors.filter((vendor) => vendor.isActive).length === 0 && <p className="text-xs text-amber-700"><LocalizedText>Add a vendor before posting your first invoice.</LocalizedText></p>}</div>
+                <div className="space-y-2 xl:col-span-2"><Label><LocalizedText>Vendor</LocalizedText> *</Label><div className="flex gap-2"><div className="relative min-w-0 flex-1"><Input required value={vendorSearch || vendors.find((vendor) => vendor.id === invoiceForm.vendorId)?.name || ''} onFocus={() => setVendorPickerOpen(true)} onChange={(event) => { setVendorSearch(event.target.value); setVendorPickerOpen(true); setInvoiceForm((current) => ({ ...current, vendorId: '' })) }} placeholder="Search vendors" autoComplete="off" />{vendorPickerOpen && <div className="absolute inset-x-0 top-full z-30 mt-1 max-h-52 overflow-y-auto rounded-xl border bg-popover p-1 shadow-xl">{vendors.filter((vendor) => vendor.isActive && (!vendorSearch || vendor.name.toLowerCase().includes(vendorSearch.toLowerCase()) || vendor.vatRegistration?.toLowerCase().includes(vendorSearch.toLowerCase()))).slice(0, 12).map((vendor) => <button key={vendor.id} type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => { setInvoiceForm((current) => ({ ...current, vendorId: vendor.id })); setVendorSearch(vendor.name); setVendorPickerOpen(false) }} className="block w-full rounded-lg px-3 py-2 text-start text-sm hover:bg-accent">{vendor.name}{vendor.vatRegistration ? <span className="ms-2 text-xs text-muted-foreground">VAT {vendor.vatRegistration}</span> : null}</button>)}{vendors.filter((vendor) => vendor.isActive && (!vendorSearch || vendor.name.toLowerCase().includes(vendorSearch.toLowerCase()) || vendor.vatRegistration?.toLowerCase().includes(vendorSearch.toLowerCase()))).length === 0 && <p className="px-3 py-3 text-sm text-muted-foreground"><LocalizedText>No matching vendors</LocalizedText></p>}</div>}</div><Button type="button" variant="outline" size="icon" title="Add vendor" onClick={() => { setVendorPickerOpen(false); openVendorEntry(true) }}><Plus className="h-4 w-4" /></Button></div>{vendors.filter((vendor) => vendor.isActive).length === 0 && <p className="text-xs text-amber-700"><LocalizedText>Add a vendor before posting your first invoice.</LocalizedText></p>}</div>
                 <div className="space-y-2"><Label><LocalizedText>Vendor invoice no.</LocalizedText></Label><Input value={invoiceForm.vendorInvoiceNumber} onChange={(event) => setInvoiceForm((current) => ({ ...current, vendorInvoiceNumber: event.target.value }))} placeholder="Invoice number from supplier" /></div>
                 <div className="space-y-2"><Label><LocalizedText>Invoice date</LocalizedText> *</Label><Input type="date" required value={invoiceForm.invoiceDate} onChange={(event) => setInvoiceForm((current) => ({ ...current, invoiceDate: event.target.value }))} /></div>
                 <div className="space-y-2"><Label><LocalizedText>Due date</LocalizedText></Label><Input type="date" value={invoiceForm.dueDate} onChange={(event) => setInvoiceForm((current) => ({ ...current, dueDate: event.target.value }))} /></div>
@@ -681,15 +734,22 @@ export default function PurchaseInvoicesPage() {
 
               <div className="grid gap-4 lg:grid-cols-[1fr_340px]"><div className="space-y-2"><Label><LocalizedText>Invoice notes</LocalizedText></Label><Textarea value={invoiceForm.notes} onChange={(event) => setInvoiceForm((current) => ({ ...current, notes: event.target.value }))} placeholder="Optional notes for the accounting record" className="min-h-28 rounded-xl bg-white/80 dark:bg-slate-950/60" /></div><div className="rounded-2xl border border-indigo-200/70 bg-gradient-to-br from-indigo-50/80 to-white p-4 shadow-sm dark:border-indigo-400/20 dark:from-indigo-950/30 dark:to-slate-950/70 lg:sticky lg:top-4 lg:self-start sm:p-5"><div className="flex items-center justify-between gap-3"><h3 className="font-semibold"><LocalizedText>Posting preview</LocalizedText></h3><Calculator className="h-4 w-4 text-indigo-600 dark:text-indigo-300" /></div><dl className="mt-4 space-y-3 text-sm"><SummaryRow label="Vehicle expenses" value={formatCurrency(draftTotals.net)} /><SummaryRow label="Input VAT" value={formatCurrency(draftTotals.vat)} /><div className="border-t border-indigo-200/70 pt-3 dark:border-indigo-400/20"><SummaryRow label="Vendor payable" value={formatCurrency(draftTotals.total)} strong /></div></dl><p className="mt-3 text-xs leading-5 text-muted-foreground"><LocalizedText>These entries balance before they are posted. VAT is separated only for a VAT invoice.</LocalizedText></p></div></div>
             </div>
-            <DialogFooter className="sticky bottom-0 border-t bg-background/95 px-5 py-4 backdrop-blur sm:px-7"><Button type="button" variant="outline" onClick={() => setInvoiceDialogOpen(false)} disabled={saving}><LocalizedText>Cancel</LocalizedText></Button><Button type="submit" disabled={saving || !canWrite || !vendors.some((vendor) => vendor.id === invoiceForm.vendorId)}>{saving && <Loader2 className="me-2 h-4 w-4 animate-spin" />}<LocalizedText>Post invoice</LocalizedText></Button></DialogFooter>
+            <div className="sticky bottom-0 flex flex-wrap justify-end gap-2 border-t bg-background/95 px-5 py-4 backdrop-blur sm:px-7"><Button type="button" variant="outline" onClick={closeEntry} disabled={saving}><LocalizedText>Cancel</LocalizedText></Button><Button type="submit" disabled={saving || !canWrite || !vendors.some((vendor) => vendor.id === invoiceForm.vendorId)}>{saving && <Loader2 className="me-2 h-4 w-4 animate-spin" />}<LocalizedText>Post invoice</LocalizedText></Button></div>
           </form>
-        </DialogContent>
-      </Dialog>
+        </section>
+      )}
 
-      <Dialog open={vendorDialogOpen} onOpenChange={setVendorDialogOpen}>
-        <DialogContent className="max-w-xl"><form onSubmit={submitVendor}><DialogHeader><DialogTitle><LocalizedText>Add vendor</LocalizedText></DialogTitle><DialogDescription><LocalizedText>Create a supplier account to use on purchase invoices.</LocalizedText></DialogDescription></DialogHeader><div className="grid gap-4 py-5 sm:grid-cols-2"><div className="space-y-2 sm:col-span-2"><Label><LocalizedText>Vendor name</LocalizedText> *</Label><Input required value={vendorForm.name} onChange={(event) => setVendorForm((current) => ({ ...current, name: event.target.value }))} /></div><div className="space-y-2"><Label><LocalizedText>VAT registration number</LocalizedText></Label><Input value={vendorForm.vatRegistration} onChange={(event) => setVendorForm((current) => ({ ...current, vatRegistration: event.target.value }))} /></div><div className="space-y-2"><Label><LocalizedText>Phone</LocalizedText></Label><Input value={vendorForm.phone} onChange={(event) => setVendorForm((current) => ({ ...current, phone: event.target.value }))} /></div><div className="space-y-2 sm:col-span-2"><Label><LocalizedText>Email</LocalizedText></Label><Input type="email" value={vendorForm.email} onChange={(event) => setVendorForm((current) => ({ ...current, email: event.target.value }))} /></div><div className="space-y-2 sm:col-span-2"><Label><LocalizedText>Address</LocalizedText></Label><Textarea value={vendorForm.address} onChange={(event) => setVendorForm((current) => ({ ...current, address: event.target.value }))} /></div></div><DialogFooter><Button type="button" variant="outline" onClick={() => setVendorDialogOpen(false)} disabled={saving}><LocalizedText>Cancel</LocalizedText></Button><Button type="submit" disabled={saving || !canWrite}>{saving && <Loader2 className="me-2 h-4 w-4 animate-spin" />}<LocalizedText>Save vendor</LocalizedText></Button></DialogFooter></form></DialogContent>
-      </Dialog>
+      {entryMode === 'vendor' && (
+        <section className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white/80 shadow-sm backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/65">
+          <form onSubmit={submitVendor}>
+            <div className="flex items-start gap-3 border-b border-slate-200/70 px-5 py-4 dark:border-slate-800 sm:px-7"><div className="rounded-xl border border-emerald-200/70 bg-emerald-50 p-2.5 text-emerald-700 dark:border-emerald-400/20 dark:bg-emerald-950/40 dark:text-emerald-300"><Building2 className="h-5 w-5" /></div><div><h2 className="text-lg font-semibold tracking-tight"><LocalizedText>Vendor information</LocalizedText></h2><p className="mt-1 text-sm text-muted-foreground"><LocalizedText>Create a supplier account to use on purchase invoices.</LocalizedText></p></div></div>
+            <div className="grid gap-4 p-5 sm:grid-cols-2 sm:p-7"><div className="space-y-2 sm:col-span-2"><Label><LocalizedText>Vendor name</LocalizedText> *</Label><Input required value={vendorForm.name} onChange={(event) => setVendorForm((current) => ({ ...current, name: event.target.value }))} /></div><div className="space-y-2"><Label><LocalizedText>VAT registration number</LocalizedText></Label><Input value={vendorForm.vatRegistration} onChange={(event) => setVendorForm((current) => ({ ...current, vatRegistration: event.target.value }))} /></div><div className="space-y-2"><Label><LocalizedText>Phone</LocalizedText></Label><Input value={vendorForm.phone} onChange={(event) => setVendorForm((current) => ({ ...current, phone: event.target.value }))} /></div><div className="space-y-2 sm:col-span-2"><Label><LocalizedText>Email</LocalizedText></Label><Input type="email" value={vendorForm.email} onChange={(event) => setVendorForm((current) => ({ ...current, email: event.target.value }))} /></div><div className="space-y-2 sm:col-span-2"><Label><LocalizedText>Address</LocalizedText></Label><Textarea value={vendorForm.address} onChange={(event) => setVendorForm((current) => ({ ...current, address: event.target.value }))} /></div></div>
+            <div className="flex flex-wrap justify-end gap-2 border-t bg-background/95 px-5 py-4 sm:px-7"><Button type="button" variant="outline" onClick={closeEntry} disabled={saving}><LocalizedText>Cancel</LocalizedText></Button><Button type="submit" disabled={saving || !canWrite}>{saving && <Loader2 className="me-2 h-4 w-4 animate-spin" />}<LocalizedText>Save vendor</LocalizedText></Button></div>
+          </form>
+        </section>
+      )}
 
+      {!entryMode && <>
       <Dialog open={!!selectedInvoice} onOpenChange={(open) => { if (!open) setSelectedInvoice(null) }}>
         <DialogContent className="flex max-h-[96dvh] max-w-5xl flex-col overflow-hidden p-4 sm:p-6"><DialogHeader className="shrink-0"><div className="flex items-center gap-2"><DialogTitle>{selectedInvoice?.internalNumber}</DialogTitle>{selectedInvoice && <StatusBadge status={selectedInvoice.status} />}</div><DialogDescription>{selectedInvoice?.vendor.name}{selectedInvoice?.vendorInvoiceNumber ? ` · ${selectedInvoice.vendorInvoiceNumber}` : ''}</DialogDescription></DialogHeader>
           <div className="min-h-0 flex-1 overflow-hidden rounded-lg border bg-slate-100">{invoiceDocumentHtml ? <iframe ref={invoicePreviewRef} title={`${selectedInvoice?.internalNumber} invoice preview`} srcDoc={invoiceDocumentHtml} className="h-[min(70dvh,850px)] min-h-[480px] w-full bg-white" /> : <div className="flex h-[min(70dvh,850px)] min-h-[480px] items-center justify-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin" /><LocalizedText>Preparing invoice preview and QR code</LocalizedText></div>}</div>
@@ -707,6 +767,7 @@ export default function PurchaseInvoicesPage() {
       <Dialog open={!!ledgerSelection} onOpenChange={(open) => { if (!open) setLedgerSelection(null) }}>
         <DialogContent className="max-h-[90dvh] max-w-4xl overflow-y-auto"><DialogHeader><DialogTitle><LocalizedText>Account activity</LocalizedText></DialogTitle><DialogDescription>{ledgerSelection?.label} · {ledgerSelection?.code}</DialogDescription></DialogHeader><div className="flex items-center justify-between rounded-xl bg-muted/40 p-4"><span className="text-sm text-muted-foreground"><LocalizedText>Current posted balance</LocalizedText></span><strong className="text-lg tabular-nums">{formatCurrency(ledgerSelection?.type === 'VAT' ? inputVatBalance : ledgerSelection?.balance || 0)}</strong></div>{ledgerLoading ? <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div> : ledgerLines.length === 0 ? <EmptyState title="No account activity yet" description="Posted invoices assigned to this account will appear here." icon={Activity} /> : <div className="overflow-x-auto rounded-xl border"><table className="w-full min-w-[700px] text-sm"><thead className="bg-muted/50 text-xs uppercase text-muted-foreground"><tr><th className="p-3 text-start"><LocalizedText>Date / invoice</LocalizedText></th><th className="p-3 text-start"><LocalizedText>Vendor</LocalizedText></th><th className="p-3 text-start"><LocalizedText>Description</LocalizedText></th><th className="p-3 text-end"><LocalizedText>Debit</LocalizedText></th><th className="p-3 text-end"><LocalizedText>Credit</LocalizedText></th></tr></thead><tbody>{ledgerLines.map((line) => <tr key={line.id} className="border-t"><td className="p-3">{formatDate(line.date)}<p className="text-xs text-muted-foreground">{line.invoiceNumber}{line.vendorInvoiceNumber ? ` · ${line.vendorInvoiceNumber}` : ''}</p></td><td className="p-3">{line.vendor}</td><td className="p-3">{line.description}{line.category && <p className="text-xs text-muted-foreground">{categoryLabels[line.category]}</p>}</td><td className="p-3 text-end tabular-nums">{formatCurrency(line.debit)}</td><td className="p-3 text-end tabular-nums">{formatCurrency(line.credit)}</td></tr>)}</tbody></table></div>}<DialogFooter><Button variant="outline" onClick={() => setLedgerSelection(null)}><LocalizedText>Close</LocalizedText></Button></DialogFooter></DialogContent>
       </Dialog>
+      </>}
     </div>
   )
 }

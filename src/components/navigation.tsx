@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
+import { useEffect, useState } from 'react'
 import { LocalizedText } from '@/components/localized-text'
 import { ProfilePicture } from '@/components/profile-picture'
 import { LanguageToggle } from '@/components/language-toggle'
@@ -18,6 +19,7 @@ import {
   Building2,
   Caravan,
   ChartNoAxesCombined,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   CircleDot,
@@ -25,6 +27,8 @@ import {
   Droplets,
   FileBarChart,
   FileSpreadsheet,
+  Folder,
+  FolderOpen,
   Gauge,
   CalendarClock,
   LogOut,
@@ -47,15 +51,32 @@ type NavItem = {
   action: string
 }
 
-const getNavigationGroups = (t: (key: string) => string) => [
+type NavGroup = {
+  id: string
+  label: string
+  icon: typeof Gauge
+  iconColor: string
+  iconBackground: string
+  items: NavItem[]
+}
+
+const getNavigationGroups = (t: (key: string) => string): NavGroup[] => [
   {
+    id: 'workspace',
     label: 'Workspace',
+    icon: Gauge,
+    iconColor: 'text-violet-600 dark:text-violet-400',
+    iconBackground: 'bg-violet-500/10',
     items: [
       { name: t('nav.dashboard'), href: '/dashboard', icon: Gauge, iconColor: 'text-violet-600 dark:text-violet-400', iconBackground: 'bg-violet-500/10', resource: 'dashboard', action: 'read' },
     ],
   },
   {
+    id: 'fleet',
     label: 'Fleet',
+    icon: Truck,
+    iconColor: 'text-blue-600 dark:text-blue-400',
+    iconBackground: 'bg-blue-500/10',
     items: [
       { name: t('nav.trucks'), href: '/trucks', icon: Truck, iconColor: 'text-blue-600 dark:text-blue-400', iconBackground: 'bg-blue-500/10', resource: 'trucks', action: 'read' },
       { name: t('Document expiry tracker'), href: '/document-expiry', icon: CalendarClock, iconColor: 'text-teal-600 dark:text-teal-400', iconBackground: 'bg-teal-500/10', resource: 'trucks', action: 'read' },
@@ -64,7 +85,11 @@ const getNavigationGroups = (t: (key: string) => string) => [
     ],
   },
   {
+    id: 'workshop',
     label: 'Workshop',
+    icon: Wrench,
+    iconColor: 'text-emerald-600 dark:text-emerald-400',
+    iconBackground: 'bg-emerald-500/10',
     items: [
       { name: t('nav.jobCards'), href: '/job-cards', icon: ClipboardCheck, iconColor: 'text-emerald-600 dark:text-emerald-400', iconBackground: 'bg-emerald-500/10', resource: 'maintenance', action: 'read' },
       { name: t('nav.oilChanges'), href: '/oil-changes', icon: Droplets, iconColor: 'text-cyan-600 dark:text-cyan-400', iconBackground: 'bg-cyan-500/10', resource: 'maintenance', action: 'read' },
@@ -73,7 +98,11 @@ const getNavigationGroups = (t: (key: string) => string) => [
     ],
   },
   {
+    id: 'insights',
     label: 'Insights',
+    icon: ChartNoAxesCombined,
+    iconColor: 'text-fuchsia-600 dark:text-fuchsia-400',
+    iconBackground: 'bg-fuchsia-500/10',
     items: [
       { name: t('nav.analytics'), href: '/advanced-analytics', icon: ChartNoAxesCombined, iconColor: 'text-fuchsia-600 dark:text-fuchsia-400', iconBackground: 'bg-fuchsia-500/10', resource: 'advanced-analytics', action: 'read' },
       { name: t('nav.reports'), href: '/reports', icon: FileBarChart, iconColor: 'text-indigo-600 dark:text-indigo-400', iconBackground: 'bg-indigo-500/10', resource: 'reports', action: 'read' },
@@ -81,7 +110,11 @@ const getNavigationGroups = (t: (key: string) => string) => [
     ],
   },
   {
+    id: 'administration',
     label: 'Administration',
+    icon: Shield,
+    iconColor: 'text-indigo-600 dark:text-indigo-400',
+    iconBackground: 'bg-indigo-500/10',
     items: [
       { name: t('nav.users'), href: '/users', icon: Users, iconColor: 'text-purple-600 dark:text-purple-400', iconBackground: 'bg-purple-500/10', resource: 'users', action: 'read' },
       { name: t('nav.profile'), href: '/profile', icon: User, iconColor: 'text-sky-600 dark:text-sky-400', iconBackground: 'bg-sky-500/10', resource: 'profile', action: 'read' },
@@ -99,6 +132,9 @@ export function Navigation() {
   const { isSidebarOpen, toggleSidebar, closeSidebar } = useSidebar()
   const { t, language } = useLanguage()
   const isArabic = language === 'ar'
+  const [openFolders, setOpenFolders] = useState<Record<string, boolean>>({})
+  const [loadedFolderStorageKey, setLoadedFolderStorageKey] = useState<string | null>(null)
+  const folderStorageKey = user ? `fleet-nav-folders:${user.organizationId || 'primary'}:${user.id}` : null
   const navPosition = isArabic ? 'right-0 border-l' : 'left-0 border-r'
   const hiddenTransform = isArabic ? 'translate-x-full' : '-translate-x-full'
   const groups = getNavigationGroups(t)
@@ -110,6 +146,38 @@ export function Navigation() {
       ),
     }))
     .filter((group) => group.items.length > 0)
+  const activeFolderId = groups.find((group) =>
+    group.items.some((item) => pathname === item.href || (pathname ?? '').startsWith(`${item.href}/`)),
+  )?.id
+
+  useEffect(() => {
+    if (!folderStorageKey) return
+    try {
+      const savedFolders = localStorage.getItem(folderStorageKey)
+      const parsedFolders: unknown = savedFolders ? JSON.parse(savedFolders) : null
+      setOpenFolders(parsedFolders && typeof parsedFolders === 'object' && !Array.isArray(parsedFolders)
+        ? parsedFolders as Record<string, boolean>
+        : {})
+    } catch {
+      setOpenFolders({})
+    }
+    setLoadedFolderStorageKey(folderStorageKey)
+  }, [folderStorageKey])
+
+  useEffect(() => {
+    if (!folderStorageKey || loadedFolderStorageKey !== folderStorageKey) return
+    try {
+      localStorage.setItem(folderStorageKey, JSON.stringify(openFolders))
+    } catch {
+      // Navigation remains usable when browser storage is unavailable.
+    }
+  }, [folderStorageKey, loadedFolderStorageKey, openFolders])
+
+  useEffect(() => {
+    if (activeFolderId) {
+      setOpenFolders((current) => current[activeFolderId] ? current : { ...current, [activeFolderId]: true })
+    }
+  }, [activeFolderId])
 
   const sidebarClassName = cn(
     'glass-sidebar fixed inset-y-0 z-50 flex w-[min(19rem,86vw)] flex-col border-sidebar-border bg-sidebar text-sidebar-foreground shadow-2xl shadow-black/10 transition-[width,transform] duration-300 ease-out md:sticky md:inset-x-auto md:top-0 md:z-auto md:h-dvh md:w-64 md:shrink-0 md:translate-x-0 md:shadow-none',
@@ -119,8 +187,8 @@ export function Navigation() {
   const brandClassName = cn('group flex min-w-0 items-center gap-3 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring', !isSidebarOpen && 'md:justify-center')
   const brandContent = (
     <>
-      <span className="relative flex h-11 w-11 shrink-0 items-center justify-center transition-transform group-hover:scale-[1.03]">
-        <Image src="/fleet-manager-mark.svg" alt="" width={44} height={44} priority className="h-11 w-11 rounded-xl shadow-md shadow-blue-900/20" />
+      <span className={cn('relative flex shrink-0 items-center justify-center transition-transform group-hover:scale-[1.03]', isSidebarOpen ? 'h-11 w-11' : 'h-10 w-10')}>
+        <Image src="/fleet-manager-mark.svg" alt="" width={44} height={44} priority className={cn('rounded-xl shadow-md shadow-blue-900/20', isSidebarOpen ? 'h-11 w-11' : 'h-10 w-10')} />
       </span>
       {isSidebarOpen && (
         <span className="min-w-0">
@@ -157,7 +225,7 @@ export function Navigation() {
     <nav aria-label={t('Main navigation')} className={sidebarClassName}>
       <div className={cn(
         'flex h-[4.75rem] shrink-0 items-center border-b border-sidebar-border/80',
-        isSidebarOpen ? 'justify-between px-4' : 'justify-center px-2',
+        isSidebarOpen ? 'justify-between px-4' : 'flex-col justify-center gap-0 px-1',
       )}>
         {hasPermission('dashboard', 'read') ? (
         <Link href="/dashboard" onClick={() => window.matchMedia('(max-width: 767px)').matches && closeSidebar()} className={brandClassName} aria-label={t('Fleet Manager home')}>
@@ -193,7 +261,7 @@ export function Navigation() {
             onClick={toggleSidebar}
             aria-label={t('Expand sidebar')}
             title={t('Expand sidebar')}
-            className="hidden h-9 w-9 rounded-lg text-sidebar-foreground/65 hover:bg-sidebar-accent hover:text-sidebar-foreground md:inline-flex"
+            className="hidden h-8 w-8 rounded-lg text-sidebar-foreground/65 hover:bg-sidebar-accent hover:text-sidebar-foreground md:inline-flex"
           >
             {isArabic ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
           </Button>
@@ -201,14 +269,47 @@ export function Navigation() {
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-3 py-4 scrollbar-thin">
-        {groups.map((group, groupIndex) => (
-          <section key={group.label} className={cn(groupIndex > 0 && 'mt-5')} aria-label={t(group.label)}>
-            {isSidebarOpen && (
-              <h2 className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-[0.15em] text-sidebar-foreground/45">
-                <LocalizedText>{group.label}</LocalizedText>
-              </h2>
-            )}
-            <div className="space-y-1">
+        {groups.map((group, groupIndex) => {
+          const isFolderOpen = openFolders[group.id] ?? false
+          const isFolderActive = group.id === activeFolderId
+          const FolderIcon = isFolderOpen ? FolderOpen : Folder
+
+          return (
+          <section key={group.id} className={cn(groupIndex > 0 && 'mt-2')} aria-label={t(group.label)}>
+            <button
+              type="button"
+              onClick={() => setOpenFolders((current) => ({ ...current, [group.id]: !isFolderOpen }))}
+              aria-expanded={isFolderOpen}
+              aria-controls={`navigation-folder-${group.id}`}
+              title={!isSidebarOpen ? t(group.label) : undefined}
+              className={cn(
+                'group/folder relative flex min-h-11 w-full items-center gap-2.5 rounded-xl px-2.5 text-start transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring',
+                !isSidebarOpen && 'justify-center px-1.5',
+                isFolderActive
+                  ? 'bg-sidebar-accent/75 text-sidebar-foreground'
+                  : 'text-sidebar-foreground/60 hover:bg-sidebar-accent/65 hover:text-sidebar-foreground',
+              )}
+            >
+              <span className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-lg', group.iconBackground)}>
+                <group.icon className={cn('h-[1.05rem] w-[1.05rem]', group.iconColor)} strokeWidth={2} />
+              </span>
+              {isSidebarOpen && (
+                <>
+                  <span className="min-w-0 flex-1 truncate text-[11px] font-semibold uppercase tracking-[0.12em]">
+                    <LocalizedText>{group.label}</LocalizedText>
+                  </span>
+                  <span className="flex items-center gap-1.5 text-sidebar-foreground/45">
+                    <FolderIcon className="h-3.5 w-3.5" />
+                    <span className="text-[10px] tabular-nums">{group.items.length}</span>
+                    <ChevronDown className={cn('h-3.5 w-3.5 transition-transform duration-200', isFolderOpen && 'rotate-180')} />
+                  </span>
+                </>
+              )}
+              {!isSidebarOpen && isFolderActive && <span className="absolute end-3 h-1.5 w-1.5 rounded-full bg-sky-500" />}
+              {!isSidebarOpen && <span className="sr-only"><LocalizedText>{group.label}</LocalizedText></span>}
+              <span className="sr-only">{isFolderOpen ? t('Collapse') : t('Expand')} {t(group.label)}</span>
+            </button>
+            <div id={`navigation-folder-${group.id}`} hidden={!isFolderOpen} className={cn('mt-1.5 space-y-1', isSidebarOpen && 'ms-4 border-s border-sidebar-border/70 ps-2')}>
               {group.items.map((item: NavItem) => {
                 const isActive = pathname === item.href || (pathname ?? '').startsWith(`${item.href}/`)
 
@@ -242,7 +343,8 @@ export function Navigation() {
               })}
             </div>
           </section>
-        ))}
+          )
+        })}
       </div>
 
       <div className="shrink-0 border-t border-sidebar-border/80 p-3">
