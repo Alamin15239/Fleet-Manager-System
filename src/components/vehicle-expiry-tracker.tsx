@@ -16,6 +16,7 @@ import { usePermissions } from '@/contexts/permissions-context'
 import { useLanguage } from '@/contexts/language-context'
 import { toast } from '@/lib/localized-toast'
 import { apiFetch, apiGet } from '@/lib/api'
+import { PdfPreviewDialog } from '@/components/pdf-preview-dialog'
 
 const documentTypes = ['Fire extinguisher', 'Operation card', 'Istimara', 'Insurance', 'Fahas'] as const
 const driverCardType = 'Driver card'
@@ -102,6 +103,13 @@ export function VehicleExpiryTracker() {
   const [typeFilter, setTypeFilter] = useState('all')
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
+  const [documentPreviewOpen, setDocumentPreviewOpen] = useState(false)
+  const [documentPreviewUrl, setDocumentPreviewUrl] = useState<string | null>(null)
+  const [documentPreviewName, setDocumentPreviewName] = useState('vehicle-document')
+  const [documentPreviewLoading, setDocumentPreviewLoading] = useState(false)
+  const [documentPreviewError, setDocumentPreviewError] = useState<string | null>(null)
+
+  useEffect(() => () => { if (documentPreviewUrl) URL.revokeObjectURL(documentPreviewUrl) }, [documentPreviewUrl])
   const documentSlotRefs = useRef<Partial<Record<DocumentType, HTMLElement | null>>>({})
   const fileInputRefs = useRef<Partial<Record<DocumentType, HTMLInputElement | null>>>({})
   const driverFileInputRef = useRef<HTMLInputElement>(null)
@@ -454,20 +462,23 @@ export function VehicleExpiryTracker() {
   }
 
   const openFile = async (documentId: string) => {
-    const preview = window.open('about:blank', '_blank')
-    if (!preview) {
-      toast.error('Allow pop-ups to view this document.')
-      return
-    }
+    const documentRecord = [...trucks.flatMap(truck => truck.vehicleDocuments), ...drivers.flatMap(driver => driver.vehicleDocuments)].find(item => item.id === documentId)
+    setDocumentPreviewName(documentRecord?.fileName || 'vehicle-document')
+    setDocumentPreviewUrl(null)
+    setDocumentPreviewError(null)
+    setDocumentPreviewLoading(true)
+    setDocumentPreviewOpen(true)
     try {
       const response = await apiGet(`/api/vehicle-documents/${documentId}`)
       if (!response.ok) throw new Error('Could not open the document.')
       const blobUrl = URL.createObjectURL(await response.blob())
-      preview.location.href = blobUrl
-      window.setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000)
+      setDocumentPreviewUrl(blobUrl)
     } catch (error) {
-      preview.close()
+      const message = error instanceof Error ? error.message : 'Could not open the document.'
+      setDocumentPreviewError(message)
       toast.error(error instanceof Error ? error.message : 'Could not open the document.')
+    } finally {
+      setDocumentPreviewLoading(false)
     }
   }
 
@@ -665,6 +676,16 @@ export function VehicleExpiryTracker() {
       <Card className="glass-card"><CardHeader><CardTitle><LocalizedText>Driver card status</LocalizedText></CardTitle><CardDescription><LocalizedText>Driver Cards are tracked against the driver record, independently from truck assignments.</LocalizedText></CardDescription></CardHeader><CardContent>
         {!visibleDriverRows.length ? <div className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground"><LocalizedText>{drivers.length ? 'No driver cards match these filters.' : 'No driver records yet. Add a driver or assign a driver to a truck first.'}</LocalizedText></div> : <div className="overflow-x-auto rounded-xl border"><table className="min-w-[850px] w-full text-sm"><thead className="bg-muted/60 text-left"><tr><th className="px-3 py-3 font-semibold"><LocalizedText>Driver</LocalizedText></th><th className="px-3 py-3 font-semibold"><LocalizedText>Issue date</LocalizedText></th><th className="px-3 py-3 font-semibold"><LocalizedText>Expiry date</LocalizedText></th><th className="px-3 py-3 font-semibold"><LocalizedText>Reminder starts (10 days before expiry)</LocalizedText></th><th className="px-3 py-3 font-semibold"><LocalizedText>Status</LocalizedText></th><th className="px-3 py-3 font-semibold"><LocalizedText>File</LocalizedText></th><th className="px-3 py-3 font-semibold"><LocalizedText>Actions</LocalizedText></th></tr></thead><tbody className="divide-y">{visibleDriverRows.map(row => <tr key={row.driver.id} className="hover:bg-muted/30"><td className="px-3 py-3 font-medium">{row.driver.name}</td><td className="px-3 py-3 tabular-nums">{readableDate(row.document?.validFrom)}</td><td className="px-3 py-3 tabular-nums">{readableDate(row.document?.validUntil)}</td><td className="px-3 py-3 tabular-nums">{readableDate(row.document?.validUntil ? reminderDateKey(row.document.validUntil.slice(0, 10)) : null)}</td><td className="px-3 py-3"><Badge variant="outline" className={statusStyle[row.status]}>{statusLabel[row.status]}</Badge></td><td className="px-3 py-3">{row.document?.fileName ? <Button type="button" size="sm" variant="outline" onClick={() => void openFile(row.document!.id)}><FileText className="me-1 h-4 w-4"/><LocalizedText>View</LocalizedText></Button> : <LocalizedText>Not uploaded</LocalizedText>}</td><td className="px-3 py-3">{row.document ? canUpdate('trucks') ? <Button type="button" size="sm" variant="outline" onClick={() => focusDriverInForm(row)}><Pencil className="me-1 h-4 w-4"/><LocalizedText>Edit</LocalizedText></Button> : '—' : canCreate('trucks') ? <Button type="button" size="sm" variant="outline" onClick={() => focusDriverInForm(row)}><Upload className="me-1 h-4 w-4"/><LocalizedText>Add</LocalizedText></Button> : '—'}</td></tr>)}</tbody></table></div>}
       </CardContent></Card>
+      <PdfPreviewDialog
+        open={documentPreviewOpen}
+        onOpenChange={setDocumentPreviewOpen}
+        title={documentPreviewName}
+        url={documentPreviewUrl}
+        loading={documentPreviewLoading}
+        error={documentPreviewError}
+        downloadName={documentPreviewName}
+        downloadLabel="Download file"
+      />
     </div>
   )
 }

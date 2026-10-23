@@ -73,8 +73,8 @@ export default function PDFViewer({ fileUrl, title }: PDFViewerProps) {
           </Button>
         </div>
       </div>
-      <div className="border border-gray-200 rounded-lg overflow-auto max-h-[600px] bg-white shadow-sm">
-        <div className="flex justify-center p-4">
+      <div className="h-[min(82dvh,1100px)] min-h-[560px] overflow-auto rounded-lg border border-gray-200 bg-white shadow-sm">
+        <div className="flex min-h-full justify-center p-4">
           <Document
             file={fileUrl}
             onLoadSuccess={onDocumentLoadSuccess}

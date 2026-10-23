@@ -17,6 +17,7 @@ import { formatCurrency } from '@/lib/currency'
 import { apiGet } from '@/lib/api'
 import { createMaintenancePdf, createMaintenanceWorkbook } from '@/lib/maintenance-report-export'
 import { usePermissions } from '@/contexts/permissions-context'
+import { PdfPreviewDialog } from '@/components/pdf-preview-dialog'
 
 interface MaintenanceRecord {
   id: string
@@ -142,6 +143,12 @@ export default function ReportsPage() {
   const [truckSearch, setTruckSearch] = useState('')
   const [trailerSearch, setTrailerSearch] = useState('')
   const [reportError, setReportError] = useState<string | null>(null)
+  const [pdfPreviewOpen, setPdfPreviewOpen] = useState(false)
+  const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null)
+  const [pdfPreviewLoading, setPdfPreviewLoading] = useState(false)
+  const [pdfPreviewError, setPdfPreviewError] = useState<string | null>(null)
+
+  useEffect(() => () => { if (pdfPreviewUrl) URL.revokeObjectURL(pdfPreviewUrl) }, [pdfPreviewUrl])
 
   useEffect(() => {
     if (permissionsLoading || !canViewReports) return
@@ -298,28 +305,27 @@ export default function ReportsPage() {
 
   const generateReport = async () => {
     setGenerating(true)
-    let previewWindow: Window | null = null
     try {
       const filteredMaintenance = getFilteredMaintenance()
       
       if (format === 'pdf') {
-        previewWindow = window.open('', '_blank')
-        if (!previewWindow) throw new Error('Allow pop-ups to preview the PDF report.')
-        previewWindow.document.write(`<title>${t('Preparing report')}</title><p style="font-family:Arial;padding:24px">${t('Preparing your report…')}</p>`)
+        setPdfPreviewOpen(true)
+        setPdfPreviewLoading(true)
+        setPdfPreviewError(null)
         const blob = await createMaintenancePdf(filteredMaintenance, `${startDate || 'All time'} to ${endDate || 'Current'}`)
         const url = URL.createObjectURL(blob)
-        previewWindow.location.href = url
-        window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
+        setPdfPreviewUrl(url)
       } else {
         await exportMaintenanceExcel(filteredMaintenance)
       }
       
       toast.success('Report generated successfully')
     } catch (error) {
-      previewWindow?.close()
+      if (format === 'pdf') setPdfPreviewError(error instanceof Error ? error.message : 'Failed to generate report')
       toast.error(error instanceof Error ? error.message : 'Failed to generate report')
     } finally {
       setGenerating(false)
+      setPdfPreviewLoading(false)
     }
   }
 
@@ -781,8 +787,15 @@ export default function ReportsPage() {
           </Card>
         </TabsContent>
       </Tabs>
-
-
+      <PdfPreviewDialog
+        open={pdfPreviewOpen}
+        onOpenChange={setPdfPreviewOpen}
+        title="Maintenance report"
+        url={pdfPreviewUrl}
+        loading={pdfPreviewLoading}
+        error={pdfPreviewError}
+        downloadName={`maintenance-report-${new Date().toISOString().slice(0, 10)}.pdf`}
+      />
     </div>
   )
 }

@@ -35,6 +35,7 @@ import {
 import { format } from 'date-fns'
 import { apiGet } from '@/lib/api'
 import { useAuth } from '@/contexts/auth-context'
+import { PdfPreviewDialog } from '@/components/pdf-preview-dialog'
 
 interface ReportTemplate {
   id: string
@@ -126,6 +127,11 @@ export default function ProfessionalReportGenerator() {
   const [tireSelectionActive, setTireSelectionActive] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+  const [pdfPreviewOpen, setPdfPreviewOpen] = useState(false)
+  const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null)
+  const [pdfPreviewError, setPdfPreviewError] = useState<string | null>(null)
+
+  useEffect(() => () => { if (pdfPreviewUrl) URL.revokeObjectURL(pdfPreviewUrl) }, [pdfPreviewUrl])
 
   // Available filter options
   const [manufacturers, setManufacturers] = useState<string[]>([])
@@ -331,19 +337,19 @@ export default function ProfessionalReportGenerator() {
 
   const viewReportPdf = async () => {
     if (!reportData || reportData?.isEmpty || selectedTires.length === 0) return
-    const viewer = window.open('about:blank', '_blank')
-    if (!viewer) { setError('Allow pop-ups to view the PDF in a new browser tab'); return }
-    viewer.document.write('<!doctype html><title>Preparing tire report PDF</title><p style="font:16px Arial;padding:24px">Preparing PDF…</p>')
+    setPdfPreviewOpen(true)
+    setPdfPreviewUrl(null)
+    setPdfPreviewError(null)
     setGenerating(true)
     setError(null)
     try {
       const blob = await generatePDFContent()
       const url = URL.createObjectURL(blob)
-      viewer.location.href = url
-      window.setTimeout(() => URL.revokeObjectURL(url), 60000)
+      setPdfPreviewUrl(url)
     } catch (cause) {
-      viewer.close()
-      setError(cause instanceof Error ? cause.message : 'Unable to prepare the PDF')
+      const message = cause instanceof Error ? cause.message : 'Unable to prepare the PDF'
+      setPdfPreviewError(message)
+      setError(message)
     } finally {
       setGenerating(false)
     }
@@ -1314,7 +1320,7 @@ export default function ProfessionalReportGenerator() {
               className="w-full sm:w-auto"
             >
               <Eye className="mr-2 h-4 w-4" />
-              <LocalizedText>Open PDF in browser</LocalizedText>
+              <LocalizedText>Preview PDF</LocalizedText>
             </Button>}
             <Button
               onClick={downloadReport} 
@@ -1327,6 +1333,15 @@ export default function ProfessionalReportGenerator() {
           </div>
         </DialogContent>
       </Dialog>
+      <PdfPreviewDialog
+        open={pdfPreviewOpen}
+        onOpenChange={setPdfPreviewOpen}
+        title="Tire Management Report"
+        url={pdfPreviewUrl}
+        loading={generating}
+        error={pdfPreviewError}
+        downloadName={`tire-report-${format(new Date(), 'yyyy-MM-dd')}.pdf`}
+      />
     </div>
   )
 }

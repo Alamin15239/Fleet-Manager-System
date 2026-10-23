@@ -101,17 +101,7 @@ export function FilePreview({ file, trigger, showTrigger = true }: FilePreviewPr
 
     if (isPDF) {
       return (
-        <div className="flex items-center justify-center bg-gray-100 rounded-lg h-[60vh]">
-          <div className="text-center">
-            <FileText className="h-16 w-16 text-red-500 mx-auto mb-4" />
-            <p className="text-lg font-medium"><LocalizedText>PDF Document</LocalizedText></p>
-            <p className="text-sm text-gray-600 mb-4">{file.originalName}</p>
-            <Button onClick={handleDownload}>
-              <Download className="h-4 w-4 mr-2" />
-              Download PDF
-            </Button>
-          </div>
-        </div>
+        <iframe title={`${file.originalName} PDF preview`} src={file.url} className="h-full min-h-[60vh] w-full bg-white" />
       )
     }
 
@@ -146,7 +136,7 @@ export function FilePreview({ file, trigger, showTrigger = true }: FilePreviewPr
           {trigger || defaultTrigger}
         </DialogTrigger>
       )}
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden">
+      <DialogContent className={isPDF ? 'flex h-[95dvh] max-h-[95dvh] w-[calc(100vw-1rem)] max-w-[calc(100vw-1rem)] flex-col gap-3 overflow-hidden p-3 sm:w-[96vw] sm:max-w-[96vw] sm:p-5' : 'max-w-4xl max-h-[90vh] overflow-hidden'}>
         <DialogHeader>
           <div className="flex items-center justify-between">
             <DialogTitle className="flex items-center gap-2">
@@ -206,11 +196,11 @@ export function FilePreview({ file, trigger, showTrigger = true }: FilePreviewPr
           </div>
         </DialogHeader>
         
-        <div className="flex-1 overflow-auto">
+        <div className={isPDF ? 'min-h-0 flex-1 overflow-hidden rounded-lg border bg-slate-100' : 'flex-1 overflow-auto'}>
           {renderPreview()}
         </div>
         
-        <div className="border-t pt-4">
+        {!isPDF && <div className="border-t pt-4">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
             <div>
               <span className="font-medium"><LocalizedText>Size:</LocalizedText></span>
@@ -231,7 +221,7 @@ export function FilePreview({ file, trigger, showTrigger = true }: FilePreviewPr
               <p className="text-gray-600"><LocalizedText>Available</LocalizedText></p>
             </div>
           </div>
-        </div>
+        </div>}
       </DialogContent>
     </Dialog>
   )

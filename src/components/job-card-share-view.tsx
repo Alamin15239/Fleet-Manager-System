@@ -3,7 +3,7 @@ import { LocalizedText } from '@/components/localized-text'
 
 import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'next/navigation'
-import { Download, ExternalLink, Loader2, Printer } from 'lucide-react'
+import { Download, Loader2, Printer } from 'lucide-react'
 import { renderJobCardDocument } from '@/lib/job-card-document'
 import { createJobCardPdfBlob, downloadJobCardPdf } from '@/lib/job-card-pdf'
 
@@ -91,7 +91,6 @@ export default function JobCardShareView() {
           <h1 className="text-lg font-semibold">{jobNumber}</h1>
         </div>
         {pdfUrl && <div className="flex flex-wrap gap-2">
-          <button type="button" onClick={() => window.open(pdfUrl, '_blank', 'noopener,noreferrer')} className="inline-flex min-h-10 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 text-sm font-medium shadow-sm hover:bg-slate-50"><ExternalLink className="h-4 w-4"/><LocalizedText>Open PDF in browser</LocalizedText></button>
           <button type="button" onClick={print} className="inline-flex min-h-10 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 text-sm font-medium shadow-sm hover:bg-slate-50"><Printer className="h-4 w-4"/>Print</button>
           <button type="button" onClick={downloadPdf} disabled={downloading} className="inline-flex min-h-10 items-center gap-2 rounded-md bg-emerald-800 px-3 text-sm font-semibold text-white shadow-sm hover:bg-emerald-900 disabled:cursor-wait disabled:opacity-60"><Download className="h-4 w-4"/>{downloading ? 'Preparing PDF…' : 'Download PDF'}</button>
         </div>}

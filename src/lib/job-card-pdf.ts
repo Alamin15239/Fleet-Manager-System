@@ -76,6 +76,10 @@ export async function createJobCardPdfBlob(documentHtml: string, renderWindow: W
       scale: 2,
       backgroundColor: '#ffffff',
       useCORS: true,
+      // Use Chromium/Edge's native CSS layout inside an SVG foreignObject.
+      // The default html2canvas CSS parser can throw "unexpected EOF" on valid
+      // browser-computed CSS values, which prevents job-card PDF generation.
+      foreignObjectRendering: true,
       windowWidth: renderWidth,
       windowHeight: Math.max(renderHeight, page.scrollHeight)
     })

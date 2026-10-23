@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label'
 import { LocalizedText } from '@/components/localized-text'
 import { toast } from '@/lib/localized-toast'
 import { apiDelete, apiFetch, apiGet } from '@/lib/api'
+import { PdfPreviewDialog } from '@/components/pdf-preview-dialog'
 
 type SourceType = 'TRUCK' | 'TRAILER'
 type ProtectionDocument = { id: string; title: string; fileName: string; fileSize: number; updatedAt: string }
@@ -28,6 +29,12 @@ export function ProtectionCardDocuments({
   const [file, setFile] = useState<File | null>(null)
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
+  const [previewOpen, setPreviewOpen] = useState(false)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [previewLoading, setPreviewLoading] = useState(false)
+  const [previewError, setPreviewError] = useState<string | null>(null)
+
+  useEffect(() => () => { if (previewUrl) URL.revokeObjectURL(previewUrl) }, [previewUrl])
 
   const loadDocument = useCallback(async () => {
     setLoading(true)
@@ -72,20 +79,21 @@ export function ProtectionCardDocuments({
 
   const openDocument = async () => {
     if (!currentDocument) return
-    const preview = window.open('about:blank', '_blank')
-    if (!preview) {
-      toast.error('Allow pop-ups to view the protection card.')
-      return
-    }
+    setPreviewUrl(null)
+    setPreviewError(null)
+    setPreviewLoading(true)
+    setPreviewOpen(true)
     try {
       const response = await apiGet(`/api/vehicle-documents/${currentDocument.id}`)
       if (!response.ok) throw new Error('Could not open the protection card.')
       const blobUrl = URL.createObjectURL(await response.blob())
-      preview.location.href = blobUrl
-      window.setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000)
+      setPreviewUrl(blobUrl)
     } catch (error) {
-      preview.close()
+      const message = error instanceof Error ? error.message : 'Could not open the protection card.'
+      setPreviewError(message)
       toast.error(error instanceof Error ? error.message : 'Could not open the protection card.')
+    } finally {
+      setPreviewLoading(false)
     }
   }
 
@@ -120,6 +128,16 @@ export function ProtectionCardDocuments({
         ) : <p className="text-sm text-muted-foreground"><LocalizedText>No protection card uploaded.</LocalizedText></p>}
         {canUpload && <div className="flex flex-col gap-2 sm:flex-row sm:items-end"><div className="min-w-0 flex-1 space-y-1.5"><Label htmlFor={`protection-file-${sourceType}-${sourceId}`}><LocalizedText>Upload or replace file (optional)</LocalizedText></Label><DocumentFileInput id={`protection-file-${sourceType}-${sourceId}`} accept="application/pdf,image/jpeg,image/png,image/webp" disabled={busy} onFileSelected={setFile}/><p className="text-xs text-muted-foreground"><LocalizedText>PDF, JPG, PNG, or WEBP · maximum 4 MB · optional</LocalizedText></p></div><Button type="button" disabled={!file || busy} onClick={() => void upload()}><Upload className="me-2 h-4 w-4"/>{busy ? <LocalizedText>Saving…</LocalizedText> : <LocalizedText>Save protection card</LocalizedText>}</Button></div>}
       </CardContent>
+      <PdfPreviewDialog
+        open={previewOpen}
+        onOpenChange={setPreviewOpen}
+        title={currentDocument?.fileName || 'Protection card'}
+        url={previewUrl}
+        loading={previewLoading}
+        error={previewError}
+        downloadName={currentDocument?.fileName || 'protection-card'}
+        downloadLabel="Download file"
+      />
     </Card>
   )
 }

@@ -25,6 +25,7 @@ import { format } from 'date-fns'
 import { apiGet } from '@/lib/api'
 import { isTireIncludedInAnalytics } from '@/lib/tire-analytics'
 import { rowsToCsv } from '@/lib/csv-export'
+import { PdfPreviewDialog } from '@/components/pdf-preview-dialog'
 
 interface ReportData {
   totalTires: number
@@ -178,11 +179,17 @@ export default function TireReportsSimple() {
   const [loading, setLoading] = useState(false)
   const [reportData, setReportData] = useState<ReportData | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [pdfPreviewOpen, setPdfPreviewOpen] = useState(false)
+  const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null)
+  const [pdfPreviewLoading, setPdfPreviewLoading] = useState(false)
+  const [pdfPreviewError, setPdfPreviewError] = useState<string | null>(null)
   const [dateRange, setDateRange] = useState({
     start: format(new Date(2024, 0, 1), 'yyyy-MM-dd'),
     end: format(new Date(), 'yyyy-MM-dd')
   })
   const [pdfFilters, setPdfFilters] = useState({ size: 'all', truck: 'all', trailer: 'all' })
+
+  useEffect(() => () => { if (pdfPreviewUrl) URL.revokeObjectURL(pdfPreviewUrl) }, [pdfPreviewUrl])
 
   useEffect(() => {
     generateReport()
@@ -341,17 +348,12 @@ export default function TireReportsSimple() {
       setError('No tire records match the selected PDF filters')
       return
     }
-    const viewer = download ? null : window.open('about:blank', '_blank')
-    if (!download && !viewer) {
-      setError('Allow pop-ups to view the tire report PDF in a browser tab')
-      return
-    }
-    if (viewer) {
-      viewer.document.open()
-      viewer.document.write('<!doctype html><title>Preparing tire report PDF</title><meta name="viewport" content="width=device-width,initial-scale=1"><body style="font:16px Arial,sans-serif;padding:24px;color:#334155">Preparing tire report PDF…</body>')
-      viewer.document.close()
-    }
     setError(null)
+    setPdfPreviewError(null)
+    if (!download) {
+      setPdfPreviewLoading(true)
+      setPdfPreviewOpen(true)
+    }
     try {
       const blob = await createTireReportPdf(pdfData, dateRange)
       const url = URL.createObjectURL(blob)
@@ -363,21 +365,15 @@ export default function TireReportsSimple() {
         anchor.click()
         anchor.remove()
         window.setTimeout(() => URL.revokeObjectURL(url), 60000)
-      } else if (viewer && !viewer.closed) {
-        viewer.location.replace(url)
-        window.setTimeout(() => URL.revokeObjectURL(url), 5 * 60 * 1000)
       } else {
-        URL.revokeObjectURL(url)
+        setPdfPreviewUrl(url)
       }
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : 'Unable to prepare the tire report PDF'
-      setError(message)
-      if (viewer && !viewer.closed) {
-        viewer.document.open()
-        viewer.document.write('<!doctype html><title>Tire report PDF unavailable</title><body style="font:16px Arial,sans-serif;padding:24px;color:#991b1b"><h1 style="font-size:20px">Could not prepare the tire report PDF</h1></body>')
-        viewer.document.close()
-        viewer.document.body.append(viewer.document.createTextNode(message))
-      }
+      if (download) setError(message)
+      else setPdfPreviewError(message)
+    } finally {
+      if (!download) setPdfPreviewLoading(false)
     }
   }
 
@@ -405,7 +401,7 @@ export default function TireReportsSimple() {
           </Button>
           {reportData && (
             <>
-              <Button variant="outline" onClick={() => void openPdf()} disabled={!pdfTireRows.length}>
+              <Button variant="outline" onClick={() => void openPdf()} disabled={!pdfTireRows.length || pdfPreviewLoading}>
                 <Eye className="mr-2 h-4 w-4" />
                 <LocalizedText>View PDF</LocalizedText>
               </Button>
@@ -634,6 +630,15 @@ export default function TireReportsSimple() {
           </Card>
         </>
       )}
+      <PdfPreviewDialog
+        open={pdfPreviewOpen}
+        onOpenChange={setPdfPreviewOpen}
+        title="Tire Management Report"
+        url={pdfPreviewUrl}
+        loading={pdfPreviewLoading}
+        error={pdfPreviewError}
+        downloadName={`tire-report-${format(new Date(), 'yyyy-MM-dd')}.pdf`}
+      />
     </div>
   )
 }

@@ -17,6 +17,7 @@ import { FileText, Plus, Printer, Download, Pencil, Trash2, Eye } from 'lucide-r
 import { renderJobCardDocument } from '@/lib/job-card-document'
 import { createJobCardPdfBlob, downloadJobCardPdf } from '@/lib/job-card-pdf'
 import { usePermissions } from '@/contexts/permissions-context'
+import { PdfPreviewDialog } from '@/components/pdf-preview-dialog'
 
 type VehicleType = 'truck' | 'trailer'
 type LineItem = { type: string; description: string; quantity: number; remarks: string }
@@ -58,7 +59,14 @@ export default function WorkshopJobCards() {
   const [saving, setSaving] = useState(false)
   const [downloadingId, setDownloadingId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [pdfPreviewOpen, setPdfPreviewOpen] = useState(false)
+  const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null)
+  const [pdfPreviewTitle, setPdfPreviewTitle] = useState('Job card')
+  const [pdfPreviewLoading, setPdfPreviewLoading] = useState(false)
+  const [pdfPreviewError, setPdfPreviewError] = useState<string | null>(null)
   const vehicles = form.vehicleType === 'truck' ? trucks : trailers
+
+  useEffect(() => () => { if (pdfPreviewUrl) URL.revokeObjectURL(pdfPreviewUrl) }, [pdfPreviewUrl])
 
   const load = async () => {
     try {
@@ -122,62 +130,23 @@ export default function WorkshopJobCards() {
     if (!response.ok || !data.shareUrl) throw new Error(data.error || 'Unable to create a job-card share link')
     return renderJobCardDocument(card, company, data.shareUrl, window.location.origin)
   }
-  const fitCardToPage = (targetDocument: Document, targetWidth: string, maxHeightPx: number) => {
-    const page = targetDocument.querySelector<HTMLElement>('.print-page')
-    if (!page) throw new Error('Unable to render the job card')
-    page.style.zoom = '1'
-    page.style.width = targetWidth
-    page.style.maxWidth = targetWidth
-    page.style.height = 'auto'
-    const contentHeight = page.scrollHeight
-    page.style.zoom = String(Math.min(1, maxHeightPx / contentHeight))
-  }
-
-  const printCard = async (card: JobCard) => {
-    const printWindow = window.open('', '_blank', 'width=1000,height=900')
-    if (!printWindow) { toast.error('Allow pop-ups to print the job card'); return }
-    try {
-      printWindow.document.write(await renderCardDocument(card))
-      printWindow.document.close()
-      printWindow.onbeforeprint = () => fitCardToPage(printWindow.document, '197.3mm', 1080)
-      printWindow.onload = () => setTimeout(() => printWindow.print(), 150)
-    } catch (error) {
-      printWindow.close()
-      toast.error(error instanceof Error ? error.message : 'Unable to prepare the job card')
-    }
-  }
-
   const viewCardPdf = async (card: JobCard) => {
-    const viewer = window.open('about:blank', '_blank')
-    if (!viewer) { toast.error('Allow pop-ups to open the job-card PDF'); return }
-    viewer.document.open()
-    viewer.document.write('<!doctype html><title>Preparing job-card PDF</title><meta name="viewport" content="width=device-width,initial-scale=1"><body style="font:16px Arial,sans-serif;padding:24px;color:#334155"><p>Preparing job-card PDF…</p></body>')
-    viewer.document.close()
+    setPdfPreviewTitle(`${card.jobNumber} · Job Card`)
+    setPdfPreviewOpen(true)
+    setPdfPreviewLoading(true)
+    setPdfPreviewError(null)
+    setPdfPreviewUrl(null)
     try {
-      let timeoutId = 0
-      const timeout = new Promise<never>((_, reject) => {
-        timeoutId = viewer.setTimeout(() => reject(new Error('Preparing the job-card PDF took too long. Please try again.')), 60000)
-      })
-      let blob: Blob
-      try {
-        const documentHtml = await renderCardDocument(card)
-        blob = await Promise.race([createJobCardPdfBlob(documentHtml, viewer), timeout])
-      } finally {
-        viewer.clearTimeout(timeoutId)
-      }
-      if (viewer.closed) return
+      const documentHtml = await renderCardDocument(card)
+      const blob = await createJobCardPdfBlob(documentHtml)
       const url = URL.createObjectURL(blob)
-      viewer.location.replace(url)
-      window.setTimeout(() => URL.revokeObjectURL(url), 5 * 60 * 1000)
+      setPdfPreviewUrl(url)
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unable to prepare the job-card PDF'
-      if (!viewer.closed) {
-        viewer.document.open()
-        viewer.document.write('<!doctype html><title>Job-card PDF unavailable</title><meta name="viewport" content="width=device-width,initial-scale=1"><body style="font:16px Arial,sans-serif;padding:24px;color:#991b1b"><h1 style="font-size:20px">Could not prepare the job-card PDF</h1></body>')
-        viewer.document.close()
-        viewer.document.body.append(viewer.document.createTextNode(message))
-      }
+      setPdfPreviewError(message)
       toast.error(message)
+    } finally {
+      setPdfPreviewLoading(false)
     }
   }
 
@@ -201,7 +170,7 @@ export default function WorkshopJobCards() {
     <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between"><div><h2 className="text-xl font-semibold"><LocalizedText>Workshop Job Cards</LocalizedText></h2><p className="text-sm text-muted-foreground"><LocalizedText>Create, track, and print the bilingual workshop form.</LocalizedText></p></div>{canCreate('maintenance') && <Button onClick={startNew}><Plus className="mr-2 h-4 w-4"/>New Job Card</Button>}</div>
     <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">{[['Total Job Cards', summary.total], ['Open', summary.open], ['In Progress', summary.inProgress], ['Completed', summary.completed]].map(([label, value]) => <Card key={label}><CardContent className="p-4"><p className="text-xs text-muted-foreground">{label}</p><p className="mt-1 text-2xl font-semibold">{value}</p></CardContent></Card>)}</div>
     <Card><CardHeader><CardTitle><LocalizedText>Job Card Register</LocalizedText></CardTitle><CardDescription>{cards.length} saved job cards</CardDescription></CardHeader><CardContent>
-       {loading ? <p className="py-8 text-center text-muted-foreground"><LocalizedText>Loading job cards…</LocalizedText></p> : cards.length === 0 ? <div className="py-10 text-center"><FileText className="mx-auto mb-3 h-10 w-10 text-muted-foreground"/><p className="font-medium"><LocalizedText>No job cards yet</LocalizedText></p><p className="text-sm text-muted-foreground"><LocalizedText>Create the first workshop job card when a vehicle arrives for service.</LocalizedText></p></div> : <div className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead><LocalizedText>Job No.</LocalizedText></TableHead><TableHead><LocalizedText>Date</LocalizedText></TableHead><TableHead><LocalizedText>Vehicle</LocalizedText></TableHead><TableHead><LocalizedText>Service</LocalizedText></TableHead><TableHead><LocalizedText>Technician</LocalizedText></TableHead><TableHead><LocalizedText>Status</LocalizedText></TableHead><TableHead><LocalizedText>Actions</LocalizedText></TableHead></TableRow></TableHeader><TableBody>{cards.map(card => <TableRow key={card.id}><TableCell className="font-medium">{card.jobNumber}</TableCell><TableCell>{dateText(card.serviceDate)}</TableCell><TableCell>{vehicleLabel(card)}</TableCell><TableCell>{card.serviceType}</TableCell><TableCell>{card.technicianName || '—'}</TableCell><TableCell><Badge variant={card.status === 'COMPLETED' ? 'default' : 'secondary'}>{statusLabel(card.status)}</Badge></TableCell><TableCell><div className="flex gap-1"><Button size="sm" variant="ghost" title="View PDF in browser" aria-label={`View PDF for ${card.jobNumber}`} onClick={() => viewCardPdf(card)}><Eye className="h-4 w-4"/></Button><Button size="sm" variant="ghost" title="Print job card" aria-label={`Print job card ${card.jobNumber}`} onClick={() => printCard(card)}><Printer className="h-4 w-4"/></Button><Button size="sm" variant="ghost" title="Download PDF" aria-label={`Download PDF for ${card.jobNumber}`} disabled={downloadingId === card.id} onClick={() => downloadCard(card)}><Download className="h-4 w-4"/></Button><Button size="sm" variant="ghost" hidden={!canUpdate('maintenance')} title="Edit job card" aria-label={`Edit job card ${card.jobNumber}`} onClick={() => startEdit(card)}><Pencil className="h-4 w-4"/></Button></div></TableCell></TableRow>)}</TableBody></Table></div>}
+       {loading ? <p className="py-8 text-center text-muted-foreground"><LocalizedText>Loading job cards…</LocalizedText></p> : cards.length === 0 ? <div className="py-10 text-center"><FileText className="mx-auto mb-3 h-10 w-10 text-muted-foreground"/><p className="font-medium"><LocalizedText>No job cards yet</LocalizedText></p><p className="text-sm text-muted-foreground"><LocalizedText>Create the first workshop job card when a vehicle arrives for service.</LocalizedText></p></div> : <div className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead><LocalizedText>Job No.</LocalizedText></TableHead><TableHead><LocalizedText>Date</LocalizedText></TableHead><TableHead><LocalizedText>Vehicle</LocalizedText></TableHead><TableHead><LocalizedText>Service</LocalizedText></TableHead><TableHead><LocalizedText>Technician</LocalizedText></TableHead><TableHead><LocalizedText>Status</LocalizedText></TableHead><TableHead><LocalizedText>Actions</LocalizedText></TableHead></TableRow></TableHeader><TableBody>{cards.map(card => <TableRow key={card.id}><TableCell className="font-medium">{card.jobNumber}</TableCell><TableCell>{dateText(card.serviceDate)}</TableCell><TableCell>{vehicleLabel(card)}</TableCell><TableCell>{card.serviceType}</TableCell><TableCell>{card.technicianName || '—'}</TableCell><TableCell><Badge variant={card.status === 'COMPLETED' ? 'default' : 'secondary'}>{statusLabel(card.status)}</Badge></TableCell><TableCell><div className="flex gap-1"><Button size="sm" variant="ghost" title="View PDF in browser" aria-label={`View PDF for ${card.jobNumber}`} onClick={() => viewCardPdf(card)}><Eye className="h-4 w-4"/></Button><Button size="sm" variant="ghost" title="Preview and print job card" aria-label={`Preview and print job card ${card.jobNumber}`} onClick={() => viewCardPdf(card)}><Printer className="h-4 w-4"/></Button><Button size="sm" variant="ghost" title="Download PDF" aria-label={`Download PDF for ${card.jobNumber}`} disabled={downloadingId === card.id} onClick={() => downloadCard(card)}><Download className="h-4 w-4"/></Button><Button size="sm" variant="ghost" hidden={!canUpdate('maintenance')} title="Edit job card" aria-label={`Edit job card ${card.jobNumber}`} onClick={() => startEdit(card)}><Pencil className="h-4 w-4"/></Button></div></TableCell></TableRow>)}</TableBody></Table></div>}
     </CardContent></Card>
 
     <Dialog open={open} onOpenChange={setOpen}><DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-4xl"><DialogHeader><DialogTitle>{editingId ? 'Edit Workshop Job Card' : 'New Workshop Job Card'}</DialogTitle><DialogDescription><LocalizedText>Bilingual A4 form · بيانات أمر الشغل</LocalizedText></DialogDescription></DialogHeader>
@@ -225,5 +194,14 @@ export default function WorkshopJobCards() {
         <div className="flex flex-col-reverse gap-2 border-t pt-4 sm:flex-row sm:justify-end"><Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button><Button type="submit" disabled={saving || (editingId ? !canUpdate('maintenance') : !canCreate('maintenance'))}>{saving ? 'Saving…' : editingId ? 'Save Changes' : 'Save Job Card'}</Button></div>
       </form>
     </DialogContent></Dialog>
+    <PdfPreviewDialog
+      open={pdfPreviewOpen}
+      onOpenChange={setPdfPreviewOpen}
+      title={pdfPreviewTitle}
+      url={pdfPreviewUrl}
+      loading={pdfPreviewLoading}
+      error={pdfPreviewError}
+      downloadName={`${pdfPreviewTitle.replace(/[^a-z0-9-_]+/gi, '_')}.pdf`}
+    />
   </div>
 }
