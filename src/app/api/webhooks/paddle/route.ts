@@ -5,6 +5,10 @@ export const runtime = 'nodejs'
 export const maxDuration = 60
 
 export async function POST(request: NextRequest) {
+  if (process.env.PADDLE_ENVIRONMENT?.trim().toLowerCase() !== 'sandbox') {
+    return NextResponse.json({ error: 'Paddle live billing is disabled until account verification is approved.' }, { status: 503 })
+  }
+
   const rawBody = await request.text()
   if (!verifyPaddleWebhook(rawBody, request.headers.get('paddle-signature'))) {
     return NextResponse.json({ error: 'Paddle webhook signature verification failed.' }, { status: 401 })

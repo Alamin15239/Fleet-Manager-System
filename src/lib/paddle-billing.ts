@@ -12,9 +12,10 @@ export type PaddlePrice = {
 }
 
 function paddleApiBase() {
-  return process.env.PADDLE_ENVIRONMENT?.trim().toLowerCase() === 'sandbox'
-    ? 'https://sandbox-api.paddle.com'
-    : 'https://api.paddle.com'
+  if (process.env.PADDLE_ENVIRONMENT?.trim().toLowerCase() !== 'sandbox') {
+    throw new Error('Paddle live billing is disabled until account verification is approved.')
+  }
+  return 'https://sandbox-api.paddle.com'
 }
 
 export function paddleEnvironment() {
@@ -22,9 +23,13 @@ export function paddleEnvironment() {
 }
 
 export function isPaddleBillingReady() {
+  const environment = process.env.PADDLE_ENVIRONMENT?.trim().toLowerCase()
+  const clientToken = process.env.PADDLE_CLIENT_TOKEN?.trim()
+
   return Boolean(
+    environment === 'sandbox' &&
+    clientToken?.startsWith('test_') &&
     process.env.PADDLE_API_KEY?.trim() &&
-    process.env.PADDLE_CLIENT_TOKEN?.trim() &&
     process.env.PADDLE_PRICE_ID?.trim() &&
     process.env.PADDLE_WEBHOOK_SECRET?.trim()
   )
