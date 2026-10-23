@@ -41,7 +41,7 @@ async function createTireReportPdf(data: ReportData, dateRange: { start: string;
   const { jsPDF } = await import('jspdf')
   const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true })
   const pageWidth = 210
-  const margin = 10
+  const margin = 8
   const right = pageWidth - margin
   const colors = { ink: [31, 48, 40] as const, muted: [103, 120, 111] as const, green: [32, 76, 58] as const, line: [216, 226, 220] as const }
   const pageTitle = (page: number) => {
@@ -101,14 +101,15 @@ async function createTireReportPdf(data: ReportData, dateRange: { start: string;
   summaryBlock('TIRE ORIGINS', data.originStats, margin + 100)
 
   const columns = [
-    { label: 'Size', x: 10, width: 22 },
-    { label: 'Manufacturer', x: 32, width: 22 },
-    { label: 'Origin', x: 54, width: 18 },
-    { label: 'Truck / trailer', x: 72, width: 28 },
-    { label: 'Driver', x: 100, width: 24 },
-    { label: 'Qty', x: 124, width: 11 },
-    { label: 'Serial number', x: 135, width: 49 },
-    { label: 'Date', x: 184, width: 16 },
+    { label: 'Size', x: 8, width: 18 },
+    { label: 'Truck No.', x: 26, width: 24 },
+    { label: 'Trailer No.', x: 50, width: 24 },
+    { label: 'Manufacturer', x: 74, width: 22 },
+    { label: 'Origin', x: 96, width: 18 },
+    { label: 'Driver', x: 114, width: 22 },
+    { label: 'Qty', x: 136, width: 9 },
+    { label: 'Serial number', x: 145, width: 43 },
+    { label: 'Date', x: 188, width: 14 },
   ]
   const drawTableHeader = (y: number) => {
     pdf.setFillColor(235, 242, 237)
@@ -125,13 +126,18 @@ async function createTireReportPdf(data: ReportData, dateRange: { start: string;
   let y = drawTableHeader(106)
   pdf.setFont('helvetica', 'normal')
   pdf.setFontSize(6)
-  const tires = data.tireRows || []
+  const tires = [...(data.tireRows || [])].sort((a, b) =>
+    String(a.tireSize || '').localeCompare(String(b.tireSize || ''), undefined, { numeric: true }) ||
+    String(a.plateNumber || '').localeCompare(String(b.plateNumber || ''), undefined, { numeric: true }) ||
+    String(a.trailerNumber || '').localeCompare(String(b.trailerNumber || ''), undefined, { numeric: true })
+  )
   tires.forEach((tire, index) => {
     const values = [
       tire.tireSize || '—',
+      tire.plateNumber || '—',
+      tire.trailerNumber || '—',
       tire.manufacturer || '—',
       tire.origin || '—',
-      tire.trailerNumber || tire.plateNumber || '—',
       tire.driverName || '—',
       String(tire.quantity ?? 0),
       String(tire.serialNumber || '—'),
@@ -176,6 +182,7 @@ export default function TireReportsSimple() {
     start: format(new Date(2024, 0, 1), 'yyyy-MM-dd'),
     end: format(new Date(), 'yyyy-MM-dd')
   })
+  const [pdfFilters, setPdfFilters] = useState({ size: 'all', truck: 'all', trailer: 'all' })
 
   useEffect(() => {
     generateReport()
@@ -246,6 +253,7 @@ export default function TireReportsSimple() {
           recentTires: tires.slice(0, 10),
           tireRows: tires
         })
+        setPdfFilters({ size: 'all', truck: 'all', trailer: 'all' })
       } else {
         setError('Failed to generate report')
       }
@@ -292,8 +300,47 @@ export default function TireReportsSimple() {
     window.URL.revokeObjectURL(url)
   }
 
+  const getPdfReportData = () => {
+    if (!reportData) return null
+    const tires = reportData.tireRows.filter(tire =>
+      (pdfFilters.size === 'all' || tire.tireSize === pdfFilters.size) &&
+      (pdfFilters.truck === 'all' || tire.plateNumber === pdfFilters.truck) &&
+      (pdfFilters.trailer === 'all' || tire.trailerNumber === pdfFilters.trailer)
+    )
+    const quantity = (tire: any) => Number(tire.quantity ?? 0)
+    const totalTires = tires.reduce((sum, tire) => sum + quantity(tire), 0)
+    const statsFor = (field: 'manufacturer' | 'origin') => {
+      const counts = tires.reduce<Record<string, number>>((result, tire) => {
+        const key = String(tire[field] || 'Unspecified')
+        result[key] = (result[key] || 0) + quantity(tire)
+        return result
+      }, {})
+      return Object.entries(counts)
+        .map(([name, count]) => ({ name, count, percentage: totalTires ? Math.round((count / totalTires) * 100) : 0 }))
+        .sort((a, b) => b.count - a.count)
+    }
+    return {
+      ...reportData,
+      totalTires,
+      totalVehicles: new Set(tires.flatMap(tire => [tire.plateNumber, tire.trailerNumber]).filter(Boolean)).size,
+      totalDrivers: new Set(tires.map(tire => tire.driverName).filter(Boolean)).size,
+      manufacturerStats: statsFor('manufacturer'),
+      originStats: statsFor('origin'),
+      vehicleTypeStats: {
+        trucks: tires.filter(tire => tire.plateNumber && !tire.trailerNumber).reduce((sum, tire) => sum + quantity(tire), 0),
+        trailers: tires.filter(tire => tire.trailerNumber).reduce((sum, tire) => sum + quantity(tire), 0),
+      },
+      tireRows: tires,
+    }
+  }
+
   const openPdf = async (download = false) => {
     if (!reportData) return
+    const pdfData = getPdfReportData()
+    if (!pdfData?.tireRows.length) {
+      setError('No tire records match the selected PDF filters')
+      return
+    }
     const viewer = download ? null : window.open('about:blank', '_blank')
     if (!download && !viewer) {
       setError('Allow pop-ups to view the tire report PDF in a browser tab')
@@ -306,7 +353,7 @@ export default function TireReportsSimple() {
     }
     setError(null)
     try {
-      const blob = await createTireReportPdf(reportData, dateRange)
+      const blob = await createTireReportPdf(pdfData, dateRange)
       const url = URL.createObjectURL(blob)
       if (download) {
         const anchor = document.createElement('a')
@@ -334,6 +381,15 @@ export default function TireReportsSimple() {
     }
   }
 
+  const pdfTireRows = (reportData?.tireRows || []).filter(tire =>
+    (pdfFilters.size === 'all' || tire.tireSize === pdfFilters.size) &&
+    (pdfFilters.truck === 'all' || tire.plateNumber === pdfFilters.truck) &&
+    (pdfFilters.trailer === 'all' || tire.trailerNumber === pdfFilters.trailer)
+  )
+  const uniqueValues = (field: 'tireSize' | 'plateNumber' | 'trailerNumber') => Array.from(new Set(
+    (reportData?.tireRows || []).map(tire => String(tire[field] || '').trim()).filter(Boolean)
+  )).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -349,11 +405,11 @@ export default function TireReportsSimple() {
           </Button>
           {reportData && (
             <>
-              <Button variant="outline" onClick={() => void openPdf()}>
+              <Button variant="outline" onClick={() => void openPdf()} disabled={!pdfTireRows.length}>
                 <Eye className="mr-2 h-4 w-4" />
                 <LocalizedText>View PDF</LocalizedText>
               </Button>
-              <Button variant="outline" onClick={() => void openPdf(true)}>
+              <Button variant="outline" onClick={() => void openPdf(true)} disabled={!pdfTireRows.length}>
                 <FileText className="mr-2 h-4 w-4" />
                 <LocalizedText>Download PDF</LocalizedText>
               </Button>
@@ -389,6 +445,45 @@ export default function TireReportsSimple() {
                 onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })}
               />
             </div>
+          </div>
+          <div className="mt-5 space-y-3 border-t pt-4">
+            <div>
+              <p className="font-medium"><LocalizedText>PDF report filters</LocalizedText></p>
+              <p className="text-sm text-muted-foreground"><LocalizedText>Filter the PDF by tire size, truck number, or trailer number.</LocalizedText></p>
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <div className="space-y-2">
+                <Label><LocalizedText>Tire Size</LocalizedText></Label>
+                <Select value={pdfFilters.size} onValueChange={size => setPdfFilters(current => ({ ...current, size }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all"><LocalizedText>All sizes</LocalizedText></SelectItem>
+                    {uniqueValues('tireSize').map(size => <SelectItem key={size} value={size}>{size}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label><LocalizedText>Truck Number</LocalizedText></Label>
+                <Select value={pdfFilters.truck} onValueChange={truck => setPdfFilters(current => ({ ...current, truck }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all"><LocalizedText>All trucks</LocalizedText></SelectItem>
+                    {uniqueValues('plateNumber').map(truck => <SelectItem key={truck} value={truck}>{truck}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label><LocalizedText>Trailer Number</LocalizedText></Label>
+                <Select value={pdfFilters.trailer} onValueChange={trailer => setPdfFilters(current => ({ ...current, trailer }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all"><LocalizedText>All trailers</LocalizedText></SelectItem>
+                    {uniqueValues('trailerNumber').map(trailer => <SelectItem key={trailer} value={trailer}>{trailer}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground"><LocalizedText>{pdfTireRows.length} tire records will be included in the PDF. Overview cards continue to show all records in the selected date range.</LocalizedText></p>
           </div>
           <Button onClick={generateReport} className="mt-4" disabled={loading}>
             <LocalizedText>Update Report</LocalizedText>
