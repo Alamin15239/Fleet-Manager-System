@@ -12,6 +12,7 @@ import { useAuth } from '@/contexts/auth-context'
 import { useLanguage } from '@/contexts/language-context'
 import { useToast } from '@/hooks/use-toast'
 import { ProfilePicture } from '@/components/profile-picture'
+import { PasskeyManager } from '@/components/passkey-manager'
 import { prepareProfileImage } from '@/lib/prepare-profile-image'
 import { cn } from '@/lib/utils'
 import { usePermissions } from '@/contexts/permissions-context'
@@ -425,6 +426,7 @@ export default function ProfilePage() {
           )}
         </CardContent>
       </Card>
+      <PasskeyManager />
     </div>
   )
 }

@@ -10,7 +10,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 
-import { Mail, Loader2, Clock, Lock, Building2 } from 'lucide-react'
+import { Mail, Loader2, Clock, Lock, Building2, Fingerprint } from 'lucide-react'
+import { startAuthentication } from '@simplewebauthn/browser'
 import { toast } from '@/lib/localized-toast'
 import { useAuth } from '@/contexts/auth-context'
 import { useLanguage } from '@/contexts/language-context'
@@ -38,6 +39,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [otp, setOtp] = useState('')
   const [loading, setLoading] = useState(false)
+  const [passkeyLoading, setPasskeyLoading] = useState(false)
   const [error, setError] = useState('')
   const [googleErrorCode, setGoogleErrorCode] = useState('')
   const [otpRequested, setOtpRequested] = useState(false)
@@ -52,6 +54,47 @@ export default function LoginPage() {
   const googleError = googleErrorCode
     ? t(GOOGLE_AUTH_ERROR_KEYS[googleErrorCode] || 'auth.googleFailed')
     : ''
+
+  const handlePasskeyLogin = async () => {
+    if (passkeyLoading) return
+    if (!email.trim()) {
+      setError(t('Enter your email address first'))
+      return
+    }
+    setError('')
+    setPasskeyLoading(true)
+    try {
+      const optionsResponse = await fetch('/api/auth/passkeys/authenticate/options', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, organizationSlug: organizationSlug || undefined }),
+        cache: 'no-store',
+      })
+      const optionsData = await optionsResponse.json()
+      if (!optionsResponse.ok) throw new Error(optionsData.error || 'Passkey sign-in could not start.')
+
+      const authentication = await startAuthentication({ optionsJSON: optionsData.options })
+      const response = await fetch('/api/auth/passkeys/authenticate/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ response: authentication }),
+        credentials: 'include',
+        cache: 'no-store',
+      })
+      const data = await response.json()
+      if (!response.ok || !data.token || !data.user) throw new Error(data.error || 'Passkey sign-in failed.')
+
+      localStorage.setItem('authToken', data.token)
+      localStorage.setItem('user', JSON.stringify(data.user))
+      const requestedRedirect = localStorage.getItem('redirectAfterLogin') || '/'
+      localStorage.removeItem('redirectAfterLogin')
+      const redirectPath = requestedRedirect.startsWith('/') && !requestedRedirect.startsWith('//') ? requestedRedirect : '/'
+      window.location.replace(redirectPath)
+    } catch (passkeyError) {
+      setError(t(passkeyError instanceof Error ? passkeyError.message : 'Passkey sign-in failed. Please try again.'))
+      setPasskeyLoading(false)
+    }
+  }
 
   // An organization login link is also a workspace switch. Drop the current
   // browser session before rendering its data, then ask for the target org login.
@@ -329,6 +372,12 @@ export default function LoginPage() {
                   />
                 </div>
               </div>
+
+              <Button type="button" variant="outline" className="w-full" disabled={!email.trim() || passkeyLoading || loading} onClick={handlePasskeyLogin}>
+                {passkeyLoading ? <Loader2 className="me-2 h-4 w-4 animate-spin" /> : <Fingerprint className="me-2 h-4 w-4" />}
+                <LocalizedText>{passkeyLoading ? 'Verifying passkey...' : 'Sign in with a passkey'}</LocalizedText>
+              </Button>
+              <p className="text-center text-xs text-muted-foreground"><LocalizedText>Enter your email, then choose a saved passkey.</LocalizedText></p>
 
               {loginMethod === 'password' ? (
                 <>

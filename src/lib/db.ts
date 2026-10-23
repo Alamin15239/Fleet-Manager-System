@@ -92,6 +92,7 @@ async function ensureFleetPlanningSchema(client: PrismaClient) {
 }
 
 const databaseScope = new AsyncLocalStorage<DatabaseScope>()
+const passkeySchemaMigrations = new WeakMap<PrismaClient, Promise<void>>()
 
 function getEncryptionKey(): Buffer {
   const configured = process.env.ORGANIZATION_DATABASE_ENCRYPTION_KEY
@@ -402,6 +403,43 @@ async function getRequestDatabaseClient(): Promise<PrismaClient> {
 
   const organization = await findOrganizationById(decoded.organizationId)
   return getOrganizationPrismaClient(organization)
+}
+
+/** Additive passkey schema setup for both the primary and tenant databases. */
+export async function ensurePasskeySchema() {
+  const client = await getRequestDatabaseClient()
+  const existing = passkeySchemaMigrations.get(client)
+  if (existing) return existing
+
+  const migration = (async () => {
+    await client.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "passkey_credentials" (
+        "id" TEXT NOT NULL,
+        "userId" TEXT NOT NULL,
+        "credentialId" TEXT NOT NULL,
+        "publicKey" BYTEA NOT NULL,
+        "counter" BIGINT NOT NULL DEFAULT 0,
+        "transports" TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
+        "deviceType" TEXT NOT NULL,
+        "backedUp" BOOLEAN NOT NULL DEFAULT FALSE,
+        "name" TEXT NOT NULL DEFAULT 'Passkey',
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "lastUsedAt" TIMESTAMP(3),
+        CONSTRAINT "passkey_credentials_pkey" PRIMARY KEY ("id"),
+        CONSTRAINT "passkey_credentials_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE
+      )
+    `)
+    await client.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "passkey_credentials_credentialId_key" ON "passkey_credentials"("credentialId")`)
+    await client.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "passkey_credentials_userId_idx" ON "passkey_credentials"("userId")`)
+  })()
+
+  passkeySchemaMigrations.set(client, migration)
+  try {
+    await migration
+  } catch (error) {
+    passkeySchemaMigrations.delete(client)
+    throw error
+  }
 }
 
 // Existing code uses db.model.method throughout the API. This request-aware

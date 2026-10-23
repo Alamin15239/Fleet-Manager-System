@@ -43,8 +43,27 @@ model User {
   userActivities            UserActivity[]
   workshopJobCards          WorkshopJobCard[]
   purchaseInvoices          PurchaseInvoice[]
+  passkeys                  PasskeyCredential[]
 
   @@map("users")
+}
+
+model PasskeyCredential {
+  id           String    @id @default(cuid())
+  userId       String
+  credentialId String    @unique
+  publicKey    Bytes
+  counter      BigInt    @default(0)
+  transports   String[]  @default([])
+  deviceType   String
+  backedUp     Boolean   @default(false)
+  name         String    @default("Passkey")
+  createdAt    DateTime  @default(now())
+  lastUsedAt   DateTime?
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("passkey_credentials")
 }
 
 model Mechanic {
