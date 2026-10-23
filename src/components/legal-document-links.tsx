@@ -10,6 +10,8 @@ export function LegalDocumentLinks() {
       <span aria-hidden="true">·</span>
       <Link href="/agreement" className="underline-offset-4 hover:text-foreground hover:underline"><LocalizedText>User Agreement</LocalizedText></Link>
       <span aria-hidden="true">·</span>
+      <Link href="/refund-policy" className="underline-offset-4 hover:text-foreground hover:underline"><LocalizedText>Refund Policy</LocalizedText></Link>
+      <span aria-hidden="true">·</span>
       <Link href="/help" className="underline-offset-4 hover:text-foreground hover:underline"><LocalizedText>User Guide</LocalizedText></Link>
     </nav>
   )

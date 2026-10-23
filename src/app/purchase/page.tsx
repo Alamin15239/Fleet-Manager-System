@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { annualOrganizationPriceSar, isOrganizationBillingReady, organizationBillingProvider } from '@/lib/organization-billing'
 import { OrganizationPurchaseForm } from '@/components/organization-purchase-form'
+import { LegalDocumentLinks } from '@/components/legal-document-links'
 import { getConfiguredPaddlePrice } from '@/lib/paddle-billing'
 
 export const metadata: Metadata = {
@@ -26,11 +27,18 @@ export default async function PurchasePage() {
       console.error('Paddle annual price could not be loaded for purchase page:', error instanceof Error ? error.message : 'Unknown error')
     }
   }
-  return <OrganizationPurchaseForm
-    annualPriceMinor={annualPriceMinor}
-    currency={currency}
-    available={available}
-    paddleClientToken={paddleClientToken}
-    paddleEnvironment={paddleEnvironment}
-  />
+  return (
+    <>
+      <OrganizationPurchaseForm
+        annualPriceMinor={annualPriceMinor}
+        currency={currency}
+        available={available}
+        paddleClientToken={paddleClientToken}
+        paddleEnvironment={paddleEnvironment}
+      />
+      <div className="bg-gradient-to-b from-blue-50 to-white pb-8 dark:from-slate-900 dark:to-slate-950">
+        <LegalDocumentLinks />
+      </div>
+    </>
+  )
 }

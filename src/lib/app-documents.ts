@@ -146,3 +146,96 @@ export const userAgreement: { en: DocumentCopy; ar: DocumentCopy } = {
     ],
   },
 }
+
+export const refundPolicy: { en: DocumentCopy; ar: DocumentCopy } = {
+  en: {
+    title: 'Refund Policy',
+    subtitle: 'This policy explains how refund requests for Fleet Manager Pro organization subscriptions are handled.',
+    updatedLabel: 'Last updated',
+    contentsLabel: 'On this page',
+    sections: [
+      {
+        id: 'payments',
+        title: 'Payments and checkout',
+        paragraphs: [
+          'Fleet Manager Pro organization plans are billed annually through Paddle. Paddle handles checkout and payment for these transactions. The Paddle Buyer Refund Policy and applicable consumer protection laws govern refund eligibility and processing.',
+        ],
+        links: [{ href: 'https://www.paddle.com/legal/refund-policy', label: 'Paddle Buyer Refund Policy' }],
+      },
+      {
+        id: 'request',
+        title: 'How to request a refund',
+        paragraphs: [
+          'Use the support link in your Paddle receipt or visit Paddle.net to submit a refund request. Paddle reviews and processes requests under its Buyer Refund Policy. Mandatory rights under the laws that apply to you are not limited by this policy.',
+        ],
+        links: [{ href: 'https://paddle.net', label: 'Paddle buyer support' }],
+      },
+      {
+        id: 'cancellation',
+        title: 'Canceling an annual subscription',
+        paragraphs: [
+          'An organization administrator can turn off renewal from the workspace billing page before the next renewal date. Cancellation stops future renewals and normally takes effect at the end of the current paid billing period. Canceling renewal does not itself issue a refund for a payment already made; refund requests are handled as described above and remain subject to applicable law.',
+        ],
+      },
+      {
+        id: 'billing-help',
+        title: 'Billing questions',
+        paragraphs: [
+          'For help identifying a Fleet Manager Pro charge or resolving an access issue, email alaminkhan.xiaomi@gmail.com. Include your organization name and Paddle transaction or receipt reference. Do not send full payment card details by email.',
+        ],
+      },
+      {
+        id: 'changes',
+        title: 'Policy updates',
+        paragraphs: [
+          'This policy may be updated when the service or payment arrangements change. The current version and its effective date will be published on this page. Updates do not remove consumer rights that cannot legally be waived.',
+        ],
+      },
+    ],
+  },
+  ar: {
+    title: 'سياسة الاسترداد',
+    subtitle: 'توضح هذه السياسة كيفية التعامل مع طلبات استرداد اشتراكات مساحات العمل في Fleet Manager Pro.',
+    updatedLabel: 'تاريخ التحديث',
+    contentsLabel: 'في هذه الصفحة',
+    sections: [
+      {
+        id: 'payments',
+        title: 'المدفوعات وإتمام الشراء',
+        paragraphs: [
+          'تُحصّل رسوم خطط Fleet Manager Pro السنوية لمساحات العمل من خلال Paddle. تتولى Paddle معالجة إتمام الشراء والمدفوعات لهذه المعاملات. وتخضع أهلية الاسترداد وإجراءاته لسياسة استرداد المشتري لدى Paddle ولأنظمة حماية المستهلك المعمول بها.',
+        ],
+        links: [{ href: 'https://www.paddle.com/legal/refund-policy', label: 'سياسة استرداد المشتري لدى Paddle' }],
+      },
+      {
+        id: 'request',
+        title: 'طريقة طلب الاسترداد',
+        paragraphs: [
+          'استخدم رابط الدعم الموجود في إيصال Paddle أو زر Paddle.net لتقديم طلب الاسترداد. تراجع Paddle الطلبات وتعالجها وفق سياسة استرداد المشتري لديها. ولا تنتقص هذه السياسة من الحقوق الإلزامية التي تمنحك إياها الأنظمة المعمول بها.',
+        ],
+        links: [{ href: 'https://paddle.net', label: 'دعم مشتري Paddle' }],
+      },
+      {
+        id: 'cancellation',
+        title: 'إلغاء الاشتراك السنوي',
+        paragraphs: [
+          'يمكن لمسؤول المؤسسة إيقاف التجديد من صفحة الفوترة في مساحة العمل قبل موعد التجديد التالي. يؤدي الإلغاء إلى إيقاف التجديدات المستقبلية، ويسري عادةً في نهاية فترة الفوترة المدفوعة الحالية. إيقاف التجديد لا يعني بحد ذاته استرداد مبلغ سبق دفعه؛ وتُعالج طلبات الاسترداد كما هو موضح أعلاه مع مراعاة الأنظمة المعمول بها.',
+        ],
+      },
+      {
+        id: 'billing-help',
+        title: 'استفسارات الفوترة',
+        paragraphs: [
+          'للمساعدة في التعرف على رسوم Fleet Manager Pro أو حل مشكلة في الوصول، راسل alaminkhan.xiaomi@gmail.com. أرفق اسم المؤسسة ورقم معاملة Paddle أو مرجع الإيصال. لا ترسل بيانات بطاقة الدفع كاملة عبر البريد الإلكتروني.',
+        ],
+      },
+      {
+        id: 'changes',
+        title: 'تحديثات السياسة',
+        paragraphs: [
+          'قد تُحدّث هذه السياسة عند تغير الخدمة أو ترتيبات الدفع. تُنشر النسخة الحالية وتاريخ سريانها في هذه الصفحة. ولا تلغي التحديثات حقوق المستهلك التي لا يجوز التنازل عنها قانوناً.',
+        ],
+      },
+    ],
+  },
+}

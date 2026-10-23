@@ -30,6 +30,7 @@ const publicRoutes = new Set([
   '/reset-password',
   '/privacy',
   '/agreement',
+  '/refund-policy',
   '/help',
 ])
 

@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import type { LucideIcon } from 'lucide-react'
-import { ArrowLeft, ArrowRight, BookOpen, FileText, ShieldCheck } from 'lucide-react'
+import { ArrowLeft, ArrowRight, BookOpen, FileText, RotateCcw, ShieldCheck } from 'lucide-react'
 import { useLanguage } from '@/contexts/language-context'
 
 export type DocumentSection = {
@@ -27,6 +27,7 @@ type Props = {
   arabic: DocumentCopy
   icon: LucideIcon
   showContents?: boolean
+  updatedDate?: { en: string; ar: string }
 }
 
 const navigation = {
@@ -34,15 +35,17 @@ const navigation = {
     { href: '/help', label: 'User guide', icon: BookOpen },
     { href: '/privacy', label: 'Privacy policy', icon: ShieldCheck },
     { href: '/agreement', label: 'User agreement', icon: FileText },
+    { href: '/refund-policy', label: 'Refund policy', icon: RotateCcw },
   ],
   ar: [
     { href: '/help', label: 'دليل المستخدم', icon: BookOpen },
     { href: '/privacy', label: 'سياسة الخصوصية', icon: ShieldCheck },
     { href: '/agreement', label: 'اتفاقية المستخدم', icon: FileText },
+    { href: '/refund-policy', label: 'سياسة الاسترداد', icon: RotateCcw },
   ],
 }
 
-export function AppDocumentPage({ english, arabic, icon: Icon, showContents = true }: Props) {
+export function AppDocumentPage({ english, arabic, icon: Icon, showContents = true, updatedDate }: Props) {
   const { language } = useLanguage()
   const pathname = usePathname()
   const isArabic = language === 'ar'
@@ -73,7 +76,7 @@ export function AppDocumentPage({ english, arabic, icon: Icon, showContents = tr
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-xs font-semibold uppercase tracking-[0.16em] text-sky-200">
-                {copy.updatedLabel}: {isArabic ? '17 أكتوبر 2026' : '17 October 2026'}
+                {copy.updatedLabel}: {updatedDate ? (isArabic ? updatedDate.ar : updatedDate.en) : (isArabic ? '17 أكتوبر 2026' : '17 October 2026')}
               </p>
               <h1 className="mt-2 text-2xl font-bold tracking-tight sm:text-4xl">{copy.title}</h1>
               <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-200 sm:text-base">{copy.subtitle}</p>

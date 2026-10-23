@@ -81,6 +81,11 @@ export default async function PricingPage() {
           </div>
         </section>
         <p className="mt-7 text-center text-sm text-slate-500 dark:text-slate-400">Questions about a larger fleet? <a className="font-medium text-blue-700 underline underline-offset-4 dark:text-blue-300" href="mailto:alaminkhan.xiaomi@gmail.com">Contact us</a>.</p>
+        <nav aria-label="Legal policies" className="mt-6 flex flex-wrap justify-center gap-x-5 gap-y-2 text-sm text-slate-500 dark:text-slate-400">
+          <Link href="/agreement" className="underline-offset-4 hover:text-blue-700 hover:underline dark:hover:text-blue-300">Terms of service</Link>
+          <Link href="/privacy" className="underline-offset-4 hover:text-blue-700 hover:underline dark:hover:text-blue-300">Privacy policy</Link>
+          <Link href="/refund-policy" className="underline-offset-4 hover:text-blue-700 hover:underline dark:hover:text-blue-300">Refund policy</Link>
+        </nav>
       </div>
     </main>
   )

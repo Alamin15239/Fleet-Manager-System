@@ -416,6 +416,7 @@ export default function HomePage() {
             <Link href="/help" className="hover:text-blue-700 dark:hover:text-blue-300">User guide</Link>
             <Link href="/privacy" className="hover:text-blue-700 dark:hover:text-blue-300">Privacy</Link>
             <Link href="/agreement" className="hover:text-blue-700 dark:hover:text-blue-300">User agreement</Link>
+            <Link href="/refund-policy" className="hover:text-blue-700 dark:hover:text-blue-300">Refund policy</Link>
             <Link href="/login" className="hover:text-blue-700 dark:hover:text-blue-300">Sign in</Link>
           </nav>
         </div>
