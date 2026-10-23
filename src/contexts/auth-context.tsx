@@ -243,29 +243,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const logout = async (): Promise<void> => {
-    try {
-      // Call logout API to log the activity
-      if (token) {
-        await fetch('/api/auth/logout', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        })
-      }
-    } catch (error) {
-      console.error('Logout API error:', error)
-      // Continue with local logout even if API fails
-    } finally {
-      // Clear local state regardless of API call success
-      setToken(null)
-      setUser(null)
-      localStorage.removeItem('authToken')
-      localStorage.removeItem('user')
-      
-      // Use window.location for logout to ensure complete state reset
-      window.location.href = '/login'
+    const logoutToken = token || localStorage.getItem('authToken')
+
+    // Clear the browser session first so the shared layout hides private
+    // screens immediately, even if the activity-log request is slow or fails.
+    setToken(null)
+    setUser(null)
+    setIsLoading(false)
+    localStorage.removeItem('authToken')
+    localStorage.removeItem('user')
+
+    // Logging out must not wait on the server to navigate away. keepalive lets
+    // the activity record finish after the browser starts loading the login page.
+    if (logoutToken) {
+      void fetch('/api/auth/logout', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${logoutToken}` },
+        credentials: 'include',
+        keepalive: true,
+      }).catch((error) => console.error('Logout API error:', error))
     }
+
+    const loginPath = user?.organizationSlug && user.isPrimaryOrganization === false
+      ? `/login?org=${encodeURIComponent(user.organizationSlug)}`
+      : '/login'
+
+    // Replace the protected history entry. Hiding the cached document also
+    // prevents a brief flash of private content if the browser restores it.
+    document.body.style.visibility = 'hidden'
+    window.location.replace(loginPath)
   }
 
   const hasRole = (role: string): boolean => {
