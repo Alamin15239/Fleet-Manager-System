@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { ArrowLeft, ArrowRight, LoaderCircle, ShieldCheck } from 'lucide-react'
 
@@ -31,7 +31,13 @@ function slugFromName(value: string) {
     .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 48)
 }
 
-export function OrganizationPurchaseForm({ annualPriceMinor, currency, available }: { annualPriceMinor: number; currency: string; available: boolean }) {
+export function OrganizationPurchaseForm({ annualPriceMinor, currency, available, paddleClientToken, paddleEnvironment }: {
+  annualPriceMinor: number
+  currency: string
+  available: boolean
+  paddleClientToken: string
+  paddleEnvironment: 'sandbox' | 'production'
+}) {
   const [name, setName] = useState('')
   const [slug, setSlug] = useState('')
   const [slugTouched, setSlugTouched] = useState(false)
@@ -43,6 +49,27 @@ export function OrganizationPurchaseForm({ annualPriceMinor, currency, available
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const price = useMemo(() => new Intl.NumberFormat('en', { style: 'currency', currency, maximumFractionDigits: 2 }).format(annualPriceMinor / 100), [annualPriceMinor, currency])
+
+  useEffect(() => {
+    if (!available || !paddleClientToken) return
+    let cancelled = false
+    void loadPaddleScript().then((paddle) => {
+      if (cancelled) return
+      const browser = window as any
+      if (browser.__fleetPaddleInitialized) return
+      if (paddleEnvironment === 'sandbox') paddle.Environment.set('sandbox')
+      paddle.Initialize({
+        token: paddleClientToken,
+        eventCallback: (event: any) => {
+          if (event?.name === 'checkout.error') setError(event?.data?.detail || 'Paddle could not open checkout. Please try again.')
+        }
+      })
+      browser.__fleetPaddleInitialized = true
+    }).catch((caught) => {
+      if (!cancelled) setError(caught instanceof Error ? caught.message : 'Could not load Paddle checkout.')
+    })
+    return () => { cancelled = true }
+  }, [available, paddleClientToken, paddleEnvironment])
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()

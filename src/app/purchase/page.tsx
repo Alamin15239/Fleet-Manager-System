@@ -13,6 +13,8 @@ export const dynamic = 'force-dynamic'
 export default async function PurchasePage() {
   const provider = organizationBillingProvider()
   const available = isOrganizationBillingReady()
+  const paddleClientToken = provider === 'PADDLE' ? process.env.PADDLE_CLIENT_TOKEN?.trim() || '' : ''
+  const paddleEnvironment = process.env.PADDLE_ENVIRONMENT?.trim().toLowerCase() === 'sandbox' ? 'sandbox' : 'production'
   let annualPriceMinor = annualOrganizationPriceSar() * 100
   let currency = 'SAR'
   if (provider === 'PADDLE' && available) {
@@ -24,5 +26,11 @@ export default async function PurchasePage() {
       console.error('Paddle annual price could not be loaded for purchase page:', error instanceof Error ? error.message : 'Unknown error')
     }
   }
-  return <OrganizationPurchaseForm annualPriceMinor={annualPriceMinor} currency={currency} available={available} />
+  return <OrganizationPurchaseForm
+    annualPriceMinor={annualPriceMinor}
+    currency={currency}
+    available={available}
+    paddleClientToken={paddleClientToken}
+    paddleEnvironment={paddleEnvironment}
+  />
 }
