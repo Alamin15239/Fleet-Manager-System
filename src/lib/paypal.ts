@@ -46,8 +46,8 @@ export function getPayPalPlanPrice(period: PayPalBillingPeriod) {
   return {
     currency: 'USD',
     amountMinor: period === 'MONTHLY'
-      ? amountMinorFromEnv('PAYPAL_MONTHLY_PRICE_USD', 26.37)
-      : amountMinorFromEnv('PAYPAL_YEARLY_PRICE_USD', 263.70)
+      ? amountMinorFromEnv('PAYPAL_MONTHLY_PRICE_USD', 2637)
+      : amountMinorFromEnv('PAYPAL_YEARLY_PRICE_USD', 26370)
   }
 }
 
