@@ -47,9 +47,6 @@ export async function POST(request: NextRequest) {
       if (error.message === 'Invalid credentials') {
         errorMessage = 'Invalid email or password'
         statusCode = 401
-      } else if (error.message.startsWith('Organization subscription expired.')) {
-        errorMessage = error.message
-        statusCode = 402
       } else if (error.message === 'Organization was not found or is not ready') {
         errorMessage = error.message
         statusCode = 404

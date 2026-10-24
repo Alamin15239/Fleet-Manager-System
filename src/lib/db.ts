@@ -13,8 +13,6 @@ export type OrganizationRecord = {
   encryptedDatabaseUrl: string | null
   oneDriveAccountId: string | null
   oneDriveAccountEmailHash: string | null
-  billingProvider?: string | null
-  billingCurrentPeriodEnd?: Date | null
 }
 
 type DatabaseScope = { organizationId: string; client: PrismaClient }
@@ -152,25 +150,17 @@ export async function getPrimaryOrganization(): Promise<OrganizationRecord> {
   return primary
 }
 
-function assertOrganizationBillingNotExpired(organization: OrganizationRecord) {
-  const periodEnd = organization.billingCurrentPeriodEnd ? new Date(organization.billingCurrentPeriodEnd) : null
-  if (!organization.isPrimary && organization.billingProvider?.toUpperCase() === 'PAYPAL' && periodEnd && periodEnd.getTime() <= Date.now()) {
-    throw new Error(`Organization subscription expired. Renew access at /purchase?mode=renew&org=${encodeURIComponent(organization.slug)}`)
-  }
-}
 export async function findOrganizationBySlug(slug?: string | null): Promise<OrganizationRecord> {
   if (!slug?.trim()) return getPrimaryOrganization()
   const normalizedSlug = slug.trim().toLowerCase()
   const organization = await (controlDb as any).organization.findUnique({ where: { slug: normalizedSlug } }) as OrganizationRecord | null
   if (!organization || organization.status !== 'ACTIVE') throw new Error('Organization was not found or is not ready')
-  assertOrganizationBillingNotExpired(organization)
   return organization
 }
 
 export async function findOrganizationById(id: string): Promise<OrganizationRecord> {
   const organization = await (controlDb as any).organization.findUnique({ where: { id } }) as OrganizationRecord | null
   if (!organization || organization.status !== 'ACTIVE') throw new Error('Organization was not found or is not ready')
-  assertOrganizationBillingNotExpired(organization)
   return organization
 }
 
@@ -350,7 +340,6 @@ export async function getRequestOrganization(): Promise<OrganizationRecord> {
 
 export async function getOrganizationPrismaClient(organization: OrganizationRecord): Promise<PrismaClient> {
   if (organization.status !== 'ACTIVE') throw new Error('Organization is not ready')
-  assertOrganizationBillingNotExpired(organization)
   if (organization.isPrimary) return controlDb
   if (!organization.encryptedDatabaseUrl) throw new Error('Organization database is not configured')
 
