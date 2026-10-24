@@ -131,6 +131,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'That workspace code is already in use. Choose another code.' }, { status: 409 })
     }
     console.error('Unable to create Stripe organization checkout:', error instanceof Error ? error.message : 'unknown error')
-    return NextResponse.json({ error: 'Could not start checkout. Please confirm the Stripe test price and server settings, then try again.' }, { status: 503 })
+    return NextResponse.json({ error: 'Could not start checkout. Please confirm the Stripe price and server settings, then try again.' }, { status: 503 })
   }
 }

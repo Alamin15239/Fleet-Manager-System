@@ -37,6 +37,7 @@ export type StripeCheckoutSession = {
 export type StripeEvent = {
   id: string
   type: string
+  livemode: boolean
   data: { object: Record<string, any> }
 }
 
@@ -46,12 +47,21 @@ function requiredEnv(name: string) {
   return value
 }
 
+export function stripeMode(): 'test' | 'live' {
+  const mode = process.env.STRIPE_MODE?.trim()
+  if (mode !== 'test' && mode !== 'live') throw new Error('STRIPE_MODE must be set to test or live.')
+  return mode
+}
+
+export function stripeIsLiveMode() {
+  return stripeMode() === 'live'
+}
+
 function stripeSecretKey() {
-  if (process.env.STRIPE_MODE !== 'test') {
-    throw new Error('Stripe integration is restricted to test mode until live billing is explicitly enabled.')
-  }
+  const mode = stripeMode()
   const key = requiredEnv('STRIPE_SECRET_KEY')
-  if (!/^(sk|rk)_test_/.test(key)) throw new Error('Stripe test-mode key is required.')
+  const expectedPrefix = mode === 'live' ? /^(sk|rk)_live_/ : /^(sk|rk)_test_/
+  if (!expectedPrefix.test(key)) throw new Error(`A Stripe ${mode}-mode secret key is required.`)
   return key
 }
 
@@ -143,6 +153,7 @@ export function verifyStripeWebhookSignature(rawBody: string, headerValue: strin
 }
 
 export function stripeWebhookSecret() {
+  stripeMode()
   return requiredEnv('STRIPE_WEBHOOK_SECRET')
 }
 

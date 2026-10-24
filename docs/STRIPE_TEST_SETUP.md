@@ -1,6 +1,6 @@
-# Stripe test-mode setup
+# Stripe organization billing setup
 
-Fleet Manager's organization checkout uses Stripe-hosted Checkout for an annual subscription. A signed webhook confirms payment before the app provisions the organization's isolated Neon database. The buyer's administrator is created in that new workspace; payment card details stay with Stripe.
+Fleet Manager's organization checkout uses Stripe-hosted Checkout for an annual subscription. A signed webhook confirms payment before the app provisions the organization's isolated Neon database. The buyer's administrator is created in that new workspace; payment card details stay with Stripe. Configure exactly one Stripe mode per deployment: test or live.
 
 ## 1. Create a sandbox annual price
 
@@ -29,9 +29,9 @@ Subscribe it to these events:
 
 Copy the destination's signing secret (`whsec_...`) into `STRIPE_WEBHOOK_SECRET`. Webhook event handling is signature-verified and idempotent. Failed processing returns an error so Stripe retries it.
 
-## 3. Configure the Vercel project
+## 3. Configure Vercel for test mode
 
-Add these server-side environment variables to the **Production** and **Preview** environments used for sandbox testing:
+For a sandbox test on the production domain, add these server-side environment variables to **Production**. If you test on a Preview deployment, configure Preview separately and set `NEXT_PUBLIC_APP_URL` to that deployment's public URL.
 
 | Variable | Value |
 | --- | --- |
@@ -51,6 +51,14 @@ Open `/purchase`, submit a new organization and administrator, and complete Stri
 
 Sign in as the workspace administrator and open **Subscription & billing** to verify the annual plan and open Stripe's Customer Portal. Configure the Customer Portal in Stripe Dashboard to permit payment-method updates and cancellation. Configure Stripe's subscription recovery / Smart Retries settings there as appropriate. The app keeps access through a seven-day failed-payment grace period; after it expires or a subscription is canceled, only the workspace administrator's billing and sign-in recovery endpoints remain available.
 
-## Before accepting live payments
+## Switch Production to live billing
 
-This implementation intentionally accepts only Stripe test-mode keys while `STRIPE_MODE` is `test`; it does not create live checkout sessions. Before launch, review Stripe's current requirements, configure a live annual Price and live webhook endpoint, set up the Customer Portal and subscription recovery, and separately review tax obligations and Stripe Tax for the countries where the service will be sold. Live billing needs an explicit code/configuration change and a production rollout plan.
+Only switch after a successful end-to-end test and after Stripe has enabled live payments for your account. Test and live products, prices, customers, subscriptions, and webhook destinations are separate in Stripe. A test subscription does not become a live subscription.
+
+1. In Stripe **Live mode**, create and activate the real annual Price. Copy its live `price_...` ID.
+2. In Stripe **Live mode**, create a separate webhook destination at `https://fleetmaintenance.site/api/webhooks/stripe`. Choose **Snapshot** payloads and the same eight events listed above. Copy its live `whsec_...` signing secret.
+3. In Vercel **Production** environment variables, replace the test values with `STRIPE_MODE=live`, a live secret key beginning `sk_live_` (or a restricted `rk_live_` key with the required permissions), the live Price ID, and the live webhook signing secret. Keep Preview configured for test mode if Preview is used for development.
+4. Configure the Stripe Customer Portal in Live mode to allow payment-method updates and cancellation. Review subscription recovery settings and any tax or merchant obligations for the countries where you plan to sell.
+5. Redeploy Production and confirm a new live checkout displays the intended currency, amount, and annual interval before accepting customers.
+
+The application rejects a Stripe secret key whose `sk_` / `rk_` mode prefix does not match `STRIPE_MODE`; the webhook also rejects events whose `livemode` flag does not match the deployment setting.

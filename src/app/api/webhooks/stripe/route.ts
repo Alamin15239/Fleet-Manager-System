@@ -3,6 +3,7 @@ import { controlDb } from '@/lib/db'
 import { provisionOrganization } from '@/lib/organization-provisioning'
 import {
   retrieveStripeSubscription,
+  stripeIsLiveMode,
   stripeWebhookSecret,
   verifyStripeWebhookSignature,
   type StripeCheckoutSession,
@@ -214,6 +215,9 @@ export async function POST(request: NextRequest) {
     event = JSON.parse(rawBody) as StripeEvent
   } catch {
     return NextResponse.json({ error: 'Invalid Stripe webhook request' }, { status: 400 })
+  }
+  if (typeof event.livemode !== 'boolean' || event.livemode !== stripeIsLiveMode()) {
+    return NextResponse.json({ error: 'Stripe event mode does not match this endpoint configuration.' }, { status: 400 })
   }
 
   const eventModel = (controlDb as any).stripeWebhookEvent
