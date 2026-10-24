@@ -258,7 +258,14 @@ async function applyVerifiedSale(sale: GumroadSale, incomingSaleId: string) {
 
   // Refund, dispute, and renewal-failure notifications never create a workspace.
   if (state.status !== 'ACTIVE') return { status: 'ignored', reason: 'inactive_sale' }
-  if (!subscriptionId || !plan || amountMinor <= 0) return { status: 'ignored', reason: 'not_a_paid_monthly_or_yearly_membership' }
+  if (!subscriptionId || !plan || amountMinor <= 0) {
+    const missingRequirements = [
+      ...(!subscriptionId ? ['subscription_id'] : []),
+      ...(!plan ? ['monthly_or_yearly_recurrence'] : []),
+      ...(amountMinor <= 0 ? ['positive_charge'] : [])
+    ]
+    return { status: 'ignored', reason: 'not_a_paid_monthly_or_yearly_membership', missingRequirements }
+  }
 
   const name = customField(sale, ['Organization Name', 'Workspace Name', 'Company Name'])
   const requestedCode = customField(sale, ['Workspace Code', 'Organization Code', 'Workspace Login Code'])
