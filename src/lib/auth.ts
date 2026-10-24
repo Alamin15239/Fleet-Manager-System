@@ -180,25 +180,6 @@ export async function requireAuth(request: Request): Promise<JWTPayload> {
     throw new Error('Invalid token')
   }
 
-  const billingRecoveryPath = (() => {
-    try {
-      const pathname = new URL(request.url).pathname
-      return pathname === '/api/auth/me' || pathname.startsWith('/api/billing/')
-    } catch {
-      return false
-    }
-  })()
-  const withinPaymentGrace = organization.billingStatus === 'PAST_DUE'
-    && organization.billingGraceUntil instanceof Date
-    && organization.billingGraceUntil.getTime() > Date.now()
-  const hasPaidAccess = organization.isPrimary
-    || organization.billingProvider !== 'STRIPE'
-    || organization.billingStatus === 'ACTIVE'
-    || withinPaymentGrace
-  if (!hasPaidAccess && (!billingRecoveryPath || user.role !== 'ADMIN')) {
-    throw new Error('This workspace subscription is inactive. An administrator must renew billing to continue.')
-  }
-
   return {
     id: user.id,
     email: user.email,

@@ -13,9 +13,6 @@ export type OrganizationRecord = {
   encryptedDatabaseUrl: string | null
   oneDriveAccountId: string | null
   oneDriveAccountEmailHash: string | null
-  billingProvider?: string | null
-  billingStatus?: string | null
-  billingGraceUntil?: Date | null
 }
 
 type DatabaseScope = { organizationId: string; client: PrismaClient }

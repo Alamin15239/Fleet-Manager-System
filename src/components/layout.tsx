@@ -21,8 +21,6 @@ const publicRoutes = new Set([
   '/login',
   '/signup',
   '/register',
-  '/purchase',
-  '/purchase/success',
   '/verify-email',
   '/verify-otp',
   '/forgot-password',

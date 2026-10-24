@@ -13,7 +13,6 @@ type ProvisioningOrganization = {
   slug: string
   ownerName: string | null
   ownerEmail: string | null
-  ownerPhone: string | null
   neonProjectId: string | null
   encryptedDatabaseUrl: string | null
   schemaReady: boolean
@@ -144,7 +143,6 @@ async function seedOrganizationDatabase(organization: ProvisioningOrganization, 
           isActive: true,
           isApproved: true,
           isEmailVerified: true,
-          phone: organization.ownerPhone,
           permissions: {}
         }
       })
