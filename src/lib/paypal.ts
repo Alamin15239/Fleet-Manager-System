@@ -9,7 +9,6 @@ type PayPalOrder = {
     amount?: { value?: string; currency_code?: string }
     payments?: { captures?: Array<{ id?: string; status?: string; amount?: { value?: string; currency_code?: string } }> }
   }>
-  links?: Array<{ href?: string; rel?: string }>
 }
 
 type PayPalApiError = { message?: string; details?: Array<{ description?: string; issue?: string }> }
@@ -107,8 +106,6 @@ export async function createPayPalOrder(input: {
   period: PayPalBillingPeriod
   amountMinor: number
   currency: string
-  returnUrl: string
-  cancelUrl: string
 }) {
   const amount = formatPayPalAmount(input.amountMinor)
   return paypalApi<PayPalOrder>('/v2/checkout/orders', {
@@ -122,21 +119,7 @@ export async function createPayPalOrder(input: {
         invoice_id: `FMS-${input.purchaseId}`.slice(0, 127),
         description: `Fleet Manager ${input.period === 'MONTHLY' ? 'monthly' : 'annual'} prepaid access`,
         amount: { currency_code: input.currency, value: amount }
-      }],
-      payment_source: {
-        paypal: {
-          experience_context: {
-            payment_method_preference: 'IMMEDIATE_PAYMENT_REQUIRED',
-            brand_name: 'Fleet Manager',
-            locale: 'en-SA',
-            landing_page: 'GUEST_CHECKOUT',
-            user_action: 'PAY_NOW',
-            shipping_preference: 'NO_SHIPPING',
-            return_url: input.returnUrl,
-            cancel_url: input.cancelUrl
-          }
-        }
-      }
+      }]
     })
   })
 }
