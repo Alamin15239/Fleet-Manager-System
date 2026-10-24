@@ -129,7 +129,7 @@ export async function createPayPalOrder(input: {
             payment_method_preference: 'IMMEDIATE_PAYMENT_REQUIRED',
             brand_name: 'Fleet Manager',
             locale: 'en-SA',
-            landing_page: 'LOGIN',
+            landing_page: 'GUEST_CHECKOUT',
             user_action: 'PAY_NOW',
             shipping_preference: 'NO_SHIPPING',
             return_url: input.returnUrl,
