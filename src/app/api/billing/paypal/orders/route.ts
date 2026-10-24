@@ -76,19 +76,24 @@ export async function POST(request: NextRequest) {
     })
     purchaseId = purchase.id
 
+    const origin = process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/$/, '') || request.nextUrl.origin
     const order = await createPayPalOrder({
       purchaseId: purchase.id,
       period,
       amountMinor: price.amountMinor,
-      currency: price.currency
+      currency: price.currency,
+      returnUrl: `${origin}/purchase/success?purchaseId=${encodeURIComponent(purchase.id)}`,
+      cancelUrl: `${origin}/purchase?cancelled=1`
     })
-    if (!order.id) throw new Error('PayPal did not return an order ID. Check the sandbox app configuration and try again.')
+    const approvalUrl = order.links?.find((link) => link.rel === 'approve' || link.rel === 'payer-action')?.href
+    if (!order.id || !approvalUrl) throw new Error('PayPal did not return an approval link. Check the sandbox app configuration and try again.')
 
     await purchaseModel.update({ where: { id: purchase.id }, data: { paypalOrderId: order.id } })
     return NextResponse.json({
       success: true,
       purchaseId: purchase.id,
       orderId: order.id,
+      approvalUrl,
       amountMinor: price.amountMinor,
       currency: price.currency,
       period
@@ -108,12 +113,7 @@ export async function GET() {
   try {
     const monthly = getPayPalPlanPrice('MONTHLY')
     const yearly = getPayPalPlanPrice('YEARLY')
-    return NextResponse.json({
-      currency: 'USD',
-      monthly,
-      yearly,
-      clientId: process.env.PAYPAL_CLIENT_ID?.trim() || null
-    }, { headers: { 'Cache-Control': 'no-store' } })
+    return NextResponse.json({ currency: 'USD', monthly, yearly }, { headers: { 'Cache-Control': 'no-store' } })
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Could not load plan pricing.' }, { status: 503, headers: { 'Cache-Control': 'no-store' } })
   }
