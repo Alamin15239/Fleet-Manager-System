@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { controlDb } from '@/lib/db'
 import { rateLimit } from '@/lib/rate-limiter'
-import { appBaseUrl, createStripeOrganizationCheckout, retrieveAnnualStripePrice } from '@/lib/stripe'
+import { appBaseUrl, createStripeOrganizationCheckout, retrieveStripePrice, type StripeBillingInterval } from '@/lib/stripe'
 
 export const runtime = 'nodejs'
 export const maxDuration = 20
@@ -15,17 +15,28 @@ const checkoutSchema = z.object({
   ownerEmail: z.string().trim().email().max(254),
   callingCode: z.string().trim().regex(/^\+[1-9]\d{0,3}$/),
   phone: z.string().trim().regex(/^\d[\d\s().-]{5,18}\d$/),
+  interval: z.enum(['month', 'year']),
   acceptedTerms: z.literal(true)
 })
 
 export async function GET() {
   try {
-    const price = await retrieveAnnualStripePrice()
+    const intervals: StripeBillingInterval[] = ['month', 'year']
+    const results = await Promise.all(intervals.map(async (interval) => {
+      try {
+        const price = await retrieveStripePrice(interval)
+        return [interval, { amountMinor: price.unit_amount, currency: price.currency.toUpperCase(), interval }] as const
+      } catch {
+        return [interval, null] as const
+      }
+    }))
+    const prices = Object.fromEntries(results)
+    if (!prices.month && !prices.year) throw new Error('No recurring Stripe prices are configured.')
     return NextResponse.json({
-      price: { amountMinor: price.unit_amount, currency: price.currency.toUpperCase(), interval: 'year' }
+      prices
     }, { headers: { 'Cache-Control': 'no-store' } })
   } catch {
-    return NextResponse.json({ error: 'Annual checkout is not configured yet.' }, { status: 503, headers: { 'Cache-Control': 'no-store' } })
+    return NextResponse.json({ error: 'Monthly or yearly checkout is not configured yet.' }, { status: 503, headers: { 'Cache-Control': 'no-store' } })
   }
 }
 
@@ -38,11 +49,12 @@ export async function POST(request: NextRequest) {
     if (!limit.success) return NextResponse.json({ error: 'Too many checkout attempts. Please wait and try again.' }, { status: 429 })
     const parsed = checkoutSchema.safeParse(await request.json())
     if (!parsed.success) {
-      return NextResponse.json({ error: 'Enter valid organization and administrator details, and accept the annual renewal terms.' }, { status: 400 })
+      return NextResponse.json({ error: 'Enter valid organization and administrator details, choose a billing interval, and accept the renewal terms.' }, { status: 400 })
     }
 
     const appUrl = appBaseUrl()
-    const price = await retrieveAnnualStripePrice()
+    const interval = parsed.data.interval
+    const price = await retrieveStripePrice(interval)
     const organizationModel = (controlDb as any).organization
     const slug = parsed.data.slug.toLowerCase()
     const attemptId = randomUUID()
@@ -68,7 +80,7 @@ export async function POST(request: NextRequest) {
           billingAmountMinor: price.unit_amount,
           billingCurrency: price.currency.toUpperCase(),
           billingConsentAt: new Date(),
-          billingConsentVersion: 'annual-auto-renew-2026-10-24',
+          billingConsentVersion: `${interval}-auto-renew-2026-10-24`,
           billingAttemptId: attemptId,
           stripePriceId: price.id,
           stripeCheckoutSessionId: null
@@ -89,7 +101,7 @@ export async function POST(request: NextRequest) {
           billingAmountMinor: price.unit_amount,
           billingCurrency: price.currency.toUpperCase(),
           billingConsentAt: new Date(),
-          billingConsentVersion: 'annual-auto-renew-2026-10-24',
+          billingConsentVersion: `${interval}-auto-renew-2026-10-24`,
           billingAttemptId: attemptId,
           stripePriceId: price.id
         }
@@ -106,7 +118,8 @@ export async function POST(request: NextRequest) {
       ownerName: organization.ownerName,
       ownerEmail: organization.ownerEmail,
       appUrl,
-      idempotencyKey: `org-checkout-${organization.id}-${attemptId}`
+      idempotencyKey: `org-checkout-${organization.id}-${attemptId}`,
+      interval
     })
     stripeSessionCreated = true
     if (!session.url) throw new Error('Stripe did not return a hosted checkout URL.')

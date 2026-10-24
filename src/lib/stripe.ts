@@ -10,6 +10,8 @@ export type StripePrice = {
   recurring: { interval: string; interval_count: number } | null
 }
 
+export type StripeBillingInterval = 'month' | 'year'
+
 export type StripeSubscription = {
   id: string
   customer: string
@@ -83,16 +85,31 @@ async function stripeRequest<T>(path: string, init: RequestInit = {}): Promise<T
   return payload
 }
 
-export async function retrieveAnnualStripePrice(): Promise<StripePrice> {
-  const priceId = requiredEnv('STRIPE_PRICE_ID')
+function configuredPriceId(interval: StripeBillingInterval) {
+  const configured = interval === 'month'
+    ? process.env.STRIPE_MONTHLY_PRICE_ID?.trim()
+    : process.env.STRIPE_YEARLY_PRICE_ID?.trim() || process.env.STRIPE_PRICE_ID?.trim()
+  if (!configured) throw new Error(`STRIPE_${interval === 'month' ? 'MONTHLY' : 'YEARLY'}_PRICE_ID is not configured`)
+  return configured
+}
+
+export async function retrieveStripePrice(interval: StripeBillingInterval): Promise<StripePrice> {
+  const priceId = configuredPriceId(interval)
   const price = await stripeRequest<StripePrice>(`/prices/${encodeURIComponent(priceId)}`)
-  if (!price.active || !price.recurring || price.recurring.interval !== 'year' || price.recurring.interval_count !== 1) {
-    throw new Error('The configured Stripe price must be active and billed once per year.')
+  if (!price.active || !price.recurring || price.recurring.interval !== interval || price.recurring.interval_count !== 1) {
+    throw new Error(`The configured Stripe price must be active and billed once per ${interval}.`)
   }
   if (price.unit_amount === null || !Number.isInteger(price.unit_amount) || price.unit_amount <= 0) {
     throw new Error('The configured Stripe price must have a fixed positive amount.')
   }
   return price
+}
+
+export function configuredStripeInterval(priceId: string | null | undefined): StripeBillingInterval | null {
+  if (!priceId) return null
+  if (priceId === process.env.STRIPE_MONTHLY_PRICE_ID?.trim()) return 'month'
+  if (priceId === process.env.STRIPE_YEARLY_PRICE_ID?.trim() || priceId === process.env.STRIPE_PRICE_ID?.trim()) return 'year'
+  return null
 }
 
 export async function createStripeOrganizationCheckout(input: {
@@ -104,8 +121,9 @@ export async function createStripeOrganizationCheckout(input: {
   ownerEmail: string
   appUrl: string
   idempotencyKey: string
+  interval: StripeBillingInterval
 }) {
-  const price = await retrieveAnnualStripePrice()
+  const price = await retrieveStripePrice(input.interval)
   const form = new URLSearchParams()
   form.set('mode', 'subscription')
   form.set('line_items[0][price]', price.id)

@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth'
 import { controlDb } from '@/lib/db'
-import { appBaseUrl, createStripeOrganizationCheckout, createStripePortalSession, retrieveAnnualStripePrice } from '@/lib/stripe'
+import { appBaseUrl, configuredStripeInterval, createStripeOrganizationCheckout, createStripePortalSession, retrieveStripePrice } from '@/lib/stripe'
 
 export async function GET(request: NextRequest) {
   try {
@@ -18,6 +18,7 @@ export async function GET(request: NextRequest) {
         billingStatus: true,
         billingCurrency: true,
         billingAmountMinor: true,
+        stripePriceId: true,
         billingCurrentPeriodEnd: true,
         billingCancelAtPeriodEnd: true,
         stripeCustomerId: true,
@@ -32,6 +33,7 @@ export async function GET(request: NextRequest) {
         status: organization.billingStatus,
         currency: organization.billingCurrency,
         amountMinor: organization.billingAmountMinor,
+        interval: configuredStripeInterval(organization.stripePriceId),
         currentPeriodEnd: organization.billingCurrentPeriodEnd,
         cancelAtPeriodEnd: organization.billingCancelAtPeriodEnd,
         portalAvailable: Boolean(organization.stripeCustomerId && organization.stripeSubscriptionId)
@@ -61,6 +63,7 @@ export async function POST(request: NextRequest) {
         billingProvider: true,
         billingStatus: true,
         billingAttemptId: true,
+        stripePriceId: true,
         stripeCustomerId: true,
         stripeSubscriptionId: true
       }
@@ -69,7 +72,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No Stripe subscription is linked to this workspace.' }, { status: 409 })
     }
     if (['CANCELED', 'INCOMPLETE_EXPIRED'].includes(organization.billingStatus || '')) {
-      const price = await retrieveAnnualStripePrice()
+      const interval = configuredStripeInterval(organization.stripePriceId) || 'year'
+      const price = await retrieveStripePrice(interval)
       const billingAttemptId = randomUUID()
       const claim = await (controlDb as any).organization.updateMany({
         where: {
@@ -78,7 +82,13 @@ export async function POST(request: NextRequest) {
           billingStatus: organization.billingStatus,
           billingAttemptId: organization.billingAttemptId
         },
-        data: { billingAttemptId, stripePriceId: price.id, stripeCheckoutSessionId: null }
+        data: {
+          billingAttemptId,
+          stripePriceId: price.id,
+          billingAmountMinor: price.unit_amount,
+          billingCurrency: price.currency.toUpperCase(),
+          stripeCheckoutSessionId: null
+        }
       })
       if (claim.count !== 1) return NextResponse.json({ error: 'Billing status changed. Refresh and try again.' }, { status: 409 })
 
@@ -90,7 +100,8 @@ export async function POST(request: NextRequest) {
         ownerName: organization.ownerName || '',
         ownerEmail: organization.ownerEmail || user.email,
         appUrl: appBaseUrl(),
-        idempotencyKey: `org-renew-${organization.id}-${billingAttemptId}`
+        idempotencyKey: `org-renew-${organization.id}-${billingAttemptId}`,
+        interval
       })
       if (!checkout.url) throw new Error('Stripe did not return a hosted Checkout URL.')
       await (controlDb as any).organization.updateMany({
