@@ -24,6 +24,7 @@ import {
   ChevronRight,
   CircleDot,
   ClipboardCheck,
+  CreditCard,
   Droplets,
   FileBarChart,
   FileSpreadsheet,
@@ -118,6 +119,7 @@ const getNavigationGroups = (t: (key: string) => string): NavGroup[] => [
     items: [
       { name: t('nav.users'), href: '/users', icon: Users, iconColor: 'text-purple-600 dark:text-purple-400', iconBackground: 'bg-purple-500/10', resource: 'users', action: 'read' },
       { name: t('nav.profile'), href: '/profile', icon: User, iconColor: 'text-sky-600 dark:text-sky-400', iconBackground: 'bg-sky-500/10', resource: 'profile', action: 'read' },
+      { name: t('Subscription & billing'), href: '/billing', icon: CreditCard, iconColor: 'text-emerald-600 dark:text-emerald-400', iconBackground: 'bg-emerald-500/10', resource: 'settings', action: 'read' },
       { name: t('nav.settings'), href: '/settings', icon: Settings, iconColor: 'text-slate-600 dark:text-slate-300', iconBackground: 'bg-slate-500/10', resource: 'settings', action: 'read' },
       { name: t('nav.admin'), href: '/admin', icon: Shield, iconColor: 'text-red-600 dark:text-red-400', iconBackground: 'bg-red-500/10', resource: 'admin', action: 'read' },
       { name: t('nav.organizations'), href: '/organizations', icon: Building2, iconColor: 'text-indigo-600 dark:text-indigo-400', iconBackground: 'bg-indigo-500/10', resource: 'admin', action: 'read' },
@@ -142,7 +144,8 @@ export function Navigation() {
       ...group,
       items: group.items.filter((item) =>
         (user?.role === 'ADMIN' || hasPermission(item.resource, item.action)) &&
-        (item.href !== '/organizations' || user?.isPrimaryOrganization !== false),
+        (item.href !== '/organizations' || user?.isPrimaryOrganization !== false) &&
+        (item.href !== '/billing' || (user?.role === 'ADMIN' && user.isPrimaryOrganization === false)),
       ),
     }))
     .filter((group) => group.items.length > 0)
