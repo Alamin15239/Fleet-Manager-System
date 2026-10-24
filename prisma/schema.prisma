@@ -419,6 +419,9 @@ model Organization {
   stripeSubscriptionId      String?
   stripePriceId             String?
   stripeCheckoutSessionId   String?
+  paypalOrderId             String?
+  paypalCaptureId           String?
+  paypalPlanPeriod          String?
   createdAt            DateTime           @default(now())
   updatedAt            DateTime           @updatedAt
 
@@ -449,6 +452,29 @@ model OrganizationBillingPayment {
   @@map("organization_billing_payments")
 }
 
+model PayPalOrganizationPurchase {
+  id                 String   @id @default(cuid())
+  organizationId     String?
+  isRenewal          Boolean  @default(false)
+  organizationName   String
+  organizationSlug   String
+  ownerName          String
+  ownerEmail         String
+  ownerPhone         String?
+  period             String
+  amountMinor        Int
+  currency           String   @default("USD")
+  status             String   @default("PENDING")
+  paypalOrderId      String?  @unique
+  paypalCaptureId    String?  @unique
+  failureReason      String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([organizationSlug, status])
+  @@index([organizationId, status])
+  @@map("paypal_organization_purchases")
+}
 model StripeWebhookEvent {
   id          String   @id @default(cuid())
   eventId     String   @unique
