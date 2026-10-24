@@ -1,10 +1,21 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { BadgeCheck, Building2, Copy, LoaderCircle, Pencil, Plus, RefreshCw, RotateCw, Save, X } from 'lucide-react'
+import { BadgeCheck, Building2, Copy, LoaderCircle, Pencil, Plus, RefreshCw, RotateCw, Save, Trash2, X } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
-import { apiGet, apiPatch, apiPost } from '@/lib/api'
+import { useLanguage } from '@/contexts/language-context'
+import { apiDelete, apiGet, apiPatch, apiPost } from '@/lib/api'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -33,9 +44,12 @@ function slugFromName(value: string) {
 export default function OrganizationsPage() {
   const { user, isLoading: authLoading } = useAuth()
   const { toast } = useToast()
+  const { t } = useLanguage()
   const [organizations, setOrganizations] = useState<Organization[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<Organization | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
   const [retryingId, setRetryingId] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editingOwnerName, setEditingOwnerName] = useState('')
@@ -116,6 +130,24 @@ export default function OrganizationsPage() {
     }
   }
 
+  const deleteOrganization = async (organization: Organization) => {
+    setDeletingId(organization.id)
+    setFormError('')
+    try {
+      const response = await apiDelete(`/api/organizations/${organization.id}`)
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(data.error || 'Could not delete the organization')
+      toast({ title: t('Organization deleted'), description: `${organization.name}: ${t('Organization and its Neon project were deleted. Neon recovery is available for 7 days.')}` })
+      setDeleteTarget(null)
+      await loadOrganizations()
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Could not delete the organization'
+      setFormError(message)
+      toast({ title: t('Organization deletion failed'), description: message, variant: 'destructive' })
+    } finally {
+      setDeletingId(null)
+    }
+  }
   const beginEditOwner = (organization: Organization) => {
     setEditingId(organization.id)
     setEditingOwnerName(organization.ownerName || '')
@@ -260,6 +292,12 @@ export default function OrganizationsPage() {
                         <LocalizedText>Retry setup</LocalizedText>
                       </Button>
                     )}
+                    {!organization.isPrimary && organization.status !== 'PROVISIONING' && (
+                      <Button size="sm" variant="destructive" disabled={deletingId === organization.id} onClick={() => setDeleteTarget(organization)}>
+                        {deletingId === organization.id ? <LoaderCircle className="me-2 h-4 w-4 animate-spin" /> : <Trash2 className="me-2 h-4 w-4" />}
+                        <LocalizedText>Delete organization</LocalizedText>
+                      </Button>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -267,6 +305,30 @@ export default function OrganizationsPage() {
           </div>
         )}
       </section>
+      <AlertDialog open={Boolean(deleteTarget)} onOpenChange={(open) => { if (!open && deletingId === null) setDeleteTarget(null) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle><LocalizedText>Delete organization?</LocalizedText></AlertDialogTitle>
+            <AlertDialogDescription>
+              <LocalizedText>This deletes the organization's separate Neon project and its fleet data. Neon project recovery is available for 7 days. The original Fleet Manager database will not be deleted.</LocalizedText>
+              {deleteTarget && <span className="mt-2 block font-medium text-foreground">{deleteTarget.name} · /{deleteTarget.slug}</span>}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deletingId !== null}><LocalizedText>Cancel</LocalizedText></AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-white hover:bg-destructive/90"
+              disabled={!deleteTarget || deletingId !== null}
+              onClick={(event) => {
+                event.preventDefault()
+                if (deleteTarget) void deleteOrganization(deleteTarget)
+              }}
+            >
+              {deletingId ? <><LoaderCircle className="me-2 h-4 w-4 animate-spin" /><LocalizedText>Deleting organization…</LocalizedText></> : <><Trash2 className="me-2 h-4 w-4" /><LocalizedText>Delete database and organization</LocalizedText></>}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <p className="text-xs text-muted-foreground"><LocalizedText>Separate databases require Neon API provisioning and available project capacity. Add the setup keys in the deployment environment before creating the first organization.</LocalizedText></p>
     </div>
   )

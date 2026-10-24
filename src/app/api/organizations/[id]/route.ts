@@ -104,3 +104,80 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     await tenantDb?.$disconnect().catch(() => undefined)
   }
 }
+
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const user = await requireAuth(request)
+    if (user.role !== 'ADMIN' || !user.isPrimaryOrganization) {
+      return NextResponse.json({ error: 'Only an administrator of the original organization can delete organizations' }, { status: 403 })
+    }
+
+    const { id } = await params
+    if (id === user.organizationId) {
+      return NextResponse.json({ error: 'The original Fleet Manager organization and database cannot be deleted.' }, { status: 409 })
+    }
+
+    const organizationModel = (controlDb as any).organization
+    const organization = await organizationModel.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        isPrimary: true,
+        status: true,
+        schemaReady: true,
+        neonProjectId: true,
+        encryptedDatabaseUrl: true
+      }
+    })
+
+    // This check runs before any Neon API call. The original fleet database is
+    // never eligible for deletion.
+    if (!organization || organization.isPrimary) {
+      return NextResponse.json({ error: 'Organization not found' }, { status: 404 })
+    }
+    if (organization.status === 'PROVISIONING') {
+      return NextResponse.json({ error: 'Wait for organization setup to finish before deleting it.' }, { status: 409 })
+    }
+
+    // Do not orphan a tenant database if its Neon project ID is missing.
+    if (!organization.neonProjectId && (organization.schemaReady || organization.encryptedDatabaseUrl)) {
+      return NextResponse.json({
+        error: 'This organization has database details but no Neon project ID. Restore its project ID before deleting it.'
+      }, { status: 409 })
+    }
+
+    if (organization.neonProjectId) {
+      const apiKey = process.env.NEON_API_KEY
+      if (!apiKey) {
+        return NextResponse.json({ error: 'Neon project deletion is not configured. Set NEON_API_KEY and try again.' }, { status: 503 })
+      }
+
+      const neonResponse = await fetch(
+        `https://console.neon.tech/api/v2/projects/${encodeURIComponent(organization.neonProjectId)}`,
+        {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${apiKey}`, Accept: 'application/json' },
+          cache: 'no-store'
+        }
+      )
+
+      // Keep the organization record unless Neon confirms deletion. This avoids
+      // losing the project ID when a key or account mismatch causes a 404.
+      if (!neonResponse.ok) {
+        return NextResponse.json({
+          error: `Neon did not confirm deletion of this organization's database (HTTP ${neonResponse.status}). The organization remains listed. Verify NEON_API_KEY and project access.`
+        }, { status: 502 })
+      }
+    }
+
+    await organizationModel.delete({ where: { id: organization.id } })
+    return NextResponse.json({ success: true, deletedOrganizationId: organization.id })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : ''
+    if (message === 'No token provided' || message === 'Invalid token') {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+    }
+    console.error('Failed to delete organization:', error)
+    return NextResponse.json({ error: 'Could not delete the organization and its database.' }, { status: 500 })
+  }
+}
