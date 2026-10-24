@@ -317,11 +317,12 @@ export async function POST(request: NextRequest) {
     if (rawBody.length > 32_000) return NextResponse.json({ error: 'Ping is too large.' }, { status: 413 })
     const form = new URLSearchParams(rawBody)
     const incomingSaleId = text(form.get('sale_id'))
-    const resourceName = text(form.get('resource_name')).toLowerCase()
 
-    // Gumroad's dashboard test ping does not represent a customer sale.
     if (incomingSaleId.length > 256) return NextResponse.json({ error: 'Invalid sale id.' }, { status: 400 })
-    if (resourceName === 'test' || !incomingSaleId) {
+    // A dashboard ping can include the latest real sale even when Gumroad labels
+    // the delivery as a test. Verify every supplied sale ID with Gumroad before
+    // processing it; applyVerifiedSale still rejects actual test purchases.
+    if (!incomingSaleId) {
       return NextResponse.json({ received: true, status: 'test_or_empty_ping' })
     }
 
