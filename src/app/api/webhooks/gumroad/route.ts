@@ -323,11 +323,13 @@ export async function POST(request: NextRequest) {
     // the delivery as a test. Verify every supplied sale ID with Gumroad before
     // processing it; applyVerifiedSale still rejects actual test purchases.
     if (!incomingSaleId) {
+      console.info('[gumroad-ping] Ping ignored: missing sale_id')
       return NextResponse.json({ received: true, status: 'test_or_empty_ping' })
     }
 
     const sale = await getVerifiedSale(incomingSaleId)
     const result = await applyVerifiedSale(sale, incomingSaleId)
+    console.info('[gumroad-ping] Sale processing result:', JSON.stringify(result))
     return NextResponse.json({ received: true, ...result })
   } catch (error) {
     // Avoid logging provider tokens, buyer details, or raw webhook bodies.
