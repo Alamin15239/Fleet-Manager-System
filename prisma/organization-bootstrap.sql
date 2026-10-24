@@ -368,6 +368,7 @@ CREATE TABLE "organizations" (
     "paddleCustomerId" TEXT,
     "paddleSubscriptionId" TEXT,
     "paddlePriceId" TEXT,
+    "gumroadSubscriptionId" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -725,13 +726,16 @@ CREATE UNIQUE INDEX "organizations_slug_key" ON "organizations"("slug");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "organizations_neonProjectId_key" ON "organizations"("neonProjectId");
-CREATE UNIQUE INDEX "organizations_paddleSubscriptionId_key" ON "organizations"("paddleSubscriptionId");
+
 
 -- CreateIndex
 CREATE INDEX "organizations_oneDriveAccountId_idx" ON "organizations"("oneDriveAccountId");
 
 -- CreateIndex
 CREATE INDEX "organizations_oneDriveAccountEmailHash_idx" ON "organizations"("oneDriveAccountEmailHash");
+
+-- CreateIndex
+CREATE INDEX "organizations_gumroadSubscriptionId_idx" ON "organizations"("gumroadSubscriptionId");
 
 -- CreateIndex
 CREATE INDEX "organizations_status_idx" ON "organizations"("status");

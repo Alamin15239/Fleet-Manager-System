@@ -28,6 +28,8 @@ const publicRoutes = new Set([
   '/privacy',
   '/agreement',
   '/help',
+  '/purchase',
+  '/purchase/success',
 ])
 
 function isPublicRoute(pathname: string | null) {
@@ -98,7 +100,7 @@ export function Layout({ children }: LayoutProps) {
 
   // Public pages (marketing, sign-in, legal, help, and shared records) do not
   // use the authenticated application shell.
-  if (isPublic && !isAuthenticated) {
+  if (isPublic) {
     return (
       <div className="min-h-screen bg-transparent">
         <main className="flex-1">

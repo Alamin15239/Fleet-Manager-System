@@ -205,10 +205,10 @@ export default function HomePage() {
             Sign in
           </Link>
           <Link
-            href="/signup"
+            href="/purchase"
             className="rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-900/15 transition hover:bg-blue-800"
           >
-            Get started
+            Choose a plan
           </Link>
         </nav>
       </header>
@@ -228,10 +228,10 @@ export default function HomePage() {
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
             <Link
-              href="/signup"
+              href="/purchase"
               className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-blue-700 px-6 py-3 font-semibold text-white shadow-xl shadow-blue-900/15 transition hover:-translate-y-0.5 hover:bg-blue-800"
             >
-              Start managing your fleet <ArrowRight className="h-4 w-4" />
+              Choose a plan <ArrowRight className="h-4 w-4" />
             </Link>
             <Link
               href="/login"
@@ -356,8 +356,8 @@ export default function HomePage() {
                 Start with a dedicated organization workspace for your trucks, trailers, maintenance, and team.
               </p>
             </div>
-            <Link href="/signup" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-white px-5 py-3 font-semibold text-blue-900 transition hover:bg-blue-50">
-              Create an account <ArrowRight className="h-4 w-4" />
+            <Link href="/purchase" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-white px-5 py-3 font-semibold text-blue-900 transition hover:bg-blue-50">
+              Get started <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
         </div>

@@ -22,7 +22,7 @@ export function middleware(request: NextRequest) {
 
   // Keep internal app screens, authentication pages, and shared records out of search results.
   // The public marketing, help, and legal pages remain crawlable.
-  const indexablePaths = new Set(['/', '/help', '/privacy', '/agreement'])
+  const indexablePaths = new Set(['/', '/help', '/privacy', '/agreement', '/purchase'])
   const response = NextResponse.next()
 
   if (

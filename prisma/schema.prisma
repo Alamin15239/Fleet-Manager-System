@@ -412,8 +412,9 @@ model Organization {
   tapPendingChargeId        String?
   tapRenewalLockUntil       DateTime?
   paddleCustomerId          String?
-  paddleSubscriptionId      String?            @unique
+  paddleSubscriptionId      String?
   paddlePriceId             String?
+  gumroadSubscriptionId     String?
   stripeCustomerId          String?
   stripeSubscriptionId      String?
   stripePriceId             String?
@@ -424,6 +425,7 @@ model Organization {
   @@index([status])
   @@index([oneDriveAccountId])
   @@index([oneDriveAccountEmailHash])
+  @@index([gumroadSubscriptionId])
   @@map("organizations")
 }
 

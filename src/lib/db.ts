@@ -13,6 +13,28 @@ export type OrganizationRecord = {
   encryptedDatabaseUrl: string | null
   oneDriveAccountId: string | null
   oneDriveAccountEmailHash: string | null
+  billingProvider?: string | null
+  billingStatus?: string | null
+  billingCurrentPeriodEnd?: Date | null
+  billingGraceUntil?: Date | null
+  billingCancelAtPeriodEnd?: boolean
+}
+
+function ensureOrganizationSubscriptionCurrent(organization: OrganizationRecord) {
+  if (organization.isPrimary || organization.billingProvider !== 'GUMROAD') return
+
+  const status = organization.billingStatus?.toUpperCase()
+  const periodEnd = organization.billingCurrentPeriodEnd
+  const graceUntil = organization.billingGraceUntil
+  const now = Date.now()
+
+  if (status === 'REFUNDED' || status === 'DISPUTED') {
+    throw new Error('This organization subscription is not active. Contact support for help.')
+  }
+  if (periodEnd && periodEnd.getTime() > now) return
+  if (graceUntil && graceUntil.getTime() > now) return
+
+  throw new Error('This organization subscription has expired. Renew it to continue.')
 }
 
 type DatabaseScope = { organizationId: string; client: PrismaClient }
@@ -155,12 +177,14 @@ export async function findOrganizationBySlug(slug?: string | null): Promise<Orga
   const normalizedSlug = slug.trim().toLowerCase()
   const organization = await (controlDb as any).organization.findUnique({ where: { slug: normalizedSlug } }) as OrganizationRecord | null
   if (!organization || organization.status !== 'ACTIVE') throw new Error('Organization was not found or is not ready')
+  ensureOrganizationSubscriptionCurrent(organization)
   return organization
 }
 
 export async function findOrganizationById(id: string): Promise<OrganizationRecord> {
   const organization = await (controlDb as any).organization.findUnique({ where: { id } }) as OrganizationRecord | null
   if (!organization || organization.status !== 'ACTIVE') throw new Error('Organization was not found or is not ready')
+  ensureOrganizationSubscriptionCurrent(organization)
   return organization
 }
 
