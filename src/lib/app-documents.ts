@@ -65,7 +65,6 @@ export const privacyPolicy: { en: DocumentCopy; ar: DocumentCopy } = {
       { id: 'sharing', title: 'When information is shared', paragraphs: ['Authorized app users can see and act on records according to their roles and individual permissions. Service providers receive information needed to host, operate, secure, analyze, or deliver the service: Vercel (hosting and telemetry), Neon (PostgreSQL database), Microsoft (OneDrive/Graph and Clarity), Resend (email), and ip-api.com (approximate IP-based location lookup used by activity tracking). The Company may also disclose information when required by law or to protect the service and its users. The application is not operated as a data brokerage.'] },
       { id: 'public-links', title: 'Job-card share links and exports', paragraphs: ['A job-card share link is a bearer link: anyone who obtains the link can view the shared job card without signing in. It may display the job number, truck or trailer details, VIN or plate, driver and technician names, work description, checklist, notes, and signatures saved on that card. Only share it with intended recipients. Downloaded PDFs, reports, and workbook exports can contain the same kinds of business or personal information; protect them when storing or forwarding.'] },
       { id: 'onedrive', title: 'OneDrive and workbook synchronization', paragraphs: ['When an administrator connects OneDrive, the user grants the app Microsoft Graph delegated access to the selected account’s files for the workbook integration. The app reads and writes the fleet workbook and stores the refresh token encrypted on the server. Workbook edits are staged for permission-checked review before changing app records; app data may be written back to the connected workbook. Microsoft account and workbook data are also subject to Microsoft’s terms and privacy information.'] },
-      { id: 'billing', title: 'Annual plan billing', paragraphs: ['For an organization that purchases the annual plan, the app stores administrator contact details, plan status and dates, payment references, and Tap-issued customer, card, and payment-agreement identifiers. It stores the saved card brand and last four digits when supplied, not the full card number or security code. Tap Payments handles card entry and payment processing; see Tap’s privacy information for its data practices.'] },
       { id: 'transfers', title: 'Storage and international processing', paragraphs: ['Fleet Manager uses a PostgreSQL database and external cloud services. The current production database connection is configured for a US East region; service providers may process data in other locations depending on their infrastructure and the connected Microsoft account. Information may therefore be processed outside Saudi Arabia. The Company is responsible for applying the safeguards and transfer requirements that apply under Saudi Arabia’s Personal Data Protection Law and its transfer regulations.'] },
       { id: 'retention', title: 'Retention and deletion', paragraphs: ['The Company retains information while it is needed to operate accounts, maintain fleet and workshop history, meet business and legal obligations, protect the service, and resolve disputes. Some records are soft-deleted or retained in audit history, and backup copies may remain until the applicable backup cycle expires. The application does not publish one fixed retention period for every record type. Contact the Company to request review, correction, or deletion; statutory duties and operational record requirements may limit deletion.'] },
       { id: 'choices', title: 'Your choices and privacy requests', paragraphs: ['You can correct profile information available in your account and ask the Company to access, provide, correct, complete, update, or destroy personal data, or to address consent where consent is the applicable basis. Requests are handled subject to identity verification, applicable law, and its exceptions. Contact alaminkhan.xiaomi@gmail.com or the Company administrator and identify the account and request; do not include a password or access token.'] },
@@ -90,7 +89,6 @@ export const privacyPolicy: { en: DocumentCopy; ar: DocumentCopy } = {
       { id: 'sharing', title: 'متى تتم مشاركة البيانات', paragraphs: ['يمكن للمستخدمين المخولين الاطلاع على السجلات والتصرف فيها بحسب أدوارهم وصلاحياتهم الفردية. يتلقى مزودو الخدمة البيانات اللازمة للاستضافة والتشغيل والأمن والتحليل والتسليم: Vercel للاستضافة والقياسات، وNeon لقاعدة PostgreSQL، وMicrosoft لخدمات OneDrive وGraph وClarity، وResend للبريد، وip-api.com للاستدلال على الموقع التقريبي من عنوان IP ضمن تتبع النشاط. وقد تكشف الشركة البيانات إذا أوجب القانون ذلك أو لحماية الخدمة ومستخدميها. لا يُشغّل التطبيق كوسيط لبيع البيانات.'] },
       { id: 'public-links', title: 'روابط مشاركة أوامر العمل والتصدير', paragraphs: ['رابط مشاركة أمر العمل هو رابط حامل؛ يمكن لأي شخص يحصل عليه عرض أمر العمل دون تسجيل الدخول. وقد يعرض رقم الأمر وبيانات الشاحنة أو المقطورة ورقم الهيكل أو اللوحة واسم السائق والفني ووصف العمل وقائمة الفحص والملاحظات والتوقيعات المحفوظة في الأمر. شاركه مع المستلمين المقصودين فقط. قد تحتوي ملفات PDF والتقارير والمصنفات المنزلة على أنواع مماثلة من بيانات العمل أو البيانات الشخصية؛ فاحفظها وأرسلها بحذر.'] },
       { id: 'onedrive', title: 'مزامنة OneDrive والمصنف', paragraphs: ['عند توصيل OneDrive، يمنح المستخدم التطبيق صلاحية Microsoft Graph المفوضة لملفات الحساب المحدد لأغراض تكامل المصنف. يقرأ التطبيق مصنف الأسطول ويحدّثه، ويحفظ رمز التحديث مشفراً على الخادم. تُعرض تعديلات المصنف للمراجعة والتحقق من الصلاحيات قبل تغيير سجلات التطبيق؛ وقد تُكتب بيانات التطبيق في المصنف المتصل. تخضع بيانات حساب Microsoft وملفاته أيضاً لشروط Microsoft ومعلومات الخصوصية الخاصة بها.'] },
-      { id: 'billing', title: 'فواتير الاشتراك السنوي', paragraphs: ['عند شراء اشتراك سنوي لمؤسسة، يحتفظ التطبيق ببيانات تواصل المسؤول وحالة الخطة وتواريخها ومراجع الدفع ومعرّفات العميل والبطاقة واتفاقية الدفع التي تصدرها Tap. وقد يحتفظ بنوع البطاقة وآخر أربعة أرقام منها عند توفرهما، ولا يحتفظ برقم البطاقة كاملاً أو رمز الأمان. تتولى Tap Payments إدخال بيانات البطاقة ومعالجة الدفع؛ راجع معلومات الخصوصية لدى Tap لمعرفة ممارساتها.'] },
       { id: 'transfers', title: 'التخزين والمعالجة خارج المملكة', paragraphs: ['يستخدم مدير الأسطول قاعدة بيانات PostgreSQL وخدمات سحابية خارجية. اتصال قاعدة بيانات الإنتاج الحالي مهيأ لمنطقة شرق الولايات المتحدة؛ وقد يعالج مزودو الخدمة البيانات في مواقع أخرى بحسب بنيتهم التحتية وحساب Microsoft المتصل. لذلك قد تُعالج البيانات خارج المملكة العربية السعودية. وتتحمل الشركة مسؤولية تطبيق الضمانات ومتطلبات النقل المنطبقة بموجب نظام حماية البيانات الشخصية ولائحة نقل البيانات إلى خارج المملكة.'] },
       { id: 'retention', title: 'الاحتفاظ والحذف', paragraphs: ['تحتفظ الشركة بالبيانات ما دامت لازمة لتشغيل الحسابات والاحتفاظ بتاريخ الأسطول والورشة والوفاء بالالتزامات التجارية والقانونية وحماية الخدمة وتسوية النزاعات. تُحذف بعض السجلات حذفاً منطقياً أو تبقى في سجل التدقيق، وقد تستمر النسخ الاحتياطية حتى انتهاء دورة النسخ المعمول بها. لا يحدد التطبيق مدة موحدة منشورة لكل نوع من السجلات. تواصل مع الشركة لطلب المراجعة أو التصحيح أو الحذف؛ وقد تحد الالتزامات النظامية ومتطلبات سجلات التشغيل من الحذف.'] },
       { id: 'choices', title: 'خياراتك وطلبات الخصوصية', paragraphs: ['يمكنك تصحيح بيانات الملف الشخصي المتاحة في حسابك وطلب الوصول إلى بياناتك الشخصية أو الحصول عليها أو تصحيحها أو استكمالها أو تحديثها أو إتلافها، أو معالجة ما يتعلق بالموافقة عندما تكون هي الأساس المنطبق. تُدرس الطلبات بعد التحقق من الهوية وبما يخضع للقانون واستثناءاته. تواصل عبر alaminkhan.xiaomi@gmail.com أو مع مسؤول الشركة، وحدد الحساب والطلب؛ ولا ترسل كلمة المرور أو رمز الوصول.'] },
@@ -143,99 +141,6 @@ export const userAgreement: { en: DocumentCopy; ar: DocumentCopy } = {
       { id: 'suspension', title: '10. تعليق الوصول وإنهاؤه', paragraphs: ['يجوز للشركة تعليق الوصول أو إنهاؤه عندما يصبح الحساب غير مخول أو عند مخالفة هذه الشروط أو سياسات الشركة أو لمتطلبات الأمن أو عند إيقاف الخدمة. عند الطلب، توقف عن استخدام الحساب وأعد أو احذف بأمان صادرات الشركة الموجودة لديك، وفق تعليمات الشركة والقانون المعمول به.'] },
       { id: 'limits', title: '11. حدود مهمة', paragraphs: ['يُقدم التطبيق كأداة لتسجيل العمليات. وبالقدر الذي يسمح به القانون، لا تضمن الشركة خلو كل سجل من الأخطاء أو توفر الخدمة دائماً. لا ينتقص أي بند في هذه الاتفاقية من الحقوق أو المسؤوليات التي لا يجوز استبعادها قانوناً.'] },
       { id: 'changes', title: '12. التعديلات والقانون والتواصل', paragraphs: ['يجوز للشركة تحديث الشروط عند تغير الخدمة أو متطلباتها التشغيلية. ويعني الاستمرار في الاستخدام بعد التحديث استخدام النسخة الحالية، مع مراعاة أي متطلب للإشعار أو القبول يفرضه القانون المعمول به. تخضع الاتفاقية لأنظمة المملكة العربية السعودية، مع مراعاة القواعد الإلزامية المنطبقة. للاستفسار، تواصل مع مسؤول الشركة أو عبر alaminkhan.xiaomi@gmail.com.'] },
-    ],
-  },
-}
-
-export const refundPolicy: { en: DocumentCopy; ar: DocumentCopy } = {
-  en: {
-    title: 'Refund Policy',
-    subtitle: 'This policy explains how refund requests for Fleet Manager Pro organization subscriptions are handled.',
-    updatedLabel: 'Last updated',
-    contentsLabel: 'On this page',
-    sections: [
-      {
-        id: 'payments',
-        title: 'Payments and checkout',
-        paragraphs: [
-          'Fleet Manager Pro organization plans are billed annually through Paddle. Paddle handles checkout and payment for these transactions. The Paddle Buyer Refund Policy and applicable consumer protection laws govern refund eligibility and processing.',
-        ],
-        links: [{ href: 'https://www.paddle.com/legal/refund-policy', label: 'Paddle Buyer Refund Policy' }],
-      },
-      {
-        id: 'request',
-        title: 'How to request a refund',
-        paragraphs: [
-          'Use the support link in your Paddle receipt or visit Paddle.net to submit a refund request. Paddle reviews and processes requests under its Buyer Refund Policy. Mandatory rights under the laws that apply to you are not limited by this policy.',
-        ],
-        links: [{ href: 'https://paddle.net', label: 'Paddle buyer support' }],
-      },
-      {
-        id: 'cancellation',
-        title: 'Canceling an annual subscription',
-        paragraphs: [
-          'An organization administrator can turn off renewal from the workspace billing page before the next renewal date. Cancellation stops future renewals and normally takes effect at the end of the current paid billing period. Canceling renewal does not itself issue a refund for a payment already made; refund requests are handled as described above and remain subject to applicable law.',
-        ],
-      },
-      {
-        id: 'billing-help',
-        title: 'Billing questions',
-        paragraphs: [
-          'For help identifying a Fleet Manager Pro charge or resolving an access issue, email alaminkhan.xiaomi@gmail.com. Include your organization name and Paddle transaction or receipt reference. Do not send full payment card details by email.',
-        ],
-      },
-      {
-        id: 'changes',
-        title: 'Policy updates',
-        paragraphs: [
-          'This policy may be updated when the service or payment arrangements change. The current version and its effective date will be published on this page. Updates do not remove consumer rights that cannot legally be waived.',
-        ],
-      },
-    ],
-  },
-  ar: {
-    title: 'سياسة الاسترداد',
-    subtitle: 'توضح هذه السياسة كيفية التعامل مع طلبات استرداد اشتراكات مساحات العمل في Fleet Manager Pro.',
-    updatedLabel: 'تاريخ التحديث',
-    contentsLabel: 'في هذه الصفحة',
-    sections: [
-      {
-        id: 'payments',
-        title: 'المدفوعات وإتمام الشراء',
-        paragraphs: [
-          'تُحصّل رسوم خطط Fleet Manager Pro السنوية لمساحات العمل من خلال Paddle. تتولى Paddle معالجة إتمام الشراء والمدفوعات لهذه المعاملات. وتخضع أهلية الاسترداد وإجراءاته لسياسة استرداد المشتري لدى Paddle ولأنظمة حماية المستهلك المعمول بها.',
-        ],
-        links: [{ href: 'https://www.paddle.com/legal/refund-policy', label: 'سياسة استرداد المشتري لدى Paddle' }],
-      },
-      {
-        id: 'request',
-        title: 'طريقة طلب الاسترداد',
-        paragraphs: [
-          'استخدم رابط الدعم الموجود في إيصال Paddle أو زر Paddle.net لتقديم طلب الاسترداد. تراجع Paddle الطلبات وتعالجها وفق سياسة استرداد المشتري لديها. ولا تنتقص هذه السياسة من الحقوق الإلزامية التي تمنحك إياها الأنظمة المعمول بها.',
-        ],
-        links: [{ href: 'https://paddle.net', label: 'دعم مشتري Paddle' }],
-      },
-      {
-        id: 'cancellation',
-        title: 'إلغاء الاشتراك السنوي',
-        paragraphs: [
-          'يمكن لمسؤول المؤسسة إيقاف التجديد من صفحة الفوترة في مساحة العمل قبل موعد التجديد التالي. يؤدي الإلغاء إلى إيقاف التجديدات المستقبلية، ويسري عادةً في نهاية فترة الفوترة المدفوعة الحالية. إيقاف التجديد لا يعني بحد ذاته استرداد مبلغ سبق دفعه؛ وتُعالج طلبات الاسترداد كما هو موضح أعلاه مع مراعاة الأنظمة المعمول بها.',
-        ],
-      },
-      {
-        id: 'billing-help',
-        title: 'استفسارات الفوترة',
-        paragraphs: [
-          'للمساعدة في التعرف على رسوم Fleet Manager Pro أو حل مشكلة في الوصول، راسل alaminkhan.xiaomi@gmail.com. أرفق اسم المؤسسة ورقم معاملة Paddle أو مرجع الإيصال. لا ترسل بيانات بطاقة الدفع كاملة عبر البريد الإلكتروني.',
-        ],
-      },
-      {
-        id: 'changes',
-        title: 'تحديثات السياسة',
-        paragraphs: [
-          'قد تُحدّث هذه السياسة عند تغير الخدمة أو ترتيبات الدفع. تُنشر النسخة الحالية وتاريخ سريانها في هذه الصفحة. ولا تلغي التحديثات حقوق المستهلك التي لا يجوز التنازل عنها قانوناً.',
-        ],
-      },
     ],
   },
 }

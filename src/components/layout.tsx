@@ -20,9 +20,6 @@ const publicRoutes = new Set([
   '/',
   '/login',
   '/signup',
-  '/pricing',
-  '/purchase',
-  '/purchase/complete',
   '/register',
   '/verify-email',
   '/verify-otp',
@@ -30,7 +27,6 @@ const publicRoutes = new Set([
   '/reset-password',
   '/privacy',
   '/agreement',
-  '/refund-policy',
   '/help',
 ])
 

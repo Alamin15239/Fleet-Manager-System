@@ -37,7 +37,6 @@ import {
   Users,
   Shield,
   Building2,
-  CreditCard,
   type LucideIcon,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
@@ -386,10 +385,6 @@ export function Header() {
               {hasPermission('settings', 'read') && <DropdownMenuItem onClick={() => router.push('/settings')}>
                 <Settings className="me-2 h-4 w-4" />
                 <span>{t('Settings')}</span>
-              </DropdownMenuItem>}
-              {user?.role === 'ADMIN' && user.isPrimaryOrganization === false && <DropdownMenuItem onClick={() => router.push('/billing')}>
-                <CreditCard className="me-2 h-4 w-4" />
-                <span>{t('Billing & subscription')}</span>
               </DropdownMenuItem>}
               <DropdownMenuItem onClick={() => router.push('/help')}>
                 <BookOpen className="me-2 h-4 w-4" />

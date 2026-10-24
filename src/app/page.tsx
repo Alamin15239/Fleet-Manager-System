@@ -198,12 +198,6 @@ export default function HomePage() {
         <nav aria-label="Main navigation" className="flex items-center gap-2 sm:gap-5">
           <a className="hidden text-sm font-medium text-slate-600 hover:text-blue-700 dark:text-slate-300 sm:inline" href="#features">Features</a>
           <Link
-            href="/pricing"
-            className="rounded-xl px-3 py-2 text-sm font-medium text-slate-600 hover:bg-white/70 hover:text-blue-700 dark:text-slate-300 dark:hover:bg-white/10"
-          >
-            Pricing
-          </Link>
-          <Link
             href="/login"
             className="rounded-xl px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-white/70 dark:text-slate-200 dark:hover:bg-white/10"
           >
@@ -243,12 +237,6 @@ export default function HomePage() {
               className="inline-flex min-h-12 items-center justify-center rounded-xl border border-slate-200 bg-white/75 px-6 py-3 font-semibold text-slate-800 shadow-sm backdrop-blur transition hover:bg-white dark:border-white/15 dark:bg-white/5 dark:text-white dark:hover:bg-white/10"
             >
               Sign in to your workspace
-            </Link>
-            <Link
-              href="/pricing"
-              className="inline-flex min-h-12 items-center justify-center rounded-xl border border-blue-200 bg-blue-50/70 px-6 py-3 font-semibold text-blue-800 shadow-sm transition hover:bg-blue-100 dark:border-blue-300/15 dark:bg-blue-400/5 dark:text-blue-200 dark:hover:bg-blue-400/10"
-            >
-              View annual plan
             </Link>
           </div>
           <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">
@@ -367,8 +355,8 @@ export default function HomePage() {
                 Start with a dedicated organization workspace for your trucks, trailers, maintenance, and team.
               </p>
             </div>
-            <Link href="/pricing" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-white px-5 py-3 font-semibold text-blue-900 transition hover:bg-blue-50">
-              View annual plan <ArrowRight className="h-4 w-4" />
+            <Link href="/signup" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-white px-5 py-3 font-semibold text-blue-900 transition hover:bg-blue-50">
+              Create an account <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
         </div>
@@ -416,7 +404,6 @@ export default function HomePage() {
             <Link href="/help" className="hover:text-blue-700 dark:hover:text-blue-300">User guide</Link>
             <Link href="/privacy" className="hover:text-blue-700 dark:hover:text-blue-300">Privacy</Link>
             <Link href="/agreement" className="hover:text-blue-700 dark:hover:text-blue-300">User agreement</Link>
-            <Link href="/refund-policy" className="hover:text-blue-700 dark:hover:text-blue-300">Refund policy</Link>
             <Link href="/login" className="hover:text-blue-700 dark:hover:text-blue-300">Sign in</Link>
           </nav>
         </div>

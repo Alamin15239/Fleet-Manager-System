@@ -18,7 +18,6 @@ type RouteAccess = { path: string; resource: string; action?: string }
 const managedRoutes: RouteAccess[] = [
   { path: '/settings/permissions', resource: 'admin' },
   { path: '/organizations', resource: 'admin' },
-  { path: '/billing', resource: 'admin' },
   { path: '/admin', resource: 'admin' },
   { path: '/advanced-analytics', resource: 'advanced-analytics' },
   { path: '/purchase-invoices', resource: 'purchase-invoices' },
