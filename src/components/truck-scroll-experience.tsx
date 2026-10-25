@@ -109,9 +109,9 @@ export function TruckScrollExperience() {
                   <path d="M816 138H824M816 163H824M816 188H824M816 213H824M816 238H824M816 263H824" stroke="#dce8f3" strokeWidth="4"/>
                   <rect x="120" y="342" width="690" height="18" rx="3" fill="#27384d"/>
                   <path d="M155 360H758" stroke="#c4d6e8" strokeWidth="4"/>
-                  <g className="truck-experience-wheel" transform="translate(240 360)"><circle r="43" fill="#030712" stroke="#64748b" strokeWidth="5"/><circle r="28" fill="#475569" stroke="#cbd5e1" strokeWidth="4"/><circle r="9" fill="#dbeafe"/><path d="M0-24V24M-24 0H24M-17-17L17 17M17-17L-17 17" stroke="#cbd5e1" strokeWidth="5"/></g>
-                  <g className="truck-experience-wheel" transform="translate(670 360)"><circle r="43" fill="#030712" stroke="#64748b" strokeWidth="5"/><circle r="28" fill="#475569" stroke="#cbd5e1" strokeWidth="4"/><circle r="9" fill="#dbeafe"/><path d="M0-24V24M-24 0H24M-17-17L17 17M17-17L-17 17" stroke="#cbd5e1" strokeWidth="5"/></g>
-                  <g className="truck-experience-wheel" transform="translate(742 360)"><circle r="43" fill="#030712" stroke="#64748b" strokeWidth="5"/><circle r="28" fill="#475569" stroke="#cbd5e1" strokeWidth="4"/><circle r="9" fill="#dbeafe"/><path d="M0-24V24M-24 0H24M-17-17L17 17M17-17L-17 17" stroke="#cbd5e1" strokeWidth="5"/></g>
+                  <g transform="translate(240 360)"><g className="truck-experience-wheel"><circle r="43" fill="#030712" stroke="#64748b" strokeWidth="5"/><circle r="28" fill="#475569" stroke="#cbd5e1" strokeWidth="4"/><circle r="9" fill="#dbeafe"/><path d="M0-24V24M-24 0H24M-17-17L17 17M17-17L-17 17" stroke="#cbd5e1" strokeWidth="5"/></g></g>
+                  <g transform="translate(670 360)"><g className="truck-experience-wheel"><circle r="43" fill="#030712" stroke="#64748b" strokeWidth="5"/><circle r="28" fill="#475569" stroke="#cbd5e1" strokeWidth="4"/><circle r="9" fill="#dbeafe"/><path d="M0-24V24M-24 0H24M-17-17L17 17M17-17L-17 17" stroke="#cbd5e1" strokeWidth="5"/></g></g>
+                  <g transform="translate(742 360)"><g className="truck-experience-wheel"><circle r="43" fill="#030712" stroke="#64748b" strokeWidth="5"/><circle r="28" fill="#475569" stroke="#cbd5e1" strokeWidth="4"/><circle r="9" fill="#dbeafe"/><path d="M0-24V24M-24 0H24M-17-17L17 17M17-17L-17 17" stroke="#cbd5e1" strokeWidth="5"/></g></g>
                 </g>
                 <g className="truck-experience-cab">
                   <path d="M807 143H885Q909 143 925 169L969 238V342H815V166Q815 143 807 143Z" fill="url(#heroCab)" stroke="#8edaff" strokeWidth="3"/>
@@ -129,8 +129,8 @@ export function TruckScrollExperience() {
                   <path d="M966 300H981V330H966Z" fill="#ef4444"/>
                   <path d="M817 207H809V313H817" stroke="#9be7ff" strokeWidth="4" fill="none"/>
                   <rect x="831" y="325" width="135" height="14" rx="3" fill="#0f172a"/>
-                  <g className="truck-experience-wheel" transform="translate(850 360)"><circle r="39" fill="#030712" stroke="#64748b" strokeWidth="5"/><circle r="25" fill="#475569" stroke="#cbd5e1" strokeWidth="4"/><circle r="8" fill="#dbeafe"/><path d="M0-21V21M-21 0H21M-15-15L15 15M15-15L-15 15" stroke="#cbd5e1" strokeWidth="4"/></g>
-                  <g className="truck-experience-wheel" transform="translate(933 360)"><circle r="39" fill="#030712" stroke="#64748b" strokeWidth="5"/><circle r="25" fill="#475569" stroke="#cbd5e1" strokeWidth="4"/><circle r="8" fill="#dbeafe"/><path d="M0-21V21M-21 0H21M-15-15L15 15M15-15L-15 15" stroke="#cbd5e1" strokeWidth="4"/></g>
+                  <g transform="translate(850 360)"><g className="truck-experience-wheel"><circle r="39" fill="#030712" stroke="#64748b" strokeWidth="5"/><circle r="25" fill="#475569" stroke="#cbd5e1" strokeWidth="4"/><circle r="8" fill="#dbeafe"/><path d="M0-21V21M-21 0H21M-15-15L15 15M15-15L-15 15" stroke="#cbd5e1" strokeWidth="4"/></g></g>
+                  <g transform="translate(933 360)"><g className="truck-experience-wheel"><circle r="39" fill="#030712" stroke="#64748b" strokeWidth="5"/><circle r="25" fill="#475569" stroke="#cbd5e1" strokeWidth="4"/><circle r="8" fill="#dbeafe"/><path d="M0-21V21M-21 0H21M-15-15L15 15M15-15L-15 15" stroke="#cbd5e1" strokeWidth="4"/></g></g>
                   <path d="M822 340H967" stroke="#7dd3fc" strokeWidth="4"/>
                 </g>
               </svg>
