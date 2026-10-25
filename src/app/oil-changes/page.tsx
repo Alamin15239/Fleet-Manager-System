@@ -284,7 +284,7 @@ export default function OilChangesPage() {
     setIsAddDialogOpen(true)
   }
 
-  const reportRecords = filteredRecords.filter((record) => {
+  const reportRecords = oilChanges.filter((record) => {
     const date = new Date(record.datePerformed).toISOString().slice(0, 10)
     if (reportStartDate && date < reportStartDate) return false
     if (reportEndDate && date > reportEndDate) return false
@@ -767,7 +767,7 @@ export default function OilChangesPage() {
             <div className="space-y-2"><Label htmlFor="reportStartDate">From date</Label><Input id="reportStartDate" type="date" value={reportStartDate} onChange={(e) => setReportStartDate(e.target.value)} /></div>
             <div className="space-y-2"><Label htmlFor="reportEndDate">To date</Label><Input id="reportEndDate" type="date" min={reportStartDate || undefined} value={reportEndDate} onChange={(e) => setReportEndDate(e.target.value)} /></div>
             <div className="space-y-2"><Label htmlFor="reportTruck">Truck number</Label><Select value={reportTruckId} onValueChange={setReportTruckId}><SelectTrigger id="reportTruck"><SelectValue placeholder="All trucks" /></SelectTrigger><SelectContent><SelectItem value="all">All trucks</SelectItem>{trucks.map((truck) => <SelectItem key={truck.id} value={truck.id}>{truck.licensePlate}</SelectItem>)}</SelectContent></Select></div>
-            <div className="flex items-end gap-2"><Button type="button" variant="outline" onClick={() => { setReportStartDate(''); setReportEndDate(''); setReportTruckId('all') }}><X className="mr-2 h-4 w-4" />Clear</Button><Button type="button" onClick={generateOilReport} disabled={reportRecords.length === 0 || !canExport('reports')}><FileDown className="mr-2 h-4 w-4" />Export CSV</Button></div>
+            <div className="flex items-end gap-2"><Button type="button" variant="outline" onClick={() => { setReportStartDate(''); setReportEndDate(''); setReportTruckId('all') }}><X className="mr-2 h-4 w-4" />Clear</Button><Button type="button" onClick={generateOilReport} disabled={reportRecords.length === 0 || !canExport('maintenance')}><FileDown className="mr-2 h-4 w-4" />Export CSV</Button></div>
           </div>
           <div className="grid gap-4 sm:grid-cols-3">
             <div className="rounded-lg border p-4"><p className="text-sm text-muted-foreground">Matching oil changes</p><p className="mt-1 text-2xl font-bold">{reportRecords.length}</p></div>
@@ -826,7 +826,8 @@ export default function OilChangesPage() {
                         <TableCell>
                           {new Date(record.datePerformed).toLocaleDateString('en-US', {
                             month: 'short',
-                            day: '2-digit'
+                            day: '2-digit',
+                            year: 'numeric'
                           })}
                         </TableCell>
                         <TableCell>
