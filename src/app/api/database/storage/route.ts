@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireAdmin } from '@/lib/auth'
+import { getPrismaWorkspaceStorageUsage } from '@/lib/organization-provisioning'
 
 export async function GET(request: NextRequest) {
   try {
@@ -52,10 +53,20 @@ export async function GET(request: NextRequest) {
     const totalEstimatedMB = totalEstimatedKB / 1024
 
     let actualDatabaseSize = null
-    // The provider's quota is not available from a database connection alone.
-    // In particular, Prisma Postgres storage is shared across a workspace, so
-    // reporting a per-database allowance here would be misleading.
-    const availableSpace = null
+    // Prisma Postgres storage is shared across its workspace, so obtain the
+    // aggregate usage and plan limit from Prisma's server-side REST API.
+    let providerStorage = null
+    let providerStorageStatus: 'available' | 'unavailable' | 'not-configured' = 'not-configured'
+    if (process.env.PRISMA_SERVICE_TOKEN && process.env.PRISMA_PROJECT_ID) {
+      try {
+        providerStorage = await getPrismaWorkspaceStorageUsage()
+        providerStorageStatus = 'available'
+      } catch (error) {
+        providerStorageStatus = 'unavailable'
+        console.error('Prisma workspace storage check failed:', error)
+      }
+    }
+
     try {
       const sizeQuery = await db.$queryRaw`
         SELECT pg_size_pretty(pg_database_size(current_database())) as size,
@@ -96,7 +107,8 @@ export async function GET(request: NextRequest) {
             breakdown: estimatedStorage
           },
           actual: actualDatabaseSize,
-          available: availableSpace
+          providerStorage,
+          providerStorageStatus
         },
         timestamp: new Date().toISOString()
       }

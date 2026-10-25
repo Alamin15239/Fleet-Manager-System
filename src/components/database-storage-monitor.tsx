@@ -32,13 +32,16 @@ interface StorageData {
       formatted: string
       bytes: number
     } | null
-    available: {
-      totalGB: number
+    providerStorage: {
       usedGB: number
+      totalGB: number
       availableGB: number
-      availableKB: number
       usagePercent: number
+      databaseCount: number
+      planName: string
+      generatedAt: string
     } | null
+    providerStorageStatus: 'available' | 'unavailable' | 'not-configured'
   }
   timestamp: string
 }
@@ -71,8 +74,6 @@ export function DatabaseStorageMonitor() {
 
   useEffect(() => {
     fetchStorageData()
-    const interval = setInterval(fetchStorageData, 30000) // Update every 30 seconds
-    return () => clearInterval(interval)
   }, [])
 
   if (loading) {
@@ -134,35 +135,40 @@ export function DatabaseStorageMonitor() {
             </Badge>
           </div>
           
-          {storageData.storage.available ? (
+          {storageData.storage.providerStorage ? (
             <>
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium"><LocalizedText>Available:</LocalizedText></span>
+                <span className="text-sm font-medium"><LocalizedText>Prisma workspace remaining:</LocalizedText></span>
                 <Badge variant="outline">
-                  {storageData.storage.available.availableGB?.toFixed(2) || '0'} GB
+                  {storageData.storage.providerStorage.availableGB.toFixed(2)} GB
                 </Badge>
               </div>
-              
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium"><LocalizedText>Available (KB):</LocalizedText></span>
-                <Badge variant="outline">
-                  {storageData.storage.available.availableKB?.toLocaleString() || '0'} KB
-                </Badge>
-              </div>
-              
+
               <div className="w-full bg-gray-200 rounded-full h-2">
-                <div 
+                <div
                   className="bg-blue-600 h-2 rounded-full" 
-                  style={{ width: `${storageData.storage.available.usagePercent || 0}%` }}
+                  style={{ width: `${storageData.storage.providerStorage.usagePercent}%` }}
                 ></div>
               </div>
               <div className="text-xs text-center text-muted-foreground">
-                {storageData.storage.available.usagePercent || 0}% used of {storageData.storage.available.totalGB || 0} GB
+                <LocalizedText>Prisma workspace usage:</LocalizedText>{' '}
+                {storageData.storage.providerStorage.usedGB.toFixed(2)} / {storageData.storage.providerStorage.totalGB.toFixed(2)} GB
+                {' · '}{storageData.storage.providerStorage.databaseCount}{' '}
+                <LocalizedText>databases</LocalizedText>
+              </div>
+              <div className="text-xs text-center text-muted-foreground">
+                <LocalizedText>Plan:</LocalizedText>{' '}{storageData.storage.providerStorage.planName}
+                {' · '}<LocalizedText>Updated:</LocalizedText>{' '}
+                {new Date(storageData.storage.providerStorage.generatedAt).toLocaleTimeString()}
               </div>
             </>
           ) : (
             <p className="text-xs text-muted-foreground">
-              <LocalizedText>Storage capacity is managed by your database provider.</LocalizedText>
+              {storageData.storage.providerStorageStatus === 'unavailable' ? (
+                <LocalizedText>Could not load Prisma workspace storage. Try again or check provider access.</LocalizedText>
+              ) : (
+                <LocalizedText>Prisma workspace storage reporting is not configured.</LocalizedText>
+              )}
             </p>
           )}
         </div>

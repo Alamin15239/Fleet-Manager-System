@@ -44,6 +44,19 @@ type PrismaDatabase = {
   pagination?: { nextCursor?: string | null; hasMore?: boolean }
 }
 
+export type PrismaWorkspaceStorageUsage = {
+  usedGB: number
+  totalGB: number
+  availableGB: number
+  usagePercent: number
+  databaseCount: number
+  planName: string
+  generatedAt: string
+}
+
+let prismaStorageCache: { expiresAt: number; value: PrismaWorkspaceStorageUsage } | null = null
+let prismaStorageRequest: Promise<PrismaWorkspaceStorageUsage> | null = null
+
 function prismaApiToken() {
   const token = process.env.PRISMA_SERVICE_TOKEN
   if (!token) throw new Error('Prisma database provisioning is not configured (PRISMA_SERVICE_TOKEN)')
@@ -87,6 +100,113 @@ async function prismaApi<T>(path: string, init: RequestInit = {}): Promise<T> {
     throw new Error(`Prisma database API request failed (HTTP ${response.status})${detail ? `: ${detail}` : ''}`)
   }
   return payload
+}
+
+function includedPrismaStorageGB(planName: string) {
+  const plan = planName.toLowerCase()
+  if (plan.includes('business')) return 100
+  if (plan.includes('pro')) return 50
+  if (plan.includes('starter')) return 10
+  if (plan.includes('free') || plan.includes('hobby')) return 2
+  throw new Error(`Prisma storage allowance is unknown for plan "${planName}"`)
+}
+
+function storageMetricToGiB(value: unknown, unitValue: unknown) {
+  const amount = Number(value)
+  if (!Number.isFinite(amount) || amount < 0) throw new Error('Prisma returned an invalid storage usage metric.')
+  const unit = String(unitValue || 'GiB').toLowerCase()
+  if (unit === 'gib' || unit === 'gb') return amount
+  if (unit === 'mib' || unit === 'mb') return amount / 1024
+  if (unit === 'kib' || unit === 'kb') return amount / (1024 * 1024)
+  if (unit === 'b' || unit === 'byte' || unit === 'bytes') return amount / (1024 ** 3)
+  throw new Error(`Prisma returned an unsupported storage unit "${unitValue}".`)
+}
+
+async function listAllPrismaDatabases() {
+  const databases: PrismaDatabase[] = []
+  let cursor: string | null = null
+
+  for (let page = 0; page < 20; page++) {
+    const query = new URLSearchParams({ limit: '100' })
+    if (cursor) query.set('cursor', cursor)
+    const response = await prismaApi<{
+      data?: PrismaDatabase[]
+      pagination?: { nextCursor?: string | null; hasMore?: boolean }
+    }>(`/databases?${query.toString()}`, { signal: AbortSignal.timeout(10_000) })
+    databases.push(...(response.data || []))
+    if (!response.pagination?.hasMore || !response.pagination.nextCursor) return databases
+    cursor = response.pagination.nextCursor
+  }
+
+  throw new Error('Prisma returned too many databases to calculate workspace storage safely.')
+}
+
+async function loadPrismaWorkspaceStorageUsage(): Promise<PrismaWorkspaceStorageUsage> {
+  const projectId = prismaProjectId()
+  const projectResponse = await prismaApi<{
+    data?: { workspace?: { id?: string } }
+  }>(`/projects/${encodeURIComponent(projectId)}`, { signal: AbortSignal.timeout(10_000) })
+  const workspaceId = projectResponse.data?.workspace?.id
+  if (!workspaceId) throw new Error('Prisma did not return the workspace for the configured project.')
+
+  const subscriptionResponse = await prismaApi<{
+    data?: { planName?: string }
+  }>(`/workspaces/${encodeURIComponent(workspaceId)}/subscription`, { signal: AbortSignal.timeout(10_000) })
+  const planName = subscriptionResponse.data?.planName?.trim()
+  if (!planName) throw new Error('Prisma did not return a workspace plan.')
+  const totalGB = includedPrismaStorageGB(planName)
+
+  const databases = await listAllPrismaDatabases()
+  if (databases.length > 250) {
+    throw new Error('Prisma workspace has too many databases for an on-demand storage check.')
+  }
+
+  let usedGB = 0
+  for (let index = 0; index < databases.length; index += 5) {
+    const batch = databases.slice(index, index + 5)
+    const usageResults = await Promise.all(batch.map(async (database) => {
+      if (!database.id) throw new Error('Prisma returned a database without an ID.')
+      const usageResponse = await prismaApi<{
+        metrics?: { storage?: { used?: number | string; unit?: string } }
+      }>(`/databases/${encodeURIComponent(database.id)}/usage`, { signal: AbortSignal.timeout(10_000) })
+      const storage = usageResponse.metrics?.storage
+      if (!storage || storage.used === undefined) {
+        throw new Error('Prisma did not return storage usage for every workspace database.')
+      }
+      return storageMetricToGiB(storage.used, storage.unit)
+    }))
+    usedGB += usageResults.reduce((sum, value) => sum + value, 0)
+  }
+
+  const roundedUsedGB = Math.round(usedGB * 1000) / 1000
+  const availableGB = Math.max(0, totalGB - roundedUsedGB)
+  return {
+    usedGB: roundedUsedGB,
+    totalGB,
+    availableGB: Math.round(availableGB * 1000) / 1000,
+    usagePercent: Math.min(100, Math.round((usedGB / totalGB) * 100)),
+    databaseCount: databases.length,
+    planName,
+    generatedAt: new Date().toISOString()
+  }
+}
+
+/** Return cached, workspace-wide Prisma Postgres storage usage for dashboard display. */
+export async function getPrismaWorkspaceStorageUsage(): Promise<PrismaWorkspaceStorageUsage> {
+  if (!process.env.PRISMA_SERVICE_TOKEN || !process.env.PRISMA_PROJECT_ID) {
+    throw new Error('Prisma workspace storage reporting is not configured.')
+  }
+  if (prismaStorageCache && prismaStorageCache.expiresAt > Date.now()) return prismaStorageCache.value
+  if (prismaStorageRequest) return prismaStorageRequest
+
+  prismaStorageRequest = loadPrismaWorkspaceStorageUsage()
+  try {
+    const value = await prismaStorageRequest
+    prismaStorageCache = { expiresAt: Date.now() + 5 * 60 * 1000, value }
+    return value
+  } finally {
+    prismaStorageRequest = null
+  }
 }
 
 async function listPrismaProjectDatabases(projectId: string, logicalId: string) {
