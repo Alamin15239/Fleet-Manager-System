@@ -48,8 +48,8 @@ export default function TruckFleetMaintenanceSoftwarePage() {
             { icon: Wrench, title: 'Maintenance and repair tracking', text: 'Record maintenance work and follow upcoming or overdue service tasks.' },
             { icon: ClipboardCheck, title: 'Workshop job cards', text: 'Document reported issues, checklists, work performed, parts, and approvals.' },
             { icon: BarChart3, title: 'Fleet reports', text: 'Review maintenance activity and fleet expenses through available reports and analytics.' },
-          ].map(({ icon: Icon, title, text }) => <SeoStaggerItem><SeoStaggerItem><article key={title} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-slate-900"><Icon className="h-6 w-6 text-blue-700 dark:text-blue-300" /><h2 className="mt-4 text-lg font-semibold">{title}</h2><p className="mt-2 leading-7 text-slate-600 dark:text-slate-300">{text}</p></article></SeoStaggerItem>)}
-        </div>
+          ].map(({ icon: Icon, title, text }) => <SeoStaggerItem key={title}><article key={title} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-slate-900"><Icon className="h-6 w-6 text-blue-700 dark:text-blue-300" /><h2 className="mt-4 text-lg font-semibold">{title}</h2><p className="mt-2 leading-7 text-slate-600 dark:text-slate-300">{text}</p></article></SeoStaggerItem>)}
+        </SeoStagger>
         <SeoReveal><section className="mt-14 rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 dark:border-white/10 dark:bg-white/[0.03]">
           <h2 className="text-2xl font-bold">What can your team organize?</h2>
           <ul className="mt-5 grid gap-3 sm:grid-cols-2">
