@@ -413,7 +413,7 @@ export default function OrganizationsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      <p className="text-xs text-muted-foreground"><LocalizedText>Separate databases require Neon API provisioning and available project capacity. Add the setup keys in the deployment environment before creating the first organization.</LocalizedText></p>
+      <p className="text-xs text-muted-foreground"><LocalizedText>New workspaces use a separate database in the configured Prisma or Neon provider. Keep the original app DATABASE_URL unchanged and configure the provider credentials in the deployment environment.</LocalizedText></p>
     </div>
   )
 }

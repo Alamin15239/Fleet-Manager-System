@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { PrismaClient } from '@prisma/client'
 import { requireAuth } from '@/lib/auth'
 import { controlDb, decryptOrganizationDatabaseUrl } from '@/lib/db'
+import { deletePrismaOrganizationDatabase } from '@/lib/organization-provisioning'
 
 const ownerSchema = z.object({
   ownerName: z.string().trim().min(1).max(100),
@@ -125,7 +126,9 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
         isPrimary: true,
         status: true,
         schemaReady: true,
+        databaseProvider: true,
         neonProjectId: true,
+        prismaDatabaseId: true,
         encryptedDatabaseUrl: true
       }
     })
@@ -139,35 +142,56 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
       return NextResponse.json({ error: 'Wait for organization setup to finish before deleting it.' }, { status: 409 })
     }
 
-    // Do not orphan a tenant database if its Neon project ID is missing.
-    if (!organization.neonProjectId && (organization.schemaReady || organization.encryptedDatabaseUrl)) {
-      return NextResponse.json({
-        error: 'This organization has database details but no Neon project ID. Restore its project ID before deleting it.'
-      }, { status: 409 })
-    }
-
-    if (organization.neonProjectId) {
-      const apiKey = process.env.NEON_API_KEY
-      if (!apiKey) {
-        return NextResponse.json({ error: 'Neon project deletion is not configured. Set NEON_API_KEY and try again.' }, { status: 503 })
-      }
-
-      const neonResponse = await fetch(
-        `https://console.neon.tech/api/v2/projects/${encodeURIComponent(organization.neonProjectId)}`,
-        {
-          method: 'DELETE',
-          headers: { Authorization: `Bearer ${apiKey}`, Accept: 'application/json' },
-          cache: 'no-store'
-        }
-      )
-
-      // Keep the organization record unless Neon confirms deletion. This avoids
-      // losing the project ID when a key or account mismatch causes a 404.
-      if (!neonResponse.ok) {
+    const provider = organization.databaseProvider || 'NEON'
+    if (provider === 'PRISMA') {
+      if (!organization.prismaDatabaseId && (organization.schemaReady || organization.encryptedDatabaseUrl)) {
         return NextResponse.json({
-          error: `Neon did not confirm deletion of this organization's database (HTTP ${neonResponse.status}). The organization remains listed. Verify NEON_API_KEY and project access.`
-        }, { status: 502 })
+          error: 'This organization has database details but no Prisma database ID. Restore its database ID before deleting it.'
+        }, { status: 409 })
       }
+      if (organization.prismaDatabaseId) {
+        try {
+          await deletePrismaOrganizationDatabase(organization.prismaDatabaseId)
+        } catch (error) {
+          const message = error instanceof Error ? error.message : ''
+          return NextResponse.json({
+            error: message || 'Prisma did not confirm deletion of this organization database. The organization remains listed.'
+          }, { status: 502 })
+        }
+      }
+    } else if (provider === 'NEON') {
+      // Do not orphan a tenant database if its Neon project ID is missing.
+      if (!organization.neonProjectId && (organization.schemaReady || organization.encryptedDatabaseUrl)) {
+        return NextResponse.json({
+          error: 'This organization has database details but no Neon project ID. Restore its project ID before deleting it.'
+        }, { status: 409 })
+      }
+
+      if (organization.neonProjectId) {
+        const apiKey = process.env.NEON_API_KEY
+        if (!apiKey) {
+          return NextResponse.json({ error: 'Neon project deletion is not configured. Set NEON_API_KEY and try again.' }, { status: 503 })
+        }
+
+        const neonResponse = await fetch(
+          `https://console.neon.tech/api/v2/projects/${encodeURIComponent(organization.neonProjectId)}`,
+          {
+            method: 'DELETE',
+            headers: { Authorization: `Bearer ${apiKey}`, Accept: 'application/json' },
+            cache: 'no-store'
+          }
+        )
+
+        // Keep the organization record unless Neon confirms deletion. This avoids
+        // losing the project ID when a key or account mismatch causes a 404.
+        if (!neonResponse.ok) {
+          return NextResponse.json({
+            error: `Neon did not confirm deletion of this organization's database (HTTP ${neonResponse.status}). The organization remains listed. Verify NEON_API_KEY and project access.`
+          }, { status: 502 })
+        }
+      }
+    } else {
+      return NextResponse.json({ error: 'This organization has an unsupported database provider. The organization was not deleted.' }, { status: 409 })
     }
 
     await organizationModel.delete({ where: { id: organization.id } })

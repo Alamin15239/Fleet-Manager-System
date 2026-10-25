@@ -389,7 +389,9 @@ model Organization {
   status               OrganizationStatus @default(PROVISIONING)
   schemaReady          Boolean            @default(false)
   isPrimary            Boolean            @default(false)
+  databaseProvider     String             @default("NEON")
   neonProjectId        String?            @unique
+  prismaDatabaseId     String?            @unique
   encryptedDatabaseUrl String?
   failureReason        String?
   oneDriveAccountId        String?

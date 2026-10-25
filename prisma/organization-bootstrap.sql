@@ -344,7 +344,9 @@ CREATE TABLE "organizations" (
     "status" "OrganizationStatus" NOT NULL DEFAULT 'PROVISIONING',
     "schemaReady" BOOLEAN NOT NULL DEFAULT false,
     "isPrimary" BOOLEAN NOT NULL DEFAULT false,
+    "databaseProvider" TEXT NOT NULL DEFAULT 'NEON',
     "neonProjectId" TEXT,
+    "prismaDatabaseId" TEXT,
     "encryptedDatabaseUrl" TEXT,
     "failureReason" TEXT,
     "oneDriveAccountId" TEXT,
@@ -753,6 +755,7 @@ CREATE UNIQUE INDEX "organizations_slug_key" ON "organizations"("slug");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "organizations_neonProjectId_key" ON "organizations"("neonProjectId");
+CREATE UNIQUE INDEX "organizations_prismaDatabaseId_key" ON "organizations"("prismaDatabaseId");
 
 CREATE UNIQUE INDEX "organization_purchase_requests_paymentReference_key" ON "organization_purchase_requests"("paymentReference");
 CREATE INDEX "organization_purchase_requests_status_createdAt_idx" ON "organization_purchase_requests"("status", "createdAt");
