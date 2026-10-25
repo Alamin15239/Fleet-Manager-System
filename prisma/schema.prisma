@@ -362,6 +362,8 @@ model Settings {
   bankAccountNumber      String?
   bankIBAN               String?
   acceptedPaymentMethods Json?
+  bankTransferMonthlyPriceMinor Int?
+  bankTransferYearlyPriceMinor  Int?
   timezone               String   @default("Asia/Riyadh")
   dateFormat             String   @default("DD/MM/YYYY")
   maintenanceIntervals   Json?
@@ -427,6 +429,32 @@ model Organization {
   @@index([oneDriveAccountEmailHash])
   @@index([gumroadSubscriptionId])
   @@map("organizations")
+}
+
+model OrganizationPurchaseRequest {
+  id                  String   @id @default(cuid())
+  organizationName    String
+  workspaceCode       String
+  administratorName   String
+  administratorEmail  String
+  phone               String?
+  plan                String
+  amountMinor         Int
+  currency            String   @default("SAR")
+  paymentReference    String   @unique
+  status              String   @default("AWAITING_TRANSFER")
+  agreementAcceptedAt DateTime
+  agreementVersion    String   @default("current")
+  organizationId      String?
+  reviewedByEmail     String?
+  reviewedAt          DateTime?
+  reviewNote          String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([status, createdAt])
+  @@index([administratorEmail])
+  @@map("organization_purchase_requests")
 }
 
 model OrganizationBillingPayment {

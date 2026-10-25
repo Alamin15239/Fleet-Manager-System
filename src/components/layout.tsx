@@ -28,6 +28,7 @@ const publicRoutes = new Set([
   '/privacy',
   '/agreement',
   '/help',
+  '/purchase',
 ])
 
 function isPublicRoute(pathname: string | null) {

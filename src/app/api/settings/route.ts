@@ -72,7 +72,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (user.role !== 'ADMIN') {
-      const { bankName, bankAccountName, bankAccountNumber, bankIBAN, ...safeSettings } = responseSettings
+      const { bankName, bankAccountName, bankAccountNumber, bankIBAN, bankTransferMonthlyPriceMinor, bankTransferYearlyPriceMinor, ...safeSettings } = responseSettings
       const storedUserPermissions = safeSettings.userPermissions && typeof safeSettings.userPermissions === 'object'
         ? safeSettings.userPermissions as Record<string, unknown>
         : {}
@@ -143,6 +143,8 @@ export async function PUT(request: NextRequest) {
       bankAccountNumber,
       bankIBAN,
       acceptedPaymentMethods,
+      bankTransferMonthlyPriceMinor,
+      bankTransferYearlyPriceMinor,
       timezone,
       dateFormat,
       maintenanceIntervals,
@@ -179,7 +181,13 @@ export async function PUT(request: NextRequest) {
           userPermissions
         }
       : {}
-    const settingsData = { ...commonSettings, ...adminOnlySettings }
+    const primaryBillingSettings = isAdmin && user.isPrimaryOrganization
+      ? {
+          bankTransferMonthlyPriceMinor: normalizePriceMinor(bankTransferMonthlyPriceMinor),
+          bankTransferYearlyPriceMinor: normalizePriceMinor(bankTransferYearlyPriceMinor)
+        }
+      : {}
+    const settingsData = { ...commonSettings, ...adminOnlySettings, ...primaryBillingSettings }
 
     let settings = existingSettings
 
@@ -204,7 +212,7 @@ export async function PUT(request: NextRequest) {
     }
 
     if (!isAdmin) {
-      const { bankName, bankAccountName, bankAccountNumber, bankIBAN, ...safeSettings } = settings
+      const { bankName, bankAccountName, bankAccountNumber, bankIBAN, bankTransferMonthlyPriceMinor, bankTransferYearlyPriceMinor, ...safeSettings } = settings
       return NextResponse.json(safeSettings)
     }
 
@@ -226,4 +234,11 @@ export async function PUT(request: NextRequest) {
       { status: 500 }
     )
   }
+}
+
+function normalizePriceMinor(value: unknown): number | null | undefined {
+  if (value === undefined) return undefined
+  if (value === null || value === '') return null
+  const price = Number(value)
+  return Number.isSafeInteger(price) && price >= 0 ? price : null
 }

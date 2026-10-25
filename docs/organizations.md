@@ -39,3 +39,11 @@ Deploy after adding variables. The deployment's existing `prisma db push` adds t
 5. The new administrator can add their users and fleet records. Their role permissions and company settings are saved inside their own database.
 
 If provisioning fails due to Neon configuration, capacity, or a temporary connection issue, correct the deployment settings and use **Retry setup** on that organization. No database connection string is returned to the browser.
+
+## Bank-transfer workspace sales
+
+The public purchase page is `/purchase`. A primary administrator configures the receiving bank, account holder, IBAN, and optional account number under **Settings → Company → Organization Sales · Bank Transfer**. Enter monthly and/or yearly prices in SAR. Leaving a price blank disables that plan. The public page stays unavailable until an account holder, IBAN, and at least one price are configured.
+
+Customers submit organization and administrator details, then receive a unique transfer reference and the bank details. A request does not create a database or activate access. In **Organizations → Bank-transfer requests**, verify the exact amount and reference in the bank statement before choosing **Confirm payment & create workspace**. The app then records the payment, provisions the organization's separate Neon database, creates the first administrator, and emails the workspace sign-in link when email delivery is configured. If email delivery is unavailable, copy the login link shown after approval. A failed Neon setup remains visible in Organizations and can be retried after fixing the Neon configuration.
+
+Reject requests that do not match a received bank transfer. A receipt screenshot by itself is not confirmation. Bank transfers do not renew automatically; the administrator must verify each renewal manually. The original Fleet Manager database is not changed by organization purchases.

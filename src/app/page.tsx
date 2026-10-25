@@ -210,6 +210,12 @@ export default function HomePage() {
           >
             Get started
           </Link>
+          <Link
+            href="/purchase"
+            className="hidden rounded-xl border border-blue-200 bg-white/70 px-4 py-2.5 text-sm font-semibold text-blue-800 transition hover:bg-white dark:border-white/15 dark:bg-white/5 dark:text-blue-200 sm:inline-flex"
+          >
+            Plans
+          </Link>
         </nav>
       </header>
 
@@ -238,6 +244,12 @@ export default function HomePage() {
               className="inline-flex min-h-12 items-center justify-center rounded-xl border border-slate-200 bg-white/75 px-6 py-3 font-semibold text-slate-800 shadow-sm backdrop-blur transition hover:bg-white dark:border-white/15 dark:bg-white/5 dark:text-white dark:hover:bg-white/10"
             >
               Sign in to your workspace
+            </Link>
+            <Link
+              href="/purchase"
+              className="inline-flex min-h-12 items-center justify-center rounded-xl border border-blue-200 bg-white/75 px-6 py-3 font-semibold text-blue-800 shadow-sm backdrop-blur transition hover:bg-white dark:border-white/15 dark:bg-white/5 dark:text-blue-200 dark:hover:bg-white/10"
+            >
+              View plans and request a workspace
             </Link>
           </div>
           <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">

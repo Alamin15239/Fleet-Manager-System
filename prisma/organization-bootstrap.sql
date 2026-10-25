@@ -319,6 +319,8 @@ CREATE TABLE "settings" (
     "bankAccountNumber" TEXT,
     "bankIBAN" TEXT,
     "acceptedPaymentMethods" JSONB,
+    "bankTransferMonthlyPriceMinor" INTEGER,
+    "bankTransferYearlyPriceMinor" INTEGER,
     "timezone" TEXT NOT NULL DEFAULT 'Asia/Riyadh',
     "dateFormat" TEXT NOT NULL DEFAULT 'DD/MM/YYYY',
     "maintenanceIntervals" JSONB,
@@ -338,6 +340,7 @@ CREATE TABLE "organizations" (
     "slug" TEXT NOT NULL,
     "ownerName" TEXT,
     "ownerEmail" TEXT,
+    "ownerPhone" TEXT,
     "status" "OrganizationStatus" NOT NULL DEFAULT 'PROVISIONING',
     "schemaReady" BOOLEAN NOT NULL DEFAULT false,
     "isPrimary" BOOLEAN NOT NULL DEFAULT false,
@@ -373,6 +376,30 @@ CREATE TABLE "organizations" (
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "organizations_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "organization_purchase_requests" (
+    "id" TEXT NOT NULL,
+    "organizationName" TEXT NOT NULL,
+    "workspaceCode" TEXT NOT NULL,
+    "administratorName" TEXT NOT NULL,
+    "administratorEmail" TEXT NOT NULL,
+    "phone" TEXT,
+    "plan" TEXT NOT NULL,
+    "amountMinor" INTEGER NOT NULL,
+    "currency" TEXT NOT NULL DEFAULT 'SAR',
+    "paymentReference" TEXT NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'AWAITING_TRANSFER',
+    "agreementAcceptedAt" TIMESTAMP(3) NOT NULL,
+    "agreementVersion" TEXT NOT NULL DEFAULT 'current',
+    "organizationId" TEXT,
+    "reviewedByEmail" TEXT,
+    "reviewedAt" TIMESTAMP(3),
+    "reviewNote" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    CONSTRAINT "organization_purchase_requests_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -726,6 +753,10 @@ CREATE UNIQUE INDEX "organizations_slug_key" ON "organizations"("slug");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "organizations_neonProjectId_key" ON "organizations"("neonProjectId");
+
+CREATE UNIQUE INDEX "organization_purchase_requests_paymentReference_key" ON "organization_purchase_requests"("paymentReference");
+CREATE INDEX "organization_purchase_requests_status_createdAt_idx" ON "organization_purchase_requests"("status", "createdAt");
+CREATE INDEX "organization_purchase_requests_administratorEmail_idx" ON "organization_purchase_requests"("administratorEmail");
 
 
 -- CreateIndex

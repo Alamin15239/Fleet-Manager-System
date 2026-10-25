@@ -12,7 +12,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
-import { Settings, Save, RefreshCw, Building, DollarSign, Bell, Wrench, Users, Shield, Crown, User, Briefcase, Activity, Clock, Cloud } from 'lucide-react'
+import { Settings, Save, RefreshCw, Building, DollarSign, Bell, Wrench, Users, Shield, Crown, User, Briefcase, Activity, Clock, Cloud, Wallet } from 'lucide-react'
 import SystemStatus from '@/components/SystemStatus'
 import SettingsDashboard from '@/components/settings-dashboard'
 import SystemUtilities from '@/components/system-utilities'
@@ -36,6 +36,12 @@ interface SettingsData {
   companyAddress?: string
   companyPhone?: string
   companyEmail?: string
+  bankName?: string
+  bankAccountName?: string
+  bankAccountNumber?: string
+  bankIBAN?: string
+  bankTransferMonthlyPriceMinor?: number | null
+  bankTransferYearlyPriceMinor?: number | null
   timezone: string
   dateFormat: string
   maintenanceIntervals?: {
@@ -186,7 +192,7 @@ const rolePermissionSections: { title: string; description: string; permissions:
 ]
 
 export default function SettingsPage() {
-  const { isAdmin } = useAuth()
+  const { isAdmin, user } = useAuth()
   const { canAccess, canUpdate, refreshPermissions } = usePermissions()
   const [activeTab, setActiveTab] = useState('company')
 
@@ -615,6 +621,24 @@ export default function SettingsPage() {
               </div>
             </CardContent>
           </Card>
+
+          {isAdmin && user?.isPrimaryOrganization !== false && (
+            <Card className="border-indigo-500/15 shadow-sm">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2"><Wallet className="h-5 w-5 text-indigo-600" />Organization Sales · Bank Transfer</CardTitle>
+                <CardDescription>Set the receiving account and access prices shown on the public purchase page. Requests stay pending until you confirm each transfer in your bank account.</CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2"><Label htmlFor="saleBankName">Bank name</Label><Input id="saleBankName" value={settings.bankName || ''} onChange={(event) => updateSettings('bankName', event.target.value)} placeholder="Bank name" /></div>
+                <div className="space-y-2"><Label htmlFor="saleAccountName">Account holder name</Label><Input id="saleAccountName" value={settings.bankAccountName || ''} onChange={(event) => updateSettings('bankAccountName', event.target.value)} placeholder="Name shown on bank account" /></div>
+                <div className="space-y-2"><Label htmlFor="saleAccountNumber">Account number <span className="font-normal text-muted-foreground">(optional)</span></Label><Input id="saleAccountNumber" value={settings.bankAccountNumber || ''} onChange={(event) => updateSettings('bankAccountNumber', event.target.value)} placeholder="Account number" /></div>
+                <div className="space-y-2"><Label htmlFor="saleIBAN">IBAN</Label><Input id="saleIBAN" value={settings.bankIBAN || ''} onChange={(event) => updateSettings('bankIBAN', event.target.value.toUpperCase())} placeholder="SA…" autoComplete="off" /></div>
+                <div className="space-y-2"><Label htmlFor="saleMonthlyPrice">Monthly access price (SAR)</Label><Input id="saleMonthlyPrice" type="number" min="0" step="0.01" value={settings.bankTransferMonthlyPriceMinor == null ? '' : (settings.bankTransferMonthlyPriceMinor / 100).toFixed(2)} onChange={(event) => { const value = event.target.value; updateSettings('bankTransferMonthlyPriceMinor', value === '' ? null : Math.max(0, Math.round(Number(value) * 100))) }} placeholder="Leave empty to disable" /></div>
+                <div className="space-y-2"><Label htmlFor="saleYearlyPrice">Yearly access price (SAR)</Label><Input id="saleYearlyPrice" type="number" min="0" step="0.01" value={settings.bankTransferYearlyPriceMinor == null ? '' : (settings.bankTransferYearlyPriceMinor / 100).toFixed(2)} onChange={(event) => { const value = event.target.value; updateSettings('bankTransferYearlyPriceMinor', value === '' ? null : Math.max(0, Math.round(Number(value) * 100))) }} placeholder="Leave empty to disable" /></div>
+                <p className="text-xs text-muted-foreground sm:col-span-2">The public purchase page becomes available when the account holder, IBAN, and at least one positive plan price are saved.</p>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         {/* Currency Settings */}
