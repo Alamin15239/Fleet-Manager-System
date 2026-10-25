@@ -1,16 +1,54 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { db, controlDb, getOrganizationPrismaClient, getRequestOrganization } from '@/lib/db'
 import { requireAdmin } from '@/lib/auth'
-import { getPrismaWorkspaceStorageUsage } from '@/lib/organization-provisioning'
+
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
+type DatabaseSize = {
+  databaseName: string
+  bytes: number
+  formatted: string
+}
+
+function formatBytes(bytes: number) {
+  if (bytes === 0) return '0 B'
+  const units = ['B', 'KB', 'MB', 'GB', 'TB']
+  const index = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1)
+  return `${(bytes / Math.pow(1024, index)).toFixed(2)} ${units[index]}`
+}
+
+function primaryProvider() {
+  const configuredUrl = process.env.DATABASE_URL
+  if (!configuredUrl) return 'POSTGRESQL'
+  try {
+    const host = new URL(configuredUrl).hostname.toLowerCase()
+    if (host.includes('neon.tech')) return 'NEON'
+    if (host.includes('prisma')) return 'PRISMA'
+  } catch {
+    // Keep the generic PostgreSQL label if the connection URL is not parseable.
+  }
+  return 'POSTGRESQL'
+}
+
+async function readDatabaseSize(client: { $queryRaw: (strings: TemplateStringsArray, ...values: unknown[]) => Promise<unknown> }): Promise<DatabaseSize> {
+  const rows = await client.$queryRaw`
+    SELECT current_database() AS database_name,
+           pg_database_size(current_database())::bigint AS size_bytes
+  ` as Array<{ database_name: string; size_bytes: bigint | number | string }>
+  const row = rows?.[0]
+  if (!row) throw new Error('Database size query returned no result.')
+  const bytes = Number(row.size_bytes)
+  if (!Number.isFinite(bytes) || bytes < 0) throw new Error('Database size query returned an invalid size.')
+  return { databaseName: row.database_name, bytes, formatted: formatBytes(bytes) }
+}
 
 export async function GET(request: NextRequest) {
   try {
-    await requireAdmin(request)
-    const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('Database operation timeout')), 8000)
-    })
+    const admin = await requireAdmin(request)
+    const organization = await getRequestOrganization()
 
-    const counts = await Promise.race([
+    const countResults = await Promise.race([
       Promise.all([
         db.user.count(),
         db.truck.count(),
@@ -22,72 +60,100 @@ export async function GET(request: NextRequest) {
         db.auditLog.count(),
         db.document.count()
       ]),
-      timeoutPromise
-    ]) as number[];
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Database operation timeout')), 8000))
+    ])
 
-    const [
-      userCount,
-      truckCount,
-      trailerCount,
-      maintenanceCount,
-      tireCount,
-      mechanicCount,
-      notificationCount,
-      auditLogCount,
-      documentCount
-    ] = counts
-
-    const estimatedStorage = {
-      users: userCount * 2,
-      trucks: truckCount * 3,
-      trailers: trailerCount * 2,
-      maintenance: maintenanceCount * 1.5,
-      tires: tireCount * 1,
-      mechanics: mechanicCount * 1,
-      notifications: notificationCount * 0.5,
-      auditLogs: auditLogCount * 2,
-      documents: documentCount * 10
-    }
-
-    const totalEstimatedKB = Object.values(estimatedStorage).reduce((sum, size) => sum + size, 0)
-    const totalEstimatedMB = totalEstimatedKB / 1024
-
-    let actualDatabaseSize = null
-    // Prisma Postgres storage is shared across its workspace, so obtain the
-    // aggregate usage and plan limit from Prisma's server-side REST API.
-    let providerStorage = null
-    let providerStorageStatus: 'available' | 'unavailable' | 'not-configured' = 'not-configured'
-    if (process.env.PRISMA_SERVICE_TOKEN && process.env.PRISMA_PROJECT_ID) {
-      try {
-        providerStorage = await getPrismaWorkspaceStorageUsage()
-        providerStorageStatus = 'available'
-      } catch (error) {
-        providerStorageStatus = 'unavailable'
-        console.error('Prisma workspace storage check failed:', error)
-      }
-    }
-
+    const [userCount, truckCount, trailerCount, maintenanceCount, tireCount, mechanicCount, notificationCount, auditLogCount, documentCount] = countResults
+    let currentSize: DatabaseSize | null = null
+    let currentSizeStatus: 'available' | 'unavailable' = 'unavailable'
     try {
-      const sizeQuery = await db.$queryRaw`
-        SELECT pg_size_pretty(pg_database_size(current_database())) as size,
-               pg_database_size(current_database()) as size_bytes
-      ` as any[]
-      
-      if (sizeQuery && sizeQuery[0]) {
-        const usedBytes = parseInt(sizeQuery[0].size_bytes)
-        
-        actualDatabaseSize = {
-          formatted: sizeQuery[0].size,
-          bytes: usedBytes
-        }
-      }
+      currentSize = await readDatabaseSize(db)
+      currentSizeStatus = 'available'
     } catch (error) {
-      console.log('Database size query failed, using estimation')
+      console.error('Current organization database size query failed:', error)
+    }
+
+    const provider = organization.isPrimary
+      ? primaryProvider()
+      : (organization as typeof organization & { databaseProvider?: string }).databaseProvider || 'POSTGRESQL'
+    const providerId = organization.isPrimary
+      ? null
+      : (organization as typeof organization & { neonProjectId?: string | null; prismaDatabaseId?: string | null }).neonProjectId
+        || (organization as typeof organization & { prismaDatabaseId?: string | null }).prismaDatabaseId
+        || null
+
+    // The primary administrator can inspect the actual database size and provider
+    // mapping for every registered organization. This list is discovered from the
+    // registry each request, so newly provisioned organizations appear automatically.
+    let organizations: Array<Record<string, unknown>> = []
+    if (admin.isPrimaryOrganization) {
+      const registered = await (controlDb as any).organization.findMany({
+        orderBy: { createdAt: 'asc' },
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          status: true,
+          isPrimary: true,
+          databaseProvider: true,
+          neonProjectId: true,
+          prismaDatabaseId: true,
+          schemaReady: true,
+          encryptedDatabaseUrl: true
+        }
+      })
+      const rows: Array<Record<string, unknown>> = []
+      for (let offset = 0; offset < registered.length; offset += 5) {
+        const batch = registered.slice(offset, offset + 5)
+        const batchResults = await Promise.all(batch.map(async (item: any) => {
+          const itemProvider = item.isPrimary ? primaryProvider() : (item.databaseProvider || 'POSTGRESQL')
+          const result: Record<string, unknown> = {
+            id: item.id,
+            name: item.name,
+            slug: item.slug,
+            status: item.status,
+            provider: itemProvider,
+            providerDatabaseId: item.isPrimary ? null : (item.neonProjectId || item.prismaDatabaseId || null),
+            databaseName: null,
+            usedBytes: null,
+            usedFormatted: null,
+            storageStatus: 'unavailable'
+          }
+          if (item.status !== 'ACTIVE' || (!item.isPrimary && !item.encryptedDatabaseUrl)) {
+            return result
+          }
+          try {
+            const client = await getOrganizationPrismaClient(item)
+            const size = await readDatabaseSize(client)
+            return {
+              ...result,
+              databaseName: size.databaseName,
+              usedBytes: size.bytes,
+              usedFormatted: size.formatted,
+              storageStatus: 'available'
+            }
+          } catch (error) {
+            console.error(`Storage check failed for organization ${item.slug}:`, error)
+            return result
+          }
+        }))
+        rows.push(...batchResults)
+      }
+      organizations = rows
     }
 
     return NextResponse.json({
       success: true,
       data: {
+        organization: {
+          id: organization.id,
+          name: organization.name,
+          slug: organization.slug,
+          isPrimary: organization.isPrimary,
+          provider,
+          providerDatabaseId: providerId,
+          databaseName: currentSize?.databaseName ?? null
+        },
         tableCounts: {
           users: userCount,
           trucks: truckCount,
@@ -101,18 +167,18 @@ export async function GET(request: NextRequest) {
           total: userCount + truckCount + trailerCount + maintenanceCount + tireCount + mechanicCount + notificationCount + auditLogCount + documentCount
         },
         storage: {
-          estimated: {
-            totalKB: Math.round(totalEstimatedKB * 100) / 100,
-            totalMB: Math.round(totalEstimatedMB * 100) / 100,
-            breakdown: estimatedStorage
-          },
-          actual: actualDatabaseSize,
-          providerStorage,
-          providerStorageStatus
+          actual: currentSize ? { ...currentSize } : null,
+          actualStatus: currentSizeStatus,
+          // PostgreSQL reports database size, but does not define a per-database
+          // quota. Never manufacture a "remaining" number without a provider quota.
+          quota: null,
+          remainingBytes: null,
+          remainingStatus: 'provider-quota-not-available'
         },
+        organizations,
         timestamp: new Date().toISOString()
       }
-    })
+    }, { headers: { 'Cache-Control': 'private, no-store, max-age=0' } })
   } catch (error) {
     console.error('Error fetching database storage info:', error)
     if (error instanceof Error && ['No token provided', 'Invalid token'].includes(error.message)) {
@@ -122,14 +188,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Administrator access required' }, { status: 403 })
     }
     if (error instanceof Error && error.message === 'Database operation timeout') {
-      return NextResponse.json(
-        { success: false, error: 'Database connection timeout. Please try again.' },
-        { status: 503 }
-      )
+      return NextResponse.json({ success: false, error: 'Database connection timeout. Please try again.' }, { status: 503 })
     }
-    return NextResponse.json(
-      { success: false, error: 'Failed to fetch database storage information' },
-      { status: 500 }
-    )
+    return NextResponse.json({ success: false, error: 'Failed to fetch database storage information' }, { status: 500 })
   }
 }
