@@ -209,112 +209,89 @@ export default function HomePage() {
         }}
       />
 
-      <header className="mx-auto flex w-full max-w-7xl items-center justify-between gap-4 px-5 py-5 sm:px-8">
-        <Link href="/" className="flex items-center gap-3" aria-label="Fleet Manager Pro home">
-          <Image src="/fleet-manager-mark.svg" alt="" width={44} height={44} priority />
-          <span className="text-base font-bold tracking-tight sm:text-lg">Fleet Manager Pro</span>
-        </Link>
-        <nav aria-label="Main navigation" className="flex items-center gap-2 sm:gap-5">
-          <a className="hidden text-sm font-medium text-slate-600 hover:text-blue-700 dark:text-slate-300 sm:inline" href="#features">Features</a>
-          <Link
-            href="/login"
-            className="rounded-xl px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-white/70 dark:text-slate-200 dark:hover:bg-white/10"
-          >
-            Sign in
+      <div className="fleet-home-hero-shell relative overflow-hidden bg-[#050b16] text-white">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_72%_35%,rgba(14,116,211,0.24),transparent_42%),linear-gradient(120deg,#050b16_0%,#081a30_58%,#050b16_100%)]" />
+        <div className="fleet-home-hero-grid pointer-events-none absolute inset-0 opacity-40" />
+        <header className="relative z-20 mx-auto flex w-full max-w-7xl items-center justify-between gap-4 px-5 py-5 sm:px-8">
+          <Link href="/" className="flex items-center gap-3" aria-label="Fleet Manager Pro home">
+            <Image src="/fleet-manager-mark.svg" alt="" width={44} height={44} priority />
+            <span className="text-base font-bold tracking-tight sm:text-lg">Fleet Manager Pro</span>
           </Link>
-          <Link
-            href="/signup"
-            className="rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-900/15 transition hover:bg-blue-800"
-          >
-            Get started
-          </Link>
-          <Link
-            href="/purchase"
-            className="hidden rounded-xl border border-blue-200 bg-white/70 px-4 py-2.5 text-sm font-semibold text-blue-800 transition hover:bg-white dark:border-white/15 dark:bg-white/5 dark:text-blue-200 sm:inline-flex"
-          >
-            Plans
-          </Link>
-        </nav>
-      </header>
+          <nav aria-label="Main navigation" className="flex items-center gap-2 sm:gap-5">
+            <a className="hidden text-sm font-medium text-slate-300 transition hover:text-white sm:inline" href="#features">Features</a>
+            <Link href="/login" className="rounded-xl px-3 py-2 text-sm font-semibold text-slate-200 transition hover:bg-white/10">Sign in</Link>
+            <Link href="/signup" className="rounded-xl bg-sky-300 px-4 py-2.5 text-sm font-bold text-slate-950 shadow-lg shadow-sky-950/30 transition hover:bg-white">Get started</Link>
+            <Link href="/purchase" className="hidden rounded-xl border border-white/20 bg-white/[0.04] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-white/10 sm:inline-flex">Plans</Link>
+          </nav>
+        </header>
 
-      <section className="mx-auto grid w-full max-w-7xl items-center gap-10 px-5 pb-16 pt-10 sm:px-8 sm:pb-24 sm:pt-16 lg:grid-cols-[1.08fr_.92fr] lg:gap-14">
-        <div>
-          <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-blue-200/80 bg-white/75 px-3.5 py-2 text-xs font-semibold text-blue-800 shadow-sm backdrop-blur dark:border-blue-300/15 dark:bg-white/5 dark:text-blue-200 sm:text-sm">
-            <Truck className="h-4 w-4" />
-            Fleet maintenance software for transport teams
+        <section className="relative z-10 mx-auto grid w-full max-w-7xl items-center gap-8 px-5 pb-12 pt-10 sm:px-8 sm:pb-16 sm:pt-14 lg:grid-cols-[1.05fr_.95fr] lg:gap-12">
+          <div className="relative z-10">
+            <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-sky-300/25 bg-sky-300/[0.08] px-3.5 py-2 text-xs font-semibold text-sky-200 backdrop-blur sm:text-sm">
+              <Truck className="h-4 w-4" />
+              Fleet maintenance software for transport teams
+            </div>
+            <h1 className="max-w-3xl text-4xl font-bold leading-[1.04] tracking-[-0.045em] sm:text-5xl lg:text-6xl xl:text-7xl">
+              Fleet maintenance software for trucks, trailers, and transport teams
+            </h1>
+            <p className="mt-6 max-w-2xl text-base leading-7 text-slate-300 sm:text-lg sm:leading-8">
+              Track truck and trailer service history, preventive maintenance, workshop job cards, tire records, oil changes, vehicle documents, and fleet expenses in one organized workspace. Fleet Manager Pro helps transport teams keep maintenance records and reports together.
+            </p>
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+              <Link href="/signup" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-sky-300 px-6 py-3 font-bold text-slate-950 shadow-xl shadow-sky-950/25 transition hover:-translate-y-0.5 hover:bg-white">
+                Start managing your fleet <ArrowRight className="h-4 w-4" />
+              </Link>
+              <Link href="/login" className="inline-flex min-h-12 items-center justify-center rounded-xl border border-white/20 bg-white/[0.04] px-6 py-3 font-semibold text-white transition hover:bg-white/10">
+                Sign in to your workspace
+              </Link>
+              <Link href="/purchase" className="inline-flex min-h-12 items-center justify-center rounded-xl border border-sky-300/25 px-6 py-3 font-semibold text-sky-200 transition hover:bg-sky-300/10">
+                View plans and request a workspace
+              </Link>
+            </div>
+            <p className="mt-4 text-sm text-slate-400">Available in English and Arabic, with separate workspaces for organizations.</p>
           </div>
-          <h1 className="max-w-3xl text-4xl font-bold leading-[1.08] tracking-tight sm:text-5xl lg:text-6xl">
-            Fleet maintenance software for trucks, trailers, and transport teams
-          </h1>
-          <p className="mt-6 max-w-2xl text-base leading-7 text-slate-600 dark:text-slate-300 sm:text-lg sm:leading-8">
-            Track truck and trailer service history, preventive maintenance, workshop job cards, tire records, oil changes, vehicle documents, and fleet expenses in one organized workspace. Fleet Manager Pro helps transport teams keep maintenance records and reports together.
-          </p>
-          <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-            <Link
-              href="/signup"
-              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-blue-700 px-6 py-3 font-semibold text-white shadow-xl shadow-blue-900/15 transition hover:-translate-y-0.5 hover:bg-blue-800"
-            >
-              Start managing your fleet <ArrowRight className="h-4 w-4" />
-            </Link>
-            <Link
-              href="/login"
-              className="inline-flex min-h-12 items-center justify-center rounded-xl border border-slate-200 bg-white/75 px-6 py-3 font-semibold text-slate-800 shadow-sm backdrop-blur transition hover:bg-white dark:border-white/15 dark:bg-white/5 dark:text-white dark:hover:bg-white/10"
-            >
-              Sign in to your workspace
-            </Link>
-            <Link
-              href="/purchase"
-              className="inline-flex min-h-12 items-center justify-center rounded-xl border border-blue-200 bg-white/75 px-6 py-3 font-semibold text-blue-800 shadow-sm backdrop-blur transition hover:bg-white dark:border-white/15 dark:bg-white/5 dark:text-blue-200 dark:hover:bg-white/10"
-            >
-              View plans and request a workspace
-            </Link>
-          </div>
-          <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">
-            Available in English and Arabic, with separate workspaces for organizations.
-          </p>
-        </div>
 
-        <div className="relative mx-auto w-full max-w-xl">
-          <div className="absolute -inset-8 rounded-[3rem] bg-gradient-to-br from-blue-300/35 via-cyan-200/20 to-emerald-200/25 blur-3xl dark:from-blue-500/15 dark:via-cyan-400/10 dark:to-emerald-400/10" />
-          <div className="relative rounded-[2rem] border border-white/80 bg-white/75 p-5 shadow-2xl shadow-slate-900/10 backdrop-blur-xl dark:border-white/10 dark:bg-slate-900/75 sm:p-7">
-            <div className="flex items-center justify-between border-b border-slate-200 pb-4 dark:border-white/10">
-              <div>
-                <p className="text-sm font-semibold">Fleet overview</p>
-                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Your fleet activity in one workspace</p>
+          <div className="relative mx-auto w-full max-w-xl lg:pl-4">
+            <div className="pointer-events-none absolute inset-0 rounded-full bg-sky-400/10 blur-3xl" />
+            <div className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.035] p-5 shadow-2xl shadow-black/25 backdrop-blur sm:p-7">
+              <div className="flex items-center justify-between gap-3 border-b border-white/10 pb-4">
+                <div>
+                  <p className="text-sm font-semibold text-white">Fleet overview</p>
+                  <p className="mt-1 text-xs text-slate-400">Your fleet activity in one workspace</p>
+                </div>
+                <span className="rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3 py-1 text-xs font-semibold text-emerald-200">Fleet operations</span>
               </div>
-              <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800 dark:bg-emerald-400/10 dark:text-emerald-300">Fleet operations</span>
-            </div>
-            <div className="mt-5 grid grid-cols-2 gap-3">
-              <div className="rounded-2xl border border-slate-100 bg-slate-50/90 p-4 dark:border-white/10 dark:bg-white/5">
-                <Truck className="h-5 w-5 text-blue-700 dark:text-blue-300" />
-                <p className="mt-4 text-sm font-semibold">Vehicles</p>
-                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Trucks and trailers</p>
+              <div className="mt-5 grid grid-cols-2 gap-3">
+                <div className="rounded-2xl border border-white/10 bg-slate-950/40 p-4">
+                  <Truck className="h-5 w-5 text-sky-300" />
+                  <p className="mt-3 text-sm font-semibold">Vehicles</p>
+                  <p className="mt-1 text-xs text-slate-400">Trucks and trailers</p>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-slate-950/40 p-4">
+                  <Wrench className="h-5 w-5 text-amber-300" />
+                  <p className="mt-3 text-sm font-semibold">Maintenance</p>
+                  <p className="mt-1 text-xs text-slate-400">Schedules and work</p>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-slate-950/40 p-4">
+                  <CircleDot className="h-5 w-5 text-orange-300" />
+                  <p className="mt-3 text-sm font-semibold">Tires and service</p>
+                  <p className="mt-1 text-xs text-slate-400">Traceable records</p>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-slate-950/40 p-4">
+                  <BarChart3 className="h-5 w-5 text-violet-300" />
+                  <p className="mt-3 text-sm font-semibold">Reports</p>
+                  <p className="mt-1 text-xs text-slate-400">Fleet and cost insights</p>
+                </div>
               </div>
-              <div className="rounded-2xl border border-slate-100 bg-slate-50/90 p-4 dark:border-white/10 dark:bg-white/5">
-                <Wrench className="h-5 w-5 text-amber-700 dark:text-amber-300" />
-                <p className="mt-4 text-sm font-semibold">Maintenance</p>
-                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Schedules and work</p>
+              <div className="mt-4 flex items-center gap-3 rounded-2xl border border-sky-300/10 bg-sky-300/[0.07] p-4">
+                <ShieldCheck className="h-5 w-5 shrink-0 text-sky-300" />
+                <p className="text-xs leading-5 text-slate-300">Role permissions help keep each workspace’s fleet data under its organization’s control.</p>
               </div>
-              <div className="rounded-2xl border border-slate-100 bg-slate-50/90 p-4 dark:border-white/10 dark:bg-white/5">
-                <CircleDot className="h-5 w-5 text-orange-700 dark:text-orange-300" />
-                <p className="mt-4 text-sm font-semibold">Tires and service</p>
-                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Traceable records</p>
-              </div>
-              <div className="rounded-2xl border border-slate-100 bg-slate-50/90 p-4 dark:border-white/10 dark:bg-white/5">
-                <BarChart3 className="h-5 w-5 text-violet-700 dark:text-violet-300" />
-                <p className="mt-4 text-sm font-semibold">Reports</p>
-                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Fleet and cost insights</p>
-              </div>
-            </div>
-            <div className="mt-4 flex items-center gap-3 rounded-2xl bg-blue-50 p-4 dark:bg-blue-400/10">
-              <ShieldCheck className="h-5 w-5 shrink-0 text-blue-700 dark:text-blue-300" />
-              <p className="text-xs leading-5 text-slate-700 dark:text-slate-200">
-                Role permissions help keep each workspace’s fleet data under its organization’s control.
-              </p>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
+        <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-b from-transparent to-[#050b16]" />
+      </div>
 
       <TruckScrollExperience />
 
