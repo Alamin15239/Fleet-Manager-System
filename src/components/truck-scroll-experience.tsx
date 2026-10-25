@@ -112,6 +112,20 @@ export function TruckScrollExperience() {
                   <g transform="translate(240 360)"><g className="truck-experience-wheel"><circle r="43" fill="#030712" stroke="#64748b" strokeWidth="5"/><circle r="28" fill="#475569" stroke="#cbd5e1" strokeWidth="4"/><circle r="9" fill="#dbeafe"/><path d="M0-24V24M-24 0H24M-17-17L17 17M17-17L-17 17" stroke="#cbd5e1" strokeWidth="5"/></g></g>
                   <g transform="translate(670 360)"><g className="truck-experience-wheel"><circle r="43" fill="#030712" stroke="#64748b" strokeWidth="5"/><circle r="28" fill="#475569" stroke="#cbd5e1" strokeWidth="4"/><circle r="9" fill="#dbeafe"/><path d="M0-24V24M-24 0H24M-17-17L17 17M17-17L-17 17" stroke="#cbd5e1" strokeWidth="5"/></g></g>
                   <g transform="translate(742 360)"><g className="truck-experience-wheel"><circle r="43" fill="#030712" stroke="#64748b" strokeWidth="5"/><circle r="28" fill="#475569" stroke="#cbd5e1" strokeWidth="4"/><circle r="9" fill="#dbeafe"/><path d="M0-24V24M-24 0H24M-17-17L17 17M17-17L-17 17" stroke="#cbd5e1" strokeWidth="5"/></g></g>
+                  <g className="truck-trailer-side-lights">
+                    <rect x="144" y="303" width="17" height="7" rx="2" fill="#fbbf24" className="truck-side-light" />
+                    <rect x="278" y="303" width="17" height="7" rx="2" fill="#fbbf24" className="truck-side-light" />
+                    <rect x="412" y="303" width="17" height="7" rx="2" fill="#fbbf24" className="truck-side-light" />
+                    <rect x="546" y="303" width="17" height="7" rx="2" fill="#fbbf24" className="truck-side-light" />
+                    <rect x="680" y="303" width="17" height="7" rx="2" fill="#fbbf24" className="truck-side-light" />
+                    <rect x="793" y="303" width="8" height="7" rx="2" fill="#fbbf24" className="truck-side-light" />
+                    <rect x="96" y="284" width="8" height="22" rx="2" fill="#ef4444" className="truck-tail-light" />
+                    <rect x="98" y="111" width="6" height="20" rx="2" fill="#fbbf24" className="truck-side-light" />
+                  </g>
+                </g>
+                <g className="truck-hitch-connector">
+                  <path d="M777 345H839V354H777Z" fill="#0f172a" stroke="#64748b" strokeWidth="2" />
+                  <path d="M788 347H823" stroke="#94a3b8" strokeWidth="3" strokeLinecap="round" />
                 </g>
                 <g className="truck-experience-cab">
                   <path d="M807 143H885Q909 143 925 169L969 238V342H815V166Q815 143 807 143Z" fill="url(#heroCab)" stroke="#8edaff" strokeWidth="3"/>
