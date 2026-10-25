@@ -18,9 +18,9 @@ import {
 const siteUrl = 'https://fleetmaintenance.site'
 
 export const metadata: Metadata = {
-  title: 'Truck & Trailer Fleet Maintenance Software | Fleet Manager Pro',
+  title: 'Fleet Maintenance Software for Trucks & Trailers | Fleet Manager Pro',
   description:
-    'Fleet management software for transport teams. Track truck and trailer maintenance, job cards, tires, oil changes, invoices, document expiry, and reports.',
+    'Manage truck and trailer maintenance, workshop job cards, tire records, oil changes, vehicle documents, expenses, and fleet reports in one fleet maintenance system for transport teams.',
   keywords: [
     'fleet maintenance software',
     'fleet management software',
@@ -57,9 +57,9 @@ export const metadata: Metadata = {
   ],
   alternates: { canonical: siteUrl },
   openGraph: {
-    title: 'Truck & Trailer Fleet Maintenance Software | Fleet Manager Pro',
+    title: 'Fleet Maintenance Software for Trucks & Trailers | Fleet Manager Pro',
     description:
-      'Manage truck and trailer records, workshop job cards, tire and tyre service, oil changes, document expiry reminders, invoices, and fleet reports.',
+      'Track truck and trailer service history, workshop job cards, tire records, oil changes, document reminders, expenses, and fleet reports with Fleet Manager Pro.',
     url: siteUrl,
     siteName: 'Fleet Manager Pro',
     type: 'website',
@@ -67,8 +67,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Truck & Trailer Fleet Maintenance Software | Fleet Manager Pro',
-    description: 'Manage vehicle service, job cards, tires, oil changes, document reminders, invoices, and fleet reports.',
+    title: 'Fleet Maintenance Software for Trucks & Trailers | Fleet Manager Pro',
+    description: 'Manage truck and trailer maintenance, job cards, tire records, oil changes, vehicle documents, expenses, and fleet reports.',
     images: ['/logo.svg'],
   },
   robots: { index: true, follow: true },
@@ -243,11 +243,10 @@ export default function HomePage() {
             Fleet maintenance software for transport teams
           </div>
           <h1 className="max-w-3xl text-4xl font-bold leading-[1.08] tracking-tight sm:text-5xl lg:text-6xl">
-            Manage your truck and trailer fleet from one place
+            Fleet maintenance software for trucks, trailers, and transport teams
           </h1>
           <p className="mt-6 max-w-2xl text-base leading-7 text-slate-600 dark:text-slate-300 sm:text-lg sm:leading-8">
-            Fleet Manager Pro brings vehicle records, preventive maintenance, workshop job cards,
-            tire and oil changes, invoices, and fleet reports into one practical system for your team.
+            Track truck and trailer service history, preventive maintenance, workshop job cards, tire records, oil changes, vehicle documents, and fleet expenses in one organized workspace. Fleet Manager Pro helps transport teams keep maintenance records and reports together.
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
             <Link
@@ -335,6 +334,33 @@ export default function HomePage() {
                 <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">{description}</p>
               </article>
             ))}
+          </div>
+        </div>
+      </section>
+
+      <section aria-labelledby="fleet-solutions-heading" className="border-y border-slate-200/70 bg-sky-50/70 py-16 dark:border-white/10 dark:bg-white/[0.02] sm:py-20">
+        <div className="mx-auto max-w-7xl px-5 sm:px-8">
+          <div className="mx-auto max-w-2xl text-center">
+            <p className="text-sm font-semibold uppercase tracking-[0.16em] text-blue-700 dark:text-blue-300">Explore fleet solutions</p>
+            <h2 id="fleet-solutions-heading" className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">Tools for the work your fleet team does every day</h2>
+            <p className="mt-4 leading-7 text-slate-600 dark:text-slate-300">Learn how Fleet Manager Pro helps organize maintenance work, tire records, and workshop job cards.</p>
+          </div>
+          <div className="mt-9 grid gap-4 md:grid-cols-3">
+            <Link href="/truck-fleet-maintenance-software" className="group rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-lg dark:border-white/10 dark:bg-slate-900">
+              <h3 className="text-lg font-semibold group-hover:text-blue-700 dark:group-hover:text-blue-300">Truck fleet maintenance software</h3>
+              <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">Organize vehicle service history, preventive maintenance, breakdown records, and fleet reports.</p>
+              <span className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-blue-700 dark:text-blue-300">Explore maintenance <ArrowRight className="h-4 w-4" /></span>
+            </Link>
+            <Link href="/tire-inventory-management" className="group rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-lg dark:border-white/10 dark:bg-slate-900">
+              <h3 className="text-lg font-semibold group-hover:text-blue-700 dark:group-hover:text-blue-300">Tire inventory management</h3>
+              <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">Keep tire serial numbers, sizes, vehicle assignments, drivers, and issue dates traceable.</p>
+              <span className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-blue-700 dark:text-blue-300">Explore tire tracking <ArrowRight className="h-4 w-4" /></span>
+            </Link>
+            <Link href="/workshop-job-card-software" className="group rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-lg dark:border-white/10 dark:bg-slate-900">
+              <h3 className="text-lg font-semibold group-hover:text-blue-700 dark:group-hover:text-blue-300">Workshop job card software</h3>
+              <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">Record reported issues, checklist items, work performed, parts, and approvals for repairs.</p>
+              <span className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-blue-700 dark:text-blue-300">Explore job cards <ArrowRight className="h-4 w-4" /></span>
+            </Link>
           </div>
         </div>
       </section>
