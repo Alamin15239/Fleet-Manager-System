@@ -13,8 +13,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Textarea } from '@/components/ui/textarea'
-import { Search, Droplets, Calendar, Truck, User, BarChart3, Plus, Filter, Check, ChevronsUpDown } from 'lucide-react'
-import { apiGet, apiPost } from '@/lib/api'
+import { Search, Droplets, Calendar, Truck, User, BarChart3, Plus, Filter, Check, ChevronsUpDown, Pencil, FileDown, Printer, X } from 'lucide-react'
+import { apiGet, apiPost, apiPut } from '@/lib/api'
 import { formatCurrency } from '@/lib/currency'
 import { toast } from '@/lib/localized-toast'
 import { usePermissions } from '@/contexts/permissions-context'
@@ -65,7 +65,7 @@ interface Mechanic {
 }
 
 export default function OilChangesPage() {
-  const { canCreate } = usePermissions()
+  const { canCreate, canUpdate, canExport } = usePermissions()
   const [oilChanges, setOilChanges] = useState<OilChangeRecord[]>([])
   const [filteredRecords, setFilteredRecords] = useState<OilChangeRecord[]>([])
   const [searchTerm, setSearchTerm] = useState('')
@@ -84,7 +84,11 @@ export default function OilChangesPage() {
   const [trucks, setTrucks] = useState<Truck[]>([])
   const [mechanics, setMechanics] = useState<Mechanic[]>([])
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
+  const [editingRecordId, setEditingRecordId] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [reportStartDate, setReportStartDate] = useState('')
+  const [reportEndDate, setReportEndDate] = useState('')
+  const [reportTruckId, setReportTruckId] = useState('all')
   const [selectedTruck, setSelectedTruck] = useState<string>('')
   const [truckSearchOpen, setTruckSearchOpen] = useState(false)
   const [selectedMechanic, setSelectedMechanic] = useState<string>('none')
@@ -227,10 +231,11 @@ export default function OilChangesPage() {
         isOilChange: true
       }
       
-      const response = await apiPost('/api/maintenance', maintenanceData)
+      const response = editingRecordId ? await apiPut(`/api/maintenance/${editingRecordId}`, maintenanceData) : await apiPost('/api/maintenance', maintenanceData)
       if (response.ok) {
-        toast.success('Oil change record added successfully')
+        toast.success(editingRecordId ? 'Oil change record updated successfully' : 'Oil change record added successfully')
         setIsAddDialogOpen(false)
+        setEditingRecordId(null)
         setSelectedTruck('')
         setSelectedMechanic('none')
         setTruckSearchOpen(false)
@@ -248,17 +253,76 @@ export default function OilChangesPage() {
         })
         fetchOilChanges()
       } else {
-        toast.error('Failed to add oil change record')
+        toast.error(editingRecordId ? 'Failed to update oil change record' : 'Failed to add oil change record')
       }
     } catch (error) {
-      console.error('Error adding oil change:', error)
-      toast.error('Failed to add oil change record')
+      console.error('Error saving oil change:', error)
+      toast.error(editingRecordId ? 'Failed to update oil change record' : 'Failed to add oil change record')
     } finally {
       setIsSubmitting(false)
     }
   }
 
 
+
+  const openEditDialog = (record: OilChangeRecord) => {
+    setEditingRecordId(record.id)
+    setSelectedTruck(record.truck?.id || '')
+    setSelectedMechanic(record.mechanic?.id || 'none')
+    setFormData({
+      datePerformed: record.datePerformed ? new Date(record.datePerformed).toISOString().slice(0, 10) : '',
+      currentMileage: record.currentMileage != null ? String(record.currentMileage) : '',
+      oilQuantityLiters: record.oilQuantityLiters != null ? String(record.oilQuantityLiters) : '',
+      partsCost: record.partsCost != null ? String(record.partsCost) : '',
+      laborCost: record.laborCost != null ? String(record.laborCost) : '',
+      driverName: record.driverName || '',
+      oilChangeInterval: record.oilChangeInterval != null ? String(record.oilChangeInterval) : '',
+      nextServiceDue: record.nextServiceDue ? new Date(record.nextServiceDue).toISOString().slice(0, 10) : '',
+      description: record.description || '',
+      notes: record.notes || ''
+    })
+    setIsAddDialogOpen(true)
+  }
+
+  const reportRecords = filteredRecords.filter((record) => {
+    const date = new Date(record.datePerformed).toISOString().slice(0, 10)
+    if (reportStartDate && date < reportStartDate) return false
+    if (reportEndDate && date > reportEndDate) return false
+    if (reportTruckId !== 'all' && record.truck?.id !== reportTruckId) return false
+    return true
+  })
+  const reportOilTotal = reportRecords.reduce((sum, record) => sum + (Number(record.oilQuantityLiters) || 0), 0)
+  const oilTotalsByTruck = reportRecords.reduce((totals, record) => {
+    const id = record.truck?.id || 'unknown'
+    const label = record.truck?.licensePlate || 'Vehicle not recorded'
+    if (!totals[id]) totals[id] = { truckLabel: label, records: 0, liters: 0 }
+    totals[id].records += 1
+    totals[id].liters += Number(record.oilQuantityLiters) || 0
+    return totals
+  }, {} as Record<string, { truckLabel: string; records: number; liters: number }>)
+
+  const generateOilReport = () => {
+    const headers = ['Date', 'Truck Number', 'Make', 'Model', 'Year', 'Odometer (km)', 'Oil Used (liters)', 'Driver', 'Mechanic', 'Cost (SAR)', 'Status', 'Notes']
+    const rows = reportRecords.map((record) => [
+      new Date(record.datePerformed).toISOString().slice(0, 10), record.truck?.licensePlate || '',
+      record.truck?.make || '', record.truck?.model || '', record.truck?.year ?? '',
+      record.currentMileage ?? '', record.oilQuantityLiters ?? '', record.driverName || '',
+      record.mechanic?.name || record.mechanicName || '', record.totalCost ?? 0, record.status || '', record.notes || ''
+    ])
+    const escapeCsv = (value: string | number) => {
+      const valueText = String(value ?? '')
+      return /[",\n\r]/.test(valueText) ? '"' + valueText.replace(/"/g, '""') + '"' : valueText
+    }
+    const csv = [headers, ...rows].map((row) => row.map(escapeCsv).join(',')).join('\r\n')
+    const blob = new Blob(['\uFEFF', csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const anchor = document.createElement('a')
+    anchor.href = url
+    anchor.download = `oil-change-report-${reportStartDate || 'all-dates'}-to-${reportEndDate || 'all-dates'}.csv`
+    anchor.click()
+    URL.revokeObjectURL(url)
+    toast.success('Oil change report exported')
+  }
 
   // Calculate mechanic statistics
   const mechanicStats = oilChanges.reduce((acc, record) => {
@@ -295,6 +359,8 @@ export default function OilChangesPage() {
           setIsAddDialogOpen(open)
           if (!open) {
             setSelectedTruck('')
+            setEditingRecordId(null)
+            setSelectedMechanic('none')
             setTruckSearchOpen(false)
           }
         }}>
@@ -306,7 +372,7 @@ export default function OilChangesPage() {
           </DialogTrigger>}
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle><LocalizedText>Add New Oil Change Record</LocalizedText></DialogTitle>
+              <DialogTitle><LocalizedText>{editingRecordId ? 'Edit Oil Change Record' : 'Add New Oil Change Record'}</LocalizedText></DialogTitle>
             </DialogHeader>
             <form onSubmit={handleAddOilChange} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
@@ -519,8 +585,8 @@ export default function OilChangesPage() {
                 >
                   Cancel
                 </Button>
-                <Button type="submit" disabled={!canCreate('maintenance') || isSubmitting || !selectedTruck}>
-                  {isSubmitting ? 'Adding...' : 'Add Oil Change'}
+                <Button type="submit" disabled={!(editingRecordId ? canUpdate('maintenance') : canCreate('maintenance')) || isSubmitting || !selectedTruck}>
+                  {isSubmitting ? 'Saving...' : editingRecordId ? 'Save Changes' : 'Add Oil Change'}
                 </Button>
               </div>
             </form>
@@ -693,6 +759,32 @@ export default function OilChangesPage() {
 
       <Card>
         <CardHeader>
+          <CardTitle className="flex items-center gap-2"><BarChart3 className="h-5 w-5" /> Oil Change Reports</CardTitle>
+          <p className="text-sm text-muted-foreground">Filter by date range and truck number. Older records remain available for previous-year reports.</p>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="space-y-2"><Label htmlFor="reportStartDate">From date</Label><Input id="reportStartDate" type="date" value={reportStartDate} onChange={(e) => setReportStartDate(e.target.value)} /></div>
+            <div className="space-y-2"><Label htmlFor="reportEndDate">To date</Label><Input id="reportEndDate" type="date" min={reportStartDate || undefined} value={reportEndDate} onChange={(e) => setReportEndDate(e.target.value)} /></div>
+            <div className="space-y-2"><Label htmlFor="reportTruck">Truck number</Label><Select value={reportTruckId} onValueChange={setReportTruckId}><SelectTrigger id="reportTruck"><SelectValue placeholder="All trucks" /></SelectTrigger><SelectContent><SelectItem value="all">All trucks</SelectItem>{trucks.map((truck) => <SelectItem key={truck.id} value={truck.id}>{truck.licensePlate}</SelectItem>)}</SelectContent></Select></div>
+            <div className="flex items-end gap-2"><Button type="button" variant="outline" onClick={() => { setReportStartDate(''); setReportEndDate(''); setReportTruckId('all') }}><X className="mr-2 h-4 w-4" />Clear</Button><Button type="button" onClick={generateOilReport} disabled={reportRecords.length === 0 || !canExport('reports')}><FileDown className="mr-2 h-4 w-4" />Export CSV</Button></div>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-3">
+            <div className="rounded-lg border p-4"><p className="text-sm text-muted-foreground">Matching oil changes</p><p className="mt-1 text-2xl font-bold">{reportRecords.length}</p></div>
+            <div className="rounded-lg border p-4"><p className="text-sm text-muted-foreground">Total oil used</p><p className="mt-1 text-2xl font-bold text-blue-600">{reportOilTotal.toFixed(1)} L</p></div>
+            <div className="rounded-lg border p-4"><p className="text-sm text-muted-foreground">Total recorded cost</p><p className="mt-1 text-2xl font-bold">{formatCurrency(reportRecords.reduce((sum, record) => sum + (record.totalCost || 0), 0))}</p></div>
+          </div>
+          <div className="flex items-center justify-between gap-3"><h3 className="font-semibold">Oil used by truck</h3><Button type="button" variant="outline" onClick={() => window.print()}><Printer className="mr-2 h-4 w-4" />Print report</Button></div>
+          <div className="rounded-md border overflow-x-auto"><Table><TableHeader><TableRow><TableHead>Truck number</TableHead><TableHead>Oil changes</TableHead><TableHead>Total oil used</TableHead></TableRow></TableHeader><TableBody>
+            {Object.values(oilTotalsByTruck).sort((a, b) => a.truckLabel.localeCompare(b.truckLabel)).map((item) => <TableRow key={item.truckLabel}><TableCell className="font-medium">{item.truckLabel}</TableCell><TableCell>{item.records}</TableCell><TableCell className="font-semibold text-blue-600">{item.liters.toFixed(1)} L</TableCell></TableRow>)}
+            {Object.keys(oilTotalsByTruck).length === 0 && <TableRow><TableCell colSpan={3} className="py-6 text-center text-muted-foreground">No oil change records match these filters.</TableCell></TableRow>}
+          </TableBody></Table></div>
+          <p className="text-xs text-muted-foreground">CSV includes each matching record's date, truck number, odometer, liters used, driver, mechanic, cost, status, and notes. Print opens your browser's print dialog.</p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Droplets className="h-5 w-5" />
             Oil Change Records
@@ -718,12 +810,13 @@ export default function OilChangesPage() {
                     <TableHead><LocalizedText>Mechanic</LocalizedText></TableHead>
                     <TableHead><LocalizedText>Cost</LocalizedText></TableHead>
                     <TableHead><LocalizedText>Status</LocalizedText></TableHead>
+                    <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredRecords.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={9} className="text-center py-8 text-gray-500">
+                      <TableCell colSpan={10} className="text-center py-8 text-gray-500">
                         <LocalizedText>No oil change records found</LocalizedText>
                       </TableCell>
                     </TableRow>
@@ -795,6 +888,7 @@ export default function OilChangesPage() {
                             {record.status.replace('_', ' ')}
                           </Badge>
                         </TableCell>
+                        <TableCell>{canUpdate('maintenance') && <Button type="button" size="sm" variant="outline" onClick={() => openEditDialog(record)}><Pencil className="mr-2 h-3.5 w-3.5" />Edit</Button>}</TableCell>
                       </TableRow>
                     ))
                   )}
