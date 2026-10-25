@@ -19,6 +19,11 @@ interface OrganizationStorage {
   usedBytes: number | null
   usedFormatted: string | null
   storageStatus: string
+  remainingBytes: number | null
+  quotaBytes: number | null
+  quotaLabel: string
+  quotaScope: 'database' | 'workspace' | 'usage-based' | 'unknown'
+  remainingStatus: 'available' | 'unlimited' | 'unknown'
 }
 
 interface StorageData {
@@ -46,9 +51,11 @@ interface StorageData {
   storage: {
     actual: { databaseName: string; bytes: number; formatted: string } | null
     actualStatus: 'available' | 'unavailable'
-    quota: number | null
+    quotaBytes: number | null
     remainingBytes: number | null
-    remainingStatus: string
+    quotaLabel: string
+    quotaScope: 'database' | 'workspace' | 'usage-based' | 'unknown'
+    remainingStatus: 'available' | 'unlimited' | 'unknown'
   }
   organizations?: OrganizationStorage[]
   timestamp: string
@@ -103,6 +110,12 @@ export function DatabaseStorageMonitor() {
     return <Card><CardContent className="flex items-center justify-center py-6"><p className="text-muted-foreground"><LocalizedText>{loadFailed ? 'Failed to load storage data' : 'Storage data is unavailable'}</LocalizedText></p><Button variant="outline" size="sm" className="ml-3" onClick={() => { setLoading(true); void fetchStorageData() }}><LocalizedText>Retry</LocalizedText></Button></CardContent></Card>
   }
 
+  const remainingLabel = (remainingBytes: number | null, remainingStatus: string) => {
+    if (remainingStatus === 'unlimited') return 'Unlimited'
+    if (remainingStatus === 'available' && remainingBytes !== null) return formatBytes(remainingBytes)
+    return 'Unavailable'
+  }
+
   const providerName = (provider: string) => {
     switch (provider.toUpperCase()) {
       case 'NEON': return 'Neon PostgreSQL'
@@ -139,11 +152,9 @@ export function DatabaseStorageMonitor() {
             </div>
             <div className="rounded-lg bg-muted/50 p-3">
               <div className="text-sm text-muted-foreground"><LocalizedText>Remaining database quota</LocalizedText></div>
-              <div className="mt-1 text-xl font-semibold">{storageData.storage.remainingBytes !== null ? formatBytes(storageData.storage.remainingBytes) : 'Not reported'}</div>
+              <div className="mt-1 text-xl font-semibold">{remainingLabel(storageData.storage.remainingBytes, storageData.storage.remainingStatus)}</div>
               <div className="mt-1 text-xs text-muted-foreground">
-                {storageData.storage.remainingBytes !== null
-                  ? 'Calculated from the configured database quota.'
-                  : 'This provider does not expose a fixed per-database quota here. No remaining amount is guessed.'}
+                {storageData.storage.quotaLabel}. {storageData.storage.quotaScope === 'workspace' ? 'Remaining space is shared across this provider workspace.' : storageData.storage.quotaScope === 'usage-based' ? 'Paid usage-based storage has no fixed remaining-capacity number.' : storageData.storage.quotaScope === 'database' ? 'Calculated from the configured storage allowance minus live database size.' : 'Set the provider storage limit to calculate remaining capacity.'}
               </div>
             </div>
           </div>
@@ -155,14 +166,14 @@ export function DatabaseStorageMonitor() {
             <p className="text-xs text-muted-foreground">Live database size and provider mapping for every organization in the registry. New organizations appear automatically after provisioning.</p>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead><tr className="border-b text-left text-muted-foreground"><th className="py-2 pr-3"><LocalizedText>Organization</LocalizedText></th><th className="py-2 pr-3"><LocalizedText>Database provider</LocalizedText></th><th className="py-2 pr-3"><LocalizedText>Database ID</LocalizedText></th><th className="py-2 text-right"><LocalizedText>Used</LocalizedText></th></tr></thead>
+                <thead><tr className="border-b text-left text-muted-foreground"><th className="py-2 pr-3"><LocalizedText>Organization</LocalizedText></th><th className="py-2 pr-3"><LocalizedText>Database provider</LocalizedText></th><th className="py-2 pr-3"><LocalizedText>Database ID</LocalizedText></th><th className="py-2 text-right"><LocalizedText>Used</LocalizedText></th><th className="py-2 pl-3 text-right"><LocalizedText>Remaining</LocalizedText></th></tr></thead>
                 <tbody>
                   {storageData.organizations.map((org) => (
                     <tr key={org.id} className="border-b last:border-0 align-top">
                       <td className="py-2 pr-3"><div className="font-medium">{org.name}</div><div className="text-xs text-muted-foreground">{org.slug} · {org.status}</div></td>
                       <td className="py-2 pr-3 whitespace-nowrap">{providerName(org.provider)}</td>
                       <td className="py-2 pr-3 text-xs break-all">{org.providerDatabaseId || (org.status === 'ACTIVE' ? 'Primary connection' : 'Not provisioned')}</td>
-                      <td className="py-2 text-right whitespace-nowrap">{org.storageStatus === 'available' ? org.usedFormatted : 'Unavailable'}</td>
+                      <td className="py-2 text-right whitespace-nowrap">{org.storageStatus === 'available' ? org.usedFormatted : 'Unavailable'}</td><td className="py-2 pl-3 text-right whitespace-nowrap">{org.storageStatus === 'available' ? remainingLabel(org.remainingBytes, org.remainingStatus) : 'Unavailable'}<div className="max-w-40 whitespace-normal text-xs text-muted-foreground">{org.quotaLabel}</div></td>
                     </tr>
                   ))}
                 </tbody>
