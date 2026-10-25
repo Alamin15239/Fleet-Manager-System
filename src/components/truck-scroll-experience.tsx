@@ -22,7 +22,7 @@ function perspective(fov: number, aspect: number, near: number, far: number): Ma
 function lookAt(eye: Vec3, target: Vec3): Mat4 {
   let zx = eye[0] - target[0], zy = eye[1] - target[1], zz = eye[2] - target[2]
   let n = Math.hypot(zx, zy, zz) || 1; zx /= n; zy /= n; zz /= n
-  let xx = -zz, xy = 0, xz = zx
+  let xx = zz, xy = 0, xz = -zx
   n = Math.hypot(xx, xy, xz) || 1; xx /= n; xy /= n; xz /= n
   const yx = zy * xz - zz * xy, yy = zz * xx - zx * xz, yz = zx * xy - zy * xx
   return new Float32Array([
@@ -175,7 +175,7 @@ function initTruckScene(canvas: HTMLCanvasElement, progressRef: { current: numbe
     gl.enable(gl.DEPTH_TEST); gl.enable(gl.CULL_FACE); gl.cullFace(gl.BACK)
     gl.clearColor(0,0,0,0); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
     const p = progressRef.current
-    const angle = reducedRef.current ? -0.48 : -0.68 + p * 0.82
+    const angle = reducedRef.current ? 0.55 : 0.68 - p * 0.36
     const distance = (window.innerWidth < 640 ? 12.6 : 10.7) - (reducedRef.current ? 0 : Math.sin(p * Math.PI) * 0.7)
     const camera: Vec3 = [Math.sin(angle) * distance, 4.1 + p * 0.28, Math.cos(angle) * distance]
     const projection = perspective(0.67, width / Math.max(1,height), 0.1, 100)
