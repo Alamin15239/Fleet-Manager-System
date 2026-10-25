@@ -8,5 +8,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${siteUrl}/help`, changeFrequency: 'monthly', priority: 0.6 },
     { url: `${siteUrl}/privacy`, changeFrequency: 'yearly', priority: 0.2 },
     { url: `${siteUrl}/agreement`, changeFrequency: 'yearly', priority: 0.2 },
+    { url: `${siteUrl}/truck-fleet-maintenance-software`, changeFrequency: 'monthly', priority: 0.8 },
+    { url: `${siteUrl}/tire-inventory-management`, changeFrequency: 'monthly', priority: 0.8 },
+    { url: `${siteUrl}/workshop-job-card-software`, changeFrequency: 'monthly', priority: 0.8 },
   ]
 }
