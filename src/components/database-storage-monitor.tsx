@@ -1,15 +1,36 @@
 'use client'
-import { LocalizedText } from '@/components/localized-text'
 
+import { LocalizedText } from '@/components/localized-text'
 import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Database, HardDrive, RefreshCw } from 'lucide-react'
+import { Database, HardDrive, RefreshCw, Building2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { apiGet } from '@/lib/api'
-import { useLanguage } from '@/contexts/language-context'
+
+interface OrganizationStorage {
+  id: string
+  name: string
+  slug: string
+  status: string
+  provider: string
+  providerDatabaseId: string | null
+  databaseName: string | null
+  usedBytes: number | null
+  usedFormatted: string | null
+  storageStatus: string
+}
 
 interface StorageData {
+  organization: {
+    id: string
+    name: string
+    slug: string
+    isPrimary: boolean
+    provider: string
+    providerDatabaseId: string | null
+    databaseName: string | null
+  }
   tableCounts: {
     users: number
     trucks: number
@@ -23,44 +44,42 @@ interface StorageData {
     total: number
   }
   storage: {
-    estimated: {
-      totalKB: number
-      totalMB: number
-      breakdown: Record<string, number>
-    }
-    actual: {
-      formatted: string
-      bytes: number
-    } | null
-    providerStorage: {
-      usedGB: number
-      totalGB: number
-      availableGB: number
-      usagePercent: number
-      databaseCount: number
-      planName: string
-      generatedAt: string
-    } | null
-    providerStorageStatus: 'available' | 'unavailable' | 'not-configured'
+    actual: { databaseName: string; bytes: number; formatted: string } | null
+    actualStatus: 'available' | 'unavailable'
+    quota: number | null
+    remainingBytes: number | null
+    remainingStatus: string
   }
+  organizations?: OrganizationStorage[]
   timestamp: string
 }
 
+function formatBytes(bytes: number | null) {
+  if (bytes === null || !Number.isFinite(bytes)) return 'Unavailable'
+  if (bytes === 0) return '0 B'
+  const units = ['B', 'KB', 'MB', 'GB', 'TB']
+  const index = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1)
+  return `${(bytes / Math.pow(1024, index)).toFixed(2)} ${units[index]}`
+}
+
 export function DatabaseStorageMonitor() {
-  const { t } = useLanguage()
   const [storageData, setStorageData] = useState<StorageData | null>(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const [loadFailed, setLoadFailed] = useState(false)
 
   const fetchStorageData = async () => {
+    setLoadFailed(false)
     try {
       const response = await apiGet('/api/database/storage')
-      if (response.ok) {
-        const result = await response.json()
-        setStorageData(result.data)
+      const result = await response.json().catch(() => ({}))
+      if (!response.ok || !result.success || !result.data) {
+        throw new Error(result.error || 'Could not load storage data')
       }
+      setStorageData(result.data)
     } catch (error) {
       console.error('Error fetching storage data:', error)
+      setLoadFailed(true)
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -73,147 +92,101 @@ export function DatabaseStorageMonitor() {
   }
 
   useEffect(() => {
-    fetchStorageData()
+    void fetchStorageData()
   }, [])
 
   if (loading) {
-    return (
-      <Card>
-        <CardContent className="flex items-center justify-center py-6">
-          <RefreshCw className="h-6 w-6 animate-spin" />
-        </CardContent>
-      </Card>
-    )
+    return <Card><CardContent className="flex items-center justify-center py-6"><RefreshCw className="h-6 w-6 animate-spin" /></CardContent></Card>
   }
 
   if (!storageData) {
-    return (
-      <Card>
-        <CardContent className="flex items-center justify-center py-6">
-          <p className="text-muted-foreground"><LocalizedText>Failed to load storage data</LocalizedText></p>
-        </CardContent>
-      </Card>
-    )
+    return <Card><CardContent className="flex items-center justify-center py-6"><p className="text-muted-foreground"><LocalizedText>{loadFailed ? 'Failed to load storage data' : 'Storage data is unavailable'}</LocalizedText></p><Button variant="outline" size="sm" className="ml-3" onClick={() => { setLoading(true); void fetchStorageData() }}><LocalizedText>Retry</LocalizedText></Button></CardContent></Card>
   }
 
-  const formatBytes = (bytes: number) => {
-    if (bytes === 0) return '0 B'
-    const k = 1024
-    const sizes = ['B', 'KB', 'MB', 'GB']
-    const i = Math.floor(Math.log(bytes) / Math.log(k))
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+  const providerName = (provider: string) => {
+    switch (provider.toUpperCase()) {
+      case 'NEON': return 'Neon PostgreSQL'
+      case 'PRISMA': return 'Prisma Postgres'
+      default: return 'PostgreSQL'
+    }
   }
 
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium flex items-center gap-2">
-          <Database className="h-4 w-4" />
-          Database Storage
-        </CardTitle>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={handleRefresh}
-          disabled={refreshing}
-        >
+        <CardTitle className="flex items-center gap-2 text-sm font-medium"><Database className="h-4 w-4" /><LocalizedText>Database Storage</LocalizedText></CardTitle>
+        <Button variant="ghost" size="sm" onClick={handleRefresh} disabled={refreshing}>
           <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
         </Button>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <HardDrive className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm font-medium"><LocalizedText>Used:</LocalizedText></span>
+        <div className="rounded-xl border p-4 space-y-3">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className="font-semibold">{storageData.organization.name}</div>
+              <div className="text-xs text-muted-foreground">{providerName(storageData.organization.provider)}</div>
+              {storageData.organization.databaseName && <div className="text-xs text-muted-foreground">Database: {storageData.organization.databaseName}</div>}
+              {storageData.organization.providerDatabaseId && <div className="text-xs text-muted-foreground break-all">Provider ID: {storageData.organization.providerDatabaseId}</div>}
             </div>
-            <Badge variant="secondary">
-              {storageData.storage.actual 
-                ? storageData.storage.actual.formatted 
-                : `~${storageData.storage.estimated.totalMB.toFixed(2)} MB`
-              }
+            <Badge variant={storageData.storage.actualStatus === 'available' ? 'secondary' : 'outline'}>
+              {storageData.storage.actualStatus === 'available' ? 'Live size' : 'Unavailable'}
             </Badge>
           </div>
-          
-          {storageData.storage.providerStorage ? (
-            <>
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium"><LocalizedText>Prisma workspace remaining:</LocalizedText></span>
-                <Badge variant="outline">
-                  {storageData.storage.providerStorage.availableGB.toFixed(2)} GB
-                </Badge>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="rounded-lg bg-muted/50 p-3">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground"><HardDrive className="h-4 w-4" /><LocalizedText>Actual database used</LocalizedText></div>
+              <div className="mt-1 text-xl font-semibold">{storageData.storage.actual?.formatted || 'Unavailable'}</div>
+            </div>
+            <div className="rounded-lg bg-muted/50 p-3">
+              <div className="text-sm text-muted-foreground"><LocalizedText>Remaining database quota</LocalizedText></div>
+              <div className="mt-1 text-xl font-semibold">{storageData.storage.remainingBytes !== null ? formatBytes(storageData.storage.remainingBytes) : 'Not reported'}</div>
+              <div className="mt-1 text-xs text-muted-foreground">
+                {storageData.storage.remainingBytes !== null
+                  ? 'Calculated from the configured database quota.'
+                  : 'This provider does not expose a fixed per-database quota here. No remaining amount is guessed.'}
               </div>
-
-              <div className="w-full bg-gray-200 rounded-full h-2">
-                <div
-                  className="bg-blue-600 h-2 rounded-full" 
-                  style={{ width: `${storageData.storage.providerStorage.usagePercent}%` }}
-                ></div>
-              </div>
-              <div className="text-xs text-center text-muted-foreground">
-                <LocalizedText>Prisma workspace usage:</LocalizedText>{' '}
-                {storageData.storage.providerStorage.usedGB.toFixed(2)} / {storageData.storage.providerStorage.totalGB.toFixed(2)} GB
-                {' · '}{storageData.storage.providerStorage.databaseCount}{' '}
-                <LocalizedText>databases</LocalizedText>
-              </div>
-              <div className="text-xs text-center text-muted-foreground">
-                <LocalizedText>Plan:</LocalizedText>{' '}{storageData.storage.providerStorage.planName}
-                {' · '}<LocalizedText>Updated:</LocalizedText>{' '}
-                {new Date(storageData.storage.providerStorage.generatedAt).toLocaleTimeString()}
-              </div>
-            </>
-          ) : (
-            <p className="text-xs text-muted-foreground">
-              {storageData.storage.providerStorageStatus === 'unavailable' ? (
-                <LocalizedText>Could not load Prisma workspace storage. Try again or check provider access.</LocalizedText>
-              ) : (
-                <LocalizedText>Prisma workspace storage reporting is not configured.</LocalizedText>
-              )}
-            </p>
-          )}
+            </div>
+          </div>
         </div>
 
-        <div className="space-y-2 border-t pt-2">
-          <div className="text-sm font-medium"><LocalizedText>Records Count:</LocalizedText></div>
+        {storageData.organizations && storageData.organization.isPrimary && (
+          <div className="space-y-2 border-t pt-3">
+            <div className="flex items-center gap-2 font-medium"><Building2 className="h-4 w-4" /><LocalizedText>Storage by organization</LocalizedText></div>
+            <p className="text-xs text-muted-foreground">Live database size and provider mapping for every organization in the registry. New organizations appear automatically after provisioning.</p>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead><tr className="border-b text-left text-muted-foreground"><th className="py-2 pr-3"><LocalizedText>Organization</LocalizedText></th><th className="py-2 pr-3"><LocalizedText>Database provider</LocalizedText></th><th className="py-2 pr-3"><LocalizedText>Database ID</LocalizedText></th><th className="py-2 text-right"><LocalizedText>Used</LocalizedText></th></tr></thead>
+                <tbody>
+                  {storageData.organizations.map((org) => (
+                    <tr key={org.id} className="border-b last:border-0 align-top">
+                      <td className="py-2 pr-3"><div className="font-medium">{org.name}</div><div className="text-xs text-muted-foreground">{org.slug} · {org.status}</div></td>
+                      <td className="py-2 pr-3 whitespace-nowrap">{providerName(org.provider)}</td>
+                      <td className="py-2 pr-3 text-xs break-all">{org.providerDatabaseId || (org.status === 'ACTIVE' ? 'Primary connection' : 'Not provisioned')}</td>
+                      <td className="py-2 text-right whitespace-nowrap">{org.storageStatus === 'available' ? org.usedFormatted : 'Unavailable'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        <div className="space-y-2 border-t pt-3">
+          <div className="text-sm font-medium"><LocalizedText>Records Count</LocalizedText></div>
           <div className="grid grid-cols-2 gap-2 text-xs">
-            <div className="flex justify-between">
-              <span><LocalizedText>Users:</LocalizedText></span>
-              <span className="font-mono">{storageData.tableCounts.users}</span>
-            </div>
-            <div className="flex justify-between">
-              <span><LocalizedText>Trucks:</LocalizedText></span>
-              <span className="font-mono">{storageData.tableCounts.trucks}</span>
-            </div>
-            <div className="flex justify-between">
-              <span><LocalizedText>Trailers:</LocalizedText></span>
-              <span className="font-mono">{storageData.tableCounts.trailers}</span>
-            </div>
-            <div className="flex justify-between">
-              <span><LocalizedText>Maintenance:</LocalizedText></span>
-              <span className="font-mono">{storageData.tableCounts.maintenance}</span>
-            </div>
-            <div className="flex justify-between">
-              <span><LocalizedText>Tires:</LocalizedText></span>
-              <span className="font-mono">{storageData.tableCounts.tires}</span>
-            </div>
-            <div className="flex justify-between">
-              <span><LocalizedText>Mechanics:</LocalizedText></span>
-              <span className="font-mono">{storageData.tableCounts.mechanics}</span>
-            </div>
-            <div className="flex justify-between">
-              <span><LocalizedText>Documents:</LocalizedText></span>
-              <span className="font-mono">{storageData.tableCounts.documents}</span>
-            </div>
+            {([
+              ['Users', storageData.tableCounts.users],
+              ['Trucks', storageData.tableCounts.trucks],
+              ['Trailers', storageData.tableCounts.trailers],
+              ['Maintenance', storageData.tableCounts.maintenance],
+              ['Tires', storageData.tableCounts.tires],
+              ['Mechanics', storageData.tableCounts.mechanics],
+              ['Documents', storageData.tableCounts.documents]
+            ] as [string, number][]).map(([label, value]) => <div key={label} className="flex justify-between gap-2"><span><LocalizedText>{label}</LocalizedText>:</span><span className="font-mono">{value}</span></div>)}
           </div>
-          <div className="border-t pt-2 flex justify-between font-medium">
-            <span><LocalizedText>Total Records:</LocalizedText></span>
-            <span className="font-mono">{storageData.tableCounts.total}</span>
-          </div>
+          <div className="flex justify-between border-t pt-2 font-medium"><span><LocalizedText>Total Records</LocalizedText>:</span><span className="font-mono">{storageData.tableCounts.total}</span></div>
         </div>
-
-        <div className="text-xs text-muted-foreground">
-          Last updated: {new Date(storageData.timestamp).toLocaleTimeString()}
-        </div>
+        <div className="text-xs text-muted-foreground"><LocalizedText>Last updated</LocalizedText>: {new Date(storageData.timestamp).toLocaleTimeString()}</div>
       </CardContent>
     </Card>
   )
