@@ -57,6 +57,9 @@ async function createNeonProject(organization: ProvisioningOrganization): Promis
   const projectId = payload.project?.id
   const connectionUri = payload.connection_uris?.find((item) => item.connection_uri)?.connection_uri
   if (!response.ok) {
+    if (/organization is managed by Vercel/i.test(payload.message || '')) {
+      throw new Error('This Neon organization is managed by Vercel and blocks API project creation. Set NEON_API_KEY and NEON_ORG_ID to a Neon organization managed directly in Neon, redeploy, then retry setup.')
+    }
     throw new Error(payload.message || `Neon project creation failed (${response.status})`)
   }
   if (!projectId || !connectionUri) {

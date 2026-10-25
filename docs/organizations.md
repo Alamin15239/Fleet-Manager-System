@@ -15,6 +15,8 @@ Add these server-side environment variables to the app deployment (for example, 
 
 Create the Neon API key in Neon Console → Account/Organization settings → API keys. A personal API key must have access to the Neon organization selected by `NEON_ORG_ID`. Neon project limits and the selected account's permissions apply.
 
+**Important:** The Neon organization must be managed directly by Neon. A Vercel Marketplace-managed Neon organization rejects the direct Neon API project-creation call with `organization is managed by Vercel`. Use a separate Neon-managed organization and its API key; do not replace the primary app's `DATABASE_URL`. After updating `NEON_API_KEY` and, for a personal key, `NEON_ORG_ID` in Vercel Production, redeploy and choose **Retry setup** for organizations marked **FAILED**. Their confirmed transfer requests remain approved; retrying setup does not ask the customer to pay again.
+
 Generate `ORGANIZATION_DATABASE_ENCRYPTION_KEY` in Windows PowerShell:
 
 ```powershell
