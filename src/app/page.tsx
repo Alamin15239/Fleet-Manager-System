@@ -2,7 +2,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { HomeDashboardRedirect } from '@/components/home-dashboard-redirect'
 import { WebsiteLaunchBadge } from '@/components/website-launch-badge'
-import { TruckRoadAnimation } from '@/components/truck-road-animation'
+import { TruckScrollExperience } from '@/components/truck-scroll-experience'
 import type { Metadata } from 'next'
 import {
   ArrowRight,
@@ -316,9 +316,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section aria-label="Fleet Manager Pro truck animation" className="mx-auto w-full max-w-7xl px-5 pb-14 sm:px-8 sm:pb-20">
-        <TruckRoadAnimation />
-      </section>
+      <TruckScrollExperience />
 
       <section id="features" className="border-y border-slate-200/70 bg-white/55 py-16 dark:border-white/10 dark:bg-white/[0.02] sm:py-20">
         <div className="mx-auto max-w-7xl px-5 sm:px-8">
