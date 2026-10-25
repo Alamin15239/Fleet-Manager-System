@@ -200,7 +200,7 @@ const faqs = [
 
 export default function HomePage() {
   return (
-    <main className="min-h-screen overflow-hidden bg-gradient-to-b from-slate-50 via-white to-sky-50 text-slate-950 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900 dark:text-slate-50">
+    <main className="min-h-screen overflow-x-clip bg-gradient-to-b from-slate-50 via-white to-sky-50 text-slate-950 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900 dark:text-slate-50">
       <HomeDashboardRedirect />
       <script
         type="application/ld+json"
