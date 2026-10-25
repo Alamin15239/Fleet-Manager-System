@@ -49,7 +49,7 @@ export default function WorkshopJobCardSoftwarePage() {
           <ul className="mt-5 grid gap-3 sm:grid-cols-2">
             {['Vehicle-linked repair records', 'Checklist and work details', 'Parts and approval fields', 'Print and PDF options'].map((item) => <li key={item} className="flex gap-3 leading-7 text-slate-700 dark:text-slate-200"><CheckCircle2 className="mt-1 h-5 w-5 shrink-0 text-emerald-600" />{item}</li>)}
           </ul>
-        </section></SeoReveal></SeoReveal>
+        </section></SeoReveal>
         <section className="mt-14">
           <h2 className="text-2xl font-bold">Part of a fleet maintenance workspace</h2>
           <p className="mt-4 max-w-3xl leading-7 text-slate-600 dark:text-slate-300">Fleet Manager Pro combines workshop job cards with truck and trailer records, tire management, oil changes, vehicle document reminders, and fleet reports. This helps transport teams keep routine service and repair information in one place.</p>
