@@ -460,3 +460,41 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+
+/* Cinematic, scroll-linked truck story on the public homepage */
+.fleet-truck-story {
+  height: 300vh;
+  position: relative;
+}
+.fleet-truck-story-sticky {
+  height: 100svh;
+  min-height: 620px;
+}
+.fleet-truck-driving {
+  animation: none !important;
+  will-change: transform;
+}
+.fleet-truck-scene {
+  transition: background 350ms ease, border-color 350ms ease;
+}
+@media (max-width: 639px) {
+  .fleet-truck-story {
+    height: 270svh;
+  }
+  .fleet-truck-story-sticky {
+    min-height: 560px;
+    padding-inline: 0.75rem;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fleet-truck-story {
+    height: auto;
+  }
+  .fleet-truck-story-sticky {
+    position: relative;
+    top: auto;
+    height: auto;
+    min-height: 0;
+  }
+}
