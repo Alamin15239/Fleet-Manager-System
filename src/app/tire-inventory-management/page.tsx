@@ -42,8 +42,8 @@ export default function TireInventoryManagementPage() {
           <Link href="/" className="rounded-xl border border-slate-300 px-5 py-3 font-semibold hover:bg-white dark:border-white/15 dark:hover:bg-white/5">Explore all features</Link>
         </div>
         <SeoStagger className="mt-12 grid gap-4 sm:grid-cols-2">
-          {features.map(({ icon: Icon, title, text }) => <SeoStaggerItem><SeoStaggerItem><article key={title} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-slate-900"><Icon className="h-6 w-6 text-orange-700 dark:text-orange-300" /><h2 className="mt-4 text-lg font-semibold">{title}</h2><p className="mt-2 leading-7 text-slate-600 dark:text-slate-300">{text}</p></article></SeoStaggerItem>)}
-        </div>
+          {features.map(({ icon: Icon, title, text }) => <SeoStaggerItem key={title}><article key={title} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-slate-900"><Icon className="h-6 w-6 text-orange-700 dark:text-orange-300" /><h2 className="mt-4 text-lg font-semibold">{title}</h2><p className="mt-2 leading-7 text-slate-600 dark:text-slate-300">{text}</p></article></SeoStaggerItem>)}
+        </SeoStagger>
         <SeoReveal><section className="mt-14 rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 dark:border-white/10 dark:bg-white/[0.03]">
           <h2 className="text-2xl font-bold">What tire information can you keep?</h2>
           <p className="mt-4 max-w-3xl leading-7 text-slate-600 dark:text-slate-300">Use the available tire management records to keep serial number, tire size, vehicle registration, driver, and issue date together. Recording this information consistently makes it easier to review tire history and identify which vehicle a tire was assigned to.</p>
