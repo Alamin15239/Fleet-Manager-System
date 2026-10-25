@@ -134,7 +134,7 @@ export function DatabaseStorageMonitor() {
             </Badge>
           </div>
           
-          {storageData.storage.available && (
+          {storageData.storage.available ? (
             <>
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium"><LocalizedText>Available:</LocalizedText></span>
