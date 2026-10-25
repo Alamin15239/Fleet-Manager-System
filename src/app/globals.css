@@ -498,3 +498,85 @@
     min-height: 0;
   }
 }
+
+
+/* Cinematic, scroll-linked public landing-page truck experience */
+.truck-experience-runway {
+  height: 285vh;
+  isolation: isolate;
+}
+.truck-experience-sticky {
+  height: 100svh;
+  min-height: 680px;
+  isolation: isolate;
+}
+.truck-experience-grid {
+  background-image:
+    linear-gradient(rgba(125, 211, 252, .07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(125, 211, 252, .07) 1px, transparent 1px);
+  background-size: 64px 64px;
+  mask-image: linear-gradient(to bottom, transparent, black 15%, black 80%, transparent);
+}
+.truck-experience-vehicle {
+  transform-origin: 50% 55%;
+  will-change: transform;
+  filter: drop-shadow(0 24px 34px rgba(0, 0, 0, .45));
+}
+.truck-experience-wheel {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: truck-experience-wheel-spin 1.2s linear infinite;
+}
+.truck-experience-headlight {
+  animation: truck-experience-headlight-pulse 1.7s ease-in-out infinite;
+}
+.truck-experience-speedline {
+  box-shadow: 0 0 24px rgba(56, 189, 248, .2);
+}
+.truck-chapter-title {
+  animation: truck-chapter-reveal .55s cubic-bezier(.2,.7,.2,1) both;
+}
+@keyframes truck-experience-wheel-spin {
+  to { transform: rotate(360deg); }
+}
+@keyframes truck-experience-headlight-pulse {
+  0%, 100% { opacity: .78; filter: drop-shadow(0 0 2px #bae6fd); }
+  50% { opacity: 1; filter: drop-shadow(0 0 12px #7dd3fc); }
+}
+@keyframes truck-chapter-reveal {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@media (max-width: 1023px) {
+  .truck-experience-runway { height: 245vh; }
+  .truck-experience-sticky { min-height: 700px; align-items: flex-start; }
+  .truck-experience-sticky > div.relative.z-10 {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(220px, 1fr);
+    align-content: center;
+    gap: .25rem;
+    padding-top: 2.5rem;
+    padding-bottom: 3.5rem;
+  }
+  .truck-experience-vehicle {
+    width: 100%;
+    min-width: 600px;
+    margin-top: -1.5rem;
+  }
+}
+@media (max-width: 639px) {
+  .truck-experience-runway { height: 220vh; }
+  .truck-experience-sticky { min-height: 680px; }
+  .truck-experience-sticky > div.relative.z-10 { padding-inline: 1rem; padding-top: 2rem; }
+  .truck-experience-vehicle { min-width: 560px; width: 150%; margin-left: -25%; margin-top: -1rem; }
+  .truck-experience-sticky h2 { font-size: clamp(2.4rem, 11vw, 3.25rem); }
+  .truck-experience-sticky p.max-w-lg { max-width: 30rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .truck-experience-wheel,
+  .truck-experience-headlight,
+  .truck-chapter-title {
+    animation: none !important;
+  }
+  .truck-experience-vehicle { will-change: auto; }
+}
