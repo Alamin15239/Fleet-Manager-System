@@ -3,7 +3,7 @@ import { requireAuth } from '@/lib/auth'
 import { controlDb } from '@/lib/db'
 import { provisionOrganization } from '@/lib/organization-provisioning'
 
-export const maxDuration = 60
+export const maxDuration = 300
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -18,11 +18,24 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if (!organization || organization.isPrimary) {
       return NextResponse.json({ error: 'Organization not found' }, { status: 404 })
     }
-    if (organization.status !== 'FAILED') {
-      return NextResponse.json({ error: 'Only a failed organization setup can be retried' }, { status: 409 })
+    const staleBefore = new Date(Date.now() - 2 * 60 * 1000)
+    const claimed = await organizationModel.updateMany({
+      where: {
+        id,
+        isPrimary: false,
+        OR: [
+          { status: 'FAILED' },
+          { status: 'PROVISIONING', updatedAt: { lt: staleBefore } }
+        ]
+      },
+      data: { status: 'PROVISIONING', failureReason: null }
+    })
+    if (claimed.count !== 1) {
+      return NextResponse.json({
+        error: 'This setup is either already running or is not retryable yet. Wait two minutes after a timeout, refresh Organizations, then choose Continue setup.'
+      }, { status: 409 })
     }
 
-    await organizationModel.update({ where: { id }, data: { status: 'PROVISIONING', failureReason: null } })
     await provisionOrganization(id)
     return NextResponse.json({ success: true, status: 'ACTIVE' }, { headers: { 'Cache-Control': 'private, no-store, max-age=0' } })
   } catch (error) {

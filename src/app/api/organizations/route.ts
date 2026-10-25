@@ -4,7 +4,7 @@ import { requireAuth } from '@/lib/auth'
 import { controlDb } from '@/lib/db'
 import { provisionOrganization } from '@/lib/organization-provisioning'
 
-export const maxDuration = 60
+export const maxDuration = 300
 
 const createOrganizationSchema = z.object({
   name: z.string().trim().min(2).max(80),
@@ -47,7 +47,8 @@ export async function GET(request: NextRequest) {
         schemaReady: true,
         failureReason: true,
         isPrimary: true,
-        createdAt: true
+        createdAt: true,
+        updatedAt: true
       }
     })
     return NextResponse.json({ organizations }, { headers: { 'Cache-Control': 'private, no-store, max-age=0' } })

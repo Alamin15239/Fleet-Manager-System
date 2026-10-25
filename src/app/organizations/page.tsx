@@ -34,6 +34,7 @@ type Organization = {
   failureReason: string | null
   isPrimary: boolean
   createdAt: string
+  updatedAt: string
 }
 
 type BankTransferRequest = {
@@ -55,6 +56,11 @@ type BankTransferRequest = {
 function slugFromName(value: string) {
   return value.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
     .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 48)
+}
+
+function isStaleProvisioning(organization: Organization) {
+  const updatedAt = Date.parse(organization.updatedAt)
+  return organization.status === 'PROVISIONING' && Number.isFinite(updatedAt) && Date.now() - updatedAt >= 2 * 60 * 1000
 }
 
 export default function OrganizationsPage() {
@@ -184,7 +190,7 @@ export default function OrganizationsPage() {
       const response = await apiDelete(`/api/organizations/${organization.id}`)
       const data = await response.json().catch(() => ({}))
       if (!response.ok) throw new Error(data.error || 'Could not delete the organization')
-      toast({ title: t('Organization deleted'), description: `${organization.name}: ${t('Organization and its Neon project were deleted. Neon recovery is available for 7 days.')}` })
+      toast({ title: t('Organization deleted'), description: `${organization.name}: ${t('Organization and its separate database were deleted.')}` })
       setDeleteTarget(null)
       await loadOrganizations()
     } catch (error) {
@@ -370,10 +376,10 @@ export default function OrganizationsPage() {
                         <Pencil className="me-2 h-4 w-4" /><LocalizedText>Edit administrator</LocalizedText>
                       </Button>
                     )}
-                    {organization.status === 'FAILED' && (
+                    {(organization.status === 'FAILED' || isStaleProvisioning(organization)) && (
                       <Button size="sm" variant="outline" disabled={retryingId === organization.id || savingOwnerId === organization.id} onClick={() => void retryOrganization(organization)}>
                         {retryingId === organization.id ? <LoaderCircle className="me-2 h-4 w-4 animate-spin" /> : <RotateCw className="me-2 h-4 w-4" />}
-                        <LocalizedText>Retry setup</LocalizedText>
+                        <LocalizedText>{organization.status === 'FAILED' ? 'Retry setup' : 'Continue setup'}</LocalizedText>
                       </Button>
                     )}
                     {!organization.isPrimary && organization.status !== 'PROVISIONING' && (
@@ -394,7 +400,7 @@ export default function OrganizationsPage() {
           <AlertDialogHeader>
             <AlertDialogTitle><LocalizedText>Delete organization?</LocalizedText></AlertDialogTitle>
             <AlertDialogDescription>
-              <LocalizedText>This deletes the organization's separate Neon project and its fleet data. Neon project recovery is available for 7 days. The original Fleet Manager database will not be deleted.</LocalizedText>
+              <LocalizedText>This deletes the organization's separate database and its fleet data. The original Fleet Manager database will not be deleted.</LocalizedText>
               {deleteTarget && <span className="mt-2 block font-medium text-foreground">{deleteTarget.name} · /{deleteTarget.slug}</span>}
             </AlertDialogDescription>
           </AlertDialogHeader>

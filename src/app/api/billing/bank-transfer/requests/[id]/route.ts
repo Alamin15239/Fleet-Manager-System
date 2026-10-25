@@ -5,7 +5,7 @@ import { requireAuth } from '@/lib/auth'
 import { controlDb } from '@/lib/db'
 import { provisionOrganization } from '@/lib/organization-provisioning'
 
-export const maxDuration = 60
+export const maxDuration = 300
 
 const actionSchema = z.object({ action: z.enum(['CONFIRM_TRANSFER', 'REJECT']) })
 
