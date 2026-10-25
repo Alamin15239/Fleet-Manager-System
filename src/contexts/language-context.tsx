@@ -1831,6 +1831,7 @@ const phraseTranslations: Record<string, string> = {
   'Current Mileage:': 'المسافة الحالية:',
   'Currently being serviced': 'قيد الصيانة حالياً',
   'Database Size': 'حجم قاعدة البيانات',
+  'Storage capacity is managed by your database provider.': 'يدير موفر قاعدة البيانات سعة التخزين.',
   'Date & Time': 'التاريخ والوقت',
   'Date From': 'التاريخ من',
   'Date Performed': 'تاريخ التنفيذ',

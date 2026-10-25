@@ -52,7 +52,10 @@ export async function GET(request: NextRequest) {
     const totalEstimatedMB = totalEstimatedKB / 1024
 
     let actualDatabaseSize = null
-    let availableSpace = null
+    // The provider's quota is not available from a database connection alone.
+    // In particular, Prisma Postgres storage is shared across a workspace, so
+    // reporting a per-database allowance here would be misleading.
+    const availableSpace = null
     try {
       const sizeQuery = await db.$queryRaw`
         SELECT pg_size_pretty(pg_database_size(current_database())) as size,
@@ -61,20 +64,10 @@ export async function GET(request: NextRequest) {
       
       if (sizeQuery && sizeQuery[0]) {
         const usedBytes = parseInt(sizeQuery[0].size_bytes)
-        const diskSpaceBytes = 1024 * 1024 * 1024 // 1GB limit for Neon free tier
-        const availableBytes = Math.max(0, diskSpaceBytes - usedBytes)
         
         actualDatabaseSize = {
           formatted: sizeQuery[0].size,
           bytes: usedBytes
-        }
-        
-        availableSpace = {
-          totalGB: Math.round((diskSpaceBytes / (1024 * 1024 * 1024)) * 100) / 100,
-          usedGB: Math.round((usedBytes / (1024 * 1024 * 1024)) * 100) / 100,
-          availableGB: Math.round((availableBytes / (1024 * 1024 * 1024)) * 100) / 100,
-          availableKB: Math.round(availableBytes / 1024),
-          usagePercent: Math.round((usedBytes / diskSpaceBytes) * 100)
         }
       }
     } catch (error) {

@@ -160,6 +160,10 @@ export function DatabaseStorageMonitor() {
                 {storageData.storage.available.usagePercent || 0}% used of {storageData.storage.available.totalGB || 0} GB
               </div>
             </>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              <LocalizedText>Storage capacity is managed by your database provider.</LocalizedText>
+            </p>
           )}
         </div>
 
