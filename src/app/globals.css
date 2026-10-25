@@ -580,3 +580,51 @@
   }
   .truck-experience-vehicle { will-change: auto; }
 }
+
+
+/* Premium homepage art direction and tractor-to-trailer details */
+.fleet-home-hero-grid {
+  background-image:
+    linear-gradient(rgba(125, 211, 252, .045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(125, 211, 252, .045) 1px, transparent 1px);
+  background-size: 76px 76px;
+  mask-image: linear-gradient(to bottom, black, transparent 92%);
+}
+.truck-experience-cab {
+  transform-box: fill-box;
+  transform-origin: left center;
+  animation: truck-cab-couple 1.35s cubic-bezier(.18,.72,.25,1) both;
+}
+.truck-side-light {
+  animation: truck-side-light-glow 1.8s ease-in-out infinite;
+  filter: drop-shadow(0 0 4px rgba(251, 191, 36, .9));
+}
+.truck-side-light:nth-child(2n) { animation-delay: .25s; }
+.truck-tail-light {
+  filter: drop-shadow(0 0 5px rgba(248, 113, 113, .9));
+  animation: truck-tail-light-glow 1.4s ease-in-out infinite;
+}
+.truck-hitch-connector {
+  filter: drop-shadow(0 3px 4px rgba(0, 0, 0, .45));
+}
+@keyframes truck-cab-couple {
+  0% { transform: translateX(34px); }
+  68% { transform: translateX(-3px); }
+  84% { transform: translateX(2px); }
+  100% { transform: translateX(0); }
+}
+@keyframes truck-side-light-glow {
+  0%, 100% { opacity: .72; }
+  50% { opacity: 1; filter: drop-shadow(0 0 9px rgba(251, 191, 36, 1)); }
+}
+@keyframes truck-tail-light-glow {
+  0%, 100% { opacity: .8; }
+  50% { opacity: 1; filter: drop-shadow(0 0 9px rgba(248, 113, 113, 1)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .truck-experience-cab,
+  .truck-side-light,
+  .truck-tail-light {
+    animation: none !important;
+  }
+}
