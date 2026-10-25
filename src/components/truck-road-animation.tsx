@@ -1,8 +1,52 @@
 "use client"
 
+import { useEffect, useRef, useState } from "react"
+
+const storyStages = [
+  { eyebrow: "BUILT FOR THE ROAD", title: "Every mile, under control.", detail: "Bring trucks, trailers, and service history into one clear view." },
+  { eyebrow: "MAINTENANCE THAT MOVES", title: "Stay ahead of downtime.", detail: "Plan preventive service, capture workshop job cards, and track breakdowns." },
+  { eyebrow: "ONE CONNECTED FLEET", title: "Every record has a place.", detail: "Follow tire life, oil changes, documents, and fleet costs in one workspace." },
+]
+
 export function TruckRoadAnimation() {
+  const sectionRef = useRef<HTMLElement>(null)
+  const [progress, setProgress] = useState(0)
+
+  useEffect(() => {
+    let frame = 0
+    const update = () => {
+      cancelAnimationFrame(frame)
+      frame = requestAnimationFrame(() => {
+        const section = sectionRef.current
+        if (!section) return
+        const rect = section.getBoundingClientRect()
+        const travel = Math.max(1, section.offsetHeight - window.innerHeight)
+        setProgress(Math.max(0, Math.min(1, -rect.top / travel)))
+      })
+    }
+    update()
+    window.addEventListener("scroll", update, { passive: true })
+    window.addEventListener("resize", update)
+    return () => {
+      cancelAnimationFrame(frame)
+      window.removeEventListener("scroll", update)
+      window.removeEventListener("resize", update)
+    }
+  }, [])
+
+  const stage = progress < 0.34 ? 0 : progress < 0.68 ? 1 : 2
+  const currentStage = storyStages[stage]
+
   return (
-    <div className="fleet-truck-scene relative isolate overflow-hidden rounded-[2rem] border border-sky-100 bg-gradient-to-b from-sky-100 via-white to-slate-100 px-4 pb-3 pt-6 shadow-inner dark:border-white/10 dark:from-slate-800 dark:via-slate-900 dark:to-slate-950 sm:px-8">
+    <section ref={sectionRef} aria-label="Fleet Manager Pro cinematic truck story" className="fleet-truck-story relative">
+      <div className="fleet-truck-story-sticky sticky top-0 flex min-h-[100svh] flex-col justify-center overflow-hidden px-4 py-8 sm:px-8">
+        <div className="mx-auto w-full max-w-7xl">
+          <div className="mx-auto mb-6 max-w-3xl text-center sm:mb-8">
+            <p className="text-xs font-bold uppercase tracking-[0.24em] text-blue-700 dark:text-blue-300 sm:text-sm">{currentStage.eyebrow}</p>
+            <h2 className="mt-3 text-3xl font-bold tracking-tight text-slate-950 dark:text-white sm:text-5xl lg:text-6xl">{currentStage.title}</h2>
+            <p className="mx-auto mt-4 max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-300 sm:text-lg sm:leading-8">{currentStage.detail}</p>
+          </div>
+          <div className="fleet-truck-scene relative isolate overflow-hidden rounded-[2rem] border border-sky-100 bg-gradient-to-b from-sky-100 via-white to-slate-100 px-4 pb-3 pt-6 shadow-inner dark:border-white/10 dark:from-slate-800 dark:via-slate-900 dark:to-slate-950 sm:px-8" style={{ transform: `translateY(${Math.sin(progress * Math.PI) * -8}px)` }}>
       <div className="pointer-events-none absolute left-[12%] top-8 h-12 w-12 rounded-full bg-amber-200/80 blur-[1px] dark:bg-amber-300/20" />
       <div className="pointer-events-none absolute right-[18%] top-7 h-10 w-24 rounded-full bg-white/80 blur-md dark:bg-white/5" />
       <div className="pointer-events-none absolute right-[22%] top-5 h-8 w-16 rounded-full bg-white/80 blur-md dark:bg-white/5" />
@@ -27,7 +71,7 @@ export function TruckRoadAnimation() {
             </filter>
           </defs>
           <ellipse cx="470" cy="151" rx="330" ry="13" fill="#0f172a" opacity=".14" filter="url(#truckShadow)" />
-          <g className="fleet-truck-driving">
+          <g className="fleet-truck-driving" style={{ transform: `translateX(${(progress - 0.5) * 42}px) scale(${0.88 + progress * 0.12})`, transformOrigin: "center" }}>
             <g className="fleet-truck-suspension">
               <rect x="100" y="38" width="515" height="96" rx="7" fill="#94a3b8" opacity=".3" transform="translate(0 4)" />
               <rect x="94" y="31" width="520" height="98" rx="7" fill="url(#trailerPaint)" stroke="#94a3b8" strokeWidth="2" />
@@ -112,6 +156,13 @@ export function TruckRoadAnimation() {
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Reliable fleet operations</p>
         <p className="text-sm font-semibold text-blue-800 dark:text-blue-200">Every truck. Every service. One workspace.</p>
       </div>
-    </div>
+          <div className="mt-5 flex items-center justify-center gap-2" aria-label={`Animation stage ${stage + 1} of 3`}>
+            {storyStages.map((item, index) => (
+              <span key={item.eyebrow} className={`h-1.5 rounded-full transition-all duration-300 ${stage === index ? "w-12 bg-blue-700 dark:bg-blue-300" : "w-5 bg-slate-300 dark:bg-slate-700"}`} />
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
   )
 }
