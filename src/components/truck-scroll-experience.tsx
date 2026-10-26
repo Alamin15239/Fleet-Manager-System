@@ -282,8 +282,30 @@ export function TruckScrollExperience() {
           <div className="relative mx-auto flex h-[390px] w-full items-center justify-center sm:h-[470px] lg:-ml-12 lg:h-[620px]">
             <div className="pointer-events-none absolute inset-x-0 bottom-[12%] h-24 rounded-[50%] bg-blue-500/20 blur-3xl" />
             <div className="truck-experience-speedline pointer-events-none absolute left-0 right-0 top-1/2 h-px bg-gradient-to-r from-transparent via-sky-300/50 to-transparent" />
-            <canvas ref={canvasRef} aria-label="A blue 3D tractor unit connected to a white box trailer with amber side marker lights" className="relative z-10 h-full w-full" />
-            {!webglAvailable && <div className="absolute inset-0 flex items-center justify-center text-center text-sm text-slate-300">Your browser cannot display the 3D scene. Fleet Manager Pro still works without it.</div>}
+            <div
+              role="img"
+              aria-label="Cinematic close-up of a modern semi truck on the road"
+              className="truck-cinematic-hero relative z-10 h-full w-full overflow-hidden rounded-[2rem] border border-white/10 shadow-2xl"
+              style={{
+                backgroundImage: "linear-gradient(115deg,rgba(5,9,18,.12),rgba(5,9,18,.02)),url('https://images.pexels.com/photos/27508769/pexels-photo-27508769.jpeg?auto=compress&cs=tinysrgb&w=2400')",
+                backgroundSize: `${112 + progress * 16}% auto`,
+                backgroundPosition: `${54 - progress * 12}% ${52 + progress * 8}%`,
+                transform: `perspective(1200px) rotateY(${-4 + progress * 8}deg) scale(${1 + Math.sin(progress * Math.PI) * .025})`,
+                filter: `saturate(${1.05 + progress * .25}) contrast(${1.05 + progress * .1})`,
+              }}
+            >
+              <div className="absolute inset-0 bg-gradient-to-t from-[#070b12]/75 via-transparent to-[#f97316]/10" />
+              <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/50 to-transparent" />
+              <div className="absolute left-5 top-5 rounded-full border border-orange-200/25 bg-black/35 px-3 py-1.5 text-[10px] font-bold tracking-[.22em] text-orange-100 backdrop-blur-md sm:left-7 sm:top-7">FLEET / MOTION 01</div>
+              <div className="absolute bottom-5 left-5 right-5 flex items-end justify-between gap-3 sm:bottom-7 sm:left-7 sm:right-7">
+                <div>
+                  <p className="text-[10px] font-bold tracking-[.25em] text-orange-200">BUILT TO KEEP MOVING</p>
+                  <p className="mt-1 text-lg font-semibold text-white drop-shadow sm:text-2xl">Power. Precision. Uptime.</p>
+                </div>
+                <span className="rounded-full border border-white/25 bg-black/30 px-3 py-2 text-[10px] tracking-[.18em] text-white/80 backdrop-blur">01 — 03</span>
+              </div>
+              <div className="pointer-events-none absolute inset-0 opacity-30" style={{ background: `radial-gradient(ellipse at ${30 + progress * 40}% ${25 + progress * 20}%, rgba(249,115,22,.32), transparent 45%)` }} />
+            </div>
           </div>
         </div>
       </div>
