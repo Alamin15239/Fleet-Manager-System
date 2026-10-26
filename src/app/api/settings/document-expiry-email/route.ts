@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
     const notifications = existing?.notifications && typeof existing.notifications === 'object'
       ? { ...(existing.notifications as Record<string, unknown>) }
       : {}
-    const previousEmail = typeof notifications.documentExpiryEmail === 'string' ? notifications.documentExpiryEmail.split(/[;,\\n]+/).map((value) => value.trim().toLowerCase()).filter(Boolean).sort().join(',') : ''
+    const previousEmail = typeof notifications.documentExpiryEmail === 'string' ? notifications.documentExpiryEmail.split(/[;,\n]+/).map((value) => value.trim().toLowerCase()).filter(Boolean).sort().join(',') : ''
     const previousVerified = notifications.documentExpiryEmailVerified === true
     const resend = new Resend(apiKey)
     const { error } = await resend.emails.send({
