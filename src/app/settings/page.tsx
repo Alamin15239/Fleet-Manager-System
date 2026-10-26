@@ -451,7 +451,7 @@ export default function SettingsPage() {
 
   const handleDocumentExpiryEmail = async () => {
     const emails = Array.from(new Set(String(settings?.notifications?.documentExpiryEmail || '')
-      .split(/[;,\\n]+/).map((email) => email.trim().toLowerCase()).filter(Boolean)))
+      .split(/[;,\n]+/).map((email) => email.trim().toLowerCase()).filter(Boolean)))
     if (!emails.length) {
       toast.error('Enter at least one email address for document expiry alerts')
       return
