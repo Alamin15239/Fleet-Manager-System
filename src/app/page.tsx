@@ -254,7 +254,6 @@ export default function HomePage() {
         </section>
       </div>
 
-      <TruckScrollExperience />
 
       <section id="features" className="border-y border-slate-200/70 bg-white/55 py-16 dark:border-white/10 dark:bg-white/[0.02] sm:py-20">
         <div className="mx-auto max-w-7xl px-5 sm:px-8">
