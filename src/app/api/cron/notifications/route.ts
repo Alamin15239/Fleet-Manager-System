@@ -23,7 +23,7 @@ async function runDocumentExpiryEmailAlerts() {
   const notificationSettings = settings?.notifications && typeof settings.notifications === 'object'
     ? { ...(settings.notifications as Record<string, unknown>) } : {}
   const recipients = typeof notificationSettings.documentExpiryEmail === 'string'
-    ? Array.from(new Set(notificationSettings.documentExpiryEmail.split(/[;,\\n]+/).map((email) => email.trim().toLowerCase()).filter((email) => /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email))))
+    ? Array.from(new Set(notificationSettings.documentExpiryEmail.split(/[;,\n]+/).map((email) => email.trim().toLowerCase()).filter((email) => /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email))))
     : []
   if (!recipients.length || notificationSettings.documentExpiryEmailVerified !== true) return { status: 'disabled', sent: 0 }
   if (!process.env.RESEND_API_KEY) throw new Error('RESEND_API_KEY is not configured')
