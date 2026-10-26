@@ -487,7 +487,9 @@ export default function SettingsPage() {
         ...current,
         notifications: {
           ...(current.notifications || {}),
-          documentExpiryEmail: data.email || email,\n          documentExpiryEmailCc: (data.cc || cc).join(', '),\n          documentExpiryEmailBcc: (data.bcc || bcc).join(', '),
+          documentExpiryEmail: data.email || email,
+          documentExpiryEmailCc: (data.cc || cc).join(', '),
+          documentExpiryEmailBcc: (data.bcc || bcc).join(', '),
           documentExpiryEmailVerified: true,
         },
       } : current)
