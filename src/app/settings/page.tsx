@@ -56,6 +56,8 @@ interface SettingsData {
     upcomingMaintenance?: boolean
     overdueMaintenance?: boolean
     lowStock?: boolean
+    documentExpiryEmail?: string
+    documentExpiryEmailVerified?: boolean
   }
   rolePermissions?: any
   userPermissions?: any
@@ -442,6 +444,45 @@ export default function SettingsPage() {
     } catch (error) {
       console.error('Notification test failed:', error)
       toast.error('Failed to send test notification')
+    } finally {
+      setNotificationTesting(false)
+    }
+  }
+
+  const handleDocumentExpiryEmail = async () => {
+    const email = String(settings?.notifications?.documentExpiryEmail || '').trim()
+    if (!email) {
+      toast.error('Enter the email address for document expiry alerts')
+      return
+    }
+    setNotificationTesting(true)
+    try {
+      const token = localStorage.getItem('authToken')
+      if (!token) {
+        toast.error('Authentication required')
+        return
+      }
+      const response = await fetch('/api/settings/document-expiry-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ email }),
+      })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        toast.error(data.error || 'Could not send the test email')
+        return
+      }
+      setSettings(current => current ? {
+        ...current,
+        notifications: {
+          ...(current.notifications || {}),
+          documentExpiryEmail: data.email,
+          documentExpiryEmailVerified: true,
+        },
+      } : current)
+      toast.success(data.message || 'Test email sent and document expiry alerts enabled')
+    } catch {
+      toast.error('Could not configure document expiry alerts')
     } finally {
       setNotificationTesting(false)
     }
@@ -941,6 +982,32 @@ export default function SettingsPage() {
                     <LocalizedText>{notificationTesting ? 'Sending test...' : 'Test Now'}</LocalizedText>
                   </Button>
                 </div>
+              </div>
+              <div className="rounded-xl border p-4 space-y-3">
+                <div>
+                  <h3 className="font-semibold">Document Expiry Email Alerts</h3>
+                  <p className="text-sm text-muted-foreground">Add one email address. Fleet Manager Pro sends a test email first; scheduled alerts start only after the test succeeds.</p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="documentExpiryEmail">Alert email address</Label>
+                  <Input
+                    id="documentExpiryEmail"
+                    type="email"
+                    placeholder="admin@yourcompany.com"
+                    value={settings.notifications?.documentExpiryEmail || ''}
+                    onChange={(event) => updateNestedSettings('notifications', 'documentExpiryEmail', event.target.value)}
+                    disabled={!isAdmin || notificationTesting}
+                  />
+                </div>
+                {settings.notifications?.documentExpiryEmailVerified ? (
+                  <p className="text-sm text-green-700">Verified by test email: {settings.notifications.documentExpiryEmail}</p>
+                ) : (
+                  <p className="text-sm text-amber-700">Not enabled yet — send a successful test email to activate alerts.</p>
+                )}
+                <Button onClick={handleDocumentExpiryEmail} disabled={!isAdmin || notificationTesting || !settings.notifications?.documentExpiryEmail?.trim()}>
+                  {notificationTesting ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <Bell className="h-4 w-4 mr-2" />}
+                  {notificationTesting ? 'Sending test email…' : 'Send test email & enable alerts'}
+                </Button>
               </div>
               <div className="flex justify-end border-t pt-4">
                 <Button onClick={() => void saveNotificationSettings()} disabled={!canUpdate('settings') || notificationSaving || notificationTesting}>
