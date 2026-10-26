@@ -17,7 +17,7 @@ function dateKeyInRiyadh(date = new Date()) {
   return part('year') + '-' + part('month') + '-' + part('day')
 }
 
-async function sendCatchUpSummary(email: string, resend: Resend) {
+async function sendCatchUpSummary(emails: string[], resend: Resend) {
   const documents = await db.vehicleDocument.findMany({
     where: { validUntil: { not: null } },
     select: {
@@ -52,7 +52,7 @@ async function sendCatchUpSummary(email: string, resend: Resend) {
   ).join('')
   const { error } = await resend.emails.send({
     from: process.env.EMAIL_FROM || 'Fleet Manager <onboarding@resend.dev>',
-    to: email,
+    to: emails,
     subject: 'Fleet Manager Pro — existing document expiry alerts (' + dueDocuments.length + ')',
     html: '<div style="font-family:Arial,sans-serif;max-width:900px;margin:auto;color:#172033"><h2>Existing document expiry alerts</h2><p>These documents are already expired or due to expire within 30 days. Future daily summaries will continue automatically.</p><table style="width:100%;border-collapse:collapse;text-align:left"><thead><tr><th style="padding:8px">Document</th><th style="padding:8px">Vehicle / owner</th><th style="padding:8px">Expiry date</th><th style="padding:8px">Status</th></tr></thead><tbody>' + rows + '</tbody></table><p>Please renew expired or soon-to-expire documents and update Fleet Manager Pro.</p></div>',
   })
@@ -77,12 +77,12 @@ export async function POST(request: NextRequest) {
     const notifications = existing?.notifications && typeof existing.notifications === 'object'
       ? { ...(existing.notifications as Record<string, unknown>) }
       : {}
-    const previousEmail = typeof notifications.documentExpiryEmail === 'string' ? notifications.documentExpiryEmail : ''
+    const previousEmail = typeof notifications.documentExpiryEmail === 'string' ? notifications.documentExpiryEmail.split(/[;,\\n]+/).map((value) => value.trim().toLowerCase()).filter(Boolean).sort().join(',') : ''
     const previousVerified = notifications.documentExpiryEmailVerified === true
     const resend = new Resend(apiKey)
     const { error } = await resend.emails.send({
       from: process.env.EMAIL_FROM || 'Fleet Manager <onboarding@resend.dev>',
-      to: email,
+      to: emails,
       subject: 'Fleet Manager Pro — document expiry alert test',
       html: '<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto"><h2>Document expiry alerts are connected</h2><p>This test confirms that Fleet Manager Pro can send document-expiry alerts to this address.</p><p>— Fleet Manager Pro</p></div>',
     })
@@ -91,10 +91,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Resend could not send the test email. Check your verified sender/domain and Resend configuration.' }, { status: 502 })
     }
 
-    notifications.documentExpiryEmail = email
+    notifications.documentExpiryEmail = emails.join(', ')
     notifications.documentExpiryEmailVerified = true
     notifications.documentExpiryEmailVerifiedAt = new Date().toISOString()
-    if (previousEmail !== email || !previousVerified) {
+    if (previousEmail !== emails.slice().sort().join(',') || !previousVerified) {
       notifications.documentExpiryEmailSent = {}
       delete notifications.documentExpiryDigestDate
     }
@@ -103,7 +103,7 @@ export async function POST(request: NextRequest) {
       : await db.settings.create({ data: { notifications: notifications as any } })
 
     try {
-      const catchUp = await sendCatchUpSummary(email, resend)
+      const catchUp = await sendCatchUpSummary(emails, resend)
       if (catchUp.sent) {
         const updatedNotifications = { ...(settings.notifications as Record<string, unknown>), documentExpiryDigestDate: dateKeyInRiyadh() }
         settings = await db.settings.update({
@@ -112,7 +112,7 @@ export async function POST(request: NextRequest) {
         })
       }
       return NextResponse.json({
-        success: true, email, verified: true,
+        success: true, email: emails.join(', '), emails, verified: true,
         message: catchUp.sent
           ? 'Test email sent and catch-up summary sent for ' + catchUp.count + ' existing document(s). Daily expiry summaries are enabled.'
           : 'Test email sent. No expired documents or documents due within 30 days were found. Daily expiry summaries are enabled.',
@@ -122,7 +122,7 @@ export async function POST(request: NextRequest) {
     } catch {
       console.error('Immediate document-expiry catch-up email failed; daily cron can retry')
       return NextResponse.json({
-        success: true, email, verified: true,
+        success: true, email: emails.join(', '), emails, verified: true,
         message: 'Test email sent and alerts enabled, but the immediate catch-up summary could not be sent. The scheduled alert job will retry.',
         catchUpCount: null,
         notifications: settings.notifications,
