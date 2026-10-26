@@ -450,9 +450,15 @@ export default function SettingsPage() {
   }
 
   const handleDocumentExpiryEmail = async () => {
-    const email = String(settings?.notifications?.documentExpiryEmail || '').trim()
-    if (!email) {
-      toast.error('Enter the email address for document expiry alerts')
+    const emails = Array.from(new Set(String(settings?.notifications?.documentExpiryEmail || '')
+      .split(/[;,\\n]+/).map((email) => email.trim().toLowerCase()).filter(Boolean)))
+    if (!emails.length) {
+      toast.error('Enter at least one email address for document expiry alerts')
+      return
+    }
+    const invalidEmail = emails.find((email) => !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email))
+    if (invalidEmail) {
+      toast.error('Check this email address: ' + invalidEmail)
       return
     }
     setNotificationTesting(true)
@@ -465,7 +471,7 @@ export default function SettingsPage() {
       const response = await fetch('/api/settings/document-expiry-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ emails }),
       })
       const data = await response.json().catch(() => ({}))
       if (!response.ok) {
@@ -476,7 +482,7 @@ export default function SettingsPage() {
         ...current,
         notifications: {
           ...(current.notifications || {}),
-          documentExpiryEmail: data.email,
+          documentExpiryEmail: (data.emails || [data.email]).join(', '),
           documentExpiryEmailVerified: true,
         },
       } : current)
@@ -986,14 +992,14 @@ export default function SettingsPage() {
               <div className="rounded-xl border p-4 space-y-3">
                 <div>
                   <h3 className="font-semibold">Document Expiry Email Alerts</h3>
-                  <p className="text-sm text-muted-foreground">Add one email address. Fleet Manager Pro sends a test email first; scheduled alerts start only after the test succeeds.</p>
+                  <p className="text-sm text-muted-foreground">Add multiple email addresses separated by commas. A test email is sent to every address before alerts are enabled.</p>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="documentExpiryEmail">Alert email address</Label>
+                  <Label htmlFor="documentExpiryEmail">Alert email addresses</Label>
                   <Input
                     id="documentExpiryEmail"
-                    type="email"
-                    placeholder="admin@yourcompany.com"
+                    type="text"
+                    placeholder="admin@yourcompany.com, fleet@yourcompany.com"
                     value={settings.notifications?.documentExpiryEmail || ''}
                     onChange={(event) => updateNestedSettings('notifications', 'documentExpiryEmail', event.target.value)}
                     disabled={!isAdmin || notificationTesting}
