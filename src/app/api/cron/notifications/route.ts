@@ -22,9 +22,10 @@ async function runDocumentExpiryEmailAlerts() {
   const settings = await db.settings.findFirst()
   const notificationSettings = settings?.notifications && typeof settings.notifications === 'object'
     ? { ...(settings.notifications as Record<string, unknown>) } : {}
-  const recipients = typeof notificationSettings.documentExpiryEmail === 'string'
-    ? Array.from(new Set(notificationSettings.documentExpiryEmail.split(/[;,\n]+/).map((email) => email.trim().toLowerCase()).filter((email) => /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email))))
-    : []
+  const parseEmails = (value: unknown) => Array.from(new Set(typeof value === 'string' ? value.split(/[;,\n]+/).map((email) => email.trim().toLowerCase()).filter((email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) : []))
+  const recipients = parseEmails(notificationSettings.documentExpiryEmail)
+  const ccRecipients = parseEmails(notificationSettings.documentExpiryEmailCc).filter((email) => !recipients.includes(email))
+  const bccRecipients = parseEmails(notificationSettings.documentExpiryEmailBcc).filter((email) => !recipients.includes(email) && !ccRecipients.includes(email))
   if (!recipients.length || notificationSettings.documentExpiryEmailVerified !== true) return { status: 'disabled', sent: 0 }
   if (!process.env.RESEND_API_KEY) throw new Error('RESEND_API_KEY is not configured')
 
@@ -76,6 +77,8 @@ async function runDocumentExpiryEmailAlerts() {
   const { error } = await resend.emails.send({
     from: process.env.EMAIL_FROM || 'Fleet Manager <onboarding@resend.dev>',
     to: recipients,
+    ...(ccRecipients.length ? { cc: ccRecipients } : {}),
+    ...(bccRecipients.length ? { bcc: bccRecipients } : {}),
     subject: 'Fleet document expiry summary — ' + dueDocuments.length + ' document' + (dueDocuments.length === 1 ? '' : 's'),
     html: '<div style="font-family:Arial,sans-serif;max-width:900px;margin:auto;color:#172033"><h2>Fleet document expiry summary</h2><p>These documents are expired or due to expire within 30 days. This summary includes all matching records, not just specific reminder milestones.</p><p><b>Documents requiring attention:</b> ' + dueDocuments.length + '</p><table style="width:100%;border-collapse:collapse;text-align:left"><thead><tr><th style="padding:8px">Document</th><th style="padding:8px">Vehicle / owner</th><th style="padding:8px">Expiry date</th><th style="padding:8px">Status</th></tr></thead><tbody>' + rows + '</tbody></table><p>Please renew expired or soon-to-expire documents and update Fleet Manager Pro.</p></div>',
   })
