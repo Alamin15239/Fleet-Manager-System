@@ -57,6 +57,8 @@ interface SettingsData {
     overdueMaintenance?: boolean
     lowStock?: boolean
     documentExpiryEmail?: string
+    documentExpiryEmailCc?: string
+    documentExpiryEmailBcc?: string
     documentExpiryEmailVerified?: boolean
   }
   rolePermissions?: any
@@ -450,13 +452,16 @@ export default function SettingsPage() {
   }
 
   const handleDocumentExpiryEmail = async () => {
-    const emails = Array.from(new Set(String(settings?.notifications?.documentExpiryEmail || '')
-      .split(/[;,\n]+/).map((email) => email.trim().toLowerCase()).filter(Boolean)))
-    if (!emails.length) {
-      toast.error('Enter at least one email address for document expiry alerts')
+    const parseEmails = (value: string) => Array.from(new Set(value.split(/[;,\\n]+/).map((email) => email.trim().toLowerCase()).filter(Boolean)))
+    const email = parseEmails(String(settings?.notifications?.documentExpiryEmail || ''))[0] || ''
+    const cc = parseEmails(String(settings?.notifications?.documentExpiryEmailCc || ''))
+    const bcc = parseEmails(String(settings?.notifications?.documentExpiryEmailBcc || ''))
+    if (!email) {
+      toast.error('Enter a primary email address for document expiry alerts')
       return
     }
-    const invalidEmail = emails.find((email) => !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email))
+    const allEmails = [email, ...cc, ...bcc]
+    const invalidEmail = allEmails.find((address) => !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(address))
     if (invalidEmail) {
       toast.error('Check this email address: ' + invalidEmail)
       return
@@ -471,7 +476,7 @@ export default function SettingsPage() {
       const response = await fetch('/api/settings/document-expiry-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ emails }),
+        body: JSON.stringify({ email, cc, bcc }),
       })
       const data = await response.json().catch(() => ({}))
       if (!response.ok) {
@@ -482,7 +487,7 @@ export default function SettingsPage() {
         ...current,
         notifications: {
           ...(current.notifications || {}),
-          documentExpiryEmail: (data.emails || [data.email]).join(', '),
+          documentExpiryEmail: data.email || email,\n          documentExpiryEmailCc: (data.cc || cc).join(', '),\n          documentExpiryEmailBcc: (data.bcc || bcc).join(', '),
           documentExpiryEmailVerified: true,
         },
       } : current)
@@ -992,18 +997,26 @@ export default function SettingsPage() {
               <div className="rounded-xl border p-4 space-y-3">
                 <div>
                   <h3 className="font-semibold">Document Expiry Email Alerts</h3>
-                  <p className="text-sm text-muted-foreground">Add multiple email addresses separated by commas. A test email is sent to every address before alerts are enabled.</p>
+                  <p className="text-sm text-muted-foreground">Set the primary recipient, plus optional CC and BCC recipients. Separate multiple addresses in each field with commas.</p>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="documentExpiryEmail">Alert email addresses</Label>
+                  <Label htmlFor="documentExpiryEmail">To (primary email)</Label>
                   <Input
                     id="documentExpiryEmail"
                     type="text"
-                    placeholder="admin@yourcompany.com, fleet@yourcompany.com"
+                    placeholder="admin@yourcompany.com"
                     value={settings.notifications?.documentExpiryEmail || ''}
                     onChange={(event) => updateNestedSettings('notifications', 'documentExpiryEmail', event.target.value)}
                     disabled={!isAdmin || notificationTesting}
                   />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="documentExpiryEmailCc">CC (optional)</Label>
+                  <Input id="documentExpiryEmailCc" type="text" placeholder="fleet@yourcompany.com, supervisor@yourcompany.com" value={settings.notifications?.documentExpiryEmailCc || ''} onChange={(event) => updateNestedSettings('notifications', 'documentExpiryEmailCc', event.target.value)} disabled={!isAdmin || notificationTesting} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="documentExpiryEmailBcc">BCC (optional)</Label>
+                  <Input id="documentExpiryEmailBcc" type="text" placeholder="audit@yourcompany.com" value={settings.notifications?.documentExpiryEmailBcc || ''} onChange={(event) => updateNestedSettings('notifications', 'documentExpiryEmailBcc', event.target.value)} disabled={!isAdmin || notificationTesting} />
                 </div>
                 {settings.notifications?.documentExpiryEmailVerified ? (
                   <p className="text-sm text-green-700">Verified by test email: {settings.notifications.documentExpiryEmail}</p>
