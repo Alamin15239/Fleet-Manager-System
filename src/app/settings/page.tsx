@@ -452,7 +452,7 @@ export default function SettingsPage() {
   }
 
   const handleDocumentExpiryEmail = async () => {
-    const parseEmails = (value: string) => Array.from(new Set(value.split(/[;,\\n]+/).map((email) => email.trim().toLowerCase()).filter(Boolean)))
+    const parseEmails = (value: string) => Array.from(new Set(value.split(/[;,\n]+/).map((email) => email.trim().toLowerCase()).filter(Boolean)))
     const email = parseEmails(String(settings?.notifications?.documentExpiryEmail || ''))[0] || ''
     const cc = parseEmails(String(settings?.notifications?.documentExpiryEmailCc || ''))
     const bcc = parseEmails(String(settings?.notifications?.documentExpiryEmailBcc || ''))
@@ -461,7 +461,7 @@ export default function SettingsPage() {
       return
     }
     const allEmails = [email, ...cc, ...bcc]
-    const invalidEmail = allEmails.find((address) => !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(address))
+    const invalidEmail = allEmails.find((address) => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address))
     if (invalidEmail) {
       toast.error('Check this email address: ' + invalidEmail)
       return
