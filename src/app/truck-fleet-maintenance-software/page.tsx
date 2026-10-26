@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { ArrowRight, CheckCircle2, Truck, Wrench, ClipboardCheck, BarChart3 } from 'lucide-react'
 import { SeoReveal, SeoStagger, SeoStaggerItem } from '@/components/seo-motion'
+import { WebsiteLaunchBadge } from '@/components/website-launch-badge'
 
 const siteUrl = 'https://fleetmaintenance.site'
 
@@ -67,7 +68,18 @@ export default function TruckFleetMaintenanceSoftwarePage() {
           </div>
         </section>
       </section>
-      <footer className="border-t border-slate-200 px-5 py-6 text-center text-sm text-slate-500 dark:border-white/10 dark:text-slate-400">Fleet Manager Pro · Truck and trailer fleet maintenance software</footer>
+      <footer className="border-t border-slate-200 px-5 py-6 dark:border-white/10">
+        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 text-sm text-slate-500 dark:text-slate-400 sm:flex-row">
+          <span>Fleet Manager Pro · Truck and trailer fleet maintenance software</span>
+          <WebsiteLaunchBadge />
+          <nav aria-label="Public site links" className="flex flex-wrap justify-center gap-x-4 gap-y-2">
+            <Link href="/" className="hover:text-blue-700 dark:hover:text-blue-300">Home</Link>
+            <Link href="/help" className="hover:text-blue-700 dark:hover:text-blue-300">Help</Link>
+            <Link href="/privacy" className="hover:text-blue-700 dark:hover:text-blue-300">Privacy</Link>
+            <Link href="/agreement" className="hover:text-blue-700 dark:hover:text-blue-300">User agreement</Link>
+          </nav>
+        </div>
+      </footer>
     </main>
   )
 }
