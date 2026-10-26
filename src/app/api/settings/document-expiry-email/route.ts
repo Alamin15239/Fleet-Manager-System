@@ -17,7 +17,7 @@ function dateKeyInRiyadh(date = new Date()) {
   return part('year') + '-' + part('month') + '-' + part('day')
 }
 
-async function sendCatchUpSummary(emails: string[], resend: Resend) {
+async function sendCatchUpSummary(email: string, cc: string[], bcc: string[], resend: Resend) {
   const documents = await db.vehicleDocument.findMany({
     where: { validUntil: { not: null } },
     select: {
@@ -52,7 +52,9 @@ async function sendCatchUpSummary(emails: string[], resend: Resend) {
   ).join('')
   const { error } = await resend.emails.send({
     from: process.env.EMAIL_FROM || 'Fleet Manager <onboarding@resend.dev>',
-    to: emails,
+    to: email,
+    ...(cc.length ? { cc } : {}),
+    ...(bcc.length ? { bcc } : {}),
     subject: 'Fleet Manager Pro — existing document expiry alerts (' + dueDocuments.length + ')',
     html: '<div style="font-family:Arial,sans-serif;max-width:900px;margin:auto;color:#172033"><h2>Existing document expiry alerts</h2><p>These documents are already expired or due to expire within 30 days. Future daily summaries will continue automatically.</p><table style="width:100%;border-collapse:collapse;text-align:left"><thead><tr><th style="padding:8px">Document</th><th style="padding:8px">Vehicle / owner</th><th style="padding:8px">Expiry date</th><th style="padding:8px">Status</th></tr></thead><tbody>' + rows + '</tbody></table><p>Please renew expired or soon-to-expire documents and update Fleet Manager Pro.</p></div>',
   })
@@ -66,10 +68,16 @@ export async function POST(request: NextRequest) {
     if (user.role !== 'ADMIN') return NextResponse.json({ error: 'Administrator access required.' }, { status: 403 })
 
     const body = await request.json()
-    const email = String(body.email || '').trim().toLowerCase()
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      return NextResponse.json({ error: 'Enter a valid email address.' }, { status: 400 })
-    }
+    const parseEmails = (value: unknown) => Array.from(new Set(String(value || '').split(/[;,\n]+/).map((address) => address.trim().toLowerCase()).filter(Boolean)))
+    const email = parseEmails(body.email)[0] || ''
+    const cc = parseEmails(body.cc)
+    const bcc = parseEmails(body.bcc)
+    const allEmails = [email, ...cc, ...bcc]
+    if (!email) return NextResponse.json({ error: 'Enter a primary email address.' }, { status: 400 })
+    const invalidEmail = allEmails.find((address) => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address))
+    if (invalidEmail) return NextResponse.json({ error: 'Enter valid email addresses. Invalid address: ' + invalidEmail }, { status: 400 })
+    const ccFiltered = cc.filter((address) => address !== email)
+    const bccFiltered = bcc.filter((address) => address !== email && !ccFiltered.includes(address))
     const apiKey = process.env.RESEND_API_KEY
     if (!apiKey) return NextResponse.json({ error: 'Resend is not configured on the server.' }, { status: 503 })
 
@@ -77,12 +85,14 @@ export async function POST(request: NextRequest) {
     const notifications = existing?.notifications && typeof existing.notifications === 'object'
       ? { ...(existing.notifications as Record<string, unknown>) }
       : {}
-    const previousEmail = typeof notifications.documentExpiryEmail === 'string' ? notifications.documentExpiryEmail.split(/[;,\n]+/).map((value) => value.trim().toLowerCase()).filter(Boolean).sort().join(',') : ''
+    const previousEmail = [notifications.documentExpiryEmail, notifications.documentExpiryEmailCc, notifications.documentExpiryEmailBcc].map((value) => typeof value === 'string' ? value.split(/[;,\n]+/).map((item) => item.trim().toLowerCase()).filter(Boolean).sort().join(',') : '').join('|')
     const previousVerified = notifications.documentExpiryEmailVerified === true
     const resend = new Resend(apiKey)
     const { error } = await resend.emails.send({
       from: process.env.EMAIL_FROM || 'Fleet Manager <onboarding@resend.dev>',
-      to: emails,
+      to: email,
+      ...(ccFiltered.length ? { cc: ccFiltered } : {}),
+      ...(bccFiltered.length ? { bcc: bccFiltered } : {}),
       subject: 'Fleet Manager Pro — document expiry alert test',
       html: '<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto"><h2>Document expiry alerts are connected</h2><p>This test confirms that Fleet Manager Pro can send document-expiry alerts to this address.</p><p>— Fleet Manager Pro</p></div>',
     })
@@ -91,10 +101,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Resend could not send the test email. Check your verified sender/domain and Resend configuration.' }, { status: 502 })
     }
 
-    notifications.documentExpiryEmail = emails.join(', ')
+    notifications.documentExpiryEmail = email\n    notifications.documentExpiryEmailCc = ccFiltered.join(', ')\n    notifications.documentExpiryEmailBcc = bccFiltered.join(', ')
     notifications.documentExpiryEmailVerified = true
     notifications.documentExpiryEmailVerifiedAt = new Date().toISOString()
-    if (previousEmail !== emails.slice().sort().join(',') || !previousVerified) {
+    if (previousEmail !== [email, ccFiltered.slice().sort().join(','), bccFiltered.slice().sort().join(',')].join('|') || !previousVerified) {
       notifications.documentExpiryEmailSent = {}
       delete notifications.documentExpiryDigestDate
     }
@@ -103,7 +113,7 @@ export async function POST(request: NextRequest) {
       : await db.settings.create({ data: { notifications: notifications as any } })
 
     try {
-      const catchUp = await sendCatchUpSummary(emails, resend)
+      const catchUp = await sendCatchUpSummary(email, ccFiltered, bccFiltered, resend)
       if (catchUp.sent) {
         const updatedNotifications = { ...(settings.notifications as Record<string, unknown>), documentExpiryDigestDate: dateKeyInRiyadh() }
         settings = await db.settings.update({
@@ -112,7 +122,7 @@ export async function POST(request: NextRequest) {
         })
       }
       return NextResponse.json({
-        success: true, email: emails.join(', '), emails, verified: true,
+        success: true, email, cc: ccFiltered, bcc: bccFiltered, verified: true,
         message: catchUp.sent
           ? 'Test email sent and catch-up summary sent for ' + catchUp.count + ' existing document(s). Daily expiry summaries are enabled.'
           : 'Test email sent. No expired documents or documents due within 30 days were found. Daily expiry summaries are enabled.',
