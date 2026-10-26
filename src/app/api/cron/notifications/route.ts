@@ -9,6 +9,14 @@ function escapeHtml(value: string) {
   return value.replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character] || character)
 }
 
+function dateKeyInRiyadh(date = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Riyadh', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(date)
+  const part = (type: string) => parts.find((item) => item.type === type)?.value || ''
+  return part('year') + '-' + part('month') + '-' + part('day')
+}
+
 async function runDocumentExpiryEmailAlerts() {
   const { db } = await import('@/lib/db')
   const settings = await db.settings.findFirst()
@@ -17,6 +25,12 @@ async function runDocumentExpiryEmailAlerts() {
   const recipient = typeof notificationSettings.documentExpiryEmail === 'string' ? notificationSettings.documentExpiryEmail.trim() : ''
   if (!recipient || notificationSettings.documentExpiryEmailVerified !== true) return { status: 'disabled', sent: 0 }
   if (!process.env.RESEND_API_KEY) throw new Error('RESEND_API_KEY is not configured')
+
+  const todayKey = dateKeyInRiyadh()
+  if (notificationSettings.documentExpiryDigestDate === todayKey) {
+    return { status: 'already-sent-today', sent: 0 }
+  }
+
   const documents = await db.vehicleDocument.findMany({
     where: { validUntil: { not: null } },
     select: {
@@ -26,45 +40,52 @@ async function runDocumentExpiryEmailAlerts() {
       vehicle: { select: { vehicleNumber: true } },
     },
   })
-  const sentMap = notificationSettings.documentExpiryEmailSent && typeof notificationSettings.documentExpiryEmailSent === 'object'
-    ? { ...(notificationSettings.documentExpiryEmailSent as Record<string, string>) } : {}
-  const now = new Date()
-  const today = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
-  const resend = new Resend(process.env.RESEND_API_KEY)
-  let sent = 0
-  for (const document of documents) {
-    if (!document.validUntil) continue
-    const expiry = document.validUntil
-    const daysLeft = Math.round((Date.UTC(expiry.getUTCFullYear(), expiry.getUTCMonth(), expiry.getUTCDate()) - today) / 86400000)
-    let stage: string | null = [30, 14, 7, 1, 0].includes(daysLeft) ? 'due-' + daysLeft : null
-    if (daysLeft < 0 && Math.abs(daysLeft) % 7 === 0) stage = 'overdue-' + Math.abs(daysLeft)
-    if (!stage) continue
-    const key = document.id + ':' + expiry.toISOString().slice(0, 10) + ':' + stage
-    if (sentMap[key]) continue
-    const owner = document.truck ? 'Truck ' + document.truck.licensePlate + ' (' + document.truck.make + ' ' + document.truck.model + ')'
+  const today = Date.parse(todayKey + 'T00:00:00Z')
+  const dueDocuments = documents.flatMap((document) => {
+    if (!document.validUntil) return []
+    const expiryKey = document.validUntil.toISOString().slice(0, 10)
+    const daysLeft = Math.round((Date.parse(expiryKey + 'T00:00:00Z') - today) / 86400000)
+    // Include all overdue documents and every document expiring in the next 30 days.
+    if (daysLeft > 30) return []
+    const owner = document.truck ? 'Truck ' + document.truck.licensePlate + ' (' + [document.truck.make, document.truck.model].filter(Boolean).join(' ') + ')'
       : document.trailer ? 'Trailer ' + document.trailer.number
       : document.driver ? 'Driver ' + document.driver.name
       : document.vehicle ? 'Vehicle ' + document.vehicle.vehicleNumber : 'Fleet record'
     const timing = daysLeft > 0 ? 'expires in ' + daysLeft + ' day' + (daysLeft === 1 ? '' : 's')
-      : daysLeft === 0 ? 'expires today' : 'is overdue by ' + Math.abs(daysLeft) + ' days'
-    const { error } = await resend.emails.send({
-      from: process.env.EMAIL_FROM || 'Fleet Manager <onboarding@resend.dev>',
-      to: recipient,
-      subject: 'Document expiry alert: ' + document.title + ' — ' + timing,
-      html: '<div style="font-family:Arial,sans-serif;max-width:640px;margin:auto;color:#172033"><h2>Fleet document expiry alert</h2><p><strong>' + escapeHtml(document.title) + '</strong> (' + escapeHtml(document.documentType) + ') ' + timing + '.</p><p><b>Vehicle / owner:</b> ' + escapeHtml(owner) + '</p><p><b>Expiry date:</b> ' + expiry.toISOString().slice(0, 10) + '</p><p>Please renew the document and update its expiry date in Fleet Manager Pro.</p></div>',
+      : daysLeft === 0 ? 'expires today' : 'overdue by ' + Math.abs(daysLeft) + ' days'
+    return [{ title: document.title, documentType: document.documentType, owner, expiryKey, daysLeft, timing }]
+  }).sort((a, b) => a.daysLeft - b.daysLeft)
+
+  if (!dueDocuments.length) {
+    if (settings) await db.settings.update({
+      where: { id: settings.id },
+      data: { notifications: { ...notificationSettings, documentExpiryDigestDate: todayKey } as any },
     })
-    if (error) {
-      console.error('Resend rejected a document-expiry alert', { documentId: document.id, stage })
-      continue
-    }
-    sentMap[key] = new Date().toISOString()
-    sent += 1
+    return { status: 'no-current-alerts', sent: 0, checked: documents.length }
+  }
+
+  const rows = dueDocuments.map((document) =>
+    '<tr><td style="padding:8px;border-bottom:1px solid #e5e7eb">' + escapeHtml(document.title) +
+    '<br><small>' + escapeHtml(document.documentType) + '</small></td><td style="padding:8px;border-bottom:1px solid #e5e7eb">' +
+    escapeHtml(document.owner) + '</td><td style="padding:8px;border-bottom:1px solid #e5e7eb">' + escapeHtml(document.expiryKey) +
+    '</td><td style="padding:8px;border-bottom:1px solid #e5e7eb">' + escapeHtml(document.timing) + '</td></tr>'
+  ).join('')
+  const resend = new Resend(process.env.RESEND_API_KEY)
+  const { error } = await resend.emails.send({
+    from: process.env.EMAIL_FROM || 'Fleet Manager <onboarding@resend.dev>',
+    to: recipient,
+    subject: 'Fleet document expiry summary — ' + dueDocuments.length + ' document' + (dueDocuments.length === 1 ? '' : 's'),
+    html: '<div style="font-family:Arial,sans-serif;max-width:900px;margin:auto;color:#172033"><h2>Fleet document expiry summary</h2><p>These documents are expired or due to expire within 30 days. This summary includes all matching records, not just specific reminder milestones.</p><p><b>Documents requiring attention:</b> ' + dueDocuments.length + '</p><table style="width:100%;border-collapse:collapse;text-align:left"><thead><tr><th style="padding:8px">Document</th><th style="padding:8px">Vehicle / owner</th><th style="padding:8px">Expiry date</th><th style="padding:8px">Status</th></tr></thead><tbody>' + rows + '</tbody></table><p>Please renew expired or soon-to-expire documents and update Fleet Manager Pro.</p></div>',
+  })
+  if (error) {
+    console.error('Resend rejected document-expiry summary')
+    throw new Error('Resend rejected document-expiry summary')
   }
   if (settings) await db.settings.update({
     where: { id: settings.id },
-    data: { notifications: { ...notificationSettings, documentExpiryEmailSent: sentMap } as any },
+    data: { notifications: { ...notificationSettings, documentExpiryDigestDate: todayKey } as any },
   })
-  return { status: 'completed', sent, checked: documents.length }
+  return { status: 'completed', sent: 1, checked: documents.length, included: dueDocuments.length }
 }
 
 export async function GET(request: NextRequest) {
