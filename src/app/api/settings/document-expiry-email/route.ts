@@ -101,7 +101,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Resend could not send the test email. Check your verified sender/domain and Resend configuration.' }, { status: 502 })
     }
 
-    notifications.documentExpiryEmail = email\n    notifications.documentExpiryEmailCc = ccFiltered.join(', ')\n    notifications.documentExpiryEmailBcc = bccFiltered.join(', ')
+    notifications.documentExpiryEmail = email
+    notifications.documentExpiryEmailCc = ccFiltered.join(', ')
+    notifications.documentExpiryEmailBcc = bccFiltered.join(', ')
     notifications.documentExpiryEmailVerified = true
     notifications.documentExpiryEmailVerifiedAt = new Date().toISOString()
     if (previousEmail !== [email, ccFiltered.slice().sort().join(','), bccFiltered.slice().sort().join(',')].join('|') || !previousVerified) {
