@@ -262,7 +262,7 @@ export default function LoginPage() {
   // Show loading if auth is loading or redirecting
   if (isLoading || isRedirecting || (!isLoading && isAuthenticated)) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
+      <div className="relative min-h-screen overflow-hidden flex items-center justify-center bg-[#071426] px-4 py-10 text-slate-900">
         <div className="text-center">
           <TruckLoader size="md" className="mx-auto mb-4" />
           <h1 className="mb-2 text-2xl font-bold text-gray-900 dark:text-white">
@@ -277,39 +277,39 @@ export default function LoginPage() {
   }
 
   return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
-      <div className="w-full max-w-md space-y-8">
+      <div className="relative min-h-screen overflow-hidden flex items-center justify-center bg-[#071426] px-4 py-10 text-slate-900">
+      <div className="relative z-10 w-full max-w-[460px] space-y-6">
         {/* Logo and Title */}
         <div className="text-center">
           <div className="flex justify-center">
-            <Image src="/fleet-manager-mark.svg" alt="Fleet Manager Pro" width={72} height={72} priority className="h-[4.5rem] w-[4.5rem] rounded-2xl shadow-lg shadow-blue-950/15" />
+            <Image src="/fleet-manager-mark.svg" alt="Fleet Manager Pro" width={72} height={72} priority className="h-[4.25rem] w-[4.25rem] rounded-2xl border border-white/10 bg-white p-2 shadow-2xl shadow-cyan-950/40" />
           </div>
-          <h1 className="mt-6 text-3xl font-bold text-gray-900 dark:text-white">
+          <h1 className="mt-5 text-3xl font-bold tracking-tight text-white sm:text-[2rem]">
             {t('Sign in to Fleet Manager Pro')}
           </h1>
-          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+          <p className="mt-2 text-sm leading-6 text-slate-400">
             {t('auth.loginSubtitle')}
           </p>
         </div>
 
         {/* Login Card */}
-        <Card>
-          <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl text-center">{t('auth.signIn')}</CardTitle>
-            <CardDescription className="text-center">
+        <Card className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_24px_80px_rgba(0,0,0,0.28)]">
+          <CardHeader className="space-y-1 px-6 pt-7 sm:px-8">
+            <CardTitle className="text-center text-2xl font-semibold tracking-tight text-slate-900">{t('auth.signIn')}</CardTitle>
+            <CardDescription className="text-center text-sm text-slate-500">
               <LocalizedText>Choose your preferred login method</LocalizedText>
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-6 pb-7 sm:px-8">
             {/* Login Method Toggle */}
-            <div className="flex rounded-lg bg-gray-100 p-1 mb-4">
+            <div className="mb-5 flex rounded-xl border border-slate-200 bg-slate-100 p-1.5">
               <button
                 type="button"
                 onClick={() => setLoginMethod('password')}
                 className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
                   loginMethod === 'password'
-                    ? 'bg-white text-gray-900 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900'
+                    ? 'bg-white text-slate-950 shadow-sm ring-1 ring-slate-200'
+                    : 'text-slate-500 hover:text-slate-900'
                 }`}
               >
                 🔐 Password
@@ -343,7 +343,7 @@ export default function LoginPage() {
                     placeholder="Use the code provided by your organization"
                     value={organizationSlug}
                     onChange={(e) => setOrganizationSlug(e.target.value.trim().toLowerCase())}
-                    className="pl-10"
+                    className="h-11 rounded-xl border-slate-200 bg-white pl-10 text-sm shadow-sm placeholder:text-slate-400 focus-visible:ring-blue-600"
                     autoComplete="organization"
                   />
                 </div>
@@ -369,7 +369,7 @@ export default function LoginPage() {
                 </div>
               </div>
 
-              <Button type="button" variant="outline" className="w-full" disabled={!email.trim() || passkeyLoading || loading} onClick={handlePasskeyLogin}>
+              <Button type="button" variant="outline" className="h-11 w-full rounded-xl bg-blue-700 font-semibold text-white shadow-md shadow-blue-900/15 transition-colors hover:bg-blue-800" disabled={!email.trim() || passkeyLoading || loading} onClick={handlePasskeyLogin}>
                 {passkeyLoading ? <Loader2 className="me-2 h-4 w-4 animate-spin" /> : <Fingerprint className="me-2 h-4 w-4" />}
                 <LocalizedText>{passkeyLoading ? 'Verifying passkey...' : 'Sign in with a passkey'}</LocalizedText>
               </Button>
@@ -395,7 +395,7 @@ export default function LoginPage() {
 
                   <Button 
                     type="submit" 
-                    className="w-full" 
+                    className="h-11 w-full rounded-xl bg-blue-700 font-semibold text-white shadow-md shadow-blue-900/15 transition-colors hover:bg-blue-800" 
                     disabled={loading || !email || !password}
                   >
                     {loading ? (
@@ -482,7 +482,7 @@ export default function LoginPage() {
               )}
             </form>
 
-            <div className="mt-4 text-center space-y-2">
+            <div className="mt-5 space-y-3 text-center">
               {loginMethod === 'password' && (
                 <p className="text-sm text-gray-600 dark:text-gray-400">
                   <Link 
@@ -506,16 +506,16 @@ export default function LoginPage() {
           </CardContent>
         </Card>
 
-        <LegalDocumentLinks />
+        <div className="text-center text-xs leading-5 text-slate-500"><LegalDocumentLinks /></div>
 
         {/* Info Card */}
-        <Card className="bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800">
-          <CardContent className="pt-6">
+        <Card className="rounded-2xl border border-white/10 bg-white/[0.06] text-white shadow-none backdrop-blur-sm">
+          <CardContent className="px-5 py-5">
             <div className="text-center">
-              <h3 className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-2">
+              <h3 className="mb-2 text-sm font-semibold text-slate-100">
                 <LocalizedText>OTP Authentication</LocalizedText>
               </h3>
-              <div className="space-y-1 text-xs text-blue-700 dark:text-blue-300">
+              <div className="space-y-1.5 text-xs leading-5 text-slate-400">
                 <p>• Choose between password or OTP login</p>
                 <p>• OTP is sent to your registered email address</p>
                 <p>• Your account must be verified and approved</p>
