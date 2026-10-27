@@ -221,11 +221,11 @@ export function extractDocumentDates(rawText: string): DocumentDates {
 
   const normalizedText = normalizeLabelText(normalizeDigits(rawText))
   const hasAny = (value: string, terms: string[]) => terms.some(term => value.includes(normalizeLabelText(term)))
-  const cardTerms = ['operation card', 'card issue date', 'card expiry date', 'card expiration date', 'بطاقة التشغيل', 'تاريخ إصدار البطاقة', 'تاريخ انتهاء البطاقة', 'تاريخ اصدار البطاقة']
-  const cardIssueTerms = ['card issue date', 'تاريخ إصدار البطاقة', 'تاريخ اصدار البطاقة', 'تاريخ اصدار بطاقة التشغيل']
-  const cardExpiryTerms = ['card expiry date', 'card expiration date', 'تاريخ انتهاء البطاقة', 'تاريخ انتهاء صلاحية البطاقة', 'تاريخ انتهاء بطاقة التشغيل']
-  const licenseIssueTerms = ['license issue date', 'license issuance date', 'تاريخ إصدار الترخيص', 'تاريخ اصدار الترخيص']
-  const licenseExpiryTerms = ['license expiry date', 'license expiration date', 'تاريخ انتهاء الترخيص', 'تاريخ انتهاء صلاحية الترخيص']
+  const cardTerms = ['operation card', 'driver card', 'card issue date', 'card expiry date', 'card expiration date', 'driver card issue date', 'driver card expiry date', 'بطاقة التشغيل', 'بطاقة السائق', 'بطاقة سائق', 'تاريخ إصدار البطاقة', 'تاريخ انتهاء البطاقة', 'تاريخ اصدار البطاقة', 'تاريخ اصدار بطاقة السائق', 'تاريخ انتهاء بطاقة السائق']
+  const cardIssueTerms = ['card issue date', 'driver card issue date', 'تاريخ إصدار البطاقة', 'تاريخ اصدار البطاقة', 'تاريخ اصدار بطاقة التشغيل', 'تاريخ اصدار بطاقة السائق', 'تاريخ إصدار بطاقة السائق']
+  const cardExpiryTerms = ['card expiry date', 'card expiration date', 'driver card expiry date', 'driver card expiration date', 'تاريخ انتهاء البطاقة', 'تاريخ انتهاء صلاحية البطاقة', 'تاريخ انتهاء بطاقة التشغيل', 'تاريخ انتهاء بطاقة السائق', 'تاريخ انتهاء صلاحية بطاقة السائق']
+  const licenseIssueTerms = ['company license issue date', 'company license', 'license issue date', 'license issuance date', 'تاريخ إصدار الترخيص', 'تاريخ اصدار الترخيص', 'بيانات الترخيص']
+  const licenseExpiryTerms = ['company license expiry date', 'company license', 'license expiry date', 'license expiration date', 'تاريخ انتهاء الترخيص', 'تاريخ انتهاء صلاحية الترخيص', 'بيانات الترخيص']
 
   // When the file is an Operation Card, only use dates tied to the card's own
   // issue/expiry labels. The same page may also show a company transport-license
