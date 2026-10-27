@@ -1,10 +1,10 @@
-# Personal OneDrive Excel sync
+# OneDrive for Business Excel sync
 
-The app connects a personal Microsoft OneDrive account and maintains Fleet Manager Live Data.xlsx. App records are the authoritative operational data; app changes refresh the workbook when the integration is connected. Excel changes flow into a review queue and are applied only after a permitted user reviews them.
+The app connects a Microsoft work or school account and maintains Fleet Manager Live Data.xlsx in OneDrive for Business or SharePoint. App records are the authoritative operational data; app changes refresh the workbook when the integration is connected. Excel changes flow into a review queue and are applied only after a permitted user reviews them.
 
 ## Microsoft app registration
 
-1. Create an app registration that supports personal Microsoft accounts, or organizational accounts and personal accounts.
+1. Create a Microsoft Entra app registration for organizational (work or school) accounts. The OAuth authorize and token endpoints use the `organizations` tenant.
 2. Add a Web redirect URI matching the deployed origin plus /api/integrations/onedrive/callback. Production uses https://fleetmaintenance.site/api/integrations/onedrive/callback.
 3. Create a client secret and copy the value securely.
 4. Add delegated Microsoft Graph permissions User.Read and Files.ReadWrite.
