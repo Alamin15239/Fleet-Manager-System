@@ -57,9 +57,25 @@ export async function GET(request: NextRequest) {
 
     const sourceType = searchParams.get('sourceType')
     const sourceId = searchParams.get('sourceId')
-    if (!sourceId || !['TRUCK', 'TRAILER'].includes(sourceType || '')) {
-      return NextResponse.json({ error: 'Choose a valid truck or trailer.' }, { status: 400 })
+    if (!sourceId || !['TRUCK', 'TRAILER', 'DRIVER'].includes(sourceType || '')) {
+      return NextResponse.json({ error: 'Choose a valid truck, trailer, or driver.' }, { status: 400 })
     }
+
+    if (sourceType === 'DRIVER') {
+      await requireRolePermission(request, 'trucks', 'read')
+      const driver = await db.driver.findFirst({
+        where: { id: sourceId, isActive: true, isDeleted: false },
+        select: { id: true },
+      })
+      if (!driver) return NextResponse.json({ error: 'Active driver not found.' }, { status: 404 })
+      const documents = await db.vehicleDocument.findMany({
+        where: { driverId: sourceId, documentType: driverCardType },
+        select: { id: true, title: true, documentType: true, fileName: true, mimeType: true, fileSize: true, validFrom: true, validUntil: true, reminderStartDate: true, createdAt: true, updatedAt: true },
+        orderBy: { updatedAt: 'desc' },
+      })
+      return NextResponse.json({ documents })
+    }
+
     await requireRolePermission(request, sourceType === 'TRUCK' ? 'trucks' : 'trailers', 'read')
     const documents = await db.vehicleDocument.findMany({
       where: {
