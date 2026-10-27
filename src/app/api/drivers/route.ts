@@ -26,8 +26,9 @@ export async function GET(request: NextRequest) {
         name: true,
         phone: true,
         vehicleDocuments: {
-          where: { documentType: 'Driver card' },
-          select: { id: true, fileName: true, validFrom: true, validUntil: true, reminderStartDate: true },
+          where: { documentType: { equals: 'Driver card', mode: 'insensitive' } },
+          select: { id: true, fileName: true, validFrom: true, validUntil: true, reminderStartDate: true, updatedAt: true },
+          orderBy: { updatedAt: 'desc' },
           take: 1,
         },
       },
