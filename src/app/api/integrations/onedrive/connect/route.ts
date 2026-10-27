@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
     const verifier = randomBytes(32).toString('base64url')
     const challenge = createHash('sha256').update(verifier).digest('base64url')
     const state = jwt.sign({ purpose: 'onedrive-oauth', userId: user.id, organizationId: user.organizationId, organizationSlug: user.organizationSlug, nonce: randomBytes(16).toString('base64url') }, process.env.JWT_SECRET, { expiresIn: '10m' })
-    const authorization = new URL('https://login.microsoftonline.com/consumers/oauth2/v2.0/authorize')
+    const authorization = new URL('https://login.microsoftonline.com/organizations/oauth2/v2.0/authorize')
     authorization.search = new URLSearchParams({
       client_id: process.env.MICROSOFT_CLIENT_ID!,
       response_type: 'code',
