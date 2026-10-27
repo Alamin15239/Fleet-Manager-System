@@ -4,7 +4,7 @@ Workbook edits can flow back to Fleet Manager through the Excel Changes review q
 
 ## Deployment setup
 
-Use the OneDrive app registration in docs/onedrive-excel-sync.md. Production also requires CRON_SECRET for the scheduled /api/cron/onedrive-import-watch route. Set NEXT_PUBLIC_APP_URL to the deployed HTTPS origin and redeploy.
+Use the OneDrive for Business app registration in docs/onedrive-excel-sync.md. Production also requires CRON_SECRET for the scheduled /api/cron/onedrive-import-watch route. Set NEXT_PUBLIC_APP_URL to the deployed HTTPS origin and redeploy.
 
 The production build updates the Prisma schema. An administrator should open Settings → Excel Sync after deployment and use Sync Now to ensure the workbook contains current hidden row identifiers and matching baselines. The watcher receives Microsoft Graph change notifications and has a daily scan to recover missed notifications.
 
