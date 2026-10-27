@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
             driverId: { in: driverIds },
             documentType: { equals: 'Driver card', mode: 'insensitive' },
           },
-          select: { id: true, driverId: true, fileName: true, validFrom: true, validUntil: true, reminderStartDate: true, updatedAt: true },
+          select: { id: true, driverId: true, documentType: true, fileName: true, validFrom: true, validUntil: true, reminderStartDate: true, updatedAt: true },
           orderBy: { updatedAt: 'desc' },
         })
       : []
@@ -48,6 +48,7 @@ export async function GET(request: NextRequest) {
       const card = latestCardByDriver.get(driver.id)
       return { ...driver, vehicleDocuments: card ? [{
         id: card.id,
+        documentType: card.documentType,
         fileName: card.fileName,
         validFrom: card.validFrom,
         validUntil: card.validUntil,
