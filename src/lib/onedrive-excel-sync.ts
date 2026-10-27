@@ -154,6 +154,14 @@ function decryptRefreshToken(encryptedToken: string) {
 
 export async function saveOneDriveConnection(refreshToken: string, connectedEmail: string | null) {
   const refreshTokenEncrypted = encryptRefreshToken(refreshToken)
+  const existing = await db.oneDriveIntegration.findUnique({ where: { id: INTEGRATION_ID } })
+  // Reauthorizing the same Microsoft account must not detach the existing workbook.
+  // A different account must not inherit the previous account's file/subscription IDs.
+  const sameAccount = Boolean(
+    existing?.connectedEmail &&
+    connectedEmail &&
+    existing.connectedEmail.trim().toLowerCase() === connectedEmail.trim().toLowerCase()
+  )
   return db.oneDriveIntegration.upsert({
     where: { id: INTEGRATION_ID },
     create: {
@@ -165,18 +173,21 @@ export async function saveOneDriveConnection(refreshToken: string, connectedEmai
     update: {
       refreshTokenEncrypted,
       connectedEmail,
-      driveItemId: null,
-      driveItemName: null,
-      webUrl: null,
-      lastWorkbookHash: null,
-      graphSubscriptionId: null,
-      graphSubscriptionExpiresAt: null,
-      graphSubscriptionClientState: null,
-      lastSyncStatus: 'NEVER',
-      lastSyncError: null,
-      lastSyncAt: null,
-      syncInProgressAt: null,
-      syncRevision: { increment: 1 }
+      ...(sameAccount ? {} : {
+        driveItemId: null,
+        driveItemName: null,
+        webUrl: null,
+        lastWorkbookHash: null,
+        graphSubscriptionId: null,
+        graphSubscriptionExpiresAt: null,
+        graphSubscriptionClientState: null,
+        lastSyncStatus: 'NEVER',
+        lastSyncError: null,
+        lastSyncAt: null,
+        syncInProgressAt: null,
+        syncRevision: { increment: 1 },
+        lastSyncedRevision: 0
+      })
     }
   })
 }
@@ -190,14 +201,14 @@ async function refreshAccessToken(refreshTokenEncrypted: string): Promise<{ acce
     refresh_token: refreshToken,
     scope: 'offline_access User.Read Files.ReadWrite'
   })
-  const response = await fetch('https://login.microsoftonline.com/consumers/oauth2/v2.0/token', {
+  const response = await fetch('https://login.microsoftonline.com/organizations/oauth2/v2.0/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body
   })
   if (!response.ok) {
     if (response.status === 400 || response.status === 401) {
-      throw new Error('OneDrive authorization expired. Reconnect your personal Microsoft account.')
+      throw new Error('OneDrive authorization expired. Reconnect your Microsoft work or school account.')
     }
     throw new Error(`Could not refresh the OneDrive authorization (HTTP ${response.status}).`)
   }
@@ -483,7 +494,7 @@ function addWorkbookSyncSheet(workbook: Workbook) {
 }
 
 export async function createFleetWorkbook() {
-  const [trucks, trailers, truckMaintenance, trailerMaintenance, oilChanges, tires, jobCards] = await Promise.all([
+  const [trucks, trailers, truckMaintenance, trailerMaintenance, oilChanges, tires, jobCards, documents] = await Promise.all([
     db.truck.findMany({ where: { isDeleted: false }, orderBy: { licensePlate: 'asc' } }),
     db.trailer.findMany({ where: { isDeleted: false }, orderBy: { number: 'asc' } }),
     db.maintenanceRecord.findMany({ where: { isDeleted: false }, include: { truck: { select: { licensePlate: true, make: true, model: true } }, mechanic: { select: { name: true } } }, orderBy: { datePerformed: 'desc' } }),
@@ -500,7 +511,16 @@ export async function createFleetWorkbook() {
       orderBy: { datePerformed: 'desc' }
     }),
     db.tire.findMany({ orderBy: { createdAt: 'desc' } }),
-    db.workshopJobCard.findMany({ include: { truck: { select: { licensePlate: true, make: true, model: true } }, trailer: { select: { number: true } } }, orderBy: [{ serviceDate: 'desc' }, { createdAt: 'desc' }] })
+    db.workshopJobCard.findMany({ include: { truck: { select: { licensePlate: true, make: true, model: true } }, trailer: { select: { number: true } } }, orderBy: [{ serviceDate: 'desc' }, { createdAt: 'desc' }] }),
+    db.vehicleDocument.findMany({
+      include: {
+        vehicle: { select: { vehicleNumber: true } },
+        driver: { select: { name: true } },
+        truck: { select: { licensePlate: true } },
+        trailer: { select: { number: true } }
+      },
+      orderBy: [{ validUntil: 'asc' }, { title: 'asc' }]
+    })
   ])
 
   const workbook = new Workbook()
@@ -548,7 +568,8 @@ export async function createFleetWorkbook() {
     Maintenance: truckMaintenance.length + trailerMaintenance.length,
     'Oil Changes': oilChanges.length,
     Tires: tires.length,
-    'Job Cards': jobCards.length
+    'Job Cards': jobCards.length,
+    'Vehicle Documents': documents.length
   }
 
   const syncSummary = addTableSheet(workbook, 'Sync Summary', 'SyncSummary', [
@@ -647,6 +668,34 @@ export async function createFleetWorkbook() {
     { header: 'Last Updated', key: 'updatedAt', width: 22, numFmt: DATE_TIME_FORMAT },
     { header: 'Record ID', key: 'recordId', width: 28, hidden: true }
   ], tires.map(row => ({ tireSize: row.tireSize, truck: row.plateNumber, trailer: row.trailerNumber, driver: row.driverName, quantity: row.quantity, serial: row.serialNumber, manufacturer: row.manufacturer, origin: row.origin, date: row.createdAt, notes: row.notes, updatedAt: row.updatedAt, recordId: row.id })), 1, true)
+
+  addTableSheet(workbook, 'Vehicle Documents', 'VehicleDocuments', [
+    { header: 'Document Title', key: 'title', width: 28 },
+    { header: 'Document Type', key: 'documentType', width: 24 },
+    { header: 'Asset Type', key: 'assetType', width: 16 },
+    { header: 'Asset Number', key: 'assetNumber', width: 22 },
+    { header: 'Driver', key: 'driver', width: 24 },
+    { header: 'Issue Date', key: 'issueDate', width: 20, numFmt: 'dd/mm/yyyy' },
+    { header: 'Expiration Date', key: 'expirationDate', width: 20, numFmt: 'dd/mm/yyyy' },
+    { header: 'Reminder Start Date', key: 'reminderStartDate', width: 22, numFmt: 'dd/mm/yyyy' },
+    { header: 'Notes', key: 'notes', width: 36 },
+    { header: 'File Name', key: 'fileName', width: 30 },
+    { header: 'Last Updated', key: 'updatedAt', width: 22, numFmt: DATE_TIME_FORMAT },
+    { header: 'Record ID', key: 'recordId', width: 28, hidden: true }
+  ], documents.map(row => ({
+    title: row.title,
+    documentType: row.documentType,
+    assetType: row.truck ? 'Truck' : row.trailer ? 'Trailer' : row.vehicle ? 'Vehicle' : row.driver ? 'Driver' : 'Unassigned',
+    assetNumber: row.truck?.licensePlate || row.trailer?.number || row.vehicle?.vehicleNumber || '',
+    driver: row.driver?.name || '',
+    issueDate: row.validFrom,
+    expirationDate: row.validUntil,
+    reminderStartDate: row.reminderStartDate,
+    notes: row.notes,
+    fileName: row.fileName,
+    updatedAt: row.updatedAt,
+    recordId: row.id
+  })), 1, true)
 
   addTableSheet(workbook, 'Job Cards', 'WorkshopJobCards', [
     { header: 'Job Number', key: 'jobNumber', width: 20 }, { header: 'Service Date', key: 'serviceDate', width: 20, numFmt: DATE_TIME_FORMAT },
