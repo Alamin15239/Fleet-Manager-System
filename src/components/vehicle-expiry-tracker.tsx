@@ -413,6 +413,10 @@ export function VehicleExpiryTracker() {
       toast.error('Wait for document date reading to finish.')
       return
     }
+    if (!driverFile && !selectedDriverCard?.fileName) {
+      toast.error('Choose the driver card file before saving. The file must be selected in this form, then click Save driver card.')
+      return
+    }
     if (!driverValidUntil || (driverValidFrom && driverValidUntil < driverValidFrom)) {
       toast.error('Enter a valid expiry date and check the issue date if provided.')
       return
@@ -508,7 +512,7 @@ export function VehicleExpiryTracker() {
         <Card className="glass-card">
           <CardHeader>
             <CardTitle className="flex items-center gap-2"><FileText className="h-5 w-5 text-violet-600"/><LocalizedText>Driver card documents</LocalizedText></CardTitle>
-            <CardDescription><LocalizedText>Driver Cards belong to people, so they are saved to a driver record and stay with that driver if the assigned truck changes.</LocalizedText> <LocalizedText>When you select a file, the app tries to prefill dates. You can adjust them before saving.</LocalizedText></CardDescription>
+            <CardDescription><LocalizedText>Driver Cards belong to people, so they are saved to a driver record and stay with that driver if the assigned truck changes.</LocalizedText> <LocalizedText>When you select a file, the app tries to prefill dates. You can adjust them before saving. A new driver card requires a file and an expiry date.</LocalizedText></CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
@@ -540,12 +544,12 @@ export function VehicleExpiryTracker() {
                 <div className="flex h-10 items-center rounded-md border bg-muted/30 px-3 text-sm tabular-nums">{readableDate(driverValidUntil ? reminderDateKey(driverValidUntil) : null)}</div>
               </div>
               <div className="space-y-1.5 xl:col-span-2">
-                <Label htmlFor="driverCardFile"><LocalizedText>{selectedDriverCard?.fileName ? 'Replace driver card file (optional)' : 'Driver card file (optional)'}</LocalizedText></Label>
+                <Label htmlFor="driverCardFile"><LocalizedText>{selectedDriverCard?.fileName ? 'Replace driver card file' : 'Driver card file (required)'}</LocalizedText></Label>
                 <DocumentFileInput key={selectedDriverId} ref={driverFileInputRef} id="driverCardFile" accept="application/pdf,image/jpeg,image/png,image/webp" disabled={!selectedDriverId || driverBusy} onFileSelected={handleDriverCardFile}/>
                 {dateReadStates[`driver:${selectedDriverId}`] && <p role="status" className="text-xs text-sky-700 dark:text-sky-300"><LocalizedText>{dateReadStateText[dateReadStates[`driver:${selectedDriverId}`]]}</LocalizedText></p>}
                 <p className="text-xs text-muted-foreground">
                   {driverFile ? <><LocalizedText>Selected file</LocalizedText>: {driverFile.name}. </> : selectedDriverCard?.fileName ? <><LocalizedText>Current file</LocalizedText>: {selectedDriverCard.fileName}. </> : null}
-                  <LocalizedText>{selectedDriverCard?.fileName ? 'A new file replaces only this driver card.' : 'PDF, JPG, PNG, or WEBP · maximum 4 MB · optional'}</LocalizedText>
+                  <LocalizedText>{selectedDriverCard?.fileName ? 'A new file replaces only this driver card.' : 'PDF, JPG, PNG, or WEBP · maximum 4 MB'}</LocalizedText>
                 </p>
               </div>
               <div className="flex items-end">
