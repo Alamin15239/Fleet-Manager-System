@@ -154,6 +154,14 @@ function decryptRefreshToken(encryptedToken: string) {
 
 export async function saveOneDriveConnection(refreshToken: string, connectedEmail: string | null) {
   const refreshTokenEncrypted = encryptRefreshToken(refreshToken)
+  const existing = await db.oneDriveIntegration.findUnique({ where: { id: INTEGRATION_ID } })
+  // Reauthorizing the same Microsoft account must not detach the existing workbook.
+  // A different account must not inherit the previous account's file/subscription IDs.
+  const sameAccount = Boolean(
+    existing?.connectedEmail &&
+    connectedEmail &&
+    existing.connectedEmail.trim().toLowerCase() === connectedEmail.trim().toLowerCase()
+  )
   return db.oneDriveIntegration.upsert({
     where: { id: INTEGRATION_ID },
     create: {
@@ -165,18 +173,21 @@ export async function saveOneDriveConnection(refreshToken: string, connectedEmai
     update: {
       refreshTokenEncrypted,
       connectedEmail,
-      driveItemId: null,
-      driveItemName: null,
-      webUrl: null,
-      lastWorkbookHash: null,
-      graphSubscriptionId: null,
-      graphSubscriptionExpiresAt: null,
-      graphSubscriptionClientState: null,
-      lastSyncStatus: 'NEVER',
-      lastSyncError: null,
-      lastSyncAt: null,
-      syncInProgressAt: null,
-      syncRevision: { increment: 1 }
+      ...(sameAccount ? {} : {
+        driveItemId: null,
+        driveItemName: null,
+        webUrl: null,
+        lastWorkbookHash: null,
+        graphSubscriptionId: null,
+        graphSubscriptionExpiresAt: null,
+        graphSubscriptionClientState: null,
+        lastSyncStatus: 'NEVER',
+        lastSyncError: null,
+        lastSyncAt: null,
+        syncInProgressAt: null,
+        syncRevision: { increment: 1 },
+        lastSyncedRevision: 0
+      })
     }
   })
 }
@@ -190,14 +201,14 @@ async function refreshAccessToken(refreshTokenEncrypted: string): Promise<{ acce
     refresh_token: refreshToken,
     scope: 'offline_access User.Read Files.ReadWrite'
   })
-  const response = await fetch('https://login.microsoftonline.com/consumers/oauth2/v2.0/token', {
+  const response = await fetch('https://login.microsoftonline.com/organizations/oauth2/v2.0/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body
   })
   if (!response.ok) {
     if (response.status === 400 || response.status === 401) {
-      throw new Error('OneDrive authorization expired. Reconnect your personal Microsoft account.')
+      throw new Error('OneDrive authorization expired. Reconnect your Microsoft work or school account.')
     }
     throw new Error(`Could not refresh the OneDrive authorization (HTTP ${response.status}).`)
   }
