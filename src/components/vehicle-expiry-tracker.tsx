@@ -117,7 +117,7 @@ export function VehicleExpiryTracker() {
   const dateReadRequestIds = useRef<Record<string, number>>({})
   const selectedTruckData = useMemo(() => trucks.find(truck => truck.id === selectedTruck), [trucks, selectedTruck])
   const selectedDriver = useMemo(() => drivers.find(driver => driver.id === selectedDriverId), [drivers, selectedDriverId])
-  const selectedDriverCard = selectedDriver?.vehicleDocuments.find(document => document.documentType === driverCardType)
+  const selectedDriverCard = selectedDriver?.vehicleDocuments.find(document => document.documentType?.toLowerCase() === driverCardType.toLowerCase())
   const documentDrafts = useMemo(
     () => draftsByTruck[selectedTruck] || draftsForTruck(selectedTruckData),
     [draftsByTruck, selectedTruck, selectedTruckData],
@@ -267,7 +267,7 @@ export function VehicleExpiryTracker() {
   const driverRows = useMemo<DriverTrackerRow[]>(() => {
     const today = localDateKey()
     return drivers.map(driver => {
-      const document = driver.vehicleDocuments.find(item => item.documentType === driverCardType)
+      const document = driver.vehicleDocuments.find(item => item.documentType?.toLowerCase() === driverCardType.toLowerCase())
       const expiry = document?.validUntil?.slice(0, 10) || ''
       const reminder = expiry ? reminderDateKey(expiry) : ''
       const status: TrackerRow['status'] = !expiry ? 'missing' : expiry < today ? 'expired' : reminder <= today ? 'reminder' : 'current'
