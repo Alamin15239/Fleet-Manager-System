@@ -19,20 +19,41 @@ function authError(error: unknown) {
 export async function GET(request: NextRequest) {
   try {
     await requireRolePermission(request, 'trucks', 'read')
-    const drivers = await db.driver.findMany({
+    const driverRecords = await db.driver.findMany({
       where: { isActive: true, isDeleted: false },
-      select: {
-        id: true,
-        name: true,
-        phone: true,
-        vehicleDocuments: {
-          where: { documentType: { equals: 'Driver card', mode: 'insensitive' } },
-          select: { id: true, fileName: true, validFrom: true, validUntil: true, reminderStartDate: true, updatedAt: true },
-          orderBy: { updatedAt: 'desc' },
-          take: 1,
-        },
-      },
+      select: { id: true, name: true, phone: true },
       orderBy: { name: 'asc' },
+    })
+
+    // Query driver cards by foreign key separately so legacy documentType
+    // casing or nested relation filters cannot hide a saved card.
+    const driverIds = driverRecords.map(driver => driver.id)
+    const documents = driverIds.length
+      ? await db.vehicleDocument.findMany({
+          where: {
+            driverId: { in: driverIds },
+            documentType: { equals: 'Driver card', mode: 'insensitive' },
+          },
+          select: { id: true, driverId: true, fileName: true, validFrom: true, validUntil: true, reminderStartDate: true, updatedAt: true },
+          orderBy: { updatedAt: 'desc' },
+        })
+      : []
+    const latestCardByDriver = new Map<string, typeof documents[number]>()
+    for (const document of documents) {
+      if (document.driverId && !latestCardByDriver.has(document.driverId)) {
+        latestCardByDriver.set(document.driverId, document)
+      }
+    }
+    const drivers = driverRecords.map(driver => {
+      const card = latestCardByDriver.get(driver.id)
+      return { ...driver, vehicleDocuments: card ? [{
+        id: card.id,
+        fileName: card.fileName,
+        validFrom: card.validFrom,
+        validUntil: card.validUntil,
+        reminderStartDate: card.reminderStartDate,
+        updatedAt: card.updatedAt,
+      }] : [] }
     })
     return NextResponse.json({ drivers })
   } catch (error) {
