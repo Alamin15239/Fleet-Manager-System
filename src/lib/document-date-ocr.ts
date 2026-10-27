@@ -221,28 +221,63 @@ export function extractDocumentDates(rawText: string): DocumentDates {
 
   const normalizedText = normalizeLabelText(normalizeDigits(rawText))
   const hasAny = (value: string, terms: string[]) => terms.some(term => value.includes(normalizeLabelText(term)))
-  const cardTerms = ['operation card', 'driver card', 'card issue date', 'card expiry date', 'card expiration date', 'driver card issue date', 'driver card expiry date', 'بطاقة التشغيل', 'بطاقة السائق', 'بطاقة سائق', 'تاريخ إصدار البطاقة', 'تاريخ انتهاء البطاقة', 'تاريخ اصدار البطاقة', 'تاريخ اصدار بطاقة السائق', 'تاريخ انتهاء بطاقة السائق']
-  const cardIssueTerms = ['card issue date', 'driver card issue date', 'تاريخ إصدار البطاقة', 'تاريخ اصدار البطاقة', 'تاريخ اصدار بطاقة التشغيل', 'تاريخ اصدار بطاقة السائق', 'تاريخ إصدار بطاقة السائق']
-  const cardExpiryTerms = ['card expiry date', 'card expiration date', 'driver card expiry date', 'driver card expiration date', 'تاريخ انتهاء البطاقة', 'تاريخ انتهاء صلاحية البطاقة', 'تاريخ انتهاء بطاقة التشغيل', 'تاريخ انتهاء بطاقة السائق', 'تاريخ انتهاء صلاحية بطاقة السائق']
-  const licenseIssueTerms = ['company license issue date', 'company license', 'license issue date', 'license issuance date', 'تاريخ إصدار الترخيص', 'تاريخ اصدار الترخيص', 'بيانات الترخيص']
-  const licenseExpiryTerms = ['company license expiry date', 'company license', 'license expiry date', 'license expiration date', 'تاريخ انتهاء الترخيص', 'تاريخ انتهاء صلاحية الترخيص', 'بيانات الترخيص']
+  const cardTerms = [
+    'operation card', 'driver card', 'card issue date', 'card expiry date', 'card expiration date',
+    'driver card issue date', 'driver card expiry date', 'بطاقة التشغيل', 'بطاقة السائق', 'بطاقة سائق',
+    'تاريخ إصدار البطاقة', 'تاريخ انتهاء البطاقة', 'تاريخ اصدار البطاقة', 'تاريخ اصدار بطاقة السائق',
+    'تاريخ انتهاء بطاقة السائق',
+  ]
+  const cardAnchors = [
+    'operation card', 'driver card', 'بطاقة التشغيل', 'بطاقة السائق', 'بطاقة سائق',
+  ]
+  const licenseTerms = [
+    'company license', 'license info', 'license issue date', 'license issuance date',
+    'license expiry date', 'license expiration date', 'transport license',
+    'بيانات الترخيص', 'تاريخ إصدار الترخيص', 'تاريخ اصدار الترخيص',
+    'تاريخ انتهاء الترخيص', 'رخصة المنشأة', 'ترخيص المنشأة',
+  ]
+  const cardIssueTerms = [
+    'card issue date', 'driver card issue date', 'issue date', 'date of issue',
+    'issued on', 'date issued', 'تاريخ إصدار البطاقة', 'تاريخ اصدار البطاقة',
+    'تاريخ اصدار بطاقة التشغيل', 'تاريخ اصدار بطاقة السائق', 'تاريخ إصدار بطاقة السائق',
+    'تاريخ الإصدار', 'تاريخ الاصدار',
+  ]
+  const cardExpiryTerms = [
+    'card expiry date', 'card expiration date', 'driver card expiry date',
+    'driver card expiration date', 'expiry date', 'expiration date', 'date of expiry',
+    'expires on', 'تاريخ انتهاء البطاقة', 'تاريخ انتهاء صلاحية البطاقة',
+    'تاريخ انتهاء بطاقة التشغيل', 'تاريخ انتهاء بطاقة السائق',
+    'تاريخ انتهاء صلاحية بطاقة السائق', 'تاريخ الانتهاء',
+  ]
 
-  // When the file is an Operation Card, only use dates tied to the card's own
-  // issue/expiry labels. The same page may also show a company transport-license
-  // section; generic issue/expiry fallback would silently save those dates as
-  // the card's dates.
+  // Card documents may use only generic "Issue Date" / "Expiry Date" labels.
+  // Select dates tied to the card section and explicitly exclude candidates
+  // closer to a company/transport-license section.
   if (hasAny(normalizedText, cardTerms)) {
-    const nearestCardCandidate = (cardLabels: string[], licenseLabels: string[]) => {
-      const ranked = candidates.map(candidate => ({
-        candidate,
-        cardDistance: nearestWordDistance(normalizedText, cardLabels, candidate.index),
-        licenseDistance: nearestWordDistance(normalizedText, licenseLabels, candidate.index),
-      })).filter(item => item.cardDistance <= 90 && item.cardDistance < item.licenseDistance)
-        .sort((a, b) => a.cardDistance - b.cardDistance)
-      return ranked[0]?.candidate
+    const nearestWord = (terms: string[], index: number) => nearestWordDistance(normalizedText, terms, index)
+    const cardDistance = (candidate: DateCandidate) => nearestWord(cardAnchors, candidate.index)
+    const licenseDistance = (candidate: DateCandidate) => nearestWord(licenseTerms, candidate.index)
+    const findCardDate = (kind: 'issue' | 'expiry', specificLabels: string[]) => {
+      const labelWords = kind === 'issue' ? issueWords : expiryWords
+      return candidates
+        .filter(candidate => {
+          const labelDistance = nearestWord(specificLabels, candidate.index)
+          const anchorDistance = cardDistance(candidate)
+          const companyLicenseDistance = licenseDistance(candidate)
+          const labelMatches = candidate.label === kind || labelDistance <= 90
+          return labelMatches
+            && labelDistance <= 120
+            && anchorDistance <= 350
+            && anchorDistance < companyLicenseDistance
+        })
+        .sort((a, b) => {
+          const aScore = nearestWord(specificLabels, a.index) + cardDistance(a) * 0.15
+          const bScore = nearestWord(specificLabels, b.index) + cardDistance(b) * 0.15
+          return aScore - bScore
+        })[0]
     }
-    const issue = nearestCardCandidate(cardIssueTerms, licenseIssueTerms)
-    const expiry = nearestCardCandidate(cardExpiryTerms, licenseExpiryTerms)
+    const issue = findCardDate('issue', cardIssueTerms)
+    const expiry = findCardDate('expiry', cardExpiryTerms)
     return { validFrom: issue?.value, validUntil: expiry?.value }
   }
 
