@@ -76,7 +76,7 @@ export async function GET(request: NextRequest) {
     if (!user || user.role !== 'ADMIN' || !user.isActive || !user.isApproved || user.isDeleted) throw new Error('Administrator account is no longer active')
 
     failureStage = 'exchanging the Microsoft authorization code'
-    const tokenResponse = await fetch('https://login.microsoftonline.com/consumers/oauth2/v2.0/token', {
+    const tokenResponse = await fetch('https://login.microsoftonline.com/organizations/oauth2/v2.0/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({
