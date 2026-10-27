@@ -109,11 +109,15 @@ const monthNumbers: Record<string, number> = {
   dec: 12, december: 12,
 }
 
-const issueWords = ['issue date', 'date of issue', 'issued on', 'issued', 'valid from', 'effective from', 'start date', 'تاريخ الإصدار', 'تاريخ الاصدار', 'تاريخ اصدار', 'تاريخ البداية', 'صادر في']
-const expiryWords = ['expiry date', 'expiration date', 'expires on', 'expiry', 'expiration', 'expires', 'valid until', 'valid to', 'end date', 'تاريخ الانتهاء', 'تاريخ انتهاء', 'تاريخ الصلاحية', 'انتهاء', 'صالحة حتى', 'صالح حتى', 'يسري حتى', 'ساري حتى']
+const issueWords = ['issue date', 'date of issue', 'issued on', 'date issued', 'issued', 'valid from', 'effective from', 'start date', 'تاريخ الإصدار', 'تاريخ الاصدار', 'تاريخ اصدار', 'تاريخ البداية', 'بداية الصلاحية', 'صادر في']
+const expiryWords = ['expiry date', 'expiration date', 'expires on', 'expiry', 'expiration', 'expires', 'valid until', 'valid to', 'valid till', 'valid through', 'end date', 'date of expiry', 'تاريخ الانتهاء', 'تاريخ انتهاء', 'تاريخ انتهاء الصلاحية', 'تاريخ الصلاحية', 'انتهاء الصلاحية', 'انتهاء', 'صالحة حتى', 'صالح حتى', 'يسري حتى', 'ساري حتى', 'سارية حتى']
 
 function normalizeLabelText(value: string) {
-  return value.toLocaleLowerCase().replace(/[أإآ]/g, 'ا').replace(/ى/g, 'ي')
+  return value.toLocaleLowerCase()
+    .replace(/[أإآٱ]/g, 'ا')
+    .replace(/ى/g, 'ي')
+    .replace(/[\u064B-\u065F\u0670ـ]/g, '')
+    .replace(/[：]/g, ':')
 }
 
 function nearestWordDistance(text: string, words: string[], index: number) {
@@ -150,29 +154,65 @@ function labelCandidates(text: string, candidates: DateCandidate[]) {
 }
 
 function parseDateCandidates(rawText: string): DateCandidate[] {
-  const text = normalizeDigits(rawText).replace(/\u066B/g, '.').replace(/\u066C/g, ',')
-  const candidates: DateCandidate[] = []
-  const numericDate = /(?<!\d)(\d{1,4})\s*[./-]\s*(\d{1,2})\s*[./-]\s*(\d{1,4})(?!\d)/g
+  // Saudi vehicle and driver cards commonly mix Arabic/English labels, Arabic-Indic
+  // digits, Gregorian dates, and Hijri dates. Normalize digits before parsing.
+  const text = normalizeDigits(rawText)
+    .replace(/[٫]/g, '.')
+    .replace(/[٬]/g, ',')
+    .replace(/[‐‑‒–—]/g, '-')
+    .replace(/\u00a0/g, ' ');
+  const candidates: DateCandidate[] = [];
+  const numericDate = /(?<!\d)(\d{1,4})\s*[./-]\s*(\d{1,2})\s*[./-]\s*(\d{1,4})(?!\d)/g;
+
   for (const match of text.matchAll(numericDate)) {
-    const first = Number(match[1])
-    const second = Number(match[2])
-    const third = expandShortYear(Number(match[3]))
-    const yearFirst = match[1].length === 4
-    const value = yearFirst ? dateKey(first, second, third) : dateKey(third, second, first)
-    if (value && match.index !== undefined) candidates.push({ value, index: match.index, end: match.index + match[0].length })
+    const firstText = match[1];
+    const secondText = match[2];
+    const thirdText = match[3];
+    const first = Number(firstText);
+    const second = Number(secondText);
+    const third = Number(thirdText);
+    let value: string | null = null;
+
+    if (firstText.length === 4) {
+      // ISO/YMD dates must keep the third component as the day. Expanding it
+      // as a short year was the cause of incorrect YYYY/MM/DD results.
+      value = dateKey(first, second, third);
+    } else {
+      const year = expandShortYear(third);
+      // Saudi cards normally use DD/MM/YYYY. If the first component cannot be
+      // a month, the order is definitely DMY; if the second cannot be a month,
+      // interpret it as MDY. For ambiguous dates, prefer Saudi DMY convention.
+      if (first > 12) {
+        value = dateKey(year, second, first);
+      } else if (second > 12) {
+        value = dateKey(year, first, second);
+      } else {
+        value = dateKey(year, second, first);
+      }
+    }
+
+    if (value && match.index !== undefined) {
+      candidates.push({ value, index: match.index, end: match.index + match[0].length });
+    }
   }
 
-  const monthPattern = /(?:(\d{1,2})\s+([a-z]{3,9})\.?[,]?\s+((?:19|20)\d{2})|\b([a-z]{3,9})\.?\s+(\d{1,2}),?\s+((?:19|20)\d{2}))/gi
+  const monthPattern = /(?:(\d{1,2})\s+([a-z]{3,9})\.?[,]?\s+((?:19|20)\d{2})|\b([a-z]{3,9})\.?\s+(\d{1,2}),?\s+((?:19|20)\d{2}))/gi;
   for (const match of text.matchAll(monthPattern)) {
-    const day = Number(match[1] || match[5])
-    const month = monthNumbers[(match[2] || match[4] || '').toLowerCase()]
-    const year = Number(match[3] || match[6])
-    const value = month ? dateKey(year, month, day) : null
-    if (value && match.index !== undefined) candidates.push({ value, index: match.index, end: match.index + match[0].length })
+    const day = Number(match[1] || match[5]);
+    const month = monthNumbers[(match[2] || match[4] || '').toLowerCase()];
+    const year = Number(match[3] || match[6]);
+    const value = month ? dateKey(year, month, day) : null;
+    if (value && match.index !== undefined) {
+      candidates.push({ value, index: match.index, end: match.index + match[0].length });
+    }
   }
 
-  const labeled = labelCandidates(text, candidates).sort((a, b) => a.index - b.index)
-  return labeled.filter((candidate, index) => labeled.findIndex(item => item.value === candidate.value) === index)
+  const labeled = labelCandidates(text, candidates).sort((a, b) => a.index - b.index);
+  // OCR and embedded PDF text may report the same date twice. Keep the first
+  // occurrence, but retain separate dates so labels can distinguish issue/expiry.
+  return labeled.filter((candidate, index) =>
+    labeled.findIndex(item => item.value === candidate.value && item.label === candidate.label) === index,
+  );
 }
 
 export function extractDocumentDates(rawText: string): DocumentDates {
