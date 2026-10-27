@@ -219,29 +219,37 @@ export function extractDocumentDates(rawText: string): DocumentDates {
   const candidates = parseDateCandidates(rawText)
   if (!candidates.length) return {}
 
-  // Prefer the dates belonging to the document's main credential. An Operation
-  // Card can also contain separate transport-license dates later on the page;
-  // selecting the last generic "Expiry Date" would incorrectly use the license
-  // expiry instead of the card expiry.
   const normalizedText = normalizeLabelText(normalizeDigits(rawText))
-  const contextFor = (candidate: DateCandidate) =>
-    normalizedText.slice(Math.max(0, candidate.index - 100), Math.min(normalizedText.length, candidate.end + 100))
   const hasAny = (value: string, terms: string[]) => terms.some(term => value.includes(normalizeLabelText(term)))
-  const cardTerms = ['operation card', 'card issue date', 'card expiry date', 'card expiration date', 'بطاقة التشغيل', 'تاريخ إصدار البطاقة', 'تاريخ انتهاء البطاقة']
-  const licenseTerms = ['license info', 'license issue date', 'license expiry date', 'license expiration date', 'بيانات الترخيص', 'تاريخ إصدار الترخيص', 'تاريخ انتهاء الترخيص']
-  const cardIssueTerms = ['card issue date', 'بطاقة التشغيل', 'تاريخ إصدار البطاقة', 'تاريخ اصدار البطاقة']
-  const cardExpiryTerms = ['card expiry date', 'card expiration date', 'تاريخ انتهاء البطاقة', 'تاريخ انتهاء صلاحية البطاقة']
-  const isCardScoped = (candidate: DateCandidate) => {
-    const context = contextFor(candidate)
-    return hasAny(context, cardTerms) && !hasAny(context, licenseTerms)
+  const cardTerms = ['operation card', 'card issue date', 'card expiry date', 'card expiration date', 'بطاقة التشغيل', 'تاريخ إصدار البطاقة', 'تاريخ انتهاء البطاقة', 'تاريخ اصدار البطاقة']
+  const cardIssueTerms = ['card issue date', 'تاريخ إصدار البطاقة', 'تاريخ اصدار البطاقة', 'تاريخ اصدار بطاقة التشغيل']
+  const cardExpiryTerms = ['card expiry date', 'card expiration date', 'تاريخ انتهاء البطاقة', 'تاريخ انتهاء صلاحية البطاقة', 'تاريخ انتهاء بطاقة التشغيل']
+  const licenseIssueTerms = ['license issue date', 'license issuance date', 'تاريخ إصدار الترخيص', 'تاريخ اصدار الترخيص']
+  const licenseExpiryTerms = ['license expiry date', 'license expiration date', 'تاريخ انتهاء الترخيص', 'تاريخ انتهاء صلاحية الترخيص']
+
+  // When the file is an Operation Card, only use dates tied to the card's own
+  // issue/expiry labels. The same page may also show a company transport-license
+  // section; generic issue/expiry fallback would silently save those dates as
+  // the card's dates.
+  if (hasAny(normalizedText, cardTerms)) {
+    const nearestCardCandidate = (cardLabels: string[], licenseLabels: string[]) => {
+      const ranked = candidates.map(candidate => ({
+        candidate,
+        cardDistance: nearestWordDistance(normalizedText, cardLabels, candidate.index),
+        licenseDistance: nearestWordDistance(normalizedText, licenseLabels, candidate.index),
+      })).filter(item => item.cardDistance <= 90 && item.cardDistance < item.licenseDistance)
+        .sort((a, b) => a.cardDistance - b.cardDistance)
+      return ranked[0]?.candidate
+    }
+    const issue = nearestCardCandidate(cardIssueTerms, licenseIssueTerms)
+    const expiry = nearestCardCandidate(cardExpiryTerms, licenseExpiryTerms)
+    return { validFrom: issue?.value, validUntil: expiry?.value }
   }
-  const cardIssueCandidates = candidates.filter(candidate => hasAny(contextFor(candidate), cardIssueTerms) && isCardScoped(candidate))
-  const cardExpiryCandidates = candidates.filter(candidate => hasAny(contextFor(candidate), cardExpiryTerms) && isCardScoped(candidate))
 
   const issueCandidates = candidates.filter(candidate => candidate.label === 'issue')
   const expiryCandidates = candidates.filter(candidate => candidate.label === 'expiry')
-  let validFrom = cardIssueCandidates[0]?.value ?? issueCandidates[0]?.value
-  let validUntil = cardExpiryCandidates[0]?.value ?? expiryCandidates[0]?.value
+  let validFrom = issueCandidates[0]?.value
+  let validUntil = expiryCandidates[0]?.value
 
   // Insurance certificates often state the policy period without explicit
   // "valid from/until" labels. In that case, use the two dates in the period.
