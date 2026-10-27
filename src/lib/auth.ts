@@ -4,9 +4,12 @@ import { db, findOrganizationById, getPrimaryOrganization, OrganizationRecord } 
 import { logUserLogin } from '@/lib/activity-tracking'
 import { NextRequest } from 'next/server'
 
-const JWT_SECRET: string = process.env.JWT_SECRET || ''
-if (!JWT_SECRET) {
-  throw new Error('JWT_SECRET environment variable is required')
+function getJwtSecret(): string {
+  const secret = process.env.JWT_SECRET
+  if (!secret) {
+    throw new Error('JWT_SECRET environment variable is required')
+  }
+  return secret
 }
 
 export interface JWTPayload {
@@ -33,12 +36,12 @@ export async function verifyPassword(password: string, hashedPassword: string): 
 }
 
 export function generateToken(payload: JWTPayload): string {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' })
+  return jwt.sign(payload, getJwtSecret(), { expiresIn: '7d' })
 }
 
 export function verifyToken(token: string): JWTPayload | null {
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as unknown as JWTPayload & { userId?: string }
+    const decoded = jwt.verify(token, getJwtSecret()) as unknown as JWTPayload & { userId?: string }
     const id = decoded.id || decoded.userId
     if (!id) return null
     return { ...decoded, id }
