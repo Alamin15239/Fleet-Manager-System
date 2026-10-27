@@ -25,7 +25,7 @@ Do not put credentials in a NEXT_PUBLIC_ variable or commit them. Keep the token
 4. Confirm the workbook name, Open in OneDrive link, last successful update, and review-queue count.
 5. Use Sync Now to request a manual workbook refresh.
 
-The workbook includes Trucks, Trailers, Maintenance, Oil Changes, Tires, and Job Cards. App edits and additions are sent to the workbook after the relevant application save operation.
+The workbook includes Trucks, Trailers, Maintenance, Oil Changes, Tires, Job Cards, and Vehicle Documents. The Vehicle Documents sheet includes document title/type, linked asset and driver, issue date, expiration date, reminder start date, notes, file name, last-updated time, and a hidden stable record ID. Newly added document records are included on the next workbook sync. App edits and additions are sent to the workbook after the relevant application save operation.
 
 ## Disconnect
 
