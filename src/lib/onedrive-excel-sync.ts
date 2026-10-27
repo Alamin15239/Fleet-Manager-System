@@ -494,7 +494,7 @@ function addWorkbookSyncSheet(workbook: Workbook) {
 }
 
 export async function createFleetWorkbook() {
-  const [trucks, trailers, truckMaintenance, trailerMaintenance, oilChanges, tires, jobCards] = await Promise.all([
+  const [trucks, trailers, truckMaintenance, trailerMaintenance, oilChanges, tires, jobCards, documents] = await Promise.all([
     db.truck.findMany({ where: { isDeleted: false }, orderBy: { licensePlate: 'asc' } }),
     db.trailer.findMany({ where: { isDeleted: false }, orderBy: { number: 'asc' } }),
     db.maintenanceRecord.findMany({ where: { isDeleted: false }, include: { truck: { select: { licensePlate: true, make: true, model: true } }, mechanic: { select: { name: true } } }, orderBy: { datePerformed: 'desc' } }),
@@ -511,7 +511,16 @@ export async function createFleetWorkbook() {
       orderBy: { datePerformed: 'desc' }
     }),
     db.tire.findMany({ orderBy: { createdAt: 'desc' } }),
-    db.workshopJobCard.findMany({ include: { truck: { select: { licensePlate: true, make: true, model: true } }, trailer: { select: { number: true } } }, orderBy: [{ serviceDate: 'desc' }, { createdAt: 'desc' }] })
+    db.workshopJobCard.findMany({ include: { truck: { select: { licensePlate: true, make: true, model: true } }, trailer: { select: { number: true } } }, orderBy: [{ serviceDate: 'desc' }, { createdAt: 'desc' }] }),
+    db.vehicleDocument.findMany({
+      include: {
+        vehicle: { select: { vehicleNumber: true } },
+        driver: { select: { name: true } },
+        truck: { select: { licensePlate: true } },
+        trailer: { select: { number: true } }
+      },
+      orderBy: [{ validUntil: 'asc' }, { title: 'asc' }]
+    })
   ])
 
   const workbook = new Workbook()
@@ -559,7 +568,8 @@ export async function createFleetWorkbook() {
     Maintenance: truckMaintenance.length + trailerMaintenance.length,
     'Oil Changes': oilChanges.length,
     Tires: tires.length,
-    'Job Cards': jobCards.length
+    'Job Cards': jobCards.length,
+    'Vehicle Documents': documents.length
   }
 
   const syncSummary = addTableSheet(workbook, 'Sync Summary', 'SyncSummary', [
@@ -658,6 +668,34 @@ export async function createFleetWorkbook() {
     { header: 'Last Updated', key: 'updatedAt', width: 22, numFmt: DATE_TIME_FORMAT },
     { header: 'Record ID', key: 'recordId', width: 28, hidden: true }
   ], tires.map(row => ({ tireSize: row.tireSize, truck: row.plateNumber, trailer: row.trailerNumber, driver: row.driverName, quantity: row.quantity, serial: row.serialNumber, manufacturer: row.manufacturer, origin: row.origin, date: row.createdAt, notes: row.notes, updatedAt: row.updatedAt, recordId: row.id })), 1, true)
+
+  addTableSheet(workbook, 'Vehicle Documents', 'VehicleDocuments', [
+    { header: 'Document Title', key: 'title', width: 28 },
+    { header: 'Document Type', key: 'documentType', width: 24 },
+    { header: 'Asset Type', key: 'assetType', width: 16 },
+    { header: 'Asset Number', key: 'assetNumber', width: 22 },
+    { header: 'Driver', key: 'driver', width: 24 },
+    { header: 'Issue Date', key: 'issueDate', width: 20, numFmt: 'dd/mm/yyyy' },
+    { header: 'Expiration Date', key: 'expirationDate', width: 20, numFmt: 'dd/mm/yyyy' },
+    { header: 'Reminder Start Date', key: 'reminderStartDate', width: 22, numFmt: 'dd/mm/yyyy' },
+    { header: 'Notes', key: 'notes', width: 36 },
+    { header: 'File Name', key: 'fileName', width: 30 },
+    { header: 'Last Updated', key: 'updatedAt', width: 22, numFmt: DATE_TIME_FORMAT },
+    { header: 'Record ID', key: 'recordId', width: 28, hidden: true }
+  ], documents.map(row => ({
+    title: row.title,
+    documentType: row.documentType,
+    assetType: row.truck ? 'Truck' : row.trailer ? 'Trailer' : row.vehicle ? 'Vehicle' : row.driver ? 'Driver' : 'Unassigned',
+    assetNumber: row.truck?.licensePlate || row.trailer?.number || row.vehicle?.vehicleNumber || '',
+    driver: row.driver?.name || '',
+    issueDate: row.validFrom,
+    expirationDate: row.validUntil,
+    reminderStartDate: row.reminderStartDate,
+    notes: row.notes,
+    fileName: row.fileName,
+    updatedAt: row.updatedAt,
+    recordId: row.id
+  })), 1, true)
 
   addTableSheet(workbook, 'Job Cards', 'WorkshopJobCards', [
     { header: 'Job Number', key: 'jobNumber', width: 20 }, { header: 'Service Date', key: 'serviceDate', width: 20, numFmt: DATE_TIME_FORMAT },
