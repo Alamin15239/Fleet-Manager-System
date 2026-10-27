@@ -283,7 +283,7 @@ export function VehicleExpiryTracker() {
   })
 
   const visibleDriverRows = driverRows.filter(row =>
-    (!search || row.driver.name.toLowerCase().includes(search.toLowerCase())) &&
+    (!search || `${row.driver.name} ${row.document?.fileName || ''} Driver card`.toLowerCase().includes(search.trim().toLowerCase())) &&
     (statusFilter === 'all' || row.status === statusFilter) &&
     (typeFilter === 'all' || typeFilter === driverCardType),
   )
