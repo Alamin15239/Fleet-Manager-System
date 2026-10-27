@@ -219,11 +219,32 @@ export function extractDocumentDates(rawText: string): DocumentDates {
   const candidates = parseDateCandidates(rawText)
   if (!candidates.length) return {}
 
+  // Prefer the dates belonging to the document's main credential. An Operation
+  // Card can also contain separate transport-license dates later on the page;
+  // selecting the last generic "Expiry Date" would incorrectly use the license
+  // expiry instead of the card expiry.
+  const normalizedText = normalizeLabelText(normalizeDigits(rawText))
+  const contextFor = (candidate: DateCandidate) =>
+    normalizedText.slice(Math.max(0, candidate.index - 100), Math.min(normalizedText.length, candidate.end + 100))
+  const hasAny = (value: string, terms: string[]) => terms.some(term => value.includes(normalizeLabelText(term)))
+  const cardTerms = ['operation card', 'card issue date', 'card expiry date', 'card expiration date', 'بطاقة التشغيل', 'تاريخ إصدار البطاقة', 'تاريخ انتهاء البطاقة']
+  const licenseTerms = ['license info', 'license issue date', 'license expiry date', 'license expiration date', 'بيانات الترخيص', 'تاريخ إصدار الترخيص', 'تاريخ انتهاء الترخيص']
+  const cardIssueTerms = ['card issue date', 'بطاقة التشغيل', 'تاريخ إصدار البطاقة', 'تاريخ اصدار البطاقة']
+  const cardExpiryTerms = ['card expiry date', 'card expiration date', 'تاريخ انتهاء البطاقة', 'تاريخ انتهاء صلاحية البطاقة']
+  const isCardScoped = (candidate: DateCandidate) => {
+    const context = contextFor(candidate)
+    return hasAny(context, cardTerms) && !hasAny(context, licenseTerms)
+  }
+  const cardIssueCandidates = candidates.filter(candidate => hasAny(contextFor(candidate), cardIssueTerms) && isCardScoped(candidate))
+  const cardExpiryCandidates = candidates.filter(candidate => hasAny(contextFor(candidate), cardExpiryTerms) && isCardScoped(candidate))
+
   const issueCandidates = candidates.filter(candidate => candidate.label === 'issue')
   const expiryCandidates = candidates.filter(candidate => candidate.label === 'expiry')
-  let validFrom = issueCandidates[0]?.value
-  let validUntil = expiryCandidates[expiryCandidates.length - 1]?.value
+  let validFrom = cardIssueCandidates[0]?.value ?? issueCandidates[0]?.value
+  let validUntil = cardExpiryCandidates[0]?.value ?? expiryCandidates[0]?.value
 
+  // Insurance certificates often state the policy period without explicit
+  // "valid from/until" labels. In that case, use the two dates in the period.
   if (!validFrom && !validUntil) {
     const chronological = [...new Set(candidates.map(candidate => candidate.value))].sort()
     if (chronological.length > 1) {
