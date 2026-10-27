@@ -250,32 +250,57 @@ export function extractDocumentDates(rawText: string): DocumentDates {
     'تاريخ انتهاء صلاحية بطاقة السائق', 'تاريخ الانتهاء',
   ]
 
-  // Card documents may use only generic "Issue Date" / "Expiry Date" labels.
-  // Select dates tied to the card section and explicitly exclude candidates
-  // closer to a company/transport-license section.
+  // Driver cards often include the transport company's license on the same
+  // page. When the card's own information heading is present, parse dates only
+  // after that heading; dates printed in the preceding company-license section
+  // must never be eligible for the driver's card.
   if (hasAny(normalizedText, cardTerms)) {
+    const normalizedForSections = normalizedText
+    const cardSectionHeadings = [
+      'driver card info', 'driver card information', 'بيانات بطاقة السائق', 'بيانات بطاقة سائق',
+    ].map(normalizeLabelText)
+    const sectionStarts = cardSectionHeadings
+      .map(heading => normalizedForSections.indexOf(heading))
+      .filter(index => index >= 0)
+    const cardSectionStart = sectionStarts.length ? Math.min(...sectionStarts) : -1
+    if (cardSectionStart >= 0) {
+      const sectionText = normalizedText.slice(cardSectionStart)
+      const sectionCandidates = candidates.filter(candidate => candidate.index >= cardSectionStart)
+      const sectionIssue = sectionCandidates
+        .filter(candidate => candidate.label === 'issue'
+          || nearestWordDistance(sectionText, cardIssueTerms, candidate.index - cardSectionStart) <= 90)
+        .sort((a, b) =>
+          nearestWordDistance(sectionText, cardIssueTerms, a.index - cardSectionStart)
+          - nearestWordDistance(sectionText, cardIssueTerms, b.index - cardSectionStart),
+        )[0]
+      const sectionExpiry = sectionCandidates
+        .filter(candidate => candidate.label === 'expiry'
+          || nearestWordDistance(sectionText, cardExpiryTerms, candidate.index - cardSectionStart) <= 90)
+        .sort((a, b) =>
+          nearestWordDistance(sectionText, cardExpiryTerms, a.index - cardSectionStart)
+          - nearestWordDistance(sectionText, cardExpiryTerms, b.index - cardSectionStart),
+        )[0]
+      return { validFrom: sectionIssue?.value, validUntil: sectionExpiry?.value }
+    }
+
+    // Fallback for simpler card layouts that don't expose a separate card-info heading.
     const nearestWord = (terms: string[], index: number) => nearestWordDistance(normalizedText, terms, index)
     const cardDistance = (candidate: DateCandidate) => nearestWord(cardAnchors, candidate.index)
     const licenseDistance = (candidate: DateCandidate) => nearestWord(licenseTerms, candidate.index)
-    const findCardDate = (kind: 'issue' | 'expiry', specificLabels: string[]) => {
-      const labelWords = kind === 'issue' ? issueWords : expiryWords
-      return candidates
+    const findCardDate = (kind: 'issue' | 'expiry', specificLabels: string[]) =>
+      candidates
         .filter(candidate => {
           const labelDistance = nearestWord(specificLabels, candidate.index)
           const anchorDistance = cardDistance(candidate)
           const companyLicenseDistance = licenseDistance(candidate)
           const labelMatches = candidate.label === kind || labelDistance <= 90
-          return labelMatches
-            && labelDistance <= 120
-            && anchorDistance <= 350
-            && anchorDistance < companyLicenseDistance
+          return labelMatches && labelDistance <= 120 && anchorDistance <= 350 && anchorDistance < companyLicenseDistance
         })
         .sort((a, b) => {
           const aScore = nearestWord(specificLabels, a.index) + cardDistance(a) * 0.15
           const bScore = nearestWord(specificLabels, b.index) + cardDistance(b) * 0.15
           return aScore - bScore
         })[0]
-    }
     const issue = findCardDate('issue', cardIssueTerms)
     const expiry = findCardDate('expiry', cardExpiryTerms)
     return { validFrom: issue?.value, validUntil: expiry?.value }
