@@ -316,15 +316,68 @@ async function readPdfDates(file: File): Promise<DocumentDates> {
   }
 }
 
+/**
+ * Build a high-contrast variant for cards photographed in uneven light.
+ * Thresholding is deliberately a second pass: some Arabic glyphs disappear
+ * when thresholded, so the original grayscale image is always tried first.
+ */
+function makeThresholdCanvas(source: HTMLCanvasElement, invert = false) {
+  const canvas = document.createElement('canvas')
+  canvas.width = source.width
+  canvas.height = source.height
+  const context = canvas.getContext('2d')
+  if (!context) return canvas
+  context.drawImage(source, 0, 0)
+  const frame = context.getImageData(0, 0, canvas.width, canvas.height)
+  const pixels = frame.data
+  for (let i = 0; i < pixels.length; i += 4) {
+    const luminance = (pixels[i] * 0.299) + (pixels[i + 1] * 0.587) + (pixels[i + 2] * 0.114)
+    const value = (luminance > 165) !== invert ? 255 : 0
+    pixels[i] = value
+    pixels[i + 1] = value
+    pixels[i + 2] = value
+  }
+  context.putImageData(frame, 0, 0)
+  return canvas
+}
+
 export async function readDocumentDates(file: File): Promise<DocumentDates> {
   const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')
   if (isPdf) return readPdfDates(file)
+
   const canvas = await imageToCanvas(file)
+  const worker = await getWorker()
+  const recognizedText: string[] = []
+  const variants: HTMLCanvasElement[] = [canvas]
   try {
-    const recognized = await (await getWorker()).recognize(canvas)
-    return extractDocumentDates(recognized.data.text)
+    // Try the normal grayscale/contrast image first; only do extra passes when
+    // it fails to find dates, so the common path stays quick.
+    const first = await worker.recognize(canvas)
+    recognizedText.push(first.data.text)
+    let dates = extractDocumentDates(recognizedText.join('\n'))
+    if (dates.validFrom && dates.validUntil) return dates
+    if (dates.validFrom || dates.validUntil) {
+      // Keep the initial candidate but check enhanced variants for the missing field.
+    }
+
+    const threshold = makeThresholdCanvas(canvas)
+    variants.push(threshold)
+    const second = await worker.recognize(threshold)
+    recognizedText.push(second.data.text)
+    dates = extractDocumentDates(recognizedText.join('\n'))
+    if (dates.validFrom && dates.validUntil) return dates
+
+    // White-on-dark photos and reflective card surfaces can benefit from an
+    // inverted threshold pass. Merge OCR text rather than trusting one pass.
+    const inverted = makeThresholdCanvas(canvas, true)
+    variants.push(inverted)
+    const third = await worker.recognize(inverted)
+    recognizedText.push(third.data.text)
+    return extractDocumentDates(recognizedText.join('\n'))
   } finally {
-    canvas.width = 0
-    canvas.height = 0
+    for (const variant of variants) {
+      variant.width = 0
+      variant.height = 0
+    }
   }
 }
