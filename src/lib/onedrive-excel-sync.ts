@@ -741,21 +741,11 @@ export async function syncOneDriveWorkbook(): Promise<OneDriveSyncResult> {
         headers: { 'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' },
         body: snapshot.bytes
       }
-      let upload: Response
-      try {
-        upload = await graphRequestWithRetry(target, tokens.access_token, uploadOptions)
-      } catch (error) {
-        if (!(error instanceof GraphRequestError) || error.status !== 423) throw error
-
-        // Excel can hold an edit lock while the workbook is open. Preserve that
-        // file and publish a fresh snapshot so app data can continue syncing.
-        const timestamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z')
-        const suffix = randomBytes(4).toString('hex')
-        latestItemName = `Fleet Manager Live Data - ${timestamp}-${suffix}.xlsx`
-        const replacementTarget = `https://graph.microsoft.com/v1.0/me/drive/root:/${encodeURIComponent(latestItemName)}:/content`
-        upload = await graphRequestWithRetry(replacementTarget, tokens.access_token, uploadOptions)
-        recoveredFromLock = true
-      }
+      // Keep the existing workbook identity stable. Creating a replacement file
+      // after an Excel lock silently detaches users who still have the previous
+      // workbook open, so their subsequent edits never reach the importer.
+      // A locked upload is left pending for a later retry instead.
+      const upload = await graphRequestWithRetry(target, tokens.access_token, uploadOptions)
       const driveItem = await upload.json() as { id?: string; name?: string; webUrl?: string }
       const lastWorkbookHash = createHash('sha256').update(snapshot.bytes.toString('base64')).digest('hex')
       if (!driveItem.id && recoveredFromLock) throw new Error('Microsoft did not return the new workbook file ID.')
