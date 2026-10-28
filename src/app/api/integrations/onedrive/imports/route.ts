@@ -150,24 +150,30 @@ export async function GET(request: NextRequest) {
     }
     let watchError: string | null = null
     let workbookSetupRequired = false
-    try {
-      const subscription = await ensureOneDriveChangeSubscription()
-      if (subscription.enabled) {
+    const integration = await db.oneDriveIntegration.findUnique({
+      where: { id: 'primary' },
+      select: { driveItemId: true }
+    })
+    workbookSetupRequired = !integration?.driveItemId
+    if (!integration?.driveItemId) {
+      watchError = 'Connect OneDrive and create the live workbook to receive edits.'
+    } else {
+      // Notifications are only a change-detection optimization. Always scan
+      // the connected workbook when this page is opened/refreshed, even if
+      // subscription creation/renewal is unavailable or temporarily failing.
+      try {
+        await ensureOneDriveChangeSubscription()
+      } catch (error) {
+        watchError = error instanceof Error ? error.message : 'Workbook notifications could not be renewed.'
+      }
+      try {
         const scan = await captureOneDriveWorkbookChanges()
-        if (scan.baselineInitializationNeeded && scan.queued === 0) watchError = 'No workbook changes are waiting for review. Use Sync Now to initialize safe Excel imports.'
+        if (scan.baselineInitializationNeeded && scan.queued === 0) {
+          watchError = watchError || 'No workbook changes are waiting for review. Use Sync Now to initialize safe Excel imports.'
+        }
+      } catch (error) {
+        watchError = error instanceof Error ? error.message : 'Could not scan the live workbook.'
       }
-      else {
-        const integration = await db.oneDriveIntegration.findUnique({
-          where: { id: 'primary' },
-          select: { driveItemId: true }
-        })
-        workbookSetupRequired = Boolean(integration && !integration.driveItemId)
-        watchError = workbookSetupRequired
-          ? 'The OneDrive account is connected, but its live workbook has not been created yet.'
-          : 'Connect OneDrive and create the live workbook to receive edits.'
-      }
-    } catch (error) {
-      watchError = error instanceof Error ? error.message : 'Could not scan the live workbook.'
     }
     const changes = await db.excelWorkbookChange.findMany({
       where: { status: { in: ['PENDING', 'CONFLICT', 'ERROR'] } },
@@ -209,8 +215,19 @@ export async function POST(request: NextRequest) {
       if (!permissionManager.hasPermission('excel-imports', 'read')) {
         return NextResponse.json({ error: 'Your role cannot review workbook changes.' }, { status: 403 })
       }
-      const subscription = await ensureOneDriveChangeSubscription()
-      if (!subscription.enabled) return NextResponse.json({ error: 'Connect OneDrive and create the live workbook first.' }, { status: 409 })
+      const integration = await db.oneDriveIntegration.findUnique({
+        where: { id: 'primary' },
+        select: { driveItemId: true }
+      })
+      if (!integration?.driveItemId) {
+        return NextResponse.json({ error: 'Connect OneDrive and create the live workbook first.' }, { status: 409 })
+      }
+      // Do not block a manual import scan on webhook subscription health.
+      // The user explicitly requested a scan, so read the connected workbook
+      // directly even when notifications are disabled or could not be renewed.
+      try { await ensureOneDriveChangeSubscription() } catch (error) {
+        console.warn('Workbook scan proceeding without healthy change notifications:', error instanceof Error ? error.message : 'Unknown subscription error')
+      }
       const result = await captureOneDriveWorkbookChanges()
       return NextResponse.json({ success: true, ...result })
     }
