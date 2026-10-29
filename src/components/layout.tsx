@@ -29,6 +29,7 @@ const publicRoutes = new Set([
   '/agreement',
   '/help',
   '/purchase',
+  '/demo',
   // Public SEO landing pages; these must be viewable without signing in.
   '/truck-fleet-maintenance-software',
   '/tire-inventory-management',
