@@ -506,6 +506,28 @@ export default function LoginPage() {
           </CardContent>
         </Card>
 
+        <Card className="rounded-2xl border border-cyan-400/30 bg-cyan-950/40 text-white shadow-none backdrop-blur-sm">
+          <CardContent className="px-5 py-5">
+            <div className="space-y-3 text-center">
+              <h3 className="text-base font-semibold text-slate-100">Explore the Fleet Manager Pro demo</h3>
+              <p className="text-sm leading-6 text-slate-300">
+                See sample fleet, workshop, tire, breakdown, document and reporting workflows without signing in.
+                Demo records are fictional and changes are temporary.
+              </p>
+              <Button asChild className="w-full">
+                <Link href="/demo">Open interactive demo</Link>
+              </Button>
+              <div className="border-t border-white/10 pt-3 text-left text-xs leading-5 text-slate-400">
+                <p className="font-semibold text-slate-200">How main-app login works</p>
+                <p>1. Enter the email and password issued for your organization.</p>
+                <p>2. If your organization uses a workspace link, open its login link or enter the organization details requested by your administrator.</p>
+                <p>3. Select Sign in. Use OTP login if enabled for your account.</p>
+                <p className="mt-2">For a full admin walkthrough, request a dedicated demo-admin account. Never use or share a production administrator password for demonstrations.</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         <div className="text-center text-xs leading-5 text-slate-500"><LegalDocumentLinks /></div>
 
         {/* Info Card */}
