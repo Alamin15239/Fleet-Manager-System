@@ -220,6 +220,7 @@ export default function HomePage() {
           </Link>
           <nav aria-label="Main navigation" className="flex items-center gap-2 sm:gap-5">
             <a className="hidden text-sm font-medium text-slate-200 transition hover:text-white sm:inline" href="#features">Features</a>
+            <Link href="/demo" className="rounded-xl px-3 py-2 text-sm font-semibold text-sky-200 transition hover:bg-white/10">Explore demo</Link>
             <Link href="/login" className="rounded-xl px-3 py-2 text-sm font-semibold text-white transition hover:bg-white/10">Sign in</Link>
             <Link href="/signup" className="rounded-xl bg-sky-400 px-4 py-2.5 text-sm font-bold text-slate-950 shadow-lg transition hover:bg-white">Get started</Link>
             <Link href="/purchase" className="hidden rounded-xl border border-white/30 bg-black/20 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-white/10 sm:inline-flex">Plans</Link>
@@ -241,6 +242,7 @@ export default function HomePage() {
               <Link href="/signup" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-sky-400 px-6 py-3 font-bold text-slate-950 shadow-xl transition hover:-translate-y-0.5 hover:bg-white">
                 Start managing your fleet <ArrowRight className="h-4 w-4" />
               </Link>
+              <Link href="/demo" className="inline-flex min-h-12 items-center justify-center rounded-xl border border-sky-200/50 bg-slate-950/45 px-6 py-3 font-semibold text-sky-100 backdrop-blur transition hover:bg-sky-300/10">Explore the live demo</Link>
               <Link href="/login" className="inline-flex min-h-12 items-center justify-center rounded-xl border border-white/40 bg-slate-950/45 px-6 py-3 font-semibold text-white backdrop-blur transition hover:bg-white/10">
                 Sign in to your workspace
               </Link>
