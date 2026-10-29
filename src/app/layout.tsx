@@ -95,6 +95,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        <meta name="google-site-verification" content="3OnInTKY1IlQvZCvpoIOuifYgJlckui-bkC2jRICl38" />
         <meta name="msvalidate.01" content="B29CA806AE31059EEA5FBBB29C1CA9E2" />
         <link rel="icon" href="/favicon.ico" sizes="any" />
         <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
