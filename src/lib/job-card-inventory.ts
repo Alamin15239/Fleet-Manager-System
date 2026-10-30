@@ -63,3 +63,67 @@ export async function reconcileJobCardInventory(tx: any, args: {
     }
   }
 }
+
+
+type OilChangeInventoryArgs = {
+  maintenanceId: string
+  inventoryItemId?: string | null
+  quantityLiters?: number | null
+  transactionDate: Date
+  vehicleId: string
+  userId: string
+}
+
+/** Reconciles oil consumption against the tenant's inventory ledger.
+ * Reversals are append-only, preserving a complete audit trail on edits/deletes.
+ */
+export async function reconcileOilChangeInventory(tx: any, args: OilChangeInventoryArgs) {
+  await ensureInventoryTables(tx)
+  await tx.$executeRawUnsafe(`ALTER TABLE "inventory_transactions" ADD COLUMN IF NOT EXISTS "sourceType" TEXT`)
+  await tx.$executeRawUnsafe(`ALTER TABLE "inventory_transactions" ADD COLUMN IF NOT EXISTS "sourceId" TEXT`)
+
+  const previous = await tx.$queryRawUnsafe<any[]>(
+    `SELECT "itemId", SUM(CASE WHEN "type"='ISSUE' THEN "quantity" WHEN "type"='CUSTOMER_RETURN' THEN -"quantity" ELSE 0 END)::float AS qty
+     FROM "inventory_transactions" WHERE "sourceType"='OIL_CHANGE' AND "sourceId"=$1
+     GROUP BY "itemId"
+     HAVING SUM(CASE WHEN "type"='ISSUE' THEN "quantity" WHEN "type"='CUSTOMER_RETURN' THEN -"quantity" ELSE 0 END)>0`,
+    args.maintenanceId
+  )
+
+  for (const row of previous) {
+    const qty = Number(row.qty)
+    if (qty <= 0) continue
+    await tx.$queryRawUnsafe(
+      `INSERT INTO "inventory_transactions" ("id","itemId","type","quantity","transactionDate","reference","vehicleType","vehicleId","notes","createdById","sourceType","sourceId")
+       VALUES ($1,$2,'CUSTOMER_RETURN',$3,$4,$5,'truck',$6,$7,$8,'OIL_CHANGE',$9)`,
+      `itx_${randomUUID()}`, row.itemId, qty, args.transactionDate,
+      `Oil change ${args.maintenanceId}`, args.vehicleId,
+      'Automatic reversal of previous oil issue', args.userId, args.maintenanceId
+    )
+  }
+
+  const qty = Number(args.quantityLiters || 0)
+  if (!args.inventoryItemId || qty <= 0) return
+  if (!Number.isFinite(qty)) throw new Error('Enter a valid oil quantity in litres')
+
+  const item = await tx.$queryRawUnsafe<any[]>(
+    `SELECT "id","unit" FROM "inventory_items" WHERE "id"=$1 FOR UPDATE`, args.inventoryItemId
+  )
+  if (!item.length) throw new Error('Selected oil inventory item was not found')
+  if (!['l','liter','litre','liters','litres'].includes(String(item[0].unit || '').trim().toLowerCase()))
+    throw new Error('Selected inventory item must use litres as its unit')
+
+  const balance = await tx.$queryRawUnsafe<any[]>(
+    `SELECT COALESCE(SUM(CASE WHEN "type" IN ('OPENING','PURCHASE','CUSTOMER_RETURN','ADJUSTMENT_IN') THEN "quantity" WHEN "type" IN ('ISSUE','SUPPLIER_RETURN','ADJUSTMENT_OUT') THEN -"quantity" ELSE 0 END),0)::float AS qty FROM "inventory_transactions" WHERE "itemId"=$1`,
+    args.inventoryItemId
+  )
+  if (Number(balance[0]?.qty || 0) + 0.000001 < qty) throw new Error('Insufficient oil stock for this oil change')
+
+  await tx.$queryRawUnsafe(
+    `INSERT INTO "inventory_transactions" ("id","itemId","type","quantity","transactionDate","reference","vehicleType","vehicleId","notes","createdById","sourceType","sourceId")
+     VALUES ($1,$2,'ISSUE',$3,$4,$5,'truck',$6,$7,$8,'OIL_CHANGE',$9)`,
+    `itx_${randomUUID()}`, args.inventoryItemId, qty, args.transactionDate,
+    `Oil change ${args.maintenanceId}`, args.vehicleId,
+    'Oil consumed during oil change', args.userId, args.maintenanceId
+  )
+}
