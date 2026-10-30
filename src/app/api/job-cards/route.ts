@@ -3,6 +3,7 @@ import { db } from '@/lib/db'
 import { requireRolePermission } from '@/lib/permission-middleware'
 import { cleanJobCardPayload } from '@/lib/job-card-validation'
 import { syncOneDriveWorkbookAfterChange } from '@/lib/onedrive-excel-sync'
+import { reconcileJobCardInventory } from '@/lib/job-card-inventory'
 
 export async function GET(request: NextRequest) {
   try {
@@ -48,13 +49,19 @@ export async function POST(request: NextRequest) {
     const jobCard = await db.$transaction(async tx => {
       await tx.$executeRaw`LOCK TABLE "workshop_job_cards" IN EXCLUSIVE MODE`
       const count = await tx.workshopJobCard.count({ where: { jobNumber: { startsWith: prefix } } })
-      return tx.workshopJobCard.create({
+      const created = await tx.workshopJobCard.create({
         data: { ...data, jobNumber: `${prefix}${String(count + 1).padStart(4, '0')}`, createdById: user.id },
         include: {
           truck: { select: { id: true, make: true, model: true, year: true, vin: true, licensePlate: true, currentMileage: true } },
           trailer: { select: { id: true, number: true } }
         }
       })
+      if (created.status !== 'CANCELLED') await reconcileJobCardInventory(tx, {
+        jobCardId: created.id, lines: data.items as any[],
+        vehicleType: data.truckId ? 'truck' : 'trailer', vehicleId: data.truckId || data.trailerId!,
+        transactionDate: data.serviceDate, userId: user.id
+      })
+      return created
     })
     await syncOneDriveWorkbookAfterChange()
     return NextResponse.json({ jobCard }, { status: 201 })
