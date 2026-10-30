@@ -111,10 +111,6 @@ export function RoutePermissionGuard({ children }: { children: React.ReactNode }
   }
 
   if (!canOpenCurrentRoute) {
-    if (destination) {
-      return <div className="flex min-h-[55vh] items-center justify-center"><TruckLoader size="md" /></div>
-    }
-
     return (
       <div className="mx-auto flex min-h-[55vh] w-full max-w-xl items-center px-4">
         <Card className="w-full shadow-sm">
@@ -122,7 +118,7 @@ export function RoutePermissionGuard({ children }: { children: React.ReactNode }
             <ShieldCheck className="h-9 w-9 text-muted-foreground" />
             <h1 className="text-lg font-semibold"><LocalizedText>Access denied</LocalizedText></h1>
             <p className="text-sm text-muted-foreground"><LocalizedText>Your role does not have access to this section.</LocalizedText></p>
-            {destination && <Button asChild variant="outline"><Link href={destination.path}><LocalizedText>Open an available section</LocalizedText></Link></Button>}
+            {destination ? <Button asChild variant="outline"><Link href={destination.path}><LocalizedText>Open an available section</LocalizedText></Link></Button> : null}
           </CardContent>
         </Card>
       </div>
