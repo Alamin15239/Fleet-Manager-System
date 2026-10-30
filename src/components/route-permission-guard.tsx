@@ -71,7 +71,7 @@ export function RoutePermissionGuard({ children }: { children: React.ReactNode }
   const canOpenCurrentRoute = access
     ? hasPermission(access.resource, access.action || 'read')
     : true
-  const destination = availablePages.find(page => hasPermission(page.resource, page.action || 'read'))
+  const destination: RouteAccess | undefined = availablePages.find(page => hasPermission(page.resource, page.action || 'read')) as RouteAccess | undefined
 
   // A saved post-login URL may point to a section that this user's role cannot
   // open. Route them to the first allowed app section so sign-in does not end
