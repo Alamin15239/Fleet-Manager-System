@@ -23,9 +23,24 @@ export async function GET(request: NextRequest) {
       }).catch(() => []) // Return empty array if trailer table doesn't exist
     ])
 
+    // Attach the currently selected inventory oil item to each oil-change record for editing.
+    let oilItemByRecord = new Map<string, string>()
+    try {
+      const linked = await db.$queryRawUnsafe<any[]>(
+        `SELECT DISTINCT ON ("sourceId") "sourceId", "itemId"
+         FROM "inventory_transactions"
+         WHERE "sourceType"='OIL_CHANGE' AND "type"='ISSUE'
+         ORDER BY "sourceId", "createdAt" DESC`
+      )
+      oilItemByRecord = new Map(linked.map(row => [String(row.sourceId), String(row.itemId)]))
+    } catch (error) {
+      // Existing installations without oil inventory linkage remain readable.
+      console.warn('Oil inventory links are not available yet:', error)
+    }
+
     // Combine and format records
     const allRecords = [
-      ...truckRecords,
+      ...truckRecords.map(record => ({ ...record, oilInventoryItemId: oilItemByRecord.get(record.id) || null })),
       ...trailerRecords.map(record => ({
         ...record,
         // Add truck field for compatibility
@@ -136,6 +151,7 @@ export async function POST(request: NextRequest) {
     console.error('Maintenance POST error:', error)
     const unauthorized = error instanceof Error && ['No token provided', 'Invalid token'].includes(error.message)
     const forbidden = error instanceof Error && error.message === 'Insufficient permissions'
-    return NextResponse.json({ error: unauthorized ? 'Authentication required' : forbidden ? 'Manager access required' : 'Failed to create record' }, { status: unauthorized ? 401 : forbidden ? 403 : 500 })
+    const insufficient = error instanceof Error && error.message.includes('Insufficient oil stock')
+    return NextResponse.json({ error: unauthorized ? 'Authentication required' : forbidden ? 'Manager access required' : error instanceof Error ? error.message : 'Failed to create record' }, { status: unauthorized ? 401 : forbidden ? 403 : insufficient ? 409 : 500 })
   }
 }
