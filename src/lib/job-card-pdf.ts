@@ -44,7 +44,10 @@ export async function createJobCardPdfBlob(documentHtml: string, renderWindow: W
         image.addEventListener('error', onError, { once: true })
         // Recheck after subscribing in case the image completed between the
         // initial complete check and listener registration.
-        if (image.complete) image.naturalWidth > 0 ? onLoad() : onError()
+        if (image.complete) {
+          if (image.naturalWidth > 0) onLoad()
+          else onError()
+        }
       })
     }))
 

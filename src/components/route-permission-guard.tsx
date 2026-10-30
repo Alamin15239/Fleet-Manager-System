@@ -62,6 +62,13 @@ function getRouteAccess(pathname: string | null) {
     : pathname === path || pathname.startsWith(`${path}/`)) || null
 }
 
+function findAvailablePage(canAccess: (resource: string, action: string) => boolean): RouteAccess | undefined {
+  for (const page of availablePages) {
+    if (canAccess(page.resource, page.action || 'read')) return page
+  }
+  return undefined
+}
+
 export function RoutePermissionGuard({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
@@ -71,7 +78,7 @@ export function RoutePermissionGuard({ children }: { children: React.ReactNode }
   const canOpenCurrentRoute = access
     ? hasPermission(access.resource, access.action || 'read')
     : true
-  const destination = availablePages.find(page => hasPermission(page.resource, page.action || 'read'))
+  const destination = findAvailablePage(hasPermission)
 
   // A saved post-login URL may point to a section that this user's role cannot
   // open. Route them to the first allowed app section so sign-in does not end
@@ -104,10 +111,6 @@ export function RoutePermissionGuard({ children }: { children: React.ReactNode }
   }
 
   if (!canOpenCurrentRoute) {
-    if (destination) {
-      return <div className="flex min-h-[55vh] items-center justify-center"><TruckLoader size="md" /></div>
-    }
-
     return (
       <div className="mx-auto flex min-h-[55vh] w-full max-w-xl items-center px-4">
         <Card className="w-full shadow-sm">
@@ -115,7 +118,7 @@ export function RoutePermissionGuard({ children }: { children: React.ReactNode }
             <ShieldCheck className="h-9 w-9 text-muted-foreground" />
             <h1 className="text-lg font-semibold"><LocalizedText>Access denied</LocalizedText></h1>
             <p className="text-sm text-muted-foreground"><LocalizedText>Your role does not have access to this section.</LocalizedText></p>
-            {destination && <Button asChild variant="outline"><Link href={destination.path}><LocalizedText>Open an available section</LocalizedText></Link></Button>}
+            {destination ? <Button asChild variant="outline"><Link href={destination.path}><LocalizedText>Open an available section</LocalizedText></Link></Button> : null}
           </CardContent>
         </Card>
       </div>

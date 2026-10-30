@@ -134,7 +134,7 @@ export async function POST(request: NextRequest) {
     } catch {
       console.error('Immediate document-expiry catch-up email failed; daily cron can retry')
       return NextResponse.json({
-        success: true, email: emails.join(', '), emails, verified: true,
+        success: true, email, cc: ccFiltered, bcc: bccFiltered, verified: true,
         message: 'Test email sent and alerts enabled, but the immediate catch-up summary could not be sent. The scheduled alert job will retry.',
         catchUpCount: null,
         notifications: settings.notifications,
