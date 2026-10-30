@@ -235,7 +235,8 @@ export async function PUT(
         }
         })
         const nowOilChange = body.isOilChange !== undefined ? body.isOilChange : existingRecord.isOilChange
-        const isOilService = Boolean(nowOilChange || String(body.serviceType ?? existingRecord.serviceType).toLowerCase().includes('oil'))
+        const wasOilService = Boolean(existingRecord.isOilChange || String(existingRecord.serviceType || '').toLowerCase().includes('oil'))
+        const isOilService = Boolean(wasOilService || nowOilChange || String(body.serviceType ?? existingRecord.serviceType).toLowerCase().includes('oil'))
         if (isOilService) {
           let linkedItemId = body.oilInventoryItemId
           if (linkedItemId === undefined) {
@@ -322,8 +323,8 @@ export async function PUT(
     const unauthorized = error instanceof Error && ['No token provided', 'Invalid token'].includes(error.message)
     const forbidden = error instanceof Error && error.message === 'Insufficient permissions'
     return NextResponse.json(
-      { error: unauthorized ? 'Authentication required' : forbidden ? 'Manager access required' : 'Failed to update maintenance record' },
-      { status: unauthorized ? 401 : forbidden ? 403 : 500 }
+      { error: unauthorized ? 'Authentication required' : forbidden ? 'Manager access required' : error instanceof Error ? error.message : 'Failed to update maintenance record' },
+      { status: unauthorized ? 401 : forbidden ? 403 : error instanceof Error && error.message.includes('Insufficient oil stock') ? 409 : 500 }
     )
   }
 }
@@ -409,8 +410,8 @@ export async function DELETE(
     const unauthorized = error instanceof Error && ['No token provided', 'Invalid token'].includes(error.message)
     const forbidden = error instanceof Error && error.message === 'Insufficient permissions'
     return NextResponse.json(
-      { error: unauthorized ? 'Authentication required' : forbidden ? 'Manager access required' : 'Failed to delete maintenance record' },
-      { status: unauthorized ? 401 : forbidden ? 403 : 500 }
+      { error: unauthorized ? 'Authentication required' : forbidden ? 'Manager access required' : error instanceof Error ? error.message : 'Failed to delete maintenance record' },
+      { status: unauthorized ? 401 : forbidden ? 403 : error instanceof Error && error.message.includes('Insufficient oil stock') ? 409 : 500 }
     )
   }
 }
