@@ -612,7 +612,8 @@ export default function OilChangesPage() {
                       oilChangeInterval: '',
                       nextServiceDue: '',
                       description: '',
-                      notes: ''
+                      notes: '',
+                      oilInventoryItemId: ''
                     })
                   }}
                 >
