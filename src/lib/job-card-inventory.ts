@@ -1,8 +1,9 @@
 import { randomUUID } from 'crypto'
+import type { Prisma } from '@prisma/client'
 
 type InventoryLine = { type?: string; inventoryItemId?: string | null; description?: string; quantity?: number; unitCost?: number | null }
 
-async function ensureInventoryTables(tx: any) {
+async function ensureInventoryTables(tx: Prisma.TransactionClient) {
   await tx.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "inventory_items" (
     "id" TEXT PRIMARY KEY, "name" TEXT NOT NULL, "partNumber" TEXT,
     "category" TEXT NOT NULL DEFAULT 'GENERAL', "unit" TEXT NOT NULL DEFAULT 'pcs',
