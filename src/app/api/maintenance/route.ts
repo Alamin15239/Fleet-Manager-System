@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireRolePermission } from '@/lib/permission-middleware'
 import { syncOneDriveWorkbookAfterChange } from '@/lib/onedrive-excel-sync'
+import { reconcileOilChangeInventory } from '@/lib/job-card-inventory'
 
 export async function GET(request: NextRequest) {
   try {
@@ -61,7 +62,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    await requireRolePermission(request, 'maintenance', 'create')
+    const user = await requireRolePermission(request, 'maintenance', 'create')
     const body = await request.json()
 
     // Check if the selected vehicle is a trailer by checking if it exists in trailer table
@@ -94,26 +95,38 @@ export async function POST(request: NextRequest) {
       })
     } else {
       // Create truck maintenance record
-      record = await db.maintenanceRecord.create({
-        data: {
-          truckId: body.truckId,
-          serviceType: body.serviceType,
-          description: body.description,
-          datePerformed: new Date(body.datePerformed),
-          partsCost: parseFloat(body.partsCost) || 0,
-          laborCost: parseFloat(body.laborCost) || 0,
-          totalCost: (parseFloat(body.partsCost) || 0) + (parseFloat(body.laborCost) || 0),
-          status: body.status || 'COMPLETED',
-          mechanicId: body.mechanicId || null,
-          mechanicName: body.mechanicName || null,
-          driverName: body.driverName || null,
-          isOilChange: body.isOilChange || false,
-          oilQuantityLiters: body.oilQuantityLiters ? parseFloat(body.oilQuantityLiters) : null,
-          oilChangeInterval: body.oilChangeInterval ? parseInt(body.oilChangeInterval) : null,
-          currentMileage: body.currentMileage ? parseInt(body.currentMileage) : null,
-          nextServiceDue: body.nextServiceDue ? new Date(body.nextServiceDue) : null,
-          notes: body.notes || null
+      const data = {
+        truckId: body.truckId,
+        serviceType: body.serviceType,
+        description: body.description,
+        datePerformed: new Date(body.datePerformed),
+        partsCost: parseFloat(body.partsCost) || 0,
+        laborCost: parseFloat(body.laborCost) || 0,
+        totalCost: (parseFloat(body.partsCost) || 0) + (parseFloat(body.laborCost) || 0),
+        status: body.status || 'COMPLETED',
+        mechanicId: body.mechanicId || null,
+        mechanicName: body.mechanicName || null,
+        driverName: body.driverName || null,
+        isOilChange: body.isOilChange || false,
+        oilQuantityLiters: body.oilQuantityLiters ? parseFloat(body.oilQuantityLiters) : null,
+        oilChangeInterval: body.oilChangeInterval ? parseInt(body.oilChangeInterval) : null,
+        currentMileage: body.currentMileage ? parseInt(body.currentMileage) : null,
+        nextServiceDue: body.nextServiceDue ? new Date(body.nextServiceDue) : null,
+        notes: body.notes || null
+      }
+      record = await db.$transaction(async tx => {
+        const created = await tx.maintenanceRecord.create({ data })
+        if (body.isOilChange && body.oilInventoryItemId) {
+          await reconcileOilChangeInventory(tx, {
+            maintenanceId: created.id,
+            inventoryItemId: body.oilInventoryItemId,
+            quantityLiters: body.oilQuantityLiters,
+            transactionDate: new Date(body.datePerformed),
+            vehicleId: body.truckId,
+            userId: user.id
+          })
         }
+        return created
       })
     }
 
