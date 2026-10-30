@@ -163,6 +163,7 @@ export function TruckRoadAnimation() {
           </div>
         </div>
       </div>
+      </div>
     </section>
   )
 }
