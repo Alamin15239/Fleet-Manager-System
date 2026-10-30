@@ -30,6 +30,7 @@ interface OilChangeRecord {
   status: string
   currentMileage?: number
   oilQuantityLiters?: number
+  oilInventoryItemId?: string | null
   oilChangeInterval?: number
   nextServiceDue?: string
   truck?: {
@@ -58,6 +59,8 @@ interface Truck {
   currentMileage: number
 }
 
+interface OilInventoryItem { id: string; name: string; unit: string; oilGrade?: string | null; stockQty: number }
+
 interface Mechanic {
   id: string
   name: string
@@ -83,6 +86,7 @@ export default function OilChangesPage() {
   })
   const [trucks, setTrucks] = useState<Truck[]>([])
   const [mechanics, setMechanics] = useState<Mechanic[]>([])
+  const [oilInventoryItems, setOilInventoryItems] = useState<OilInventoryItem[]>([])
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [editingRecordId, setEditingRecordId] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -102,13 +106,15 @@ export default function OilChangesPage() {
     oilChangeInterval: '',
     nextServiceDue: '',
     description: '',
-    notes: ''
+    notes: '',
+    oilInventoryItemId: ''
   })
 
   useEffect(() => {
     fetchOilChanges()
     fetchTrucks()
     fetchMechanics()
+    fetchOilInventory()
   }, [])
 
   useEffect(() => {
@@ -157,6 +163,21 @@ export default function OilChangesPage() {
       }
     } catch (error) {
       console.error('Error fetching trucks:', error)
+    }
+  }
+
+  const fetchOilInventory = async () => {
+    try {
+      const response = await apiGet('/api/inventory')
+      if (response.ok) {
+        const data = await response.json()
+        setOilInventoryItems((data.items || []).filter((item: OilInventoryItem) =>
+          ['l', 'liter', 'litre', 'liters', 'litres'].includes(String(item.unit || '').trim().toLowerCase())
+        ))
+      }
+    } catch (error) {
+      console.error('Error fetching oil inventory:', error)
+      toast.error('Unable to load oil inventory items')
     }
   }
 
@@ -228,7 +249,8 @@ export default function OilChangesPage() {
         nextServiceDue: formData.nextServiceDue || null,
         status: 'COMPLETED',
         notes: formData.notes,
-        isOilChange: true
+        isOilChange: true,
+        oilInventoryItemId: formData.oilInventoryItemId || null
       }
       
       const response = editingRecordId ? await apiPut(`/api/maintenance/${editingRecordId}`, maintenanceData) : await apiPost('/api/maintenance', maintenanceData)
@@ -249,7 +271,8 @@ export default function OilChangesPage() {
           oilChangeInterval: '',
           nextServiceDue: '',
           description: '',
-          notes: ''
+          notes: '',
+          oilInventoryItemId: ''
         })
         fetchOilChanges()
       } else {
@@ -279,7 +302,8 @@ export default function OilChangesPage() {
       oilChangeInterval: record.oilChangeInterval != null ? String(record.oilChangeInterval) : '',
       nextServiceDue: record.nextServiceDue ? new Date(record.nextServiceDue).toISOString().slice(0, 10) : '',
       description: record.description || '',
-      notes: record.notes || ''
+      notes: record.notes || '',
+      oilInventoryItemId: record.oilInventoryItemId || ''
     })
     setIsAddDialogOpen(true)
   }
@@ -462,6 +486,15 @@ export default function OilChangesPage() {
                     value={formData.oilQuantityLiters}
                     onChange={(e) => setFormData({...formData, oilQuantityLiters: e.target.value})}
                   />
+                  <Label htmlFor="oilInventoryItemId">Deduct from oil inventory (optional)</Label>
+                  <Select value={formData.oilInventoryItemId || 'manual'} onValueChange={(value) => setFormData({...formData, oilInventoryItemId: value === 'manual' ? '' : value})}>
+                    <SelectTrigger id="oilInventoryItemId"><SelectValue placeholder="Manual entry — no stock deduction" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="manual">Manual entry — no stock deduction</SelectItem>
+                      {oilInventoryItems.map((item) => <SelectItem key={item.id} value={item.id}>{item.name}{item.oilGrade ? ` (${item.oilGrade})` : ''} — {Number(item.stockQty || 0).toFixed(1)} {item.unit} available</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">When selected, the recorded litres are deducted from inventory. Insufficient stock prevents saving.</p>
                 </div>
               </div>
 
