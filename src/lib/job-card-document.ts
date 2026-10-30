@@ -20,6 +20,22 @@ export async function renderJobCardDocument(card: any, company: Company | null, 
     const companyAddress = company?.companyAddress || 'Second Industrial Area, Kingdom of Saudi Arabia'
     const companyPhone = company?.companyPhone || '+966 5 766 24440'
     const companyEmail = company?.companyEmail || 'alaminkhan.xiaomi@gmail.com'
+    // Embed the same-origin logo so PDF capture from the temporary iframe retains it.
+    let companyLogoSrc = origin + '/saadfreeh-transport-logo.png'
+    try {
+      const logoResponse = await fetch(companyLogoSrc, { cache: 'force-cache' })
+      if (logoResponse.ok) {
+        const logoBlob = await logoResponse.blob()
+        companyLogoSrc = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader()
+          reader.onload = () => resolve(String(reader.result || companyLogoSrc))
+          reader.onerror = () => reject(new Error('Unable to read company logo'))
+          reader.readAsDataURL(logoBlob)
+        })
+      }
+    } catch {
+      // Retain the same-origin URL as a fallback if embedding fails.
+    }
     const printDateText = (value?: string | Date | null) => value
       ? new Date(value).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).replace(/ /g, '-')
       : '—'
@@ -147,7 +163,7 @@ export async function renderJobCardDocument(card: any, company: Company | null, 
       '@media screen and (max-width:420px){.print-page{padding:6px}.card-frame{padding:9px}.main-title{font-size:18px}.summary-card{padding:5px}.vehicle-grid{grid-template-columns:1fr}.section-heading{align-items:flex-start}.section-title{font-size:8px}.section-ar{font-size:8px}.signatures-grid{grid-template-columns:1fr}.completion-note{flex-direction:column;gap:3px}.items-table th,.items-table td{padding:4px 3px;font-size:7px}}',
       '@media print{html,body{width:210mm;height:297mm;min-height:297mm;overflow:hidden;margin:0!important;padding:0!important;background:#fff!important}.print-page{width:210mm;max-width:210mm;height:297mm;min-height:297mm;margin:0;padding:5mm;break-inside:avoid;page-break-inside:avoid}.card-frame{min-height:0;height:100%;padding:4mm;gap:2.3mm;break-inside:avoid;page-break-inside:avoid}.masthead{grid-template-columns:100px minmax(0,1fr) 145px}.contact-line{grid-template-columns:1.15fr 1fr 1fr}.summary-grid{grid-template-columns:1.2fr 1fr 1fr 1fr}.vehicle-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.check-grid{grid-template-columns:1fr 1fr}.signatures-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.completion-note{flex-direction:row}.doc-footer{margin-top:auto}tr,section,.masthead,.summary-grid,.doc-footer{break-inside:avoid;page-break-inside:avoid}}',
       '</style></head><body><main class="print-page"><article class="card-frame">',
-      '<header class="masthead"><div class="logo-wrap"><img src="', esc(origin), '/saadfreeh-transport-logo.png" alt="Saadfreeh Transportation"></div>',
+      '<header class="masthead"><div class="logo-wrap"><img src="', esc(companyLogoSrc), '" alt="Saadfreeh Transportation"></div>',
       '<div class="company-lockup"><div class="eyebrow">Workshop &amp; Fleet Maintenance</div><div class="company-name">', esc(companyName), '</div><h1 class="main-title">Job Card <span dir="rtl">أمر شغل</span></h1></div>',
       '<div class="doc-code"><span>Workshop service document</span><strong>FORM · JC-01</strong><span>Revision 6 · A4 Portrait</span></div></header>',
       '<div class="contact-line"><span>', esc(companyAddress), '</span><span>', esc(companyPhone), '</span><span>', esc(companyEmail), '</span></div>',
