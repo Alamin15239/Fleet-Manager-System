@@ -44,11 +44,11 @@ export async function reconcileJobCardInventory(tx: any, args: {
     for (const line of args.lines.filter(line => line.type === 'PART' && line.inventoryItemId)) {
       const qty = Number(line.quantity)
       if (!Number.isFinite(qty) || qty <= 0) throw new Error('Enter a valid quantity for each inventory part')
-      const item = await tx.$queryRawUnsafe<any[]>(
+      const item = await tx.$queryRawUnsafe(
         `SELECT "id" FROM "inventory_items" WHERE "id"=$1 FOR UPDATE`, line.inventoryItemId
       )
       if (!item.length) throw new Error(`Inventory item not found: ${line.description || line.inventoryItemId}`)
-      const balance = await tx.$queryRawUnsafe<any[]>(
+      const balance = await tx.$queryRawUnsafe(
         `SELECT COALESCE(SUM(CASE WHEN "type" IN ('OPENING','PURCHASE','CUSTOMER_RETURN','ADJUSTMENT_IN') THEN "quantity" WHEN "type" IN ('ISSUE','SUPPLIER_RETURN','ADJUSTMENT_OUT') THEN -"quantity" ELSE 0 END),0)::float AS qty FROM "inventory_transactions" WHERE "itemId"=$1`,
         line.inventoryItemId
       )
@@ -82,7 +82,7 @@ export async function reconcileOilChangeInventory(tx: any, args: OilChangeInvent
   await tx.$executeRawUnsafe(`ALTER TABLE "inventory_transactions" ADD COLUMN IF NOT EXISTS "sourceType" TEXT`)
   await tx.$executeRawUnsafe(`ALTER TABLE "inventory_transactions" ADD COLUMN IF NOT EXISTS "sourceId" TEXT`)
 
-  const previous = await tx.$queryRawUnsafe<any[]>(
+  const previous = await tx.$queryRawUnsafe(
     `SELECT "itemId", SUM(CASE WHEN "type"='ISSUE' THEN "quantity" WHEN "type"='CUSTOMER_RETURN' THEN -"quantity" ELSE 0 END)::float AS qty
      FROM "inventory_transactions" WHERE "sourceType"='OIL_CHANGE' AND "sourceId"=$1
      GROUP BY "itemId"
@@ -106,14 +106,14 @@ export async function reconcileOilChangeInventory(tx: any, args: OilChangeInvent
   if (!args.inventoryItemId || qty <= 0) return
   if (!Number.isFinite(qty)) throw new Error('Enter a valid oil quantity in litres')
 
-  const item = await tx.$queryRawUnsafe<any[]>(
+  const item = await tx.$queryRawUnsafe(
     `SELECT "id","unit" FROM "inventory_items" WHERE "id"=$1 FOR UPDATE`, args.inventoryItemId
   )
   if (!item.length) throw new Error('Selected oil inventory item was not found')
   if (!['l','liter','litre','liters','litres'].includes(String(item[0].unit || '').trim().toLowerCase()))
     throw new Error('Selected inventory item must use litres as its unit')
 
-  const balance = await tx.$queryRawUnsafe<any[]>(
+  const balance = await tx.$queryRawUnsafe(
     `SELECT COALESCE(SUM(CASE WHEN "type" IN ('OPENING','PURCHASE','CUSTOMER_RETURN','ADJUSTMENT_IN') THEN "quantity" WHEN "type" IN ('ISSUE','SUPPLIER_RETURN','ADJUSTMENT_OUT') THEN -"quantity" ELSE 0 END),0)::float AS qty FROM "inventory_transactions" WHERE "itemId"=$1`,
     args.inventoryItemId
   )
