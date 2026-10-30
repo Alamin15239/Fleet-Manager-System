@@ -27,10 +27,11 @@ export async function GET(request: NextRequest) {
     let oilItemByRecord = new Map<string, string>()
     try {
       const linked = await db.$queryRawUnsafe<any[]>(
-        `SELECT DISTINCT ON ("sourceId") "sourceId", "itemId"
+        `SELECT "sourceId", "itemId"
          FROM "inventory_transactions"
-         WHERE "sourceType"='OIL_CHANGE' AND "type"='ISSUE'
-         ORDER BY "sourceId", "createdAt" DESC`
+         WHERE "sourceType"='OIL_CHANGE'
+         GROUP BY "sourceId", "itemId"
+         HAVING SUM(CASE WHEN "type"='ISSUE' THEN "quantity" WHEN "type"='CUSTOMER_RETURN' THEN -"quantity" ELSE 0 END)>0`
       )
       oilItemByRecord = new Map(linked.map(row => [String(row.sourceId), String(row.itemId)]))
     } catch (error) {
