@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireRolePermission } from '@/lib/permission-middleware'
 import { syncOneDriveWorkbookAfterChange } from '@/lib/onedrive-excel-sync'
+import { reconcileOilChangeInventory } from '@/lib/job-card-inventory'
 
 // GET single maintenance record by ID
 export async function GET(
@@ -133,7 +134,7 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireRolePermission(request, 'maintenance', 'update')
+    const user = await requireRolePermission(request, 'maintenance', 'update')
     const { id } = await params;
     const body = await request.json()
 
@@ -174,7 +175,8 @@ export async function PUT(
     let updatedRecord
     
     if (recordType === 'truck') {
-      updatedRecord = await db.maintenanceRecord.update({
+      updatedRecord = await db.$transaction(async tx => {
+        const updated = await tx.maintenanceRecord.update({
         where: { id: id },
         data: {
           ...(body.truckId !== undefined && { truckId: body.truckId }),
@@ -231,6 +233,28 @@ export async function PUT(
             }
           }
         }
+        })
+        const nowOilChange = body.isOilChange !== undefined ? body.isOilChange : existingRecord.isOilChange
+        const isOilService = Boolean(nowOilChange || String(body.serviceType ?? existingRecord.serviceType).toLowerCase().includes('oil'))
+        if (isOilService) {
+          let linkedItemId = body.oilInventoryItemId
+          if (linkedItemId === undefined) {
+            const previousLinks = await tx.$queryRawUnsafe<any[]>(
+              `SELECT "itemId" FROM "inventory_transactions" WHERE "sourceType"='OIL_CHANGE' AND "sourceId"=$1 AND "type"='ISSUE' ORDER BY "createdAt" DESC LIMIT 1`,
+              id
+            ).catch(() => [])
+            linkedItemId = previousLinks[0]?.itemId || null
+          }
+          await reconcileOilChangeInventory(tx, {
+            maintenanceId: id,
+            inventoryItemId: linkedItemId || null,
+            quantityLiters: body.oilQuantityLiters !== undefined ? body.oilQuantityLiters : existingRecord.oilQuantityLiters,
+            transactionDate: body.datePerformed ? new Date(body.datePerformed) : existingRecord.datePerformed,
+            vehicleId: body.truckId || existingRecord.truckId,
+            userId: user.id
+          })
+        }
+        return updated
       })
     } else {
       updatedRecord = await db.trailerMaintenanceRecord.update({
@@ -310,7 +334,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireRolePermission(request, 'maintenance', 'delete')
+    const user = await requireRolePermission(request, 'maintenance', 'delete')
     const { id } = await params;
     
     // Check if maintenance record exists in truck records
@@ -343,13 +367,25 @@ export async function DELETE(
 
     // Soft delete maintenance record based on type
     if (recordType === 'truck') {
-      await db.maintenanceRecord.update({
-        where: { id: id },
-        data: {
-          isDeleted: true,
-          deletedAt: new Date(),
-          deletedBy: 'system'
+      await db.$transaction(async tx => {
+        if (record.isOilChange || String(record.serviceType || '').toLowerCase().includes('oil')) {
+          await reconcileOilChangeInventory(tx, {
+            maintenanceId: id,
+            inventoryItemId: null,
+            quantityLiters: null,
+            transactionDate: new Date(),
+            vehicleId: record.truckId,
+            userId: user.id
+          })
         }
+        await tx.maintenanceRecord.update({
+          where: { id: id },
+          data: {
+            isDeleted: true,
+            deletedAt: new Date(),
+            deletedBy: user.id
+          }
+        })
       })
     } else {
       await db.trailerMaintenanceRecord.update({
