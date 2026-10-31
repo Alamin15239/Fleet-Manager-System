@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
         select: { jobNumber: true }
       })
       const highestSequence = existingNumbers.reduce((highest, card) => {
-        const match = card.jobNumber.match(/^JC-\\d{4}-(\\d+)$/)
+        const match = card.jobNumber.match(/^JC-\d{4}-(\d+)$/)
         const sequence = match ? Number(match[1]) : 0
         return Number.isSafeInteger(sequence) ? Math.max(highest, sequence) : highest
       }, 0)
