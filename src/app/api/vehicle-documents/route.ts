@@ -15,7 +15,7 @@ function makeShareAccess() {
   return { shareToken: randomBytes(32).toString('hex'), shareExpiresAt: new Date(Date.now() + SHARE_LINK_DAYS * 24 * 60 * 60 * 1000) }
 }
 
-function emailList(value: unknown) {
+function escapeHtml(value: string) { return value.replace(/[&<>\"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '\"': '&quot;', \"'\": '&#39;' }[character] || character) }\n\nfunction emailList(value: unknown) {
   return Array.from(new Set(typeof value === 'string' ? value.split(/[;,\\n]+/).map(email => email.trim().toLowerCase()).filter(email => /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) : []))
 }
 
@@ -219,7 +219,7 @@ export async function POST(request: NextRequest) {
             from: process.env.EMAIL_FROM || 'Fleet Manager <onboarding@resend.dev>',
             to: recipients, ...(cc.length ? { cc } : {}), ...(bcc.length ? { bcc } : {}),
             subject: 'Document expiry date updated: ' + document.title,
-            html: '<div style="font-family:Arial,sans-serif;max-width:640px;margin:auto;color:#172033"><h2>Document expiry date updated</h2><p><b>Document:</b> ' + document.title.replace(/[&<>"]/g, '') + '</p><p><b>Owner:</b> ' + owner.replace(/[&<>"]/g, '') + '</p><p><b>Document type:</b> ' + document.documentType + '</p><p><b>New expiry date:</b> ' + validUntil.toISOString().slice(0, 10) + '</p><p><a href="' + shareUrl + '" style="display:inline-block;padding:12px 18px;background:#1d4ed8;color:#fff;text-decoration:none;border-radius:6px">View document</a></p><p>This private share link expires in 90 days (' + document.shareExpiresAt.toISOString().slice(0, 10) + ').</p></div>',
+            html: '<div style="font-family:Arial,sans-serif;max-width:640px;margin:auto;color:#172033"><h2>Document expiry date updated</h2><p><b>Document:</b> ' + document.title.replace(/[&<>"]/g, '') + '</p><p><b>Owner:</b> ' + owner.replace(/[&<>"]/g, '') + '</p><p><b>Document type:</b> ' + escapeHtml(document.documentType) + '</p><p><b>New expiry date:</b> ' + validUntil.toISOString().slice(0, 10) + '</p><p><a href="' + shareUrl + '" style="display:inline-block;padding:12px 18px;background:#1d4ed8;color:#fff;text-decoration:none;border-radius:6px">View document</a></p><p>This private share link expires in 90 days (' + document.shareExpiresAt.toISOString().slice(0, 10) + ').</p></div>',
           })
           if (error) console.error('Document expiry update email failed:', error.message)
         }
