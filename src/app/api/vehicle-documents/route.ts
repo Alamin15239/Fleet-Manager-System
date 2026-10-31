@@ -15,8 +15,16 @@ function makeShareAccess() {
   return { shareToken: randomBytes(32).toString('hex'), shareExpiresAt: new Date(Date.now() + SHARE_LINK_DAYS * 24 * 60 * 60 * 1000) }
 }
 
-function escapeHtml(value: string) { return value.replace(/[&<>\"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '\"': '&quot;', \"'\": '&#39;' }[character] || character) }\n\nfunction emailList(value: unknown) {
-  return Array.from(new Set(typeof value === 'string' ? value.split(/[;,\\n]+/).map(email => email.trim().toLowerCase()).filter(email => /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) : []))
+function escapeHtml(value: string) {
+  return value.replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[character] || character))
+}
+
+function emailList(value: unknown) {
+  return Array.from(new Set(
+    typeof value === 'string'
+      ? value.split(/[;,\n]+/).map(email => email.trim().toLowerCase()).filter(email => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+      : [],
+  ))
 }
 
 function statusFor(error: unknown) {
