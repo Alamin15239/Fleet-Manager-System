@@ -72,7 +72,7 @@ async function runDocumentExpiryEmailAlerts() {
     }),
   ])
   const today = Date.parse(todayKey + 'T00:00:00Z')
-  const dueDocuments = documents.flatMap((document) => {
+  const dueDocuments: any[] = documents.flatMap((document) => {
     if (!document.validUntil) return []
     const expiryKey = document.validUntil.toISOString().slice(0, 10)
     const daysLeft = Math.round((Date.parse(expiryKey + 'T00:00:00Z') - today) / 86400000)
