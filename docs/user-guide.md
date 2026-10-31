@@ -1,121 +1,155 @@
-# Fleet Manager User Guide
+# Fleet Manager Pro — Complete User Guide
 
-Last updated: 20 October 2026
-Production app: https://fleetmaintenance.site
-In-app guide: https://fleetmaintenance.site/help
+This guide explains how to use the modules available in Fleet Manager Pro. The exact pages and actions shown to you depend on your role and individual permissions.
 
-This guide covers the current user-facing modules. A page or action appears only when the signed-in account has the required access. Contact the Company administrator to request permissions.
+**Production app:** https://fleetmaintenance.site  
+**In-app help:** https://fleetmaintenance.site/help  
+**Language:** English and Arabic are available from the language control.
 
-## Sign in and navigate
+## 1. Sign in and navigate
 
-Open /login and sign in with the registered account. A new account may require email verification and administrator approval. Use the password reset flow if needed. Never share your password or one-time code.
+Sign in with your approved account. New accounts may require email verification and administrator approval. Use the password reset flow if you cannot sign in; never share your password, one-time code or passkey.
 
-Use the sidebar to navigate. On a phone, open the menu button. Use the language toggle for English or Arabic and the appearance control for the theme. Help, Privacy Policy, and User Agreement are available from the profile menu; links are also on sign-in and sign-up screens.
+Use the sidebar to open modules. On mobile, open the navigation menu. Use the language and theme controls to adjust the interface. If a page is missing, ask an administrator to review your role and individual permissions.
 
-## Dashboard
+## 2. Dashboard
 
-The Dashboard summarizes fleet records, maintenance, and activity available to your account. Use the cards and links to open the lists behind the summary. Counts reflect the records currently stored in the app and your accessible data.
+The dashboard summarizes fleet records, maintenance activity and operational information available to your account. Use dashboard cards and links to open the underlying lists. Counts reflect saved records and your accessible data; review the source records before making operational decisions.
 
-## Trucks
+## 3. Trucks
 
-Use Trucks to find and manage truck records. Depending on your permissions, you can add, edit, or remove trucks. Records include items such as truck number/plate, VIN, make, model, year, current mileage, driver, status, inspection and oil-change dates, and related service history.
+Open **Trucks** to search and manage the truck register. Depending on your permissions, you can add, view, edit or deactivate/remove records. Keep the plate/fleet number, VIN, make, model, year, mileage, assigned driver, status and other available details accurate.
 
-Update the record when driver or mileage changes. Accurate current values feed dashboards, maintenance checks, and workbook exports. Review linked records before retiring or editing an asset.
+Update mileage and driver assignments when they change. These values support reporting, maintenance checks and workbook exports. Review linked service and job-card history before changing a vehicle record.
 
-## Trailers
+## 4. Trailers
 
-Use Trailers to manage trailer number, status, driver, inspection information, and maintenance history. Select the correct trailer when creating a workshop job card or recording related work.
+Use **Trailers** to manage trailer identifiers, status, driver, inspection details and maintenance history. Select the correct trailer when recording a workshop job or other trailer-related activity.
 
-## Document Expiry Tracker and Protection Cards
+## 5. Document expiry tracker and protection cards
 
-Use Document Expiry Tracker for each truck’s fire extinguisher, operation card, Istimara, insurance, driver card, and Fahas records. Enter an expiry date; the reminder starts automatically 10 days earlier. Fire extinguisher records need no uploaded file. Upload a file for the other five document types. The tracker shows missing, current, reminder-started, and expired entries. Each truck can have one current file per document type; uploading the same type again replaces that file.
+Use **Document Expiry** to track required vehicle records such as Fire Extinguisher, Operation Card, Istimara, Insurance, Driver Card and Fahas. Enter the correct expiry date and upload the required file for the document types that request one. Fire Extinguisher can be tracked without an uploaded file. The tracker distinguishes current, reminder-started, expired and missing records.
 
-For a truck or trailer’s Protection Card, open the vehicle’s details from its existing page and use the Protection Card section. Each vehicle has its own private file, with no expiry dates or reminders. Uploading again replaces that vehicle’s current Protection Card file. Job cards remain the maintenance records and drive maintenance tracking.
+For the truck/trailer **Protection Card**, open the vehicle details and use its Protection Card area. The protection-card file is separate from the expiry tracker and does not create an expiry reminder. Replacing a document replaces the current file for that document slot; verify the vehicle and document type before uploading.
 
-## Tire Management
+Document expiry email alerts use the saved notification recipients and verified email setting. A new document with an expiry date, a changed expiry date, or a replacement upload can trigger an event email. Daily expiry summaries are a separate scheduled process. Delivery depends on the configured Resend sender and valid recipients. Contact an administrator if an expected email is missing.
 
-Tire Management stores tire issue/out records. Available fields include tire size, Out Qty, truck or trailer, driver, serial number, manufacturer/origin, date, and notes.
+## 6. Workshop job cards
 
-- Add a tire record from the tire-entry form and select the vehicle/trailer association there.
-- Search and filter by the table’s available fields.
-- Tire analytics and reports count positive Out Qty values. Blank or zero quantities do not increase the total.
-- Serial-tracked count is not the same as total Out Qty.
-- Check source rows, units, dates, and supported manufacturer/origin values before applying workbook changes.
+**Workshop Job Cards** is the work-order module for trucks and trailers. Create a card for the correct asset and enter the service date/type, reported problem, priority, odometer where relevant, driver, technician, work performed, parts used, checklist, notes and next-service date or mileage.
 
-## Workshop Job Cards
+Save the card, then use its preview, print or download controls. Job-card output is formatted for A4 printing. A share link provides read-only access to anyone who has the link; share it only with the intended recipient because it can reveal vehicle, driver, technician, work and signature details.
 
-Workshop Job Cards is the workshop work-order system for trucks and trailers. The older Maintenance route redirects to this page. Create a card and enter the asset, service date and type, reported issue, priority, odometer when relevant, driver and technician, work performed, spare parts, checklist, notes, and next-service date or odometer.
+## 7. Tire management
 
-After saving, use the card’s preview, download, or print controls. The job-card document is formatted as a single-page A4 portrait form. A share link lets anyone who has that link view the card without signing in. Share the link only with the intended recipient because it may display vehicle, driver, technician, work, notes, and signature details.
+Use **Tire Management** to record tire issue/out activity. Available fields include tire size, quantity, truck/trailer association, driver, serial number, manufacturer/origin, date and notes.
 
-## Oil Changes
+- Add records through the tire-entry form and select the correct vehicle or trailer.
+- Search and filter using the fields shown on the page.
+- Reports and analytics count positive Out Qty values; zero or blank quantities do not increase the total.
+- Serial-tracked counts and total Out Qty are different measures.
+- Review source values and units before saving or applying workbook changes.
 
-Use Oil Changes to record and review oil-change events. Choose the truck and enter the actual date, mileage, driver, and oil details available in the form. Correct dates and odometers are important for useful reports and maintenance history.
+## 8. Oil changes
 
-## Purchase Invoices and Fleet Accounts
+Use **Oil Changes** to record oil-change events separately from general workshop cards. Select the truck and enter the actual service date, mileage, driver and oil details available in the form. Correct dates and odometers are essential for reliable service history and reports.
 
-Use Purchase Invoices & Accounts to record vendor bills for maintenance, spare parts, tires, batteries, oil and filters, and other fleet costs. Create the vendor first if it is not already in the vendor list. Enter the vendor's invoice number and dates, then add each invoice line and assign it to the truck or trailer that incurred the cost. The asset picker can be searched by fleet number.
+## 9. Spare parts and consumables inventory
 
-Choose whether the bill is a VAT invoice. For VAT invoices, set the invoice VAT rate (15% is the starting value) and whether entered unit prices include VAT. The app separates the net expense, input VAT, and vendor payable in its ledger. A no-VAT bill records the full line amount as the asset expense and does not post input VAT. Review the total before posting.
+Open **Spare Parts & Consumables** to manage workshop stock, including engine oil, oil filters, diesel filters, air filters, fuel filters and general parts.
 
-The Truck & Trailer Accounts tab shows costs by assigned asset; Vendor Accounts shows invoice balances owed to vendors; Input VAT shows the recoverable VAT ledger. These are ledger views of posted bills, not payment or bank reconciliation screens. Posted bills cannot be edited in place: use Void to reverse their journal entry while preserving the audit trail, then enter the corrected bill.
+### Create a stock item
+Enter the item name, optional part number, category, unit, optional oil grade and reorder level. Available categories include General, Engine Oil, Oil Filter, Diesel Filter, Air Filter, Air Dryer Filter, Water Separator Filter, Fuel Filter and Other. Available units are **pcs, litre, kg, set and box**. Choose the unit that matches how the stock is physically counted. Quantity and reorder level use the same unit.
 
-## Mechanics
+### Record stock movements
+Choose the item and transaction type, then enter quantity and date. The available movements include:
+- **Opening stock** — starting balance when setting up the item.
+- **Purchase / stock in** — goods received into the store.
+- **Issue to vehicle** — stock used for a truck or trailer; enter the vehicle details and job-card/reference information where available.
+- **Customer return / Supplier return** — record returned goods using the correct direction.
+- **Stock adjustment (+/-)** — record a verified correction to the stock balance.
 
-Mechanics is the technician directory. Authorized users can add or update mechanics and their contact/specialty details. Select the relevant mechanic or technician when recording work.
+Add references and notes so another user can understand why the movement was recorded.
 
-## Reports
+### Review and correct stock
+The **Current stock** tab shows each item, category/grade, available balance, unit, reorder level and status. **Edit stock** sets the balance to a verified physical count and records the difference as a stock adjustment. **Edit reorder** changes the threshold that marks the item for reorder. The **Transaction history** tab is the audit trail for stock movements.
 
-Choose the report type, date range, and filters. If the report allows vehicle selections, select one truck/trailer/tire to report that item, or select several to include each selection. Review the matching-record count and preview before downloading.
+A low/reorder status means the balance is at or below the configured reorder level. This stock indicator is separate from scheduled maintenance notifications.
 
-If there are no matching records, clear filters, widen the dates, or verify that source records exist. Reports describe stored data and do not repair missing or inaccurate records.
+## 10. Mechanics
 
-## Advanced Analytics
+Use **Mechanics** as the technician directory. Authorized users can add or update technician details and specialties. Select the correct mechanic/technician when recording workshop work.
 
-Advanced Analytics displays aggregated trends from the records available in the app. Use it to explore overall fleet and maintenance patterns, then inspect the relevant underlying records before acting.
+## 11. Purchase invoices and fleet accounts
 
-## Notifications
+Use **Purchase Invoices & Accounts** to record supplier bills for maintenance, parts, tires, batteries, oil, filters and other fleet expenses. Select or create the vendor, enter invoice number and dates, add invoice lines, and assign each cost to the truck or trailer that incurred it.
 
-The header bell shows recent in-app notifications and refreshes while the application is open. The Notifications page displays the broader history, supports refresh and unread filtering, and lets you mark items read.
+For a VAT invoice, use the VAT rate on the supplier document (15% is the default starting value) and indicate whether entered prices include VAT. No-VAT bills do not post input VAT. Review the invoice totals and asset allocation before posting.
 
-Maintenance notifications are checked by a scheduled production task once daily, targeting 04:00 UTC (07:00 in Riyadh). Hosting may run it within a time window. Checks use maintenance due dates and intervals, trailer inspection/maintenance, and job-card next service dates or mileage; this is not a real-time or emergency warning.
+Use **Truck & Trailer Accounts** for costs by asset, **Vendor Accounts** for amounts owed to suppliers and **Input VAT** for the input VAT ledger. These are accounting ledger views, not bank or payment reconciliation. Posted invoices are locked; authorized users can void an incorrect invoice to reverse its journal entry while retaining the audit trail, then enter the corrected bill.
 
-Email notifications require the email option and a configured mail provider. Automated maintenance alert emails go to active, approved administrators. Low-stock alerts are unavailable because parts inventory quantities are not stored in this app.
+## 12. Reports
 
-## OneDrive Excel Sync
+Choose the report type, date range and available filters. Select one or more assets when the report supports multi-selection. Review the matching-record count and preview before downloading PDF, Excel or other available output.
 
-An administrator connects a personal Microsoft OneDrive account in Settings → Excel Sync. The workbook includes Trucks, Trailers, Maintenance, Oil Changes, Tires, and Job Cards. App changes refresh the workbook when connected; use Sync Now for a manual refresh.
+If the report is empty, widen the date range, clear restrictive filters and confirm the source records exist. Reports reflect stored data; they do not repair inaccurate entries.
 
-## Excel Changes review
+## 13. Advanced analytics
 
-Workbook edits and additions are detected and staged under Excel Changes; they do not silently change app records.
+Use **Advanced Analytics** to explore aggregated fleet, maintenance and operational trends. Treat charts as a summary; inspect the underlying records before making maintenance, purchasing or staffing decisions.
 
-1. Select Check workbook now, or wait for the watcher/scan.
-2. Review the complete row, changed fields, validation message, and current app values.
-3. Apply one eligible change or use bulk apply for the eligible pending changes.
-4. The server checks the acting user’s current role and permissions for each applied row.
-5. Conflicts, invalid values, and rows outside your permissions require review. A deleted worksheet row does not delete an app record.
+## 14. Notifications and email alerts
 
-Check Settings → Excel Sync for workbook link, last successful update, and connection or watcher errors.
+The header bell shows recent in-app notifications. Open **Notifications** for the history, refresh the list, filter unread items and mark items as read.
 
-## Profile and users
+Scheduled maintenance checks run periodically (currently daily in production) and may include due/overdue maintenance, mileage intervals, trailer inspection/maintenance and job-card next-service schedules. They are not real-time or emergency warnings.
 
-Profile displays your account information and allows available profile edits, including a profile photo. User Management is permission-controlled and used by authorized administrators/managers to add, update, approve, reactivate, or set permissions for accounts. Administrators can set role permissions and individual user overrides.
+Email alerts depend on the notification settings, valid recipients and configured email sender. Document upload/replacement and expiry-date changes can trigger document event emails when the feature is enabled. Daily summaries are separate. Low-stock status is shown in inventory; do not assume it sends maintenance email alerts.
 
-If a user should no longer have access, ask an administrator to deactivate the account. Assign only the permissions required for the user’s job.
+## 15. OneDrive Excel Sync
 
-## Settings and Admin
+An administrator connects the authorized Microsoft OneDrive account from **Settings → Excel Sync**. The connected workbook can contain truck, trailer, maintenance, oil-change, tire and job-card data. App-side changes can refresh the workbook; use **Sync Now** when a manual refresh is needed.
 
-Settings can include company details used on reports and job cards, currency, timezone, maintenance intervals, notification preferences, system options, Excel Sync, role permissions, and activity. Some tabs require administrator access.
+Check the workbook link and last successful update in Settings. If the workbook is disconnected or stale, ask an administrator to check the Microsoft connection and watcher status.
 
-Admin pages include administrative activity and monitoring views. Backup files and exported activity logs may contain sensitive business and personal information.
+## 16. Excel Changes review
 
-## Common fixes
+Workbook edits and additions are staged for review; they are not silently applied to app records.
 
-- **A page is missing:** ask the administrator to check your role and user-specific permissions.
-- **Workbook not current:** check the connected workbook and last successful update, then retry Sync Now.
-- **Workbook change not applied:** read validation/conflict details and confirm the acting user has the required permission.
-- **Email notification missing:** ask an administrator to verify notification settings, sender configuration, and mail logs.
-- **Incorrect report:** review the date range, filters, selected assets, and source record values.
+1. Open **Excel Changes** and check the connected workbook.
+2. Review each changed row, changed fields, validation result and current app values.
+3. Apply an eligible change individually or use bulk apply for eligible rows.
+4. The server validates the data and checks the acting user's current role and permissions.
+5. Resolve conflicts and invalid values before retrying. Deleting a worksheet row does not delete the corresponding app record.
 
-For support, contact the Company administrator or alaminkhan.xiaomi@gmail.com. Do not send passwords, tokens, or secret keys.
+## 17. Profile, users and permissions
+
+**Profile** contains your account details and available profile updates. **User Management** is restricted to authorized users and can support account creation, approval, activation/deactivation, role assignment and individual permission overrides.
+
+Grant only the access required for each person's work. Hiding a menu item is not a substitute for server-side access control; all protected operations must be performed through the authorized account.
+
+## 18. Organization workspaces
+
+The application supports separate organization workspaces and organization-specific data boundaries. Always confirm that you are signed into the correct company/workspace before creating, importing or editing records.
+
+Workspace creation, database provisioning and purchase-request administration are restricted to the primary administrator. A bank-transfer request does not activate a workspace; provisioning begins only after the administrator confirms receipt of the transfer. Do not move records between organizations unless explicitly authorized.
+
+## 19. Settings and administration
+
+Depending on your permissions, **Settings** can include company details used on job cards and reports, currency, timezone, maintenance intervals, notification recipients, email test controls, Excel Sync, role permissions and system preferences.
+
+Administrative pages may include organization management, activity logs, user monitoring, storage/database information and system health. Treat exports, backups and logs as sensitive business information. Do not share them publicly.
+
+## 20. Common troubleshooting
+
+| Problem | What to check |
+| --- | --- |
+| A page or action is missing | Confirm the correct account, organization, role and individual permissions. |
+| Stock quantity looks wrong | Check the item unit and transaction history; reconcile only against a verified physical count. |
+| A document email did not arrive | Check saved To/CC/BCC recipients, verified status, sender configuration and email provider logs with an administrator. |
+| OneDrive workbook is stale | Check the connection and last successful update, then use Sync Now or ask an administrator to reconnect. |
+| Excel edit was not applied | Review validation/conflict details and confirm the applying user has permission. |
+| A report is empty or incorrect | Check date range, filters, selected assets and source-record values. |
+| Login or account approval fails | Use password reset and contact an administrator about verification or approval status. |
+
+For support, contact your company administrator. Do not send passwords, OTPs, access tokens, database URLs or secret keys.

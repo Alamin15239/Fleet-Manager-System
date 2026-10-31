@@ -1,89 +1,105 @@
-# Fleet Manager System
+<div align="center">
 
-Fleet Manager is the web application used by Saadfreeh Transport Est. to manage fleet records, workshop job cards, tire issue records, oil changes, maintenance alerts, reports, and a OneDrive Excel workbook.
+# Fleet Manager Pro
 
-Production application: [fleetmaintenance.site](https://fleetmaintenance.site)
-Source repository: [Alamin15239/Fleet-Manager-System](https://github.com/Alamin15239/Fleet-Manager-System)
-User-facing help: [In-app guide](/help)
-Last reviewed: 16 October 2026
+**Fleet operations, workshop maintenance, tire records, inventory and reporting — in one workspace.**
 
-## Current functions
+[![Next.js](https://img.shields.io/badge/Next.js-15-black?logo=next.js)](https://nextjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Prisma-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![Production](https://img.shields.io/badge/Production-fleetmaintenance.site-16a34a)](https://fleetmaintenance.site)
 
-- **Dashboard** — operational summaries and links to the underlying records.
-- **Trucks and trailers** — fleet register, vehicle details, mileage, driver, status, inspections, and related service history.
-- **Workshop Job Cards** — work orders for trucks and trailers, checklist, work and parts, signatures, print/PDF and share-link flow. The old Maintenance page redirects to Job Cards.
-- **Tire Management** — tire issue/out records and filters for available tire, vehicle, driver, serial, and date details. Tire totals use positive Out Qty values.
-- **Oil Changes and Mechanics** — separate oil-change history and technician directory.
-- **Reports and Advanced Analytics** — filtered maintenance reports, PDF/Excel exports where provided by the page, and aggregated operational charts.
-- **Notifications** — daily scheduled maintenance checks, in-app notification history, and optional email delivery.
-- **Excel Changes and OneDrive Sync** — app records can refresh the connected workbook. Workbook edits are staged for permission-checked review before being applied to the app.
-- **Users, Profile, Settings, and Admin** — account and permission management, company settings, activity, and system monitoring according to access rights.
-- **Help, Privacy Policy, and User Agreement** — available from the profile menu and authentication pages.
+[Open the app](https://fleetmaintenance.site) · [User guide](docs/user-guide.md) · [Local development](docs/LOCAL-DEVELOPMENT.md)
 
-Feature visibility and write actions are controlled by the account role and user-specific permissions. Administrators should grant only the access required for a person's work.
+</div>
 
-## Run locally
+---
 
-Requirements: Node.js 20 or newer, npm, and a PostgreSQL database.
+## What the application manages
 
-1. Clone the repository:
-   ```
+| Area | Main workflows |
+| --- | --- |
+| Fleet | Truck and trailer registers, mileage, drivers, status and vehicle history |
+| Workshop | Job cards, work performed, parts used, checklists, next-service schedules and printable PDFs |
+| Tires | Tire issue/out records, serials, vehicle assignment, filters and reports |
+| Oil changes | Oil-change history by vehicle, date and mileage |
+| Parts & consumables | Item categories, stock units, receipts, issues, returns, adjustments, current balances and reorder thresholds |
+| Fleet accounts | Purchase invoices, asset costs, vendor balances and input VAT ledger |
+| Compliance | Vehicle document expiry tracking, reminders and protection-card files |
+| Operations | Mechanics, maintenance notifications, reports and advanced analytics |
+| Integrations | OneDrive Excel sync and permission-checked Excel Changes review |
+| Administration | User roles, individual permissions, organization workspaces, settings and activity monitoring |
+
+Feature access depends on the signed-in user's role and individual permissions. Some administrative and integration features are available only to authorized administrators.
+
+## Run the application locally
+
+**Requirements:** Node.js 20+, npm, and a PostgreSQL database that is separate from production.
+
+1. Clone the repository and install dependencies:
+
+   ```bash
    git clone https://github.com/Alamin15239/Fleet-Manager-System.git
    cd Fleet-Manager-System
    npm install
    ```
-2. Copy .env.example to .env.local and configure at least DATABASE_URL and a strong JWT_SECRET. Configure NEXTAUTH_URL, NEXTAUTH_SECRET, and NEXT_PUBLIC_APP_URL for the local origin. Configure email and Microsoft integration only if you need those features.
-3. Generate the Prisma client and sync the local schema:
+
+2. Create your local environment file:
+
+   ```bash
+   cp .env.example .env.local
    ```
+
+   Configure at least a development `DATABASE_URL` and strong local authentication secrets. Set local URLs to `http://localhost:3000`. Optional integrations such as Resend email, Microsoft OneDrive and Google sign-in can be configured later.
+
+3. Generate Prisma Client and apply the schema to your development database:
+
+   ```bash
    npm run db:generate
    npm run db:push
    ```
+
 4. Start the development server:
-   ```
+
+   ```bash
    npm run dev
    ```
-5. Open http://localhost:3000. Account registration may require email verification and administrator approval.
 
-Do not use a production database for local development or commit any environment file containing secrets.
+5. Open [http://localhost:3000](http://localhost:3000). Register or sign in with an authorized development account. New accounts may require email verification and administrator approval depending on the configured authentication flow.
 
-### Google sign-in
+For environment variables, database setup, OAuth callbacks, optional integrations and troubleshooting, follow **[Local Development](docs/LOCAL-DEVELOPMENT.md)**.
 
-Google sign-in and signup are optional. Create a Google OAuth client with the **Web application** type, add `https://fleetmaintenance.site` to its authorized JavaScript origins, and add this authorized redirect URI:
+> **Data safety:** Never point local development at the production database. Never commit `.env.local`, credentials, access tokens, database URLs or real customer data.
 
-```
-https://fleetmaintenance.site/api/auth/google/callback
-```
+## User documentation
 
-For local development, use `http://localhost:3000/api/auth/google/callback`. Set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` in `.env.local` and the deployment environment. New Google accounts are created as regular users and still require administrator approval; Google confirms the email address so a separate email OTP is not required.
+- **[Complete user guide](docs/user-guide.md)** — how to operate each application module.
+- **[Local development setup](docs/LOCAL-DEVELOPMENT.md)** — clone, configure, run and troubleshoot the app locally.
+- [Deployment guide](DEPLOYMENT.md) — production environment, database, cron and integrations.
+- [OneDrive Excel sync](docs/onedrive-excel-sync.md) — Microsoft setup and workbook connection.
+- [Excel workbook imports](docs/onedrive-workbook-imports.md) — review and apply workbook changes.
+- [Organization workspaces](docs/organizations.md) — organization separation and workspace operations.
+- [Privacy policy](docs/privacy-policy.md) · [User agreement](docs/user-agreement.md) · [Security policy](SECURITY.md).
 
-## Stack and data
+## Technology
 
-- Next.js 15 App Router and React 19
-- TypeScript, Tailwind CSS, and shadcn/ui components
-- PostgreSQL with Prisma
-- ExcelJS for workbook generation and processing
-- Microsoft Graph for the optional personal OneDrive workbook integration
-- Resend for email when configured
-- Vercel deployment, Analytics, and Speed Insights; Microsoft Clarity is also enabled
+- Next.js App Router, React 19 and TypeScript
+- Tailwind CSS and shadcn/ui
+- PostgreSQL with Prisma ORM
+- ExcelJS and Microsoft Graph for workbook integration
+- Resend for configured email delivery
+- Vercel deployment, Analytics and Speed Insights
 
-The Prisma schema is in prisma/schema.prisma. The app stores accounts, fleet and maintenance records, tire records, job cards, settings, notifications, and audit/activity data in PostgreSQL.
+The Prisma schema is maintained in `prisma/schema.prisma`. The production build uses `npm run vercel-build`; review [DEPLOYMENT.md](DEPLOYMENT.md) before changing production configuration.
 
 ## Operational notes
 
-- The OneDrive connection and deployment requirements are documented in [docs/onedrive-excel-sync.md](docs/onedrive-excel-sync.md) and [docs/onedrive-workbook-imports.md](docs/onedrive-workbook-imports.md).
-- Multiple organizations with isolated Neon databases are documented in [docs/organizations.md](docs/organizations.md).
-- Notification checks run daily from the Vercel cron configuration. They target 04:00 UTC / 07:00 Riyadh time, subject to the deployment scheduler.
-- Spare-parts quantities are not stored, so low-stock alerts are unavailable.
-- The application currently sends signed-in user ID, role, email, and name to its Microsoft Clarity integration. See [Privacy Policy](docs/privacy-policy.md) and ANALYTICS.md.
-- A public job-card share link can be viewed by anyone holding that link. Share it only with the intended recipient.
-- See DEPLOYMENT.md for production configuration and SECURITY.md for vulnerability reporting.
+- Workbook edits are staged for review and validated against the applying user's current permissions. They are not silently applied.
+- Scheduled maintenance checks are periodic, not real-time or emergency alerts.
+- Document expiry email alerts depend on saved recipients, verification settings and a working Resend sender configuration.
+- Spare-parts inventory has its own stock movement ledger and reorder threshold. It is separate from the maintenance alert engine.
+- Public job-card share links are accessible to anyone holding the link. Share them only with intended recipients.
 
-## Documentation
+## Contributing and security
 
-- [User Guide](docs/user-guide.md)
-- [Privacy Policy](docs/privacy-policy.md)
-- [User Agreement](docs/user-agreement.md)
-- [Deployment](DEPLOYMENT.md)
-- [Contributing](CONTRIBUTING.md)
-- [Security Policy](SECURITY.md)
-- [Changelog](CHANGELOG.md)
+Follow [CONTRIBUTING.md](CONTRIBUTING.md) for development conventions. Do not report vulnerabilities in public issues; use the private reporting instructions in [SECURITY.md](SECURITY.md).
