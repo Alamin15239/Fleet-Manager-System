@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Resend } from 'resend'
+import { randomBytes } from 'crypto'
 import { NotificationService } from '@/lib/notification-service'
 import { controlDb, getPrimaryOrganization, withOrganization } from '@/lib/db'
 
@@ -7,6 +8,19 @@ export const runtime = 'nodejs'
 
 function escapeHtml(value: string) {
   return value.replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character] || character)
+}
+
+async function documentShareUrl(db: any, document: { id: string; fileName?: string | null; shareToken?: string | null; shareExpiresAt?: Date | null }) {
+  if (!document.fileName) return null
+  let token = document.shareToken
+  let expiresAt = document.shareExpiresAt
+  if (!token || !expiresAt || expiresAt <= new Date()) {
+    token = randomBytes(32).toString('hex')
+    expiresAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000)
+    await db.vehicleDocument.update({ where: { id: document.id }, data: { shareToken: token, shareExpiresAt: expiresAt } })
+  }
+  const origin = process.env.NEXT_PUBLIC_APP_URL || (process.env.VERCEL_URL ? 'https://' + process.env.VERCEL_URL : '')
+  return origin ? origin.replace(/\/$/, '') + '/api/public/documents/' + token : null
 }
 
 function dateKeyInRiyadh(date = new Date()) {
@@ -37,7 +51,7 @@ async function runDocumentExpiryEmailAlerts() {
   const documents = await db.vehicleDocument.findMany({
     where: { validUntil: { not: null } },
     select: {
-      id: true, title: true, documentType: true, validUntil: true,
+      id: true, title: true, documentType: true, validUntil: true, fileName: true, shareToken: true, shareExpiresAt: true,
       truck: { select: { licensePlate: true, make: true, model: true } },
       trailer: { select: { number: true } }, driver: { select: { name: true } },
       vehicle: { select: { vehicleNumber: true } },
@@ -58,6 +72,10 @@ async function runDocumentExpiryEmailAlerts() {
       : daysLeft === 0 ? 'expires today' : 'overdue by ' + Math.abs(daysLeft) + ' days'
     return [{ title: document.title, documentType: document.documentType, owner, expiryKey, daysLeft, timing }]
   }).sort((a, b) => a.daysLeft - b.daysLeft)
+
+  for (const document of dueDocuments as any[]) {
+    document.shareUrl = await documentShareUrl(db, document)
+  }
 
   if (!dueDocuments.length) {
     if (settings) await db.settings.update({
@@ -80,7 +98,7 @@ async function runDocumentExpiryEmailAlerts() {
     ...(ccRecipients.length ? { cc: ccRecipients } : {}),
     ...(bccRecipients.length ? { bcc: bccRecipients } : {}),
     subject: 'Fleet document expiry summary — ' + dueDocuments.length + ' document' + (dueDocuments.length === 1 ? '' : 's'),
-    html: '<div style="font-family:Arial,sans-serif;max-width:900px;margin:auto;color:#172033"><h2>Fleet document expiry summary</h2><p>These documents are expired or due to expire within 30 days. This summary includes all matching records, not just specific reminder milestones.</p><p><b>Automatic notifications are now enabled:</b> From now on, this email address will receive automatic email notifications about document expirations, helping you renew documents before they expire. Please review the alerts and take action promptly.</p><p><b>Documents requiring attention:</b> ' + dueDocuments.length + '</p><table style="width:100%;border-collapse:collapse;text-align:left"><thead><tr><th style="padding:8px">Document</th><th style="padding:8px">Vehicle / owner</th><th style="padding:8px">Expiry date</th><th style="padding:8px">Status</th></tr></thead><tbody>' + rows + '</tbody></table><p>Please renew expired or soon-to-expire documents and update Fleet Manager Pro.</p></div>',
+    html: '<div style="font-family:Arial,sans-serif;max-width:900px;margin:auto;color:#172033"><h2>Fleet document expiry summary</h2><p>These documents are expired or due to expire within 30 days. This summary includes all matching records, not just specific reminder milestones.</p><p><b>Automatic notifications are now enabled:</b> From now on, this email address will receive automatic email notifications about document expirations, helping you renew documents before they expire. Please review the alerts and take action promptly.</p><p><b>Documents requiring attention:</b> ' + dueDocuments.length + '</p><table style="width:100%;border-collapse:collapse;text-align:left"><thead><tr><th style="padding:8px">Document</th><th style="padding:8px">Vehicle / owner</th><th style="padding:8px">Expiry date</th><th style="padding:8px">Status</th><th style="padding:8px">File</th></tr></thead><tbody>' + rows + '</tbody></table><p>Please renew expired or soon-to-expire documents and update Fleet Manager Pro.</p></div>',
   })
   if (error) {
     console.error('Resend rejected document-expiry summary')
@@ -115,7 +133,7 @@ async function runDocumentAndDriverChangeEmailAlerts() {
     db.vehicleDocument.findMany({
       where: { updatedAt: { gt: since, lte: cutoff } },
       select: {
-        id: true, title: true, documentType: true, validFrom: true, validUntil: true, updatedAt: true,
+        id: true, title: true, documentType: true, validFrom: true, validUntil: true, updatedAt: true, fileName: true, shareToken: true, shareExpiresAt: true,
         truck: { select: { licensePlate: true } },
         trailer: { select: { number: true } },
         driver: { select: { name: true } },
@@ -130,8 +148,9 @@ async function runDocumentAndDriverChangeEmailAlerts() {
     }),
   ])
 
+  const documentsWithLinks = await Promise.all(documents.map(async document => ({ ...document, shareUrl: await documentShareUrl(db, document) })))
   const changes = [
-    ...documents.map((document) => ({
+    ...documentsWithLinks.map((document) => ({
       date: document.updatedAt.toISOString(),
       kind: 'Document added/edited',
       item: document.title || document.documentType,
@@ -141,6 +160,7 @@ async function runDocumentAndDriverChangeEmailAlerts() {
         : document.vehicle ? 'Vehicle: ' + document.vehicle.vehicleNumber : 'Fleet record',
       details: document.documentType + ' · issue: ' + (document.validFrom?.toISOString().slice(0, 10) || 'not set')
         + ' · expiry: ' + (document.validUntil?.toISOString().slice(0, 10) || 'not set'),
+      shareUrl: document.shareUrl,
     })),
     ...drivers.map((driver) => ({
       date: driver.updatedAt.toISOString(),
@@ -148,6 +168,7 @@ async function runDocumentAndDriverChangeEmailAlerts() {
       item: driver.name,
       owner: 'Driver record',
       details: driver.phone ? 'Phone: ' + driver.phone : 'Driver details updated',
+      shareUrl: null,
     })),
   ].sort((a, b) => a.date.localeCompare(b.date))
 
@@ -164,7 +185,7 @@ async function runDocumentAndDriverChangeEmailAlerts() {
     '</td><td style="padding:8px;border-bottom:1px solid #e5e7eb">' + escapeHtml(change.item) +
     '<br><small>' + escapeHtml(change.details) + '</small></td><td style="padding:8px;border-bottom:1px solid #e5e7eb">' +
     escapeHtml(change.owner) + '</td><td style="padding:8px;border-bottom:1px solid #e5e7eb">' +
-    escapeHtml(change.date.replace('T', ' ').slice(0, 16) + ' UTC') + '</td></tr>'
+    escapeHtml(change.date.replace('T', ' ').slice(0, 16) + ' UTC') + '</td><td style="padding:8px;border-bottom:1px solid #e5e7eb">' + (change.shareUrl ? '<a href="' + change.shareUrl + '">View document</a><br><small>Link expires in 90 days</small>' : '—') + '</td></tr>'
   ).join('')
   const resend = new Resend(process.env.RESEND_API_KEY)
   const { error } = await resend.emails.send({
@@ -173,7 +194,7 @@ async function runDocumentAndDriverChangeEmailAlerts() {
     ...(ccRecipients.length ? { cc: ccRecipients } : {}),
     ...(bccRecipients.length ? { bcc: bccRecipients } : {}),
     subject: 'Fleet Manager: ' + changes.length + ' driver/document change' + (changes.length === 1 ? '' : 's'),
-    html: '<div style="font-family:Arial,sans-serif;max-width:1000px;margin:auto;color:#172033"><h2>Fleet document and driver change summary</h2><p>The system detected the following driver records or documents added/edited since the previous hourly check. Driver cards are included.</p><p><b>Changes detected:</b> ' + changes.length + '</p><table style="width:100%;border-collapse:collapse;text-align:left"><thead><tr><th style="padding:8px">Change</th><th style="padding:8px">Record / details</th><th style="padding:8px">Owner</th><th style="padding:8px">Updated (UTC)</th></tr></thead><tbody>' + rows + '</tbody></table><p>This is an automatic hourly summary from Fleet Manager.</p></div>',
+    html: '<div style="font-family:Arial,sans-serif;max-width:1000px;margin:auto;color:#172033"><h2>Fleet document and driver change summary</h2><p>The system detected the following driver records or documents added/edited since the previous hourly check. Driver cards are included.</p><p><b>Changes detected:</b> ' + changes.length + '</p><table style="width:100%;border-collapse:collapse;text-align:left"><thead><tr><th style="padding:8px">Change</th><th style="padding:8px">Record / details</th><th style="padding:8px">Owner</th><th style="padding:8px">Updated (UTC)</th><th style="padding:8px">File</th></tr></thead><tbody>' + rows + '</tbody></table><p>This is an automatic hourly summary from Fleet Manager.</p></div>',
   })
   if (error) {
     console.error('Resend rejected driver/document change summary')
