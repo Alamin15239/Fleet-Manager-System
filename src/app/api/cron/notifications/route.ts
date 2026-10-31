@@ -148,20 +148,7 @@ async function runDocumentAndDriverChangeEmailAlerts() {
     }),
   ])
 
-  const documentsWithLinks = await Promise.all(documents.map(async document => ({ ...document, shareUrl: await documentShareUrl(db, document) })))
   const changes = [
-    ...documentsWithLinks.map((document) => ({
-      date: document.updatedAt.toISOString(),
-      kind: 'Document added/edited',
-      item: document.title || document.documentType,
-      owner: document.driver ? 'Driver: ' + document.driver.name
-        : document.truck ? 'Truck: ' + document.truck.licensePlate
-        : document.trailer ? 'Trailer: ' + document.trailer.number
-        : document.vehicle ? 'Vehicle: ' + document.vehicle.vehicleNumber : 'Fleet record',
-      details: document.documentType + ' · issue: ' + (document.validFrom?.toISOString().slice(0, 10) || 'not set')
-        + ' · expiry: ' + (document.validUntil?.toISOString().slice(0, 10) || 'not set'),
-      shareUrl: document.shareUrl,
-    })),
     ...drivers.map((driver) => ({
       date: driver.updatedAt.toISOString(),
       kind: driver.createdAt.getTime() === driver.updatedAt.getTime() ? 'Driver added' : 'Driver added/edited',
@@ -193,8 +180,8 @@ async function runDocumentAndDriverChangeEmailAlerts() {
     to: recipients,
     ...(ccRecipients.length ? { cc: ccRecipients } : {}),
     ...(bccRecipients.length ? { bcc: bccRecipients } : {}),
-    subject: 'Fleet Manager: ' + changes.length + ' driver/document change' + (changes.length === 1 ? '' : 's'),
-    html: '<div style="font-family:Arial,sans-serif;max-width:1000px;margin:auto;color:#172033"><h2>Fleet document and driver change summary</h2><p>The system detected the following driver records or documents added/edited since the previous hourly check. Driver cards are included.</p><p><b>Changes detected:</b> ' + changes.length + '</p><table style="width:100%;border-collapse:collapse;text-align:left"><thead><tr><th style="padding:8px">Change</th><th style="padding:8px">Record / details</th><th style="padding:8px">Owner</th><th style="padding:8px">Updated (UTC)</th><th style="padding:8px">File</th></tr></thead><tbody>' + rows + '</tbody></table><p>This is an automatic hourly summary from Fleet Manager.</p></div>',
+    subject: 'Fleet Manager: ' + changes.length + ' driver record change' + (changes.length === 1 ? '' : 's'),
+    html: '<div style="font-family:Arial,sans-serif;max-width:1000px;margin:auto;color:#172033"><h2>Driver record change summary</h2><p>The system detected the following driver record changes since the previous hourly check. Document expiry-date changes are sent separately with a direct document link.</p><p><b>Changes detected:</b> ' + changes.length + '</p><table style="width:100%;border-collapse:collapse;text-align:left"><thead><tr><th style="padding:8px">Change</th><th style="padding:8px">Record / details</th><th style="padding:8px">Owner</th><th style="padding:8px">Updated (UTC)</th><th style="padding:8px">File</th></tr></thead><tbody>' + rows + '</tbody></table><p>This is an automatic hourly summary from Fleet Manager.</p></div>',
   })
   if (error) {
     console.error('Resend rejected driver/document change summary')
@@ -204,7 +191,7 @@ async function runDocumentAndDriverChangeEmailAlerts() {
     where: { id: settings.id },
     data: { notifications: { ...notificationSettings, documentChangeEmailCursor: cutoff.toISOString() } as any },
   })
-  return { status: 'completed', sent: 1, changes: changes.length, documents: documents.length, drivers: drivers.length }
+  return { status: 'completed', sent: 1, changes: changes.length, drivers: drivers.length }
 }
 
 export async function GET(request: NextRequest) {
