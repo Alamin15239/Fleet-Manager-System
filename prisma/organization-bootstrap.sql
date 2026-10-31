@@ -1088,6 +1088,8 @@ CREATE TABLE "vehicle_documents" (
     "mimeType" TEXT,
     "fileSize" INTEGER,
     "fileData" BYTEA,
+    "shareToken" TEXT,
+    "shareExpiresAt" TIMESTAMP(3),
     "validFrom" TIMESTAMP(3),
     "validUntil" TIMESTAMP(3),
     "reminderStartDate" TIMESTAMP(3),
@@ -1097,6 +1099,7 @@ CREATE TABLE "vehicle_documents" (
     CONSTRAINT "vehicle_documents_pkey" PRIMARY KEY ("id")
 );
 
+CREATE UNIQUE INDEX "vehicle_documents_shareToken_key" ON "vehicle_documents"("shareToken");
 CREATE INDEX "vehicle_documents_vehicleId_idx" ON "vehicle_documents"("vehicleId");
 CREATE INDEX "vehicle_documents_driverId_idx" ON "vehicle_documents"("driverId");
 CREATE INDEX "vehicle_documents_validUntil_idx" ON "vehicle_documents"("validUntil");
