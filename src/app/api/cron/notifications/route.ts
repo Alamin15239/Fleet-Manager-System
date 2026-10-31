@@ -48,15 +48,29 @@ async function runDocumentExpiryEmailAlerts() {
     return { status: 'already-sent-today', sent: 0 }
   }
 
-  const documents = await db.vehicleDocument.findMany({
-    where: { validUntil: { not: null } },
-    select: {
-      id: true, title: true, documentType: true, validUntil: true, fileName: true, shareToken: true, shareExpiresAt: true,
-      truck: { select: { licensePlate: true, make: true, model: true } },
-      trailer: { select: { number: true } }, driver: { select: { name: true } },
-      vehicle: { select: { vehicleNumber: true } },
-    },
-  })
+  const requiredTruckDocumentTypes = ['Fire extinguisher', 'Operation card', 'Istimara', 'Insurance', 'Fahas']
+  const [documents, trucks, drivers] = await Promise.all([
+    db.vehicleDocument.findMany({
+      where: { validUntil: { not: null } },
+      select: {
+        id: true, title: true, documentType: true, validUntil: true, fileName: true, shareToken: true, shareExpiresAt: true,
+        truck: { select: { licensePlate: true, make: true, model: true } },
+        trailer: { select: { number: true } }, driver: { select: { name: true } },
+        vehicle: { select: { vehicleNumber: true } },
+      },
+    }),
+    db.truck.findMany({
+      where: { isDeleted: false },
+      select: {
+        id: true, licensePlate: true, make: true, model: true,
+        vehicleDocuments: { where: { documentType: { in: requiredTruckDocumentTypes } }, select: { documentType: true } },
+      },
+    }),
+    db.driver.findMany({
+      where: { isActive: true, isDeleted: false },
+      select: { id: true, name: true, vehicleDocuments: { where: { documentType: 'Driver card' }, select: { id: true } } },
+    }),
+  ])
   const today = Date.parse(todayKey + 'T00:00:00Z')
   const dueDocuments = documents.flatMap((document) => {
     if (!document.validUntil) return []
@@ -70,11 +84,32 @@ async function runDocumentExpiryEmailAlerts() {
       : document.vehicle ? 'Vehicle ' + document.vehicle.vehicleNumber : 'Fleet record'
     const timing = daysLeft > 0 ? 'expires in ' + daysLeft + ' day' + (daysLeft === 1 ? '' : 's')
       : daysLeft === 0 ? 'expires today' : 'overdue by ' + Math.abs(daysLeft) + ' days'
-    return [{ title: document.title, documentType: document.documentType, owner, expiryKey, daysLeft, timing }]
-  }).sort((a, b) => a.daysLeft - b.daysLeft)
+    return [{
+      id: document.id, title: document.title, documentType: document.documentType, owner,
+      expiryKey, daysLeft, timing, fileName: document.fileName,
+      shareToken: document.shareToken, shareExpiresAt: document.shareExpiresAt,
+    }]
+  })
+
+  const missingDocuments = [
+    ...trucks.flatMap((truck) => requiredTruckDocumentTypes
+      .filter((type) => !truck.vehicleDocuments.some((document) => document.documentType === type))
+      .map((type) => ({
+        title: type, documentType: type,
+        owner: 'Truck ' + truck.licensePlate + ' (' + [truck.make, truck.model].filter(Boolean).join(' ') + ')',
+        expiryKey: '—', daysLeft: -1, timing: 'missing document', missing: true,
+      }))),
+    ...drivers.filter((driver) => driver.vehicleDocuments.length === 0).map((driver) => ({
+      title: 'Driver card', documentType: 'Driver card',
+      owner: 'Driver ' + driver.name, expiryKey: '—', daysLeft: -1,
+      timing: 'missing document', missing: true,
+    })),
+  ]
+  dueDocuments.push(...missingDocuments)
+  dueDocuments.sort((a, b) => a.daysLeft - b.daysLeft || a.owner.localeCompare(b.owner))
 
   for (const document of dueDocuments as any[]) {
-    document.shareUrl = await documentShareUrl(db, document)
+    if (!document.missing) document.shareUrl = await documentShareUrl(db, document)
   }
 
   if (!dueDocuments.length) {
@@ -82,14 +117,17 @@ async function runDocumentExpiryEmailAlerts() {
       where: { id: settings.id },
       data: { notifications: { ...notificationSettings, documentExpiryDigestDate: todayKey } as any },
     })
-    return { status: 'no-current-alerts', sent: 0, checked: documents.length }
+    return { status: 'no-current-alerts', sent: 0, checked: documents.length, missing: 0 }
   }
 
   const rows = dueDocuments.map((document) =>
     '<tr><td style="padding:8px;border-bottom:1px solid #e5e7eb">' + escapeHtml(document.title) +
     '<br><small>' + escapeHtml(document.documentType) + '</small></td><td style="padding:8px;border-bottom:1px solid #e5e7eb">' +
     escapeHtml(document.owner) + '</td><td style="padding:8px;border-bottom:1px solid #e5e7eb">' + escapeHtml(document.expiryKey) +
-    '</td><td style="padding:8px;border-bottom:1px solid #e5e7eb">' + escapeHtml(document.timing) + '</td></tr>'
+    '</td><td style="padding:8px;border-bottom:1px solid #e5e7eb">' + escapeHtml(document.timing) +
+    '</td><td style="padding:8px;border-bottom:1px solid #e5e7eb">' +
+    (document.shareUrl ? '<a href="' + escapeHtml(document.shareUrl) + '">View document</a>' : document.missing ? 'Not uploaded' : 'No file') +
+    '</td></tr>'
   ).join('')
   const resend = new Resend(process.env.RESEND_API_KEY)
   const { error } = await resend.emails.send({
@@ -108,7 +146,7 @@ async function runDocumentExpiryEmailAlerts() {
     where: { id: settings.id },
     data: { notifications: { ...notificationSettings, documentExpiryDigestDate: todayKey } as any },
   })
-  return { status: 'completed', sent: 1, checked: documents.length, included: dueDocuments.length }
+  return { status: 'completed', sent: 1, checked: documents.length, included: dueDocuments.length, missing: missingDocuments.length }
 }
 
 async function runDocumentAndDriverChangeEmailAlerts() {
