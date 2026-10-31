@@ -48,9 +48,20 @@ export async function POST(request: NextRequest) {
     const prefix = `JC-${year}-`
     const jobCard = await db.$transaction(async tx => {
       await tx.$executeRaw`LOCK TABLE "workshop_job_cards" IN EXCLUSIVE MODE`
-      const count = await tx.workshopJobCard.count({ where: { jobNumber: { startsWith: prefix } } })
+      // Count-based numbering can reuse an existing number after deletions or
+      // gaps. Find the highest numeric suffix and increment it instead.
+      const existingNumbers = await tx.workshopJobCard.findMany({
+        where: { jobNumber: { startsWith: prefix } },
+        select: { jobNumber: true }
+      })
+      const highestSequence = existingNumbers.reduce((highest, card) => {
+        const match = card.jobNumber.match(/^JC-\\d{4}-(\\d+)$/)
+        const sequence = match ? Number(match[1]) : 0
+        return Number.isSafeInteger(sequence) ? Math.max(highest, sequence) : highest
+      }, 0)
+      const nextJobNumber = `${prefix}${String(highestSequence + 1).padStart(4, '0')}`
       const created = await tx.workshopJobCard.create({
-        data: { ...data, jobNumber: `${prefix}${String(count + 1).padStart(4, '0')}`, createdById: user.id },
+        data: { ...data, jobNumber: nextJobNumber, createdById: user.id },
         include: {
           truck: { select: { id: true, make: true, model: true, year: true, vin: true, licensePlate: true, currentMileage: true } },
           trailer: { select: { id: true, number: true } }
