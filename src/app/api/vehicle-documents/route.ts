@@ -210,24 +210,35 @@ export async function POST(request: NextRequest) {
           select,
         })
     const expiryDateChanged = !!existingDocument && existingDocument.validUntil?.toISOString().slice(0, 10) !== validUntil?.toISOString().slice(0, 10)
-    if (validUntil && (expiryDateChanged || !existingDocument)) {
+    // Send an event-driven email whenever an expiry-tracked document is created,
+    // its expiry date changes, or a replacement file is uploaded (even if the
+    // expiry date remains the same). Email failure must not roll back the save.
+    if (validUntil && (file || expiryDateChanged || !existingDocument)) {
       try {
         const settings = await db.settings.findFirst()
         const prefs = settings?.notifications && typeof settings.notifications === 'object' ? settings.notifications as Record<string, unknown> : {}
         const recipients = emailList(prefs.documentExpiryEmail)
         const cc = emailList(prefs.documentExpiryEmailCc).filter(email => !recipients.includes(email))
         const bcc = emailList(prefs.documentExpiryEmailBcc).filter(email => !recipients.includes(email) && !cc.includes(email))
-        if (recipients.length && prefs.documentExpiryEmailVerified === true && document.fileName && document.shareToken && document.shareExpiresAt && process.env.RESEND_API_KEY) {
+        if (recipients.length && prefs.documentExpiryEmailVerified === true && process.env.RESEND_API_KEY) {
           const origin = process.env.NEXT_PUBLIC_APP_URL || (process.env.VERCEL_URL ? 'https://' + process.env.VERCEL_URL : request.nextUrl.origin)
-          const shareUrl = origin.replace(/\/$/, '') + '/api/public/documents/' + document.shareToken
+          const shareUrl = document.fileName && document.shareToken
+            ? origin.replace(/\/$/, '') + '/api/public/documents/' + document.shareToken
+            : null
           const owner = sourceType === 'DRIVER' ? 'Driver: ' + ((await db.driver.findUnique({ where: { id: sourceId }, select: { name: true } }))?.name || '')
             : sourceType === 'TRUCK' ? 'Truck: ' + ((await db.truck.findUnique({ where: { id: sourceId }, select: { licensePlate: true } }))?.licensePlate || '')
             : 'Trailer: ' + ((await db.trailer.findUnique({ where: { id: sourceId }, select: { number: true } }))?.number || '')
+          const eventLabel = file ? 'Document uploaded or replaced' : expiryDateChanged ? 'Document expiry date changed' : 'Document added'
+          const oldExpiry = existingDocument?.validUntil ? existingDocument.validUntil.toISOString().slice(0, 10) : null
           const { error } = await new Resend(process.env.RESEND_API_KEY).emails.send({
             from: process.env.EMAIL_FROM || 'Fleet Manager <onboarding@resend.dev>',
             to: recipients, ...(cc.length ? { cc } : {}), ...(bcc.length ? { bcc } : {}),
-            subject: 'Document expiry date updated: ' + document.title,
-            html: '<div style="font-family:Arial,sans-serif;max-width:640px;margin:auto;color:#172033"><h2>Document expiry date updated</h2><p><b>Document:</b> ' + document.title.replace(/[&<>"]/g, '') + '</p><p><b>Owner:</b> ' + owner.replace(/[&<>"]/g, '') + '</p><p><b>Document type:</b> ' + escapeHtml(document.documentType) + '</p><p><b>New expiry date:</b> ' + validUntil.toISOString().slice(0, 10) + '</p><p><a href="' + shareUrl + '" style="display:inline-block;padding:12px 18px;background:#1d4ed8;color:#fff;text-decoration:none;border-radius:6px">View document</a></p><p>This private share link expires in 90 days (' + document.shareExpiresAt.toISOString().slice(0, 10) + ').</p></div>',
+            subject: eventLabel + ': ' + document.title,
+            html: '<div style="font-family:Arial,sans-serif;max-width:640px;margin:auto;color:#172033"><h2>' + escapeHtml(eventLabel) + '</h2><p><b>Document:</b> ' + escapeHtml(document.title) + '</p><p><b>Owner:</b> ' + escapeHtml(owner) + '</p><p><b>Document type:</b> ' + escapeHtml(document.documentType) + '</p>' +
+              (oldExpiry ? '<p><b>Previous expiry date:</b> ' + oldExpiry + '</p>' : '') +
+              '<p><b>Current expiry date:</b> ' + validUntil.toISOString().slice(0, 10) + '</p>' +
+              (shareUrl ? '<p><a href="' + escapeHtml(shareUrl) + '" style="display:inline-block;padding:12px 18px;background:#1d4ed8;color:#fff;text-decoration:none;border-radius:6px">View document</a></p><p>This private share link expires in 90 days.</p>' : '<p>No document file is currently attached.</p>') +
+              '<p>This is an automatic notification from Fleet Manager Pro.</p></div>',
           })
           if (error) console.error('Document expiry update email failed:', error.message)
         }
