@@ -56,19 +56,34 @@ export async function POST(request: NextRequest) {
           trailer: { select: { id: true, number: true } }
         }
       })
-      if (created.status !== 'CANCELLED') await reconcileJobCardInventory(tx, {
-        jobCardId: created.id, lines: data.items as any[],
-        vehicleType: data.truckId ? 'truck' : 'trailer', vehicleId: data.truckId || data.trailerId!,
-        transactionDate: data.serviceDate, userId: user.id
-      })
+      // Only touch the inventory ledger when this job card actually issues
+      // a catalogued stock item. Manual parts/labour lines must remain usable
+      // even when the optional inventory tables or integration are unavailable.
+      const hasTrackedParts = (data.items as any[]).some(
+        item => item.type === 'PART' && typeof item.inventoryItemId === 'string' && item.inventoryItemId
+      )
+      if (created.status !== 'CANCELLED' && hasTrackedParts) {
+        await reconcileJobCardInventory(tx, {
+          jobCardId: created.id, lines: data.items as any[],
+          vehicleType: data.truckId ? 'truck' : 'trailer', vehicleId: data.truckId || data.trailerId!,
+          transactionDate: data.serviceDate, userId: user.id
+        })
+      }
       return created
     })
     await syncOneDriveWorkbookAfterChange()
     return NextResponse.json({ jobCard }, { status: 201 })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to create job card'
-    const status = ['No token provided', 'Invalid token'].includes(message) ? 401 : message === 'Insufficient permissions' ? 403 : message.startsWith('Select ') || message.startsWith('Enter ') || message.startsWith('Service ') ? 400 : 500
+    const isInsufficientStock = message.startsWith('Insufficient stock for')
+    const isInventoryValidation = message.startsWith('Inventory item not found') ||
+      message.startsWith('Enter a valid quantity for each inventory part')
+    const status = ['No token provided', 'Invalid token'].includes(message) ? 401
+      : message === 'Insufficient permissions' ? 403
+      : isInsufficientStock ? 409
+      : isInventoryValidation || message.startsWith('Select ') || message.startsWith('Enter ') || message.startsWith('Service ') ? 400
+      : 500
     console.error('Job card create error:', error)
-    return NextResponse.json({ error: status === 500 ? 'Failed to create job card' : message }, { status })
+    return NextResponse.json({ error: status === 500 ? 'Failed to create job card. Please check the server logs or contact support.' : message }, { status })
   }
 }
