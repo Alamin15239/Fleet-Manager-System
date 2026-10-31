@@ -1012,7 +1012,7 @@ enum LedgerAccountType {
 model InventoryItem {
   id           String   @id
   name         String
-  partNumber   String?  @unique
+  partNumber   String?
   category     String   @default("GENERAL")
   unit         String   @default("pcs")
   oilGrade     String?
