@@ -41,6 +41,31 @@ export async function PUT(request: NextRequest) {
         notifications[key] = values[key]
       }
     }
+    const parseRecipientList = (value: unknown) => Array.from(new Set(
+      String(value || '').split(/[;,\n]+/).map((address) => address.trim().toLowerCase()).filter(Boolean)
+    ))
+    if ('documentExpiryEmail' in values || 'documentExpiryEmailCc' in values || 'documentExpiryEmailBcc' in values) {
+      const primaryEmail = parseRecipientList(values.documentExpiryEmail)[0] || ''
+      const ccEmails = parseRecipientList(values.documentExpiryEmailCc).filter((address) => address !== primaryEmail)
+      const bccEmails = parseRecipientList(values.documentExpiryEmailBcc).filter((address) => address !== primaryEmail && !ccEmails.includes(address))
+      const allRecipientEmails = [primaryEmail, ...ccEmails, ...bccEmails]
+      const invalidRecipient = allRecipientEmails.find((address) => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address))
+      if (invalidRecipient) {
+        return NextResponse.json({ error: 'Enter valid document-alert recipient addresses. Invalid address: ' + invalidRecipient }, { status: 400 })
+      }
+      const canonical = (value: unknown) => parseRecipientList(value).sort().join(',')
+      const oldKey = [current.documentExpiryEmail, current.documentExpiryEmailCc, current.documentExpiryEmailBcc].map(canonical).join('|')
+      const newKey = [primaryEmail, ccEmails.join(','), bccEmails.join(',')].map(canonical).join('|')
+      notifications.documentExpiryEmail = primaryEmail
+      notifications.documentExpiryEmailCc = ccEmails.join(', ')
+      notifications.documentExpiryEmailBcc = bccEmails.join(', ')
+      notifications.documentExpiryEmailVerified = Boolean(primaryEmail)
+      if (oldKey !== newKey) {
+        delete notifications.documentExpiryDigestDate
+        notifications.documentExpiryEmailSent = {}
+      }
+    }
+
     // No parts inventory source exists yet. Keep this option off rather than
     // creating misleading low-stock alerts from estimated usage.
     notifications.lowStock = false
