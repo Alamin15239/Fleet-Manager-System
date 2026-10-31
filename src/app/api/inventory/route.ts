@@ -64,6 +64,17 @@ export async function POST(request: NextRequest) {
         body.oilGrade || null, Math.max(0, Number(body.reorderLevel) || 0))
       return NextResponse.json({ item: rows[0] }, { status: 201 })
     }
+    if (body.action === 'setReorderLevel') {
+      const itemId = String(body.itemId || '')
+      const reorderLevel = Number(body.reorderLevel)
+      if (!itemId || !Number.isFinite(reorderLevel) || reorderLevel < 0)
+        return NextResponse.json({ error: 'Select an item and enter a valid reorder level of zero or more' }, { status: 400 })
+      const rows = await db.$queryRawUnsafe<any[]>(`
+        UPDATE "inventory_items" SET "reorderLevel"=$2, "updatedAt"=$3
+        WHERE "id"=$1 RETURNING "id","reorderLevel"`, itemId, reorderLevel, now)
+      if (!rows.length) return NextResponse.json({ error: 'Inventory item not found' }, { status: 404 })
+      return NextResponse.json({ item: rows[0] })
+    }
     if (body.action === 'setCurrentStock') {
       const itemId = String(body.itemId || '')
       const targetQty = Number(body.quantity)
