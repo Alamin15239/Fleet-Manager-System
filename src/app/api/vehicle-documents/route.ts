@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { randomBytes } from 'crypto'
+import { Resend } from 'resend'
 import { db } from '@/lib/db'
 import { requireRolePermission } from '@/lib/permission-middleware'
 
@@ -7,6 +9,15 @@ const expiryDocumentTypes = ['Fire extinguisher', 'Operation card', 'Istimara', 
 const driverCardType = 'Driver card'
 const protectionCardType = 'Protection Card'
 const maxFileBytes = 4 * 1024 * 1024
+const SHARE_LINK_DAYS = 90
+
+function makeShareAccess() {
+  return { shareToken: randomBytes(32).toString('hex'), shareExpiresAt: new Date(Date.now() + SHARE_LINK_DAYS * 24 * 60 * 60 * 1000) }
+}
+
+function emailList(value: unknown) {
+  return Array.from(new Set(typeof value === 'string' ? value.split(/[;,\\n]+/).map(email => email.trim().toLowerCase()).filter(email => /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) : []))
+}
 
 function statusFor(error: unknown) {
   const message = error instanceof Error ? error.message : ''
@@ -132,7 +143,7 @@ export async function POST(request: NextRequest) {
       : sourceType === 'TRUCK'
         ? { truckId_documentType: { truckId: sourceId, documentType } }
         : { trailerId_documentType: { trailerId: sourceId, documentType } }
-    const existingDocument = await db.vehicleDocument.findUnique({ where: uniqueWhere as any, select: { id: true, title: true, notes: true, fileName: true } })
+    const existingDocument = await db.vehicleDocument.findUnique({ where: uniqueWhere as any, select: { id: true, title: true, notes: true, fileName: true, validUntil: true, shareToken: true, shareExpiresAt: true } })
     await requireRolePermission(request, sourceType === 'TRAILER' ? 'trailers' : 'trucks', existingDocument ? 'update' : 'create')
     // Expiry records can be stored without a file. Protection Card creation is
     // itself a file upload, so only that document type requires a file payload.
@@ -173,8 +184,9 @@ export async function POST(request: NextRequest) {
       validUntil: tracksExpiry ? validUntil : null,
       reminderStartDate: tracksExpiry ? reminderStartDate : null,
       notes: String(form.get('notes') || '').trim().slice(0, 2000) || existingDocument?.notes || null,
+      ...((!existingDocument || file || existingDocument.validUntil?.toISOString().slice(0, 10) !== validUntil?.toISOString().slice(0, 10) || !existingDocument.shareToken || !existingDocument.shareExpiresAt || existingDocument.shareExpiresAt <= new Date()) && (file || existingDocument?.fileName) ? makeShareAccess() : {}),
     }
-    const select = { id: true, title: true, documentType: true, fileName: true, mimeType: true, fileSize: true, validFrom: true, validUntil: true, reminderStartDate: true, notes: true, createdAt: true }
+    const select = { id: true, title: true, documentType: true, fileName: true, mimeType: true, fileSize: true, validFrom: true, validUntil: true, reminderStartDate: true, notes: true, shareToken: true, shareExpiresAt: true, createdAt: true }
     const document = existingDocument && file
       ? await db.$transaction(async transaction => {
           // Remove the previous document row and its stored bytes before saving
@@ -189,6 +201,32 @@ export async function POST(request: NextRequest) {
           update: { ...data, truckId: undefined, trailerId: undefined, driverId: undefined, vehicleId: undefined, ...(file ? fileFields : {}) },
           select,
         })
+    const expiryDateChanged = !!existingDocument && existingDocument.validUntil?.toISOString().slice(0, 10) !== validUntil?.toISOString().slice(0, 10)
+    if (validUntil && (expiryDateChanged || !existingDocument)) {
+      try {
+        const settings = await db.settings.findFirst()
+        const prefs = settings?.notifications && typeof settings.notifications === 'object' ? settings.notifications as Record<string, unknown> : {}
+        const recipients = emailList(prefs.documentExpiryEmail)
+        const cc = emailList(prefs.documentExpiryEmailCc).filter(email => !recipients.includes(email))
+        const bcc = emailList(prefs.documentExpiryEmailBcc).filter(email => !recipients.includes(email) && !cc.includes(email))
+        if (recipients.length && prefs.documentExpiryEmailVerified === true && document.fileName && document.shareToken && document.shareExpiresAt && process.env.RESEND_API_KEY) {
+          const origin = process.env.NEXT_PUBLIC_APP_URL || (process.env.VERCEL_URL ? 'https://' + process.env.VERCEL_URL : request.nextUrl.origin)
+          const shareUrl = origin.replace(/\/$/, '') + '/api/public/documents/' + document.shareToken
+          const owner = sourceType === 'DRIVER' ? 'Driver: ' + ((await db.driver.findUnique({ where: { id: sourceId }, select: { name: true } }))?.name || '')
+            : sourceType === 'TRUCK' ? 'Truck: ' + ((await db.truck.findUnique({ where: { id: sourceId }, select: { licensePlate: true } }))?.licensePlate || '')
+            : 'Trailer: ' + ((await db.trailer.findUnique({ where: { id: sourceId }, select: { number: true } }))?.number || '')
+          const { error } = await new Resend(process.env.RESEND_API_KEY).emails.send({
+            from: process.env.EMAIL_FROM || 'Fleet Manager <onboarding@resend.dev>',
+            to: recipients, ...(cc.length ? { cc } : {}), ...(bcc.length ? { bcc } : {}),
+            subject: 'Document expiry date updated: ' + document.title,
+            html: '<div style="font-family:Arial,sans-serif;max-width:640px;margin:auto;color:#172033"><h2>Document expiry date updated</h2><p><b>Document:</b> ' + document.title.replace(/[&<>"]/g, '') + '</p><p><b>Owner:</b> ' + owner.replace(/[&<>"]/g, '') + '</p><p><b>Document type:</b> ' + document.documentType + '</p><p><b>New expiry date:</b> ' + validUntil.toISOString().slice(0, 10) + '</p><p><a href="' + shareUrl + '" style="display:inline-block;padding:12px 18px;background:#1d4ed8;color:#fff;text-decoration:none;border-radius:6px">View document</a></p><p>This private share link expires in 90 days (' + document.shareExpiresAt.toISOString().slice(0, 10) + ').</p></div>',
+          })
+          if (error) console.error('Document expiry update email failed:', error.message)
+        }
+      } catch (emailError) {
+        console.error('Document expiry update email failed:', emailError instanceof Error ? emailError.message : 'Unknown email error')
+      }
+    }
     return NextResponse.json({ document })
   } catch (error) {
     const status = statusFor(error)
