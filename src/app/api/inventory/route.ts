@@ -64,6 +64,31 @@ export async function POST(request: NextRequest) {
         body.oilGrade || null, Math.max(0, Number(body.reorderLevel) || 0))
       return NextResponse.json({ item: rows[0] }, { status: 201 })
     }
+    if (body.action === 'setCurrentStock') {
+      const itemId = String(body.itemId || '')
+      const targetQty = Number(body.quantity)
+      if (!itemId || !Number.isFinite(targetQty) || targetQty < 0)
+        return NextResponse.json({ error: 'Select an item and enter a valid stock quantity of zero or more' }, { status: 400 })
+      const adjusted = await db.$transaction(async tx => {
+        const item = await tx.$queryRawUnsafe<any[]>(`SELECT "id" FROM "inventory_items" WHERE "id"=$1 FOR UPDATE`, itemId)
+        if (!item.length) throw new Error('Inventory item not found')
+        const balance = await tx.$queryRawUnsafe<any[]>(`
+          SELECT COALESCE(SUM(CASE WHEN "type" IN ('OPENING','PURCHASE','CUSTOMER_RETURN','ADJUSTMENT_IN') THEN "quantity" WHEN "type" IN ('ISSUE','SUPPLIER_RETURN','ADJUSTMENT_OUT') THEN -"quantity" ELSE 0 END),0)::float AS qty
+          FROM "inventory_transactions" WHERE "itemId"=$1`, itemId)
+        const currentQty = Number(balance[0]?.qty || 0)
+        const delta = targetQty - currentQty
+        if (Math.abs(delta) < 0.000001) return { changed: false, quantity: currentQty }
+        await tx.$queryRawUnsafe(`
+          INSERT INTO "inventory_transactions"
+          ("id","itemId","type","quantity","transactionDate","reference","notes","createdById")
+          VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+          `itx_${crypto.randomUUID()}`, itemId, delta > 0 ? 'ADJUSTMENT_IN' : 'ADJUSTMENT_OUT',
+          Math.abs(delta), now, 'Manual stock correction',
+          `Physical stock count correction: changed from ${currentQty} to ${targetQty}`, user.id)
+        return { changed: true, quantity: targetQty }
+      })
+      return NextResponse.json({ adjustment: adjusted })
+    }
     const allowed = ['OPENING','PURCHASE','ISSUE','CUSTOMER_RETURN','SUPPLIER_RETURN','ADJUSTMENT_IN','ADJUSTMENT_OUT']
     const type = String(body.type || '')
     const quantity = Number(body.quantity)
