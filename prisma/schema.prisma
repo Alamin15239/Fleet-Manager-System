@@ -837,6 +837,8 @@ model VehicleDocument {
   mimeType          String?
   fileSize          Int?
   fileData          Bytes?
+  shareToken        String?      @unique
+  shareExpiresAt    DateTime?
   validFrom         DateTime?
   validUntil        DateTime?
   reminderStartDate DateTime?
