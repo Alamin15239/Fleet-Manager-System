@@ -45,6 +45,7 @@ export async function PUT(request: NextRequest) {
       String(value || '').split(/[;,\n]+/).map((address) => address.trim().toLowerCase()).filter(Boolean)
     ))
     if ('documentExpiryEmail' in values || 'documentExpiryEmailCc' in values || 'documentExpiryEmailBcc' in values) {
+      if (user.role !== 'ADMIN') return NextResponse.json({ error: 'Administrator access required to change document-alert recipients' }, { status: 403 })
       const primaryEmail = parseRecipientList(values.documentExpiryEmail)[0] || ''
       const ccEmails = parseRecipientList(values.documentExpiryEmailCc).filter((address) => address !== primaryEmail)
       const bccEmails = parseRecipientList(values.documentExpiryEmailBcc).filter((address) => address !== primaryEmail && !ccEmails.includes(address))
