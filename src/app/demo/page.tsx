@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useMemo, useState } from 'react'
-import { Activity, AlertTriangle, BarChart3, CalendarClock, CheckCircle2, CircleDot, ClipboardList, FileText, Fuel, Gauge, LayoutDashboard, Plus, Search, Settings, ShieldCheck, Truck, Wrench, X, Download, RefreshCw, DollarSign, Users, History, Package, Bell } from 'lucide-react'
+import { Activity, AlertTriangle, BarChart3, CalendarClock, CheckCircle2, CircleDot, ClipboardList, FileText, Fuel, Gauge, LayoutDashboard, Plus, Search, Settings, ShieldCheck, Truck, Wrench, X, Download, RefreshCw, DollarSign, Users, History, Package, Bell, ReceiptText, FileSpreadsheet, User, Building2 } from 'lucide-react'
 
 type Section = 'dashboard'|'trucks'|'trailers'|'job-cards'|'breakdowns'|'tires'|'oil'|'documents'|'drivers'|'expenses'|'reports'|'settings'|'spare-parts'|'purchase-invoices'|'mechanics'|'analytics'|'excel-changes'|'users'|'profile'|'organizations'|'notifications'
 type Row = Record<string,string>
@@ -24,7 +24,13 @@ const seedTires: Row[] = [
  {serial:'BR-385-00116',size:'385/65 R22.5',brand:'Bridgestone',location:'TRL-0912 · Axle 1',condition:'Good'},
  {serial:'MC-315-00204',size:'315/80 R22.5',brand:'Michelin',location:'Warehouse · Rack A2',condition:'In stock'},
 ]
-const seedParts: Row[] = [\n {name:'Engine oil 15W-40',category:'Engine Oil',unit:'Litre',stock:'420',reorder:'100',status:'In stock'},\n {name:'Oil filter — Actros MP5',category:'Oil Filter',unit:'pcs',stock:'24',reorder:'30',status:'Reorder'},\n {name:'Diesel filter',category:'Diesel Filter',unit:'pcs',stock:'46',reorder:'20',status:'In stock'},\n {name:'Air filter',category:'Air Filter',unit:'set',stock:'12',reorder:'8',status:'In stock'},\n]\nconst seedDocs: Row[] = [
+const seedParts: Row[] = [
+ {name:'Engine oil 15W-40',category:'Engine Oil',unit:'Litre',stock:'420',reorder:'100',status:'In stock'},
+ {name:'Oil filter — Actros MP5',category:'Oil Filter',unit:'pcs',stock:'24',reorder:'30',status:'Reorder'},
+ {name:'Diesel filter',category:'Diesel Filter',unit:'pcs',stock:'46',reorder:'20',status:'In stock'},
+ {name:'Air filter',category:'Air Filter',unit:'set',stock:'12',reorder:'8',status:'In stock'},
+]
+const seedDocs: Row[] = [
  {item:'Vehicle registration',vehicle:'TRK-1783',issue:'2025-11-02',expiry:'2026-11-02',status:'Expiring soon'},
  {item:'Periodic inspection (MVPI)',vehicle:'TRK-2206',issue:'2025-11-08',expiry:'2026-11-08',status:'Expiring soon'},
  {item:'Insurance policy',vehicle:'TRL-0912',issue:'2026-01-14',expiry:'2026-12-14',status:'Valid'},
@@ -42,7 +48,16 @@ const nav: {id:Section;label:string;icon:any;group:string}[] = [
  {id:'documents',label:'Documents & expiry',icon:ShieldCheck,group:'Compliance'},
  {id:'expenses',label:'Expenses & invoices',icon:DollarSign,group:'Insights'},
  {id:'reports',label:'Reports & analytics',icon:BarChart3,group:'Insights'},
- {id:'spare-parts',label:'Spare Parts & Consumables',icon:Package,group:'Workshop'},\n {id:'purchase-invoices',label:'Purchase Invoices & Accounts',icon:ReceiptText,group:'Workshop'},\n {id:'mechanics',label:'Mechanics',icon:Wrench,group:'Workshop'},\n {id:'analytics',label:'Advanced Analytics',icon:BarChart3,group:'Insights'},\n {id:'excel-changes',label:'Excel Changes Review',icon:FileSpreadsheet,group:'Insights'},\n {id:'notifications',label:'Notifications',icon:Bell,group:'Workspace'},\n {id:'users',label:'User Management',icon:Users,group:'Administration'},\n {id:'profile',label:'My Profile',icon:User,group:'Administration'},\n {id:'organizations',label:'Organizations & Workspaces',icon:Building2,group:'Administration'},\n {id:'settings',label:'Settings & Integrations',icon:Settings,group:'Administration'},
+ {id:'spare-parts',label:'Spare Parts & Consumables',icon:Package,group:'Workshop'},
+ {id:'purchase-invoices',label:'Purchase Invoices & Accounts',icon:ReceiptText,group:'Workshop'},
+ {id:'mechanics',label:'Mechanics',icon:Wrench,group:'Workshop'},
+ {id:'analytics',label:'Advanced Analytics',icon:BarChart3,group:'Insights'},
+ {id:'excel-changes',label:'Excel Changes Review',icon:FileSpreadsheet,group:'Insights'},
+ {id:'notifications',label:'Notifications',icon:Bell,group:'Workspace'},
+ {id:'users',label:'User Management',icon:Users,group:'Administration'},
+ {id:'profile',label:'My Profile',icon:User,group:'Administration'},
+ {id:'organizations',label:'Organizations & Workspaces',icon:Building2,group:'Administration'},
+ {id:'settings',label:'Settings & Integrations',icon:Settings,group:'Administration'},
 ]
 const labels:Record<string,string> = {plate:'Plate / ID',name:'Vehicle / name',type:'Type',km:'Odometer (km)',status:'Status',health:'Health',id:'Job card',vehicle:'Vehicle / asset',type2:'Work type',date:'Date',priority:'Priority',cost:'Cost (SAR)',serial:'Tire serial',size:'Tire size',brand:'Brand',location:'Current location',condition:'Condition',item:'Document',issue:'Issue date',expiry:'Expiry date',driver:'Driver',amount:'Amount (SAR)',category:'Category',description:'Description'}
 export default function DemoPage(){
@@ -50,7 +65,8 @@ export default function DemoPage(){
  const [vehicles,setVehicles]=useState(seedVehicles)
  const [jobs,setJobs]=useState(seedJobs)
  const [tires,setTires]=useState(seedTires)
- const [docs,setDocs]=useState(seedDocs)\n const [parts,setParts]=useState(seedParts)
+ const [docs,setDocs]=useState(seedDocs)
+ const [parts,setParts]=useState(seedParts)
  const [query,setQuery]=useState('')
  const [notice,setNotice]=useState('Demo workspace · all changes stay in this browser session')
  const [showForm,setShowForm]=useState(false)
@@ -58,7 +74,14 @@ export default function DemoPage(){
  const [records,setRecords]=useState<Record<string,Row[]>>({
   breakdowns:[{id:'BD-1042',vehicle:'TRK-1783',description:'Intermittent braking issue',date:'2026-10-28',priority:'High',status:'Open'}],
   oil:[{vehicle:'TRK-2048',date:'2026-10-23',km:'284000',amount:'32',brand:'15W-40',status:'Completed'},{vehicle:'TRK-1783',date:'2026-09-30',km:'310500',amount:'34',brand:'15W-40',status:'Completed'}],
-  drivers:[{driver:'DRV-018 · Ahmed Hassan',vehicle:'TRK-2048',status:'Active',expiry:'2027-01-20'},{driver:'DRV-024 · Omar Saleh',vehicle:'TRK-1783',status:'Active',expiry:'2026-11-15'}],\n  mechanics:[{name:'Mahmoud Ali',specialty:'Diesel engine',status:'Active',jobs:'128'},{name:'Rashid Karim',specialty:'Brakes & suspension',status:'Active',jobs:'96'}],\n  'purchase-invoices':[{id:'INV-2026-184',vendor:'Al Faisal Auto Parts',date:'2026-10-23',category:'Filters & oil',amount:'4,850',vat:'15%',status:'Posted'},{id:'INV-2026-183',vendor:'Gulf Tire Trading',date:'2026-10-21',category:'Tires',amount:'12,400',vat:'15%',status:'Posted'}],\n  'excel-changes':[{sheet:'Trucks',row:'TRK-2048',field:'Odometer',before:'284,120',after:'285,400',status:'Awaiting review'},{sheet:'Oil Changes',row:'TRK-1783',field:'Service date',before:'2026-09-30',after:'2026-10-01',status:'Validated'}],\n  users:[{name:'Demo Admin',email:'admin@demo.local',role:'ADMIN',status:'Active'},{name:'Workshop Manager',email:'workshop@demo.local',role:'MANAGER',status:'Active'},{name:'Fleet Viewer',email:'viewer@demo.local',role:'VIEWER',status:'Active'}],\n  profile:[{field:'Name',value:'Demo Administrator'},{field:'Role',value:'Organization administrator'},{field:'Language',value:'English / Arabic'}],\n  organizations:[{name:'Demo Transport Co.',plan:'Fleet + Workshop',status:'Active',users:'12'},{name:'Demo Logistics Branch',plan:'Fleet',status:'Provisioning example',users:'5'}],\n  notifications:[{date:'2026-10-31',type:'Maintenance due',vehicle:'TRK-1783',status:'Unread'},{date:'2026-10-30',type:'Document expiry',vehicle:'TRK-2206',status:'Unread'},{date:'2026-10-29',type:'Job card updated',vehicle:'TRK-2048',status:'Read'}],
+  drivers:[{driver:'DRV-018 · Ahmed Hassan',vehicle:'TRK-2048',status:'Active',expiry:'2027-01-20'},{driver:'DRV-024 · Omar Saleh',vehicle:'TRK-1783',status:'Active',expiry:'2026-11-15'}],
+  mechanics:[{name:'Mahmoud Ali',specialty:'Diesel engine',status:'Active',jobs:'128'},{name:'Rashid Karim',specialty:'Brakes & suspension',status:'Active',jobs:'96'}],
+  'purchase-invoices':[{id:'INV-2026-184',vendor:'Al Faisal Auto Parts',date:'2026-10-23',category:'Filters & oil',amount:'4,850',vat:'15%',status:'Posted'},{id:'INV-2026-183',vendor:'Gulf Tire Trading',date:'2026-10-21',category:'Tires',amount:'12,400',vat:'15%',status:'Posted'}],
+  'excel-changes':[{sheet:'Trucks',row:'TRK-2048',field:'Odometer',before:'284,120',after:'285,400',status:'Awaiting review'},{sheet:'Oil Changes',row:'TRK-1783',field:'Service date',before:'2026-09-30',after:'2026-10-01',status:'Validated'}],
+  users:[{name:'Demo Admin',email:'admin@demo.local',role:'ADMIN',status:'Active'},{name:'Workshop Manager',email:'workshop@demo.local',role:'MANAGER',status:'Active'},{name:'Fleet Viewer',email:'viewer@demo.local',role:'VIEWER',status:'Active'}],
+  profile:[{field:'Name',value:'Demo Administrator'},{field:'Role',value:'Organization administrator'},{field:'Language',value:'English / Arabic'}],
+  organizations:[{name:'Demo Transport Co.',plan:'Fleet + Workshop',status:'Active',users:'12'},{name:'Demo Logistics Branch',plan:'Fleet',status:'Provisioning example',users:'5'}],
+  notifications:[{date:'2026-10-31',type:'Maintenance due',vehicle:'TRK-1783',status:'Unread'},{date:'2026-10-30',type:'Document expiry',vehicle:'TRK-2206',status:'Unread'},{date:'2026-10-29',type:'Job card updated',vehicle:'TRK-2048',status:'Read'}],
   expenses:[{date:'2026-10-23',vehicle:'TRK-2048',category:'Engine oil & filters',amount:'680',description:'Scheduled service'},{date:'2026-10-21',vehicle:'TRK-1783',category:'Brake parts',amount:'850',description:'Workshop repair'}]
  })
  const title=nav.find(n=>n.id===section)?.label||'Dashboard'
@@ -68,7 +91,12 @@ export default function DemoPage(){
  const currentRows:Row[]=section==='trucks'?filteredVehicles.filter(v=>v.type==='Truck'):section==='trailers'?filteredVehicles.filter(v=>v.type==='Trailer'):section==='job-cards'?jobs:section==='tires'?tires:section==='documents'?docs:section==='spare-parts'?parts:records[section]||[]
  const fields:Record<string,string[]> = {
   trucks:['plate','name','km','status'],trailers:['plate','name','status'], 'job-cards':['id','vehicle','type','date','priority','status','cost'],
-  tires:['serial','size','brand','location','condition'],documents:['item','vehicle','issue','expiry','status'],\n  'spare-parts':['name','category','unit','stock','reorder','status'],\n  'purchase-invoices':['id','vendor','date','category','amount','vat','status'],\n  mechanics:['name','specialty','status','jobs'],\n  'excel-changes':['sheet','row','field','before','after','status'],\n  users:['name','email','role','status'],profile:['field','value'],organizations:['name','plan','status','users'],notifications:['date','type','vehicle','status'],
+  tires:['serial','size','brand','location','condition'],documents:['item','vehicle','issue','expiry','status'],
+  'spare-parts':['name','category','unit','stock','reorder','status'],
+  'purchase-invoices':['id','vendor','date','category','amount','vat','status'],
+  mechanics:['name','specialty','status','jobs'],
+  'excel-changes':['sheet','row','field','before','after','status'],
+  users:['name','email','role','status'],profile:['field','value'],organizations:['name','plan','status','users'],notifications:['date','type','vehicle','status'],
   breakdowns:['id','vehicle','description','date','priority','status'],oil:['vehicle','date','km','amount','brand','status'],
   drivers:['driver','vehicle','status','expiry'],expenses:['date','vehicle','category','amount','description']
  }
@@ -78,14 +106,16 @@ export default function DemoPage(){
   if(section==='trucks'||section==='trailers'){row.type=section==='trucks'?'Truck':'Trailer';setVehicles(p=>[row,...p])}
   else if(section==='job-cards')setJobs(p=>[{...row,id:row.id||'WO-'+(2410+p.length)},...p])
   else if(section==='tires')setTires(p=>[row,...p])
-  else if(section==='documents')setDocs(p=>[row,...p])\n  else if(section==='spare-parts')setParts(p=>[row,...p])
+  else if(section==='documents')setDocs(p=>[row,...p])
+  else if(section==='spare-parts')setParts(p=>[row,...p])
   else setRecords(p=>({...p,[section]:[row,...(p[section]||[])]}))
   setForm({});setShowForm(false);setNotice('Sample record added. This change is temporary and not sent to production.')
  }
  function exportCsv(){
   const rows=currentRows
   const keys=fieldList.length?fieldList:Object.keys(rows[0]||{})
-  const csv=[keys.join(','),...rows.map(r=>keys.map(k=>'"'+String(r[k]||'').replaceAll('"','""')+'"').join(','))].join('\n')
+  const csv=[keys.join(','),...rows.map(r=>keys.map(k=>'"'+String(r[k]||'').replaceAll('"','""')+'"').join(','))].join('
+')
   const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));const a=document.createElement('a');a.href=url;a.download='fleet-demo-'+section+'.csv';a.click();URL.revokeObjectURL(url)
  }
  return <main className="min-h-screen bg-slate-50 text-slate-900">
@@ -107,7 +137,8 @@ export default function DemoPage(){
     {section==='dashboard'||section==='analytics'?<><div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{[
      {label:'Total fleet',value:String(vehicles.length),note:'Trucks and trailers',icon:Truck},
      {label:'Maintenance due',value:String(jobs.filter(j=>j.status!=='Completed').length),note:'Scheduled / in progress',icon:Wrench},
-     {label:'Tires tracked',value:String(tires.length),note:'Serial-level records',icon:CircleDot},\n     {label:'Parts to reorder',value:String(parts.filter(p=>p.status==='Reorder').length),note:'Inventory thresholds',icon:Package},
+     {label:'Tires tracked',value:String(tires.length),note:'Serial-level records',icon:CircleDot},
+     {label:'Parts to reorder',value:String(parts.filter(p=>p.status==='Reorder').length),note:'Inventory thresholds',icon:Package},
      {label:'Documents to review',value:String(docs.filter(d=>d.status!=='Valid').length),note:'Expiry reminders',icon:CalendarClock}
     ].map(s=><div key={s.label} className={panel+' p-5'}><div className="flex items-center justify-between text-sm text-slate-500"><span>{s.label}</span><span className="rounded-lg bg-blue-50 p-2 text-blue-700"><s.icon size={18}/></span></div><div className="mt-3 text-3xl font-bold">{s.value}</div><p className="mt-1 text-xs text-slate-500">{s.note}</p></div>)}</div>
      <div className="mt-5 grid gap-5 xl:grid-cols-3"><div className={panel+' p-5 xl:col-span-2'}><div className="mb-4 flex items-center justify-between"><h2 className="font-bold">Recent workshop activity</h2><button onClick={()=>setSection('job-cards')} className="text-sm font-semibold text-blue-700">View job cards →</button></div>{jobs.slice(0,3).map(j=><div key={j.id} className="flex flex-col justify-between gap-2 border-t py-3 sm:flex-row sm:items-center"><div><p className="font-semibold">{j.type}</p><p className="text-xs text-slate-500">{j.id} · {j.vehicle} · {j.date}</p></div><span className="w-fit rounded-full bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700">{j.status}</span></div>)}</div>
