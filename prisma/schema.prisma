@@ -1004,3 +1004,43 @@ enum LedgerAccountType {
   VENDOR_PAYABLE
   INPUT_VAT
 }
+
+
+// Inventory tables are created and maintained by the inventory API using SQL.
+// Declaring them here prevents Prisma db push from treating existing inventory
+// data as unmanaged tables and attempting to drop them during deployment.
+model InventoryItem {
+  id           String   @id
+  name         String
+  partNumber   String?  @unique
+  category     String   @default("GENERAL")
+  unit         String   @default("pcs")
+  oilGrade     String?
+  reorderLevel Float    @default(0)
+  createdAt    DateTime @default(now()) @db.Timestamp(3)
+  updatedAt    DateTime @default(now()) @db.Timestamp(3)
+  transactions InventoryTransaction[]
+
+  @@map("inventory_items")
+}
+
+model InventoryTransaction {
+  id              String   @id
+  itemId          String
+  type            String
+  quantity        Float
+  transactionDate DateTime @db.Timestamp(3)
+  reference       String?
+  vehicleType     String?
+  vehicleId       String?
+  jobCardId       String?
+  unitCost        Float?
+  notes           String?
+  createdById     String?
+  createdAt       DateTime @default(now()) @db.Timestamp(3)
+  item            InventoryItem @relation(fields: [itemId], references: [id], onDelete: Restrict)
+
+  @@index([itemId, transactionDate(sort: Desc)], map: "inventory_transactions_itemId_date_idx")
+  @@index([vehicleType, vehicleId], map: "inventory_transactions_vehicle_idx")
+  @@map("inventory_transactions")
+}
