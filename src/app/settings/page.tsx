@@ -452,22 +452,15 @@ export default function SettingsPage() {
   }
 
   const handleDocumentExpiryEmail = async () => {
-    const parseEmails = (value: string) => Array.from(new Set(value.split(/[;,\n]+/).map((email) => email.trim().toLowerCase()).filter(Boolean)))
-    const email = parseEmails(String(settings?.notifications?.documentExpiryEmail || ''))[0] || ''
-    const cc = parseEmails(String(settings?.notifications?.documentExpiryEmailCc || ''))
-    const bcc = parseEmails(String(settings?.notifications?.documentExpiryEmailBcc || ''))
+    const email = String(settings?.notifications?.documentExpiryEmail || '').trim()
     if (!email) {
-      toast.error('Enter a primary email address for document expiry alerts')
-      return
-    }
-    const allEmails = [email, ...cc, ...bcc]
-    const invalidEmail = allEmails.find((address) => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address))
-    if (invalidEmail) {
-      toast.error('Check this email address: ' + invalidEmail)
+      toast.error('Save a primary email address before sending a test')
       return
     }
     setNotificationTesting(true)
     try {
+      const saved = await saveNotificationSettings(false)
+      if (!saved) return
       const token = localStorage.getItem('authToken')
       if (!token) {
         toast.error('Authentication required')
@@ -475,27 +468,16 @@ export default function SettingsPage() {
       }
       const response = await fetch('/api/settings/document-expiry-email', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ email, cc, bcc }),
+        headers: { Authorization: 'Bearer ' + token },
       })
       const data = await response.json().catch(() => ({}))
       if (!response.ok) {
         toast.error(data.error || 'Could not send the test email')
         return
       }
-      setSettings(current => current ? {
-        ...current,
-        notifications: {
-          ...(current.notifications || {}),
-          documentExpiryEmail: data.email || email,
-          documentExpiryEmailCc: (data.cc || cc).join(', '),
-          documentExpiryEmailBcc: (data.bcc || bcc).join(', '),
-          documentExpiryEmailVerified: true,
-        },
-      } : current)
-      toast.success(data.message || 'Test email sent and document expiry alerts enabled')
+      toast.success(data.message || 'Test email sent to saved recipients')
     } catch {
-      toast.error('Could not configure document expiry alerts')
+      toast.error('Could not send the document expiry test email')
     } finally {
       setNotificationTesting(false)
     }
@@ -999,7 +981,7 @@ export default function SettingsPage() {
               <div className="rounded-xl border p-4 space-y-3">
                 <div>
                   <h3 className="font-semibold">Document Expiry Email Alerts</h3>
-                  <p className="text-sm text-muted-foreground">Set the primary recipient, plus optional CC and BCC recipients. Separate multiple addresses in each field with commas.</p>
+                  <p className="text-sm text-muted-foreground">Save the primary recipient, plus optional CC and BCC recipients. The scheduled system sends document alerts automatically; a test email is optional.</p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="documentExpiryEmail">To (primary email)</Label>
@@ -1021,13 +1003,13 @@ export default function SettingsPage() {
                   <Input id="documentExpiryEmailBcc" type="text" placeholder="audit@yourcompany.com" value={settings.notifications?.documentExpiryEmailBcc || ''} onChange={(event) => updateNestedSettings('notifications', 'documentExpiryEmailBcc', event.target.value)} disabled={!isAdmin || notificationTesting} />
                 </div>
                 {settings.notifications?.documentExpiryEmailVerified ? (
-                  <p className="text-sm text-green-700">Verified by test email: {settings.notifications.documentExpiryEmail}</p>
+                  <p className="text-sm text-green-700">Automatic alerts enabled for saved recipients: {settings.notifications.documentExpiryEmail}</p>
                 ) : (
-                  <p className="text-sm text-amber-700">Not enabled yet — send a successful test email to activate alerts.</p>
+                  <p className="text-sm text-amber-700">No primary recipient saved. Save an email address to enable automatic alerts.</p>
                 )}
                 <Button onClick={handleDocumentExpiryEmail} disabled={!isAdmin || notificationTesting || !settings.notifications?.documentExpiryEmail?.trim()}>
                   {notificationTesting ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <Bell className="h-4 w-4 mr-2" />}
-                  {notificationTesting ? 'Sending test email…' : 'Send test email & enable alerts'}
+                  {notificationTesting ? 'Sending test email…' : 'Send optional test email'}
                 </Button>
               </div>
               <div className="flex justify-end border-t pt-4">
