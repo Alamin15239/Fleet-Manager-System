@@ -327,7 +327,7 @@ export async function applyWorkbookChange(tx: any, change: Change, userId: strin
     const oilGrade = text(row, 'Oil Grade')
     const reorderLevel = numberValue(row, 'Reorder Level', { minimum: 0 }) ?? 0
     const id = recordId || `inv_${crypto.randomUUID()}`
-    const itemExists = !isCreate && (await tx.$queryRawUnsafe<any[]>(`SELECT "id" FROM "inventory_items" WHERE "id"=$1`, id)).length > 0
+    const itemExists = !isCreate && (await tx.$queryRawUnsafe(`SELECT "id" FROM "inventory_items" WHERE "id"=$1`, id)).length > 0
     if (isCreate) {
       await tx.$executeRawUnsafe(`INSERT INTO "inventory_items" ("id","name","partNumber","category","unit","oilGrade","reorderLevel") VALUES ($1,$2,$3,$4,$5,$6,$7)`,
         id, name, partNumber, category, unit, oilGrade, reorderLevel)
@@ -346,8 +346,8 @@ export async function applyWorkbookChange(tx: any, change: Change, userId: strin
     }
     const targetStock = numberValue(row, 'Current Stock', { minimum: 0 })
     if (targetStock != null) {
-      await tx.$queryRawUnsafe<any[]>(`SELECT \"id\" FROM \"inventory_items\" WHERE \"id\"=$1 FOR UPDATE`, id)
-      const balance = await tx.$queryRawUnsafe<any[]>(`SELECT COALESCE(SUM(CASE WHEN "type" IN ('OPENING','PURCHASE','CUSTOMER_RETURN','ADJUSTMENT_IN') THEN "quantity" WHEN "type" IN ('ISSUE','SUPPLIER_RETURN','ADJUSTMENT_OUT') THEN -"quantity" ELSE 0 END),0)::float AS qty FROM "inventory_transactions" WHERE "itemId"=$1`, id)
+      await tx.$queryRawUnsafe(`SELECT \"id\" FROM \"inventory_items\" WHERE \"id\"=$1 FOR UPDATE`, id)
+      const balance = await tx.$queryRawUnsafe(`SELECT COALESCE(SUM(CASE WHEN "type" IN ('OPENING','PURCHASE','CUSTOMER_RETURN','ADJUSTMENT_IN') THEN "quantity" WHEN "type" IN ('ISSUE','SUPPLIER_RETURN','ADJUSTMENT_OUT') THEN -"quantity" ELSE 0 END),0)::float AS qty FROM "inventory_transactions" WHERE "itemId"=$1`, id)
       const current = Number(balance[0]?.qty || 0)
       const delta = targetStock - current
       if (Math.abs(delta) > 0.000001) {
@@ -363,28 +363,28 @@ export async function applyWorkbookChange(tx: any, change: Change, userId: strin
 
   if (change.entityType === 'STOCK_MOVEMENT') {
     const itemName = text(row, 'Part', true)!
-    const item = await tx.$queryRawUnsafe<any[]>(`SELECT i."id", i."unit" FROM "inventory_items" i WHERE lower(i."name")=lower($1) OR i."id"=$1 ORDER BY CASE WHEN i."id"=$1 THEN 0 ELSE 1 END LIMIT 1`, itemName)
+    const item = await tx.$queryRawUnsafe(`SELECT i."id", i."unit" FROM "inventory_items" i WHERE lower(i."name")=lower($1) OR i."id"=$1 ORDER BY CASE WHEN i."id"=$1 THEN 0 ELSE 1 END LIMIT 1`, itemName)
     if (!item.length) throw new Error(`Inventory part ${itemName} was not found.`)
     const type = enumValue(row.Transaction, ['OPENING','PURCHASE','ISSUE','CUSTOMER_RETURN','SUPPLIER_RETURN','ADJUSTMENT_IN','ADJUSTMENT_OUT'], 'Transaction')
     const quantity = numberValue(row, 'Quantity', { required: true, minimum: 0.000001 })!
     const transactionDate = dateValue(row, 'Date', true)!
-    await tx.$queryRawUnsafe<any[]>(`SELECT \"id\" FROM \"inventory_items\" WHERE \"id\"=$1 FOR UPDATE`, item[0].id)
+    await tx.$queryRawUnsafe(`SELECT \"id\" FROM \"inventory_items\" WHERE \"id\"=$1 FOR UPDATE`, item[0].id)
     const values = [item[0].id, type, quantity, transactionDate, text(row,'Reference'), text(row,'Vehicle Type'), text(row,'Vehicle ID'), text(row,'Job Card ID'), numberValue(row,'Unit Cost',{minimum:0}), text(row,'Notes')]
     if (isCreate) {
       const signed = ['ISSUE','SUPPLIER_RETURN','ADJUSTMENT_OUT'].includes(type) ? -quantity : quantity
-      const balance = await tx.$queryRawUnsafe<any[]>(`SELECT COALESCE(SUM(CASE WHEN "type" IN ('OPENING','PURCHASE','CUSTOMER_RETURN','ADJUSTMENT_IN') THEN "quantity" WHEN "type" IN ('ISSUE','SUPPLIER_RETURN','ADJUSTMENT_OUT') THEN -"quantity" ELSE 0 END),0)::float AS qty FROM "inventory_transactions" WHERE "itemId"=$1`, item[0].id)
+      const balance = await tx.$queryRawUnsafe(`SELECT COALESCE(SUM(CASE WHEN "type" IN ('OPENING','PURCHASE','CUSTOMER_RETURN','ADJUSTMENT_IN') THEN "quantity" WHEN "type" IN ('ISSUE','SUPPLIER_RETURN','ADJUSTMENT_OUT') THEN -"quantity" ELSE 0 END),0)::float AS qty FROM "inventory_transactions" WHERE "itemId"=$1`, item[0].id)
       if (Number(balance[0]?.qty || 0) + signed < -0.000001) throw new Error('Insufficient stock for this transaction.')
       const id = `itx_${crypto.randomUUID()}`
       await tx.$executeRawUnsafe(`INSERT INTO "inventory_transactions" ("id","itemId","type","quantity","transactionDate","reference","vehicleType","vehicleId","jobCardId","unitCost","notes","createdById") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
         id, ...values, userId)
       return { id }
     }
-    const existing = await tx.$queryRawUnsafe<any[]>(`SELECT "id","itemId","type","quantity" FROM "inventory_transactions" WHERE "id"=$1 FOR UPDATE`, recordId)
+    const existing = await tx.$queryRawUnsafe(`SELECT "id","itemId","type","quantity" FROM "inventory_transactions" WHERE "id"=$1 FOR UPDATE`, recordId)
     if (!existing.length) throw new Error('Stock movement was not found.')
     const [old] = existing
     const oldSigned = ['ISSUE','SUPPLIER_RETURN','ADJUSTMENT_OUT'].includes(old.type) ? -Number(old.quantity) : Number(old.quantity)
     const newSigned = ['ISSUE','SUPPLIER_RETURN','ADJUSTMENT_OUT'].includes(type) ? -quantity : quantity
-    const balance = await tx.$queryRawUnsafe<any[]>(`SELECT COALESCE(SUM(CASE WHEN "type" IN ('OPENING','PURCHASE','CUSTOMER_RETURN','ADJUSTMENT_IN') THEN "quantity" WHEN "type" IN ('ISSUE','SUPPLIER_RETURN','ADJUSTMENT_OUT') THEN -"quantity" ELSE 0 END),0)::float AS qty FROM "inventory_transactions" WHERE "itemId"=$1`, item[0].id)
+    const balance = await tx.$queryRawUnsafe(`SELECT COALESCE(SUM(CASE WHEN "type" IN ('OPENING','PURCHASE','CUSTOMER_RETURN','ADJUSTMENT_IN') THEN "quantity" WHEN "type" IN ('ISSUE','SUPPLIER_RETURN','ADJUSTMENT_OUT') THEN -"quantity" ELSE 0 END),0)::float AS qty FROM "inventory_transactions" WHERE "itemId"=$1`, item[0].id)
     if (Number(balance[0]?.qty || 0) - (old.itemId === item[0].id ? oldSigned : 0) + newSigned < -0.000001) throw new Error('Insufficient stock for this transaction.')
     await tx.$executeRawUnsafe(`UPDATE "inventory_transactions" SET "itemId"=$2,"type"=$3,"quantity"=$4,"transactionDate"=$5,"reference"=$6,"vehicleType"=$7,"vehicleId"=$8,"jobCardId"=$9,"unitCost"=$10,"notes"=$11,"createdAt"=CURRENT_TIMESTAMP WHERE "id"=$1`, recordId, ...values)
     return { id: recordId }
