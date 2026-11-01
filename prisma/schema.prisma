@@ -1046,3 +1046,43 @@ model InventoryTransaction {
   @@index([vehicleType, vehicleId], map: "inventory_transactions_vehicle_idx")
   @@map("inventory_transactions")
 }
+
+// Anonymous and authenticated website visitor sessions are stored in the
+// primary control database, independently of customer fleet workspaces.
+model WebsiteVisitorSession {
+  id            String   @id @default(cuid())
+  visitorId     String
+  sessionId     String   @unique
+  domain        String
+  userId        String?
+  pagePath      String
+  pages         Json     @default("[]")
+  referrer      String?
+  source        String?
+  medium        String?
+  campaign      String?
+  ipAddress     String?
+  country       String?
+  region        String?
+  city          String?
+  latitude      Float?
+  longitude     Float?
+  timezone      String?
+  userAgent     String?
+  browser       String?
+  os            String?
+  deviceType    String?
+  startedAt     DateTime @default(now())
+  lastSeenAt    DateTime @default(now())
+  endedAt       DateTime?
+  pageViews     Int      @default(1)
+  isBot         Boolean  @default(false)
+
+  @@index([lastSeenAt])
+  @@index([startedAt])
+  @@index([visitorId])
+  @@index([domain, startedAt])
+  @@index([country, startedAt])
+  @@map("website_visitor_sessions")
+}
+
