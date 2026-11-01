@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import {
   Activity, BarChart3, CalendarDays, Clock3, Download,
   Eye, Filter, Globe2, MapPin, Monitor, Radio, RefreshCw, Search, ShieldCheck,
-  Smartphone, Users,
+  Smartphone, Users, Wifi,
 } from 'lucide-react'
 
 type Session = {
