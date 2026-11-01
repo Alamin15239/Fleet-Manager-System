@@ -72,8 +72,18 @@ export function UserActivityMonitor({ className }: UserActivityMonitorProps) {
       }
 
       const data = await response.json()
-      setActivities(data.data.activities)
-      setPagination(data.data.pagination)
+      const activityRows = Array.isArray(data?.data?.activities) ? data.data.activities : []
+      setActivities(activityRows.map((activity: any) => ({
+        ...activity,
+        user: activity?.user || { id: '', name: 'Unknown', email: 'Unknown', role: 'UNKNOWN' },
+        action: typeof activity?.action === 'string' ? activity.action : 'UNKNOWN',
+        entityType: typeof activity?.entityType === 'string' ? activity.entityType : 'UNKNOWN',
+        deviceInfo: activity?.deviceInfo || 'Unknown device',
+        locationInfo: activity?.locationInfo || 'Unknown location',
+        timestamp: activity?.timestamp || null,
+        timeAgo: activity?.timeAgo || 'Unknown time'
+      })))
+      if (data?.data?.pagination) setPagination(data.data.pagination)
     } catch (error) {
       console.error('Error fetching activities:', error)
     } finally {
@@ -131,12 +141,12 @@ export function UserActivityMonitor({ className }: UserActivityMonitorProps) {
               value={filters.userId}
               onChange={(e) => setFilters(prev => ({ ...prev, userId: e.target.value }))}
             />
-            <Select value={filters.action} onValueChange={(value) => setFilters(prev => ({ ...prev, action: value }))}>
+            <Select value={filters.action || 'all'} onValueChange={(value) => setFilters(prev => ({ ...prev, action: value === 'all' ? '' : value }))}>
               <SelectTrigger>
                 <SelectValue placeholder="Action" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value=""><LocalizedText>All Actions</LocalizedText></SelectItem>
+                <SelectItem value="all"><LocalizedText>All Actions</LocalizedText></SelectItem>
                 <SelectItem value="LOGIN"><LocalizedText>Login</LocalizedText></SelectItem>
                 <SelectItem value="LOGOUT"><LocalizedText>Logout</LocalizedText></SelectItem>
                 <SelectItem value="REGISTER"><LocalizedText>Register</LocalizedText></SelectItem>
@@ -145,12 +155,12 @@ export function UserActivityMonitor({ className }: UserActivityMonitorProps) {
                 <SelectItem value="DELETE"><LocalizedText>Delete</LocalizedText></SelectItem>
               </SelectContent>
             </Select>
-            <Select value={filters.entityType} onValueChange={(value) => setFilters(prev => ({ ...prev, entityType: value }))}>
+            <Select value={filters.entityType || 'all'} onValueChange={(value) => setFilters(prev => ({ ...prev, entityType: value === 'all' ? '' : value }))}>
               <SelectTrigger>
                 <SelectValue placeholder="Entity Type" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value=""><LocalizedText>All Types</LocalizedText></SelectItem>
+                <SelectItem value="all"><LocalizedText>All Types</LocalizedText></SelectItem>
                 <SelectItem value="USER"><LocalizedText>User</LocalizedText></SelectItem>
                 <SelectItem value="TRUCK"><LocalizedText>Truck</LocalizedText></SelectItem>
                 <SelectItem value="MAINTENANCE"><LocalizedText>Maintenance</LocalizedText></SelectItem>
@@ -188,8 +198,8 @@ export function UserActivityMonitor({ className }: UserActivityMonitorProps) {
                           <Badge variant="outline">
                             <LocalizedText>{activity.entityType}</LocalizedText>
                           </Badge>
-                          <Badge className={getRoleColor(activity.user.role)}>
-                            {activity.user.role}
+                          <Badge className={getRoleColor(activity.user?.role || 'UNKNOWN')}>
+                            {activity.user?.role || 'UNKNOWN'}
                           </Badge>
                         </div>
                         
@@ -197,8 +207,8 @@ export function UserActivityMonitor({ className }: UserActivityMonitorProps) {
                           <div className="flex items-center gap-2">
                             <User className="h-4 w-4 text-gray-500" />
                             <div>
-                              <div className="font-medium">{activity.user.name || activity.user.email}</div>
-                              <div className="text-gray-500">{activity.user.email}</div>
+                              <div className="font-medium">{activity.user?.name || activity.user?.email || 'Unknown user'}</div>
+                              <div className="text-gray-500">{activity.user?.email || 'Unknown email'}</div>
                             </div>
                           </div>
                           
@@ -224,7 +234,9 @@ export function UserActivityMonitor({ className }: UserActivityMonitorProps) {
                             <div>
                               <div className="font-medium"><LocalizedText>Time</LocalizedText></div>
                               <div className="text-gray-500">
-                                {format(new Date(activity.timestamp), 'MMM dd, yyyy HH:mm')}
+                                {activity.timestamp && Number.isFinite(new Date(activity.timestamp).getTime())
+                                  ? format(new Date(activity.timestamp), 'MMM dd, yyyy HH:mm')
+                                  : 'Unknown date'}
                               </div>
                               <div className="text-xs text-gray-400">{activity.timeAgo}</div>
                             </div>
