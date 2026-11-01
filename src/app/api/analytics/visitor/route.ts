@@ -34,6 +34,7 @@ export async function POST(request: NextRequest) {
     const domain = clean(body.domain || request.nextUrl.hostname, 253).toLowerCase()
     const pagePath = clean(body.pagePath, 1000)
     const eventType = body.eventType === 'heartbeat' ? 'heartbeat' : 'pageview'
+    const isIdle = body.isIdle === true
 
     if (!/^[a-zA-Z0-9_-]{12,100}$/.test(visitorId) ||
         !/^[a-zA-Z0-9_-]{12,100}$/.test(sessionId) ||
@@ -81,7 +82,7 @@ export async function POST(request: NextRequest) {
         ipAddress, country: location.country, region: location.region,
         city: location.city, timezone: location.timezone,
         userAgent, browser: device.browser, os: device.os,
-        deviceType: device.deviceType, startedAt: now, lastSeenAt: now,
+        deviceType: device.deviceType, startedAt: now, lastSeenAt: now, isIdle,
         pageViews: eventType === 'pageview' ? 1 : 0, isBot,
       },
       update: {
@@ -91,7 +92,7 @@ export async function POST(request: NextRequest) {
         region: location.region || undefined,
         city: location.city || undefined,
         timezone: location.timezone || undefined,
-        lastSeenAt: now, endedAt: null,
+        lastSeenAt: now, endedAt: null, isIdle,
         pageViews: eventType === 'pageview' && previousPages[previousPages.length - 1] !== pagePath
           ? { increment: 1 } : undefined,
       }
