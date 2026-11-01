@@ -297,7 +297,7 @@ export async function getFleetRecordVersion(entityType: string, id: string, rowD
   if (entityType === 'JOBCARD') return (await db.workshopJobCard.findUnique({ where: { id }, select: { updatedAt: true } }))?.updatedAt || null
   if (entityType === 'VEHICLE_DOCUMENT') return (await db.vehicleDocument.findUnique({ where: { id }, select: { updatedAt: true } }))?.updatedAt || null
   if (entityType === 'SPARE_PART') {
-    const rows = await db.$queryRawUnsafe<any[]>(\`SELECT i."updatedAt", MAX(t."createdAt") AS "lastMovementAt" FROM "inventory_items" i LEFT JOIN "inventory_transactions" t ON t."itemId"=i."id" WHERE i."id"=$1 GROUP BY i."id"\`, id)
+    const rows = await db.$queryRawUnsafe<any[]>('SELECT i."updatedAt", MAX(t."createdAt") AS "lastMovementAt" FROM "inventory_items" i LEFT JOIN "inventory_transactions" t ON t."itemId"=i."id" WHERE i."id"=$1 GROUP BY i."id"', id)
     return rows[0] ? latestUpdatedAt(rows[0].updatedAt, rows[0].lastMovementAt) : null
   }
   if (entityType === 'STOCK_MOVEMENT') { const rows = await db.$queryRawUnsafe<any[]>(`SELECT \"createdAt\" FROM \"inventory_transactions\" WHERE \"id\"=$1`, id); return rows[0]?.createdAt || null }
