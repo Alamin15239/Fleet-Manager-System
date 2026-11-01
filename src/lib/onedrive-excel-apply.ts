@@ -376,8 +376,8 @@ export async function applyWorkbookChange(tx: any, change: Change, userId: strin
     const oldSigned = ['ISSUE','SUPPLIER_RETURN','ADJUSTMENT_OUT'].includes(old.type) ? -Number(old.quantity) : Number(old.quantity)
     const newSigned = ['ISSUE','SUPPLIER_RETURN','ADJUSTMENT_OUT'].includes(type) ? -quantity : quantity
     const balance = await tx.$queryRawUnsafe<any[]>(`SELECT COALESCE(SUM(CASE WHEN "type" IN ('OPENING','PURCHASE','CUSTOMER_RETURN','ADJUSTMENT_IN') THEN "quantity" WHEN "type" IN ('ISSUE','SUPPLIER_RETURN','ADJUSTMENT_OUT') THEN -"quantity" ELSE 0 END),0)::float AS qty FROM "inventory_transactions" WHERE "itemId"=$1`, old.itemId)
-    if (old.itemId === item[0].id && Number(balance[0]?.qty || 0) - oldSigned + newSigned < -0.000001) throw new Error('Insufficient stock for this transaction.')
-    await tx.$executeRawUnsafe(`UPDATE "inventory_transactions" SET "itemId"=$2,"type"=$3,"quantity"=$4,"transactionDate"=$5,"reference"=$6,"vehicleType"=$7,"vehicleId"=$8,"jobCardId"=$9,"unitCost"=$10,"notes"=$11 WHERE "id"=$1`, recordId, ...values)
+    if (Number(balance[0]?.qty || 0) - (old.itemId === item[0].id ? oldSigned : 0) + newSigned < -0.000001) throw new Error('Insufficient stock for this transaction.')
+    await tx.$executeRawUnsafe(`UPDATE "inventory_transactions" SET "itemId"=$2,"type"=$3,"quantity"=$4,"transactionDate"=$5,"reference"=$6,"vehicleType"=$7,"vehicleId"=$8,"jobCardId"=$9,"unitCost"=$10,"notes"=$11,"createdAt"=CURRENT_TIMESTAMP WHERE "id"=$1`, recordId, ...values)
     return { id: recordId }
   }
 
