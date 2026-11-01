@@ -531,7 +531,8 @@ export async function createFleetWorkbook() {
       include: {
         truck: { select: { licensePlate: true } },
         trailer: { select: { number: true } },
-        driver: { select: { name: true } }
+        driver: { select: { name: true } },
+        vehicle: { select: { vehicleNumber: true } }
       },
       orderBy: [{ validUntil: 'asc' }, { updatedAt: 'desc' }]
     }),
@@ -733,7 +734,7 @@ export async function createFleetWorkbook() {
     { header: 'Record ID', key: 'recordId', width: 28, hidden: true }
   ], vehicleDocuments.map(row => ({
     ownerType: row.driverId ? 'Driver' : row.truckId ? 'Truck' : row.trailerId ? 'Trailer' : 'Vehicle',
-    owner: row.driver?.name || row.truck?.licensePlate || row.trailer?.number || '',
+    owner: row.driver?.name || row.truck?.licensePlate || row.trailer?.number || row.vehicle?.vehicleNumber || '',
     documentType: row.documentType,
     title: row.title,
     validFrom: row.validFrom,
