@@ -14,7 +14,6 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 import { StorageInit } from "@/components/storage-init";
 import { RealTimeProvider } from "../../components/real-time-provider";
 import { ClarityAnalytics } from "@/components/clarity-analytics";
-import { VisitorTracker } from "@/components/visitor-tracker";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -118,7 +117,6 @@ export default function RootLayout({
                 <PermissionsProvider>
                   <RealTimeProvider>
                     <Layout>
-                      <VisitorTracker />
                       {children}
                     </Layout>
                   </RealTimeProvider>
