@@ -346,6 +346,7 @@ export async function applyWorkbookChange(tx: any, change: Change, userId: strin
     }
     const targetStock = numberValue(row, 'Current Stock', { minimum: 0 })
     if (targetStock != null) {
+      await tx.$queryRawUnsafe<any[]>(`SELECT \"id\" FROM \"inventory_items\" WHERE \"id\"=$1 FOR UPDATE`, id)
       const balance = await tx.$queryRawUnsafe<any[]>(`SELECT COALESCE(SUM(CASE WHEN "type" IN ('OPENING','PURCHASE','CUSTOMER_RETURN','ADJUSTMENT_IN') THEN "quantity" WHEN "type" IN ('ISSUE','SUPPLIER_RETURN','ADJUSTMENT_OUT') THEN -"quantity" ELSE 0 END),0)::float AS qty FROM "inventory_transactions" WHERE "itemId"=$1`, id)
       const current = Number(balance[0]?.qty || 0)
       const delta = targetStock - current
@@ -367,6 +368,7 @@ export async function applyWorkbookChange(tx: any, change: Change, userId: strin
     const type = enumValue(row.Transaction, ['OPENING','PURCHASE','ISSUE','CUSTOMER_RETURN','SUPPLIER_RETURN','ADJUSTMENT_IN','ADJUSTMENT_OUT'], 'Transaction')
     const quantity = numberValue(row, 'Quantity', { required: true, minimum: 0.000001 })!
     const transactionDate = dateValue(row, 'Date', true)!
+    await tx.$queryRawUnsafe<any[]>(`SELECT \"id\" FROM \"inventory_items\" WHERE \"id\"=$1 FOR UPDATE`, item[0].id)
     const values = [item[0].id, type, quantity, transactionDate, text(row,'Reference'), text(row,'Vehicle Type'), text(row,'Vehicle ID'), text(row,'Job Card ID'), numberValue(row,'Unit Cost',{minimum:0}), text(row,'Notes')]
     if (isCreate) {
       const signed = ['ISSUE','SUPPLIER_RETURN','ADJUSTMENT_OUT'].includes(type) ? -quantity : quantity
