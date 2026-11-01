@@ -482,7 +482,30 @@ function addWorkbookSyncSheet(workbook: Workbook) {
   sheet.getRow(8).height = 32
 }
 
+async function ensureInventoryWorkbookTables() {
+  // Inventory tables are created lazily by the inventory API in existing installs.
+  // Ensure they exist before a scheduled or manual workbook sync queries them.
+  await db.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS "inventory_items" (
+      "id" TEXT PRIMARY KEY, "name" TEXT NOT NULL, "partNumber" TEXT,
+      "category" TEXT NOT NULL DEFAULT 'GENERAL', "unit" TEXT NOT NULL DEFAULT 'pcs',
+      "oilGrade" TEXT, "reorderLevel" DOUBLE PRECISION NOT NULL DEFAULT 0,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`)
+  await db.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS "inventory_transactions" (
+      "id" TEXT PRIMARY KEY, "itemId" TEXT NOT NULL REFERENCES "inventory_items"("id") ON DELETE RESTRICT,
+      "type" TEXT NOT NULL, "quantity" DOUBLE PRECISION NOT NULL,
+      "transactionDate" TIMESTAMP(3) NOT NULL, "reference" TEXT,
+      "vehicleType" TEXT, "vehicleId" TEXT, "jobCardId" TEXT,
+      "unitCost" DOUBLE PRECISION, "notes" TEXT, "createdById" TEXT,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`)
+}
+
 export async function createFleetWorkbook() {
+  await ensureInventoryWorkbookTables()
   const [trucks, trailers, truckMaintenance, trailerMaintenance, oilChanges, tires, jobCards, vehicleDocuments, inventoryItems, inventoryTransactions] = await Promise.all([
     db.truck.findMany({ where: { isDeleted: false }, orderBy: { licensePlate: 'asc' } }),
     db.trailer.findMany({ where: { isDeleted: false }, orderBy: { number: 'asc' } }),
