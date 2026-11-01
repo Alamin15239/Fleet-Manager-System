@@ -336,12 +336,12 @@ export async function applyWorkbookChange(tx: any, change: Change, userId: strin
       const changed = changedHeaders(change)
       const fields: string[] = []
       const values: unknown[] = []
-      const add = (header: string, column: string, value: unknown) => { if (changed.has(header)) { values.push(value); fields.push(`"${column}"=${values.length}`) } }
+      const add = (header: string, column: string, value: unknown) => { if (changed.has(header)) { values.push(value); fields.push(`"${column}"=$${values.length}`) } }
       add('Part Name','name',name); add('Part Number','partNumber',partNumber); add('Category','category',category)
       add('Unit','unit',unit); add('Oil Grade','oilGrade',oilGrade); add('Reorder Level','reorderLevel',reorderLevel)
       if (fields.length) {
         values.push(new Date(), id)
-        await tx.$executeRawUnsafe(`UPDATE "inventory_items" SET ${fields.join(',')}, "updatedAt"=${values.length-1} WHERE "id"=${values.length}`, ...values)
+        await tx.$executeRawUnsafe(`UPDATE "inventory_items" SET ${fields.join(',')}, "updatedAt"=$${values.length-1} WHERE "id"=$${values.length}`, ...values)
       }
     }
     const targetStock = numberValue(row, 'Current Stock', { minimum: 0 })
