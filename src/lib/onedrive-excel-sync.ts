@@ -483,7 +483,7 @@ function addWorkbookSyncSheet(workbook: Workbook) {
 }
 
 export async function createFleetWorkbook() {
-  const [trucks, trailers, truckMaintenance, trailerMaintenance, oilChanges, tires, jobCards] = await Promise.all([
+  const [trucks, trailers, truckMaintenance, trailerMaintenance, oilChanges, tires, jobCards, vehicleDocuments, inventoryItems, inventoryTransactions] = await Promise.all([
     db.truck.findMany({ where: { isDeleted: false }, orderBy: { licensePlate: 'asc' } }),
     db.trailer.findMany({ where: { isDeleted: false }, orderBy: { number: 'asc' } }),
     db.maintenanceRecord.findMany({ where: { isDeleted: false }, include: { truck: { select: { licensePlate: true, make: true, model: true } }, mechanic: { select: { name: true } } }, orderBy: { datePerformed: 'desc' } }),
@@ -500,7 +500,33 @@ export async function createFleetWorkbook() {
       orderBy: { datePerformed: 'desc' }
     }),
     db.tire.findMany({ orderBy: { createdAt: 'desc' } }),
-    db.workshopJobCard.findMany({ include: { truck: { select: { licensePlate: true, make: true, model: true } }, trailer: { select: { number: true } } }, orderBy: [{ serviceDate: 'desc' }, { createdAt: 'desc' }] })
+    db.workshopJobCard.findMany({ include: { truck: { select: { licensePlate: true, make: true, model: true } }, trailer: { select: { number: true } } }, orderBy: [{ serviceDate: 'desc' }, { createdAt: 'desc' }] }),
+    db.vehicleDocument.findMany({
+      include: {
+        truck: { select: { licensePlate: true } },
+        trailer: { select: { number: true } },
+        driver: { select: { name: true } }
+      },
+      orderBy: [{ validUntil: 'asc' }, { updatedAt: 'desc' }]
+    }),
+    db.$queryRawUnsafe<any[]>(`
+      SELECT i."id", i."name", i."partNumber", i."category", i."unit", i."oilGrade",
+        i."reorderLevel", i."updatedAt",
+        COALESCE(SUM(CASE
+          WHEN t."type" IN ('OPENING','PURCHASE','CUSTOMER_RETURN','ADJUSTMENT_IN') THEN t."quantity"
+          WHEN t."type" IN ('ISSUE','SUPPLIER_RETURN','ADJUSTMENT_OUT') THEN -t."quantity"
+          ELSE 0 END),0)::float AS "stockQty"
+      FROM "inventory_items" i
+      LEFT JOIN "inventory_transactions" t ON t."itemId"=i."id"
+      GROUP BY i."id" ORDER BY i."name" ASC`),
+    db.$queryRawUnsafe<any[]>(`
+      SELECT t."id", t."itemId", i."name" AS "itemName", i."unit",
+        t."type", t."quantity", t."transactionDate", t."reference",
+        t."vehicleType", t."vehicleId", t."jobCardId", t."unitCost",
+        t."notes", t."createdAt"
+      FROM "inventory_transactions" t
+      INNER JOIN "inventory_items" i ON i."id"=t."itemId"
+      ORDER BY t."transactionDate" DESC, t."createdAt" DESC`)
   ])
 
   const workbook = new Workbook()
@@ -548,7 +574,10 @@ export async function createFleetWorkbook() {
     Maintenance: truckMaintenance.length + trailerMaintenance.length,
     'Oil Changes': oilChanges.length,
     Tires: tires.length,
-    'Job Cards': jobCards.length
+    'Job Cards': jobCards.length,
+    'Vehicle Documents': vehicleDocuments.length,
+    'Spare Parts': inventoryItems.length,
+    'Stock Movements': inventoryTransactions.length
   }
 
   const syncSummary = addTableSheet(workbook, 'Sync Summary', 'SyncSummary', [
@@ -661,6 +690,86 @@ export async function createFleetWorkbook() {
     { header: 'Notes', key: 'notes', width: 36 }, { header: 'Last Updated', key: 'updatedAt', width: 22, numFmt: DATE_TIME_FORMAT },
     { header: 'Record ID', key: 'recordId', width: 28, hidden: true }
   ], jobCards.map(row => ({ jobNumber: row.jobNumber, serviceDate: row.serviceDate, truck: row.truck?.licensePlate, trailer: row.trailer?.number, serviceType: row.serviceType, priority: row.priority, status: row.status, odometer: row.odometerKm, issue: row.reportedIssue, technician: row.technicianName, driver: row.driverName, partsCost: row.partsCost, laborCost: row.laborCost, totalCost: row.totalCost, nextOdometer: row.nextServiceOdometer, nextDate: row.nextServiceDate, items: row.items, checklist: row.checklist, notes: row.notes, updatedAt: row.updatedAt, recordId: row.id })), 1, true)
+
+  // Expiry tracking covers truck, trailer, and driver records. validFrom is the
+  // document issue/valid-from date and validUntil is its expiry date.
+  addTableSheet(workbook, 'Vehicle Documents', 'VehicleDocuments', [
+    { header: 'Owner Type', key: 'ownerType', width: 16 },
+    { header: 'Owner', key: 'owner', width: 24 },
+    { header: 'Document Type', key: 'documentType', width: 22 },
+    { header: 'Document Title', key: 'title', width: 30 },
+    { header: 'Issue / Valid From', key: 'validFrom', width: 20, numFmt: DATE_TIME_FORMAT },
+    { header: 'Expiry / Valid Until', key: 'validUntil', width: 20, numFmt: DATE_TIME_FORMAT },
+    { header: 'Reminder Starts', key: 'reminderStartDate', width: 20, numFmt: DATE_TIME_FORMAT },
+    { header: 'File Name', key: 'fileName', width: 32 },
+    { header: 'Notes', key: 'notes', width: 40 },
+    { header: 'Last Updated', key: 'updatedAt', width: 22, numFmt: DATE_TIME_FORMAT },
+    { header: 'Record ID', key: 'recordId', width: 28, hidden: true }
+  ], vehicleDocuments.map(row => ({
+    ownerType: row.driverId ? 'Driver' : row.truckId ? 'Truck' : row.trailerId ? 'Trailer' : 'Vehicle',
+    owner: row.driver?.name || row.truck?.licensePlate || row.trailer?.number || '',
+    documentType: row.documentType,
+    title: row.title,
+    validFrom: row.validFrom,
+    validUntil: row.validUntil,
+    reminderStartDate: row.reminderStartDate,
+    fileName: row.fileName,
+    notes: row.notes,
+    updatedAt: row.updatedAt,
+    recordId: row.id
+  })))
+
+  addTableSheet(workbook, 'Spare Parts', 'SparePartsInventory', [
+    { header: 'Part Name', key: 'name', width: 30 },
+    { header: 'Part Number', key: 'partNumber', width: 22 },
+    { header: 'Category', key: 'category', width: 22 },
+    { header: 'Oil Grade', key: 'oilGrade', width: 16 },
+    { header: 'Current Stock', key: 'stockQty', width: 16 },
+    { header: 'Unit', key: 'unit', width: 12 },
+    { header: 'Reorder Level', key: 'reorderLevel', width: 16 },
+    { header: 'Stock Status', key: 'stockStatus', width: 16 },
+    { header: 'Last Updated', key: 'updatedAt', width: 22, numFmt: DATE_TIME_FORMAT },
+    { header: 'Record ID', key: 'recordId', width: 28, hidden: true }
+  ], inventoryItems.map(row => ({
+    name: row.name,
+    partNumber: row.partNumber,
+    category: row.category,
+    oilGrade: row.oilGrade,
+    stockQty: Number(row.stockQty || 0),
+    unit: row.unit,
+    reorderLevel: Number(row.reorderLevel || 0),
+    stockStatus: Number(row.stockQty || 0) <= Number(row.reorderLevel || 0) ? 'REORDER' : 'IN STOCK',
+    updatedAt: row.updatedAt,
+    recordId: row.id
+  })))
+
+  addTableSheet(workbook, 'Stock Movements', 'StockMovements', [
+    { header: 'Date', key: 'transactionDate', width: 20, numFmt: DATE_TIME_FORMAT },
+    { header: 'Part', key: 'itemName', width: 30 },
+    { header: 'Transaction', key: 'type', width: 22 },
+    { header: 'Quantity', key: 'quantity', width: 14 },
+    { header: 'Unit', key: 'unit', width: 12 },
+    { header: 'Reference', key: 'reference', width: 24 },
+    { header: 'Vehicle Type', key: 'vehicleType', width: 16 },
+    { header: 'Vehicle ID', key: 'vehicleId', width: 26 },
+    { header: 'Job Card ID', key: 'jobCardId', width: 26 },
+    { header: 'Unit Cost', key: 'unitCost', width: 14 },
+    { header: 'Notes', key: 'notes', width: 40 },
+    { header: 'Record ID', key: 'recordId', width: 28, hidden: true }
+  ], inventoryTransactions.map(row => ({
+    transactionDate: row.transactionDate,
+    itemName: row.itemName,
+    type: row.type,
+    quantity: Number(row.quantity),
+    unit: row.unit,
+    reference: row.reference,
+    vehicleType: row.vehicleType,
+    vehicleId: row.vehicleId,
+    jobCardId: row.jobCardId,
+    unitCost: row.unitCost == null ? null : Number(row.unitCost),
+    notes: row.notes,
+    recordId: row.id
+  })))
 
   return { bytes: Buffer.from(await workbook.xlsx.writeBuffer()), recordCounts }
 }
