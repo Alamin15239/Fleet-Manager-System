@@ -285,15 +285,15 @@ export async function applyWorkbookChange(tx: any, change: Change, userId: strin
     if (ownerType === 'TRUCK') {
       const truck = await tx.truck.findFirst({ where: { licensePlate: ownerName, isDeleted: false }, select: { id: true } })
       if (!truck) throw new Error(`Truck ${ownerName} was not found.`)
-      owner = { truckId: truck.id, trailerId: null, driverId: null }
+      owner = { vehicleId: null, truckId: truck.id, trailerId: null, driverId: null }
     } else if (ownerType === 'TRAILER') {
       const trailer = await tx.trailer.findFirst({ where: { number: ownerName, isDeleted: false }, select: { id: true } })
       if (!trailer) throw new Error(`Trailer ${ownerName} was not found.`)
-      owner = { truckId: null, trailerId: trailer.id, driverId: null }
+      owner = { vehicleId: null, truckId: null, trailerId: trailer.id, driverId: null }
     } else if (ownerType === 'DRIVER') {
       const driver = await tx.driver.findFirst({ where: { name: ownerName, isDeleted: false }, select: { id: true } })
       if (!driver) throw new Error(`Driver ${ownerName} was not found.`)
-      owner = { truckId: null, trailerId: null, driverId: driver.id }
+      owner = { vehicleId: null, truckId: null, trailerId: null, driverId: driver.id }
     } else {
       const vehicle = await tx.fleetVehicle.findFirst({ where: { vehicleNumber: ownerName }, select: { id: true } })
       if (!vehicle) throw new Error(`Fleet vehicle ${ownerName} was not found.`)
