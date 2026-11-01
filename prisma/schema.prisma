@@ -1077,6 +1077,7 @@ model WebsiteVisitorSession {
   endedAt       DateTime?
   pageViews     Int      @default(1)
   isBot         Boolean  @default(false)
+  isIdle        Boolean  @default(false)
 
   @@index([lastSeenAt])
   @@index([startedAt])
