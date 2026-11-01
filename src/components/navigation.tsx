@@ -122,6 +122,7 @@ const getNavigationGroups = (t: (key: string) => string): NavGroup[] => [
       { name: t('nav.profile'), href: '/profile', icon: User, iconColor: 'text-sky-600 dark:text-sky-400', iconBackground: 'bg-sky-500/10', resource: 'profile', action: 'read' },
       { name: t('nav.settings'), href: '/settings', icon: Settings, iconColor: 'text-slate-600 dark:text-slate-300', iconBackground: 'bg-slate-500/10', resource: 'settings', action: 'read' },
       { name: t('nav.admin'), href: '/admin', icon: Shield, iconColor: 'text-red-600 dark:text-red-400', iconBackground: 'bg-red-500/10', resource: 'admin', action: 'read' },
+      { name: 'Visitor Intelligence', href: '/admin/visitor-intelligence', icon: Globe2, iconColor: 'text-cyan-600 dark:text-cyan-400', iconBackground: 'bg-cyan-500/10', resource: 'admin', action: 'read' },
       { name: t('nav.organizations'), href: '/organizations', icon: Building2, iconColor: 'text-indigo-600 dark:text-indigo-400', iconBackground: 'bg-indigo-500/10', resource: 'admin', action: 'read' },
     ],
   },
