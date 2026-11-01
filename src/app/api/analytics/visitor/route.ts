@@ -68,6 +68,8 @@ export async function POST(request: NextRequest) {
       region: headerValue(request, ['x-vercel-ip-country-region', 'x-vercel-ip-region']),
       city: headerValue(request, ['x-vercel-ip-city', 'cf-ipcity']),
       timezone: headerValue(request, ['x-vercel-ip-timezone']),
+      latitude: Number(headerValue(request, ['x-vercel-ip-latitude'])),
+      longitude: Number(headerValue(request, ['x-vercel-ip-longitude'])),
     }
     const isBot = /bot|crawler|spider|slurp|headless|preview/i.test(userAgent)
 
@@ -81,6 +83,8 @@ export async function POST(request: NextRequest) {
         campaign: clean(body.campaign, 200) || null,
         ipAddress, country: location.country, region: location.region,
         city: location.city, timezone: location.timezone,
+        latitude: Number.isFinite(location.latitude) ? location.latitude : null,
+        longitude: Number.isFinite(location.longitude) ? location.longitude : null,
         userAgent, browser: device.browser, os: device.os,
         deviceType: device.deviceType, startedAt: now, lastSeenAt: now, isIdle,
         pageViews: eventType === 'pageview' ? 1 : 0, isBot,
@@ -92,6 +96,8 @@ export async function POST(request: NextRequest) {
         region: location.region || undefined,
         city: location.city || undefined,
         timezone: location.timezone || undefined,
+        latitude: Number.isFinite(location.latitude) ? location.latitude : undefined,
+        longitude: Number.isFinite(location.longitude) ? location.longitude : undefined,
         lastSeenAt: now, endedAt: null, isIdle,
         pageViews: eventType === 'pageview' && previousPages[previousPages.length - 1] !== pagePath
           ? { increment: 1 } : undefined,
