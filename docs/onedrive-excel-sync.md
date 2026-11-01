@@ -25,7 +25,7 @@ Do not put credentials in a NEXT_PUBLIC_ variable or commit them. Keep the token
 4. Confirm the workbook name, Open in OneDrive link, last successful update, and review-queue count.
 5. Use Sync Now to request a manual workbook refresh.
 
-The workbook includes Trucks, Trailers, Maintenance, Oil Changes, Tires, and Job Cards. App edits and additions are sent to the workbook after the relevant application save operation.
+The workbook includes Trucks, Trailers, Maintenance, Oil Changes, Tires, Job Cards, Vehicle Documents, Spare Parts, and Stock Movements. Vehicle Documents includes the owner (truck, trailer, or driver), document type, issue/valid-from date, expiry/valid-until date, reminder start date, file name, and notes. Spare Parts includes current calculated stock, unit, reorder level, and stock status; Stock Movements includes the complete transaction ledger. App edits and additions are sent to the workbook after the relevant application save operation. The new Vehicle Documents, Spare Parts, and Stock Movements sheets are currently export-only: edits made directly in those sheets are not imported into application records. Existing supported fleet sheets continue to use the review queue before Excel edits are applied.
 
 ## Disconnect
 
