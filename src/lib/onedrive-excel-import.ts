@@ -3,7 +3,7 @@ import { Workbook } from 'exceljs'
 import { db } from '@/lib/db'
 import { createFleetWorkbook, downloadOneDriveWorkbook, ensureOrganizationWorkbookIsolated, getFleetRecordVersion } from '@/lib/onedrive-excel-sync'
 
-type WorkbookEntity = 'TRUCK' | 'TRAILER' | 'MAINTENANCE' | 'OIL_CHANGE' | 'TIRE' | 'JOBCARD'
+type WorkbookEntity = 'TRUCK' | 'TRAILER' | 'MAINTENANCE' | 'OIL_CHANGE' | 'TIRE' | 'JOBCARD' | 'VEHICLE_DOCUMENT' | 'SPARE_PART' | 'STOCK_MOVEMENT'
 type SheetSpec = { sheet: string; entityType: WorkbookEntity; naturalKeys: string[][] }
 type WorkbookRow = Record<string, unknown>
 const IGNORED_COLUMNS = new Set(['Record ID', 'Maintenance ID', 'Last Updated', 'App Baseline'])
@@ -14,7 +14,10 @@ const SHEETS: SheetSpec[] = [
   { sheet: 'Maintenance', entityType: 'MAINTENANCE', naturalKeys: [['Asset Type', 'Truck / Trailer', 'Service Date', 'Service Type'], ['Asset Type', 'Truck / Trailer', 'Service Date']] },
   { sheet: 'Oil Changes', entityType: 'OIL_CHANGE', naturalKeys: [['Truck Number', 'Service Date', 'Mileage (km)'], ['Truck Number', 'Service Date']] },
   { sheet: 'Tires', entityType: 'TIRE', naturalKeys: [['Serial Number', 'Tire Size'], ['Tire Size', 'Truck Number', 'Trailer Number', 'Date']] },
-  { sheet: 'Job Cards', entityType: 'JOBCARD', naturalKeys: [['Job Number']] }
+  { sheet: 'Job Cards', entityType: 'JOBCARD', naturalKeys: [['Job Number']] },
+  { sheet: 'Vehicle Documents', entityType: 'VEHICLE_DOCUMENT', naturalKeys: [['Owner Type', 'Owner', 'Document Type']] },
+  { sheet: 'Spare Parts', entityType: 'SPARE_PART', naturalKeys: [['Part Number'], ['Part Name']] },
+  { sheet: 'Stock Movements', entityType: 'STOCK_MOVEMENT', naturalKeys: [['Reference', 'Part', 'Date', 'Transaction', 'Quantity']] }
 ]
 
 function normalizeCell(value: unknown): unknown {
