@@ -68,8 +68,8 @@ export async function POST(request: NextRequest) {
       region: headerValue(request, ['x-vercel-ip-country-region', 'x-vercel-ip-region']),
       city: headerValue(request, ['x-vercel-ip-city', 'cf-ipcity']),
       timezone: headerValue(request, ['x-vercel-ip-timezone']),
-      latitude: Number(headerValue(request, ['x-vercel-ip-latitude'])),
-      longitude: Number(headerValue(request, ['x-vercel-ip-longitude'])),
+      latitude: headerValue(request, ['x-vercel-ip-latitude']) ? Number(headerValue(request, ['x-vercel-ip-latitude'])) : null,
+      longitude: headerValue(request, ['x-vercel-ip-longitude']) ? Number(headerValue(request, ['x-vercel-ip-longitude'])) : null,
     }
     const isBot = /bot|crawler|spider|slurp|headless|preview/i.test(userAgent)
 
