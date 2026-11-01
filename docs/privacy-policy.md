@@ -15,6 +15,7 @@ The application may handle:
 - **Account information:** name, email, password hash, phone, department, title, biography, profile photo, role, permissions, approval and email-verification status, and password-recovery or verification data.
 - **Fleet, workshop, and purchasing information:** truck and trailer identifiers, VIN, driver and mechanic names, mileage, status, maintenance and oil-change history, tire size and issue quantity, tire serials, job-card details, work/parts, vendor names and contact details, vendor invoice numbers and dates, expense categories, amounts, VAT details, fleet and vendor ledger entries, notes, attachments or signatures supplied to a card, and reports.
 - **Security and activity information:** login history, actions and record changes, IP address, user agent, browser, operating system, device type, and approximate location derived from IP when available.
+- **Website visitor analytics:** first-party anonymous visitor and session IDs, IP address, approximate country/region/city and coordinates when supplied by the hosting provider, browser/device details, pages viewed, referrer and campaign source, visit timestamps, and approximate session duration. This applies to visitors who do not create an account as well as signed-in users.
 - **OneDrive integration information:** connected Microsoft account email, encrypted refresh token, workbook name/ID/link, sync status, and staged workbook changes.
 - **Telemetry:** Vercel Analytics and Speed Insights data, and Microsoft Clarity page/interaction telemetry. The current Clarity integration identifies a signed-in session using the app user ID and sends the user role, email, and name as session metadata. There is currently no in-app analytics opt-out control.
 - **Support and email information:** messages sent to support and email delivery details needed for verification, password recovery, tests, and enabled operational notifications.
@@ -30,13 +31,14 @@ Information is used to:
 - manage trucks, trailers, job cards, maintenance, oil changes, tires, vendor invoices, fleet expense accounts, VAT ledgers, reports, and Excel integration;
 - deliver in-app notifications and configured emails;
 - maintain activity/audit history, investigate incidents, and support users; and
-- measure application usage and performance and improve reliability.
+- measure application usage and performance and improve reliability; and
+- understand anonymous website traffic, visitor journeys, referral sources, public-page performance, and active/idle/ended browsing sessions.
 
 ## 4. Access and disclosure
 
 Authorized app users can see or change data according to their roles and individual permissions. Service providers receive data needed to operate the application:
 
-- Vercel: application hosting, Analytics, and Speed Insights;
+- Vercel: application hosting, Analytics, Speed Insights, and approximate visitor network-location headers;
 - Neon: PostgreSQL database hosting;
 - Microsoft: OneDrive/Graph and Clarity;
 - Resend: email delivery; and
