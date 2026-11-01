@@ -53,8 +53,8 @@ export async function GET(request: NextRequest) {
       timezone: session.timezone, browser: session.browser, os: session.os,
       deviceType: session.deviceType, startedAt: session.startedAt,
       lastSeenAt: session.lastSeenAt, pageViews: session.pageViews,
-      isBot: session.isBot,
-      status: session.isBot ? 'Bot' : session.lastSeenAt >= liveSince ? 'Active' :
+      isBot: session.isBot, isIdle: session.isIdle,
+      status: session.isBot ? 'Bot' : session.lastSeenAt >= liveSince ? (session.isIdle ? 'Idle' : 'Active') :
         session.lastSeenAt >= new Date(Date.now() - 15 * 60 * 1000) ? 'Idle' : 'Inactive',
       durationSeconds: Math.max(0, Math.floor(((session.endedAt || session.lastSeenAt).getTime() - session.startedAt.getTime()) / 1000)),
     }))
