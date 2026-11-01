@@ -4,9 +4,9 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
-  Activity, ArrowUpRight, BarChart3, CalendarDays, Clock3, Download, ExternalLink,
+  Activity, BarChart3, CalendarDays, Clock3, Download,
   Eye, Filter, Globe2, MapPin, Monitor, Radio, RefreshCw, Search, ShieldCheck,
-  Smartphone, Users, Wifi,
+  Smartphone, Users,
 } from 'lucide-react'
 
 type Session = {
