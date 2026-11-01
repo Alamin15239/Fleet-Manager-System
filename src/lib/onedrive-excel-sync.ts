@@ -295,6 +295,9 @@ export async function getFleetRecordVersion(entityType: string, id: string, rowD
   }
   if (entityType === 'TIRE') return (await db.tire.findUnique({ where: { id }, select: { updatedAt: true } }))?.updatedAt || null
   if (entityType === 'JOBCARD') return (await db.workshopJobCard.findUnique({ where: { id }, select: { updatedAt: true } }))?.updatedAt || null
+  if (entityType === 'VEHICLE_DOCUMENT') return (await db.vehicleDocument.findUnique({ where: { id }, select: { updatedAt: true } }))?.updatedAt || null
+  if (entityType === 'SPARE_PART') { const rows = await db.$queryRawUnsafe<any[]>(`SELECT \"updatedAt\" FROM \"inventory_items\" WHERE \"id\"=$1`, id); return rows[0]?.updatedAt || null }
+  if (entityType === 'STOCK_MOVEMENT') { const rows = await db.$queryRawUnsafe<any[]>(`SELECT \"createdAt\" FROM \"inventory_transactions\" WHERE \"id\"=$1`, id); return rows[0]?.createdAt || null }
   return null
 }
 
