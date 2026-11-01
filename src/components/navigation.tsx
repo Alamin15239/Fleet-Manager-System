@@ -30,6 +30,7 @@ import {
   Folder,
   FolderOpen,
   Gauge,
+  Globe2,
   CalendarClock,
   LogOut,
   Package,
