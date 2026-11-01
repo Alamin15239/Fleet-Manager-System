@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
-import { usePathname, useSearchParams } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 
 function makeId() {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID().replace(/-/g, '')
@@ -10,7 +10,6 @@ function makeId() {
 
 export function VisitorTracker() {
   const pathname = usePathname()
-  const searchParams = useSearchParams()
 
   useEffect(() => {
     if (!pathname) return
@@ -57,7 +56,7 @@ export function VisitorTracker() {
       window.clearInterval(heartbeat)
       document.removeEventListener('visibilitychange', onVisible)
     }
-  }, [pathname, searchParams])
+  }, [pathname])
 
   return null
 }
