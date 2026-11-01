@@ -278,10 +278,10 @@ export async function applyWorkbookChange(tx: any, change: Change, userId: strin
 
 
   if (change.entityType === 'VEHICLE_DOCUMENT') {
-    const ownerType = enumValue(row['Owner Type'], ['TRUCK', 'TRAILER', 'DRIVER'], 'Owner Type',
+    const ownerType = enumValue(row['Owner Type'], ['TRUCK', 'TRAILER', 'DRIVER', 'VEHICLE'], 'Owner Type',
       String(row['Owner Type'] || '').toUpperCase())
     const ownerName = text(row, 'Owner', true)!
-    let owner: { truckId?: string | null; trailerId?: string | null; driverId?: string | null } = {}
+    let owner: { vehicleId?: string | null; truckId?: string | null; trailerId?: string | null; driverId?: string | null } = {}
     if (ownerType === 'TRUCK') {
       const truck = await tx.truck.findFirst({ where: { licensePlate: ownerName, isDeleted: false }, select: { id: true } })
       if (!truck) throw new Error(`Truck ${ownerName} was not found.`)
@@ -290,10 +290,14 @@ export async function applyWorkbookChange(tx: any, change: Change, userId: strin
       const trailer = await tx.trailer.findFirst({ where: { number: ownerName, isDeleted: false }, select: { id: true } })
       if (!trailer) throw new Error(`Trailer ${ownerName} was not found.`)
       owner = { truckId: null, trailerId: trailer.id, driverId: null }
-    } else {
+    } else if (ownerType === 'DRIVER') {
       const driver = await tx.driver.findFirst({ where: { name: ownerName, isDeleted: false }, select: { id: true } })
       if (!driver) throw new Error(`Driver ${ownerName} was not found.`)
       owner = { truckId: null, trailerId: null, driverId: driver.id }
+    } else {
+      const vehicle = await tx.fleetVehicle.findFirst({ where: { vehicleNumber: ownerName }, select: { id: true } })
+      if (!vehicle) throw new Error(`Fleet vehicle ${ownerName} was not found.`)
+      owner = { vehicleId: vehicle.id, truckId: null, trailerId: null, driverId: null } as any
     }
     const data = {
       ...owner,
@@ -307,7 +311,7 @@ export async function applyWorkbookChange(tx: any, change: Change, userId: strin
     }
     if (isCreate) return tx.vehicleDocument.create({ data })
     const update = updateFields(data, change, {
-      'Owner Type': ['truckId', 'trailerId', 'driverId'], 'Owner': ['truckId', 'trailerId', 'driverId'],
+      'Owner Type': ['vehicleId', 'truckId', 'trailerId', 'driverId'], 'Owner': ['vehicleId', 'truckId', 'trailerId', 'driverId'],
       'Document Title': ['title'], 'Document Type': ['documentType'],
       'Issue / Valid From': ['validFrom'], 'Expiry / Valid Until': ['validUntil'],
       'Reminder Starts': ['reminderStartDate'], 'File Name': ['fileName'], 'Notes': ['notes']
@@ -345,10 +349,13 @@ export async function applyWorkbookChange(tx: any, change: Change, userId: strin
       const balance = await tx.$queryRawUnsafe<any[]>(`SELECT COALESCE(SUM(CASE WHEN "type" IN ('OPENING','PURCHASE','CUSTOMER_RETURN','ADJUSTMENT_IN') THEN "quantity" WHEN "type" IN ('ISSUE','SUPPLIER_RETURN','ADJUSTMENT_OUT') THEN -"quantity" ELSE 0 END),0)::float AS qty FROM "inventory_transactions" WHERE "itemId"=$1`, id)
       const current = Number(balance[0]?.qty || 0)
       const delta = targetStock - current
-      if (Math.abs(delta) > 0.000001) await tx.$executeRawUnsafe(
+      if (Math.abs(delta) > 0.000001) {
+        await tx.$executeRawUnsafe(`UPDATE "inventory_items" SET "updatedAt"=CURRENT_TIMESTAMP WHERE "id"=$1`, id)
+        await tx.$executeRawUnsafe(
         `INSERT INTO "inventory_transactions" ("id","itemId","type","quantity","transactionDate","reference","notes","createdById") VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
         `itx_${crypto.randomUUID()}`, id, delta > 0 ? 'ADJUSTMENT_IN' : 'ADJUSTMENT_OUT', Math.abs(delta), new Date(),
         'Excel stock reconciliation', `Workbook stock count adjustment: ${current} to ${targetStock}`, userId)
+      }
     }
     return { id }
   }
