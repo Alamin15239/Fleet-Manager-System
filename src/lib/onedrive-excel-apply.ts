@@ -276,5 +276,110 @@ export async function applyWorkbookChange(tx: any, change: Change, userId: strin
     return tx.workshopJobCard.update({ where: { id: recordId }, data: jobCardUpdate })
   }
 
+
+  if (change.entityType === 'VEHICLE_DOCUMENT') {
+    const ownerType = enumValue(row['Owner Type'], ['TRUCK', 'TRAILER', 'DRIVER'], 'Owner Type',
+      String(row['Owner Type'] || '').toUpperCase())
+    const ownerName = text(row, 'Owner', true)!
+    let owner: { truckId?: string | null; trailerId?: string | null; driverId?: string | null } = {}
+    if (ownerType === 'TRUCK') {
+      const truck = await tx.truck.findFirst({ where: { licensePlate: ownerName, isDeleted: false }, select: { id: true } })
+      if (!truck) throw new Error(`Truck ${ownerName} was not found.`)
+      owner = { truckId: truck.id, trailerId: null, driverId: null }
+    } else if (ownerType === 'TRAILER') {
+      const trailer = await tx.trailer.findFirst({ where: { number: ownerName, isDeleted: false }, select: { id: true } })
+      if (!trailer) throw new Error(`Trailer ${ownerName} was not found.`)
+      owner = { truckId: null, trailerId: trailer.id, driverId: null }
+    } else {
+      const driver = await tx.driver.findFirst({ where: { name: ownerName, isDeleted: false }, select: { id: true } })
+      if (!driver) throw new Error(`Driver ${ownerName} was not found.`)
+      owner = { truckId: null, trailerId: null, driverId: driver.id }
+    }
+    const data = {
+      ...owner,
+      title: text(row, 'Document Title', true)!,
+      documentType: text(row, 'Document Type', true)!,
+      validFrom: dateValue(row, 'Issue / Valid From'),
+      validUntil: dateValue(row, 'Expiry / Valid Until'),
+      reminderStartDate: dateValue(row, 'Reminder Starts'),
+      fileName: text(row, 'File Name'),
+      notes: text(row, 'Notes')
+    }
+    if (isCreate) return tx.vehicleDocument.create({ data })
+    const update = updateFields(data, change, {
+      'Owner Type': ['truckId', 'trailerId', 'driverId'], 'Owner': ['truckId', 'trailerId', 'driverId'],
+      'Document Title': ['title'], 'Document Type': ['documentType'],
+      'Issue / Valid From': ['validFrom'], 'Expiry / Valid Until': ['validUntil'],
+      'Reminder Starts': ['reminderStartDate'], 'File Name': ['fileName'], 'Notes': ['notes']
+    })
+    return tx.vehicleDocument.update({ where: { id: recordId }, data: update })
+  }
+
+  if (change.entityType === 'SPARE_PART') {
+    const name = text(row, 'Part Name', true)!
+    const partNumber = text(row, 'Part Number')
+    const category = text(row, 'Category', true)!
+    const unit = text(row, 'Unit', true)!
+    const oilGrade = text(row, 'Oil Grade')
+    const reorderLevel = numberValue(row, 'Reorder Level', { minimum: 0 }) ?? 0
+    const id = recordId || `inv_${crypto.randomUUID()}`
+    const itemExists = !isCreate && (await tx.$queryRawUnsafe<any[]>(`SELECT "id" FROM "inventory_items" WHERE "id"=$1`, id)).length > 0
+    if (isCreate) {
+      await tx.$executeRawUnsafe(`INSERT INTO "inventory_items" ("id","name","partNumber","category","unit","oilGrade","reorderLevel") VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+        id, name, partNumber, category, unit, oilGrade, reorderLevel)
+    } else {
+      if (!itemExists) throw new Error('Inventory item was not found.')
+      const changed = changedHeaders(change)
+      const fields: string[] = []
+      const values: unknown[] = []
+      const add = (header: string, column: string, value: unknown) => { if (changed.has(header)) { values.push(value); fields.push(`"${column}"=${values.length}`) } }
+      add('Part Name','name',name); add('Part Number','partNumber',partNumber); add('Category','category',category)
+      add('Unit','unit',unit); add('Oil Grade','oilGrade',oilGrade); add('Reorder Level','reorderLevel',reorderLevel)
+      if (fields.length) {
+        values.push(new Date(), id)
+        await tx.$executeRawUnsafe(`UPDATE "inventory_items" SET ${fields.join(',')}, "updatedAt"=${values.length-1} WHERE "id"=${values.length}`, ...values)
+      }
+    }
+    const targetStock = numberValue(row, 'Current Stock', { minimum: 0 })
+    if (targetStock != null) {
+      const balance = await tx.$queryRawUnsafe<any[]>(`SELECT COALESCE(SUM(CASE WHEN "type" IN ('OPENING','PURCHASE','CUSTOMER_RETURN','ADJUSTMENT_IN') THEN "quantity" WHEN "type" IN ('ISSUE','SUPPLIER_RETURN','ADJUSTMENT_OUT') THEN -"quantity" ELSE 0 END),0)::float AS qty FROM "inventory_transactions" WHERE "itemId"=$1`, id)
+      const current = Number(balance[0]?.qty || 0)
+      const delta = targetStock - current
+      if (Math.abs(delta) > 0.000001) await tx.$executeRawUnsafe(
+        `INSERT INTO "inventory_transactions" ("id","itemId","type","quantity","transactionDate","reference","notes","createdById") VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+        `itx_${crypto.randomUUID()}`, id, delta > 0 ? 'ADJUSTMENT_IN' : 'ADJUSTMENT_OUT', Math.abs(delta), new Date(),
+        'Excel stock reconciliation', `Workbook stock count adjustment: ${current} to ${targetStock}`, userId)
+    }
+    return { id }
+  }
+
+  if (change.entityType === 'STOCK_MOVEMENT') {
+    const itemName = text(row, 'Part', true)!
+    const item = await tx.$queryRawUnsafe<any[]>(`SELECT i."id", i."unit" FROM "inventory_items" i WHERE lower(i."name")=lower($1) OR i."id"=$1 ORDER BY CASE WHEN i."id"=$1 THEN 0 ELSE 1 END LIMIT 1`, itemName)
+    if (!item.length) throw new Error(`Inventory part ${itemName} was not found.`)
+    const type = enumValue(row.Transaction, ['OPENING','PURCHASE','ISSUE','CUSTOMER_RETURN','SUPPLIER_RETURN','ADJUSTMENT_IN','ADJUSTMENT_OUT'], 'Transaction')
+    const quantity = numberValue(row, 'Quantity', { required: true, minimum: 0.000001 })!
+    const transactionDate = dateValue(row, 'Date', true)!
+    const values = [item[0].id, type, quantity, transactionDate, text(row,'Reference'), text(row,'Vehicle Type'), text(row,'Vehicle ID'), text(row,'Job Card ID'), numberValue(row,'Unit Cost',{minimum:0}), text(row,'Notes')]
+    if (isCreate) {
+      const signed = ['ISSUE','SUPPLIER_RETURN','ADJUSTMENT_OUT'].includes(type) ? -quantity : quantity
+      const balance = await tx.$queryRawUnsafe<any[]>(`SELECT COALESCE(SUM(CASE WHEN "type" IN ('OPENING','PURCHASE','CUSTOMER_RETURN','ADJUSTMENT_IN') THEN "quantity" WHEN "type" IN ('ISSUE','SUPPLIER_RETURN','ADJUSTMENT_OUT') THEN -"quantity" ELSE 0 END),0)::float AS qty FROM "inventory_transactions" WHERE "itemId"=$1`, item[0].id)
+      if (Number(balance[0]?.qty || 0) + signed < -0.000001) throw new Error('Insufficient stock for this transaction.')
+      const id = `itx_${crypto.randomUUID()}`
+      await tx.$executeRawUnsafe(`INSERT INTO "inventory_transactions" ("id","itemId","type","quantity","transactionDate","reference","vehicleType","vehicleId","jobCardId","unitCost","notes","createdById") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+        id, ...values, userId)
+      return { id }
+    }
+    const existing = await tx.$queryRawUnsafe<any[]>(`SELECT "id","itemId","type","quantity" FROM "inventory_transactions" WHERE "id"=$1 FOR UPDATE`, recordId)
+    if (!existing.length) throw new Error('Stock movement was not found.')
+    const [old] = existing
+    const oldSigned = ['ISSUE','SUPPLIER_RETURN','ADJUSTMENT_OUT'].includes(old.type) ? -Number(old.quantity) : Number(old.quantity)
+    const newSigned = ['ISSUE','SUPPLIER_RETURN','ADJUSTMENT_OUT'].includes(type) ? -quantity : quantity
+    const balance = await tx.$queryRawUnsafe<any[]>(`SELECT COALESCE(SUM(CASE WHEN "type" IN ('OPENING','PURCHASE','CUSTOMER_RETURN','ADJUSTMENT_IN') THEN "quantity" WHEN "type" IN ('ISSUE','SUPPLIER_RETURN','ADJUSTMENT_OUT') THEN -"quantity" ELSE 0 END),0)::float AS qty FROM "inventory_transactions" WHERE "itemId"=$1`, old.itemId)
+    if (old.itemId === item[0].id && Number(balance[0]?.qty || 0) - oldSigned + newSigned < -0.000001) throw new Error('Insufficient stock for this transaction.')
+    await tx.$executeRawUnsafe(`UPDATE "inventory_transactions" SET "itemId"=$2,"type"=$3,"quantity"=$4,"transactionDate"=$5,"reference"=$6,"vehicleType"=$7,"vehicleId"=$8,"jobCardId"=$9,"unitCost"=$10,"notes"=$11 WHERE "id"=$1`, recordId, ...values)
+    return { id: recordId }
+  }
+
   throw new Error('This workbook row type is not supported for importing.')
 }
