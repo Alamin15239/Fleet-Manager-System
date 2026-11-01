@@ -21,7 +21,7 @@ async function withRequestOrganization<T>(request: NextRequest, operation: () =>
 
 const resourceForEntity: Record<string, string> = {
   TRUCK: 'trucks', TRAILER: 'trailers', MAINTENANCE: 'maintenance', OIL_CHANGE: 'maintenance',
-  TIRE: 'tire-management', JOBCARD: 'maintenance'
+  TIRE: 'tire-management', JOBCARD: 'maintenance', VEHICLE_DOCUMENT: 'document-management', SPARE_PART: 'maintenance', STOCK_MOVEMENT: 'maintenance'
 }
 
 function getAction(change: { operation: string }) {
