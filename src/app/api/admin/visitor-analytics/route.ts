@@ -6,7 +6,15 @@ export const dynamic = 'force-dynamic'
 
 export async function GET(request: NextRequest) {
   try {
-    await requireAdmin(request)
+    const admin = await requireAdmin(request)
+    // Visitor sessions live in the shared control database, not a tenant DB.
+    // Only the primary-organization administrator may inspect this platform-wide data.
+    if (!admin.isPrimaryOrganization) {
+      return NextResponse.json({ error: 'Platform administrator access required' }, {
+        status: 403,
+        headers: { 'Cache-Control': 'private, no-store' }
+      })
+    }
     const { searchParams } = new URL(request.url)
     const domain = searchParams.get('domain')
     const since = new Date(Date.now() - 24 * 60 * 60 * 1000)
@@ -73,6 +81,9 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     const message = error instanceof Error ? error.message : ''
     const status = message === 'Insufficient permissions' ? 403 : 401
-    return NextResponse.json({ error: status === 403 ? 'Admin access required' : 'Authentication required' }, { status })
+    return NextResponse.json({ error: status === 403 ? 'Platform administrator access required' : 'Authentication required' }, {
+      status,
+      headers: { 'Cache-Control': 'private, no-store' }
+    })
   }
 }
