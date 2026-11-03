@@ -133,11 +133,8 @@ export async function POST(request: NextRequest) {
     }
     
     return NextResponse.json(
-      { 
-        error: 'Failed to upload profile image', 
-        details: error instanceof Error ? error.message : 'Unknown error' 
-      },
-      { status: 500 }
+      { error: 'Failed to upload profile image' },
+      { status: 500, headers: { 'Cache-Control': 'no-store' } }
     )
   }
 }
