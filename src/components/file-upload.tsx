@@ -133,7 +133,7 @@ export function FileUpload({
         setTimeout(() => setUploadProgress(0), 1000)
       }
     }
-  }, [files, maxFiles, acceptedTypes, defaultAcceptedTypes, maxSize, type, entityId, onFilesChange])
+  }, [files, maxFiles, acceptedTypes, defaultAcceptedTypes, maxSize, type, entityId, token, onFilesChange])
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault()
