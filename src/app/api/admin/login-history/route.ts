@@ -15,15 +15,15 @@ const querySchema = z.object({
 
 export async function GET(request: NextRequest) {
   try {
-    // Test database connection first
+    const user = await requireAdmin(request);
+
+    // Check database connectivity only after authorization.
     try {
       await db.$queryRaw`SELECT 1`
     } catch (dbError) {
       console.error('Database connection failed:', dbError)
-      return NextResponse.json({ history: [], total: 0 })
+      return NextResponse.json({ error: 'Login history is temporarily unavailable' }, { status: 503, headers: { 'Cache-Control': 'no-store' } })
     }
-
-    const user = await requireAdmin(request);
     
     const { searchParams } = new URL(request.url);
     const queryParams = Object.fromEntries(searchParams.entries());
