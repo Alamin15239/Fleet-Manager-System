@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
       event = resend.webhooks.verify({
         payload,
         headers: svixHeaders,
-        secret: webhookSecret,
+        webhookSecret,
       }) as ResendWebhookEvent
     } catch {
       return NextResponse.json({ error: 'Invalid webhook signature' }, { status: 401 })
