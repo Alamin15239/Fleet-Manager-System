@@ -10,7 +10,7 @@ function escapeHtml(value: string) {
   return value.replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character] || character)
 }
 
-async function documentShareUrl(db: any, document: { id: string; fileName?: string | null; shareToken?: string | null; shareExpiresAt?: Date | null }) {
+async function documentShareUrl(db: any, organizationSlug: string, document: { id: string; fileName?: string | null; shareToken?: string | null; shareExpiresAt?: Date | null }) {
   if (!document.fileName) return null
   let token = document.shareToken
   let expiresAt = document.shareExpiresAt
@@ -20,7 +20,7 @@ async function documentShareUrl(db: any, document: { id: string; fileName?: stri
     await db.vehicleDocument.update({ where: { id: document.id }, data: { shareToken: token, shareExpiresAt: expiresAt } })
   }
   const origin = process.env.NEXT_PUBLIC_APP_URL || (process.env.VERCEL_URL ? 'https://' + process.env.VERCEL_URL : '')
-  return origin ? origin.replace(/\/$/, '') + '/api/public/documents/' + token : null
+  return origin ? origin.replace(/\/$/, '') + '/api/public/documents/' + token + '?org=' + encodeURIComponent(organizationSlug) : null
 }
 
 function dateKeyInRiyadh(date = new Date()) {
@@ -31,7 +31,7 @@ function dateKeyInRiyadh(date = new Date()) {
   return part('year') + '-' + part('month') + '-' + part('day')
 }
 
-async function runDocumentExpiryEmailAlerts() {
+async function runDocumentExpiryEmailAlerts(organizationSlug: string) {
   const { db } = await import('@/lib/db')
   const settings = await db.settings.findFirst()
   const notificationSettings = settings?.notifications && typeof settings.notifications === 'object'
@@ -109,7 +109,7 @@ async function runDocumentExpiryEmailAlerts() {
   dueDocuments.sort((a, b) => a.daysLeft - b.daysLeft || a.owner.localeCompare(b.owner))
 
   for (const document of dueDocuments as any[]) {
-    if (!document.missing) document.shareUrl = await documentShareUrl(db, document)
+    if (!document.missing) document.shareUrl = await documentShareUrl(db, organizationSlug, document)
   }
 
   if (!dueDocuments.length) {
@@ -249,7 +249,7 @@ export async function GET(request: NextRequest) {
       try {
         const result = await withOrganization(organization, async () => {
           const notifications = await NotificationService.runNotificationChecks()
-          const documentExpiry = await runDocumentExpiryEmailAlerts()
+          const documentExpiry = await runDocumentExpiryEmailAlerts(organization.slug)
           const documentAndDriverChanges = await runDocumentAndDriverChangeEmailAlerts()
           return { ...notifications, documentExpiry, documentAndDriverChanges }
         })
