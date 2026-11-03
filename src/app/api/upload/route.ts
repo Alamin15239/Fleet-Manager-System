@@ -52,11 +52,11 @@ export async function POST(request: NextRequest) {
 
     // Never use the client-provided filename as a filesystem path.
     const timestamp = Date.now();
-    const filename = \`\${timestamp}-\${randomUUID()}\${extension}\`;
+    const filename = String(timestamp) + '-' + randomUUID() + extension;
     const filepath = join(uploadsDir, filename);
     await writeFile(filepath, buffer, { flag: 'wx' });
 
-    const fileUrl = \`/uploads/\${filename}\`;
+    const fileUrl = '/uploads/' + filename;
     try {
       await db.document.create({
         data: {
@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
     }
 
     const uploadedFile = {
-      id: \`file_\${timestamp}\`,
+      id: 'file_' + timestamp,
       name: filename,
       originalName: file.name.replace(/[\\r\\n]/g, '').slice(0, 180),
       size: file.size,
