@@ -12,7 +12,7 @@ const SHARE_TOKEN_CLOCK_SKEW_SECONDS = 5 * 60
 
 function createSignature(invoiceId: string, organizationSlug: string, issuedAt: number) {
   return createHmac('sha256', getSigningSecret())
-    .update(`purchase-invoice-share:${organizationSlug}:${idName}:${issuedAt}`)
+    .update(`purchase-invoice-share:${organizationSlug}:${invoiceId}:${issuedAt}`)
     .digest('base64url')
 }
 
@@ -25,7 +25,7 @@ export function verifyPurchaseInvoiceShareToken(invoiceId: string, organizationS
   try {
     const [version, issuedAtValue, providedSignature, ...extra] = token.split('.')
     if (version !== SHARE_TOKEN_VERSION || !issuedAtValue || !providedSignature || extra.length) return false
-    if (!/^\\d{1,12}$/.test(issuedAtValue)) return false
+    if (!/^\d{1,12}$/.test(issuedAtValue)) return false
     const issuedAt = Number(issuedAtValue)
     if (!Number.isSafeInteger(issuedAt)) return false
     const now = Math.floor(Date.now() / 1000)
