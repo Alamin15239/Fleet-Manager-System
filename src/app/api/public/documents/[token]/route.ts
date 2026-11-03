@@ -38,7 +38,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       return new NextResponse(bytes, { headers: {
         'Content-Type': mimeType,
         'Content-Length': String(bytes.byteLength),
-        'Content-Disposition': 'inline; filename="' + (document.fileName || 'document').replace(/[\\r\\n"\\\\]/g, '_') + '"',
+        'Content-Disposition': 'inline; filename="' + (document.fileName || 'document').replace(/[\r\n"\\]/g, '_') + '",'
         'Cache-Control': 'private, no-store, max-age=0',
         'X-Content-Type-Options': 'nosniff',
         'Referrer-Policy': 'no-referrer',
