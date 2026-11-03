@@ -81,7 +81,8 @@ export async function POST(request: NextRequest) {
       })
     } catch (dbError) {
       console.error('Failed to store email event:', dbError)
-      // Continue processing even if DB fails
+      // Return a failure so Resend retries instead of silently losing the event.
+      return NextResponse.json({ error: 'Failed to persist webhook event' }, { status: 500 })
     }
 
     // Handle different event types
