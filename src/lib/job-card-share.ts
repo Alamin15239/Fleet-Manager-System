@@ -6,15 +6,15 @@ function getSigningSecret() {
   return secret
 }
 
-export function createJobCardShareToken(jobCardId: string) {
+export function createJobCardShareToken(jobCardId: string, organizationSlug: string) {
   return createHmac('sha256', getSigningSecret())
-    .update(`job-card-share:${jobCardId}`)
+    .update(`job-card-share:${organizationSlug}:${jobCardId}`)
     .digest('base64url')
 }
 
-export function verifyJobCardShareToken(jobCardId: string, token: string) {
+export function verifyJobCardShareToken(jobCardId: string, organizationSlug: string, token: string) {
   try {
-    const expected = Buffer.from(createJobCardShareToken(jobCardId))
+    const expected = Buffer.from(createJobCardShareToken(jobCardId, organizationSlug))
     const received = Buffer.from(token)
     return expected.length === received.length && timingSafeEqual(expected, received)
   } catch {
