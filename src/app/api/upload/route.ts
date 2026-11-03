@@ -58,6 +58,29 @@ export async function POST(request: NextRequest) {
     const permissionResource = type === 'truck' ? 'trucks' : 'maintenance';
     const user = await requireRolePermission(request, permissionResource, 'update');
 
+    // Confirm the supplied parent record exists in the authenticated tenant
+    // before accepting bytes. The db client is already scoped by the user's
+    // verified organization context.
+    const parentExists = type === 'truck'
+      ? Boolean(await db.truck.findFirst({
+          where: { id: entityId, isDeleted: false },
+          select: { id: true }
+        }))
+      : Boolean(
+          (await db.maintenanceRecord.findFirst({
+            where: { id: entityId, isDeleted: false },
+            select: { id: true }
+          })) ||
+          (await db.trailerMaintenanceRecord.findFirst({
+            where: { id: entityId, isDeleted: false },
+            select: { id: true }
+          }))
+        );
+
+    if (!parentExists) {
+      return NextResponse.json({ error: 'The selected fleet record was not found' }, { status: 404 });
+    }
+
     const submittedFile = data.get('file');
     if (!(submittedFile instanceof File) || submittedFile.size <= 0) {
       return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
