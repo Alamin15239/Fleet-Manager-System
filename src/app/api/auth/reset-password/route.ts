@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db, findOrganizationBySlug, withOrganization } from '@/lib/db'
 import bcrypt from 'bcryptjs'
+import crypto from 'crypto'
 
 export async function POST(request: NextRequest) {
   try {
@@ -27,7 +28,7 @@ export async function POST(request: NextRequest) {
     const user = await db.user.findFirst({
       where: {
         email: String(email).trim().toLowerCase(),
-        resetToken: token,
+        resetToken: crypto.createHash('sha256').update(String(token)).digest('hex'),
         resetTokenExpires: {
           gt: new Date()
         }
@@ -42,7 +43,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Hash new password
-    const hashedPassword = await bcrypt.hash(password, 10)
+    const hashedPassword = await bcrypt.hash(password, 12)
 
     // Update user password and clear reset token
     await db.user.update({
