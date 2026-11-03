@@ -78,9 +78,11 @@ export async function POST(request: NextRequest) {
       start(controller) {
         const write = (chunk: string) => controller.enqueue(encoder.encode(chunk))
         const serialized = (value: unknown) =>
-          JSON.stringify(value, (_key, nested) =>
-            typeof nested === 'bigint' ? nested.toString() : nested,
-          )
+          JSON.stringify(value, (key, nested) => {
+            // Also redact secret-like keys inside JSON/JSONB columns.
+            if (key && SENSITIVE_COLUMN_PATTERN.test(key)) return undefined
+            return typeof nested === 'bigint' ? nested.toString() : nested
+          })
 
         write(
           `{"format":"fleet-manager-postgres-json-backup","formatVersion":1,"createdAt":${JSON.stringify(
