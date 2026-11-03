@@ -111,17 +111,12 @@ export async function GET(request: NextRequest) {
     })
   } catch (error) {
     console.error('Error fetching trash items:', error)
-    if (error instanceof Error) {
-      if (error.message === 'Unauthorized' || error.message === 'Insufficient permissions') {
-        return NextResponse.json(
-          { error: error.message },
-          { status: 403 }
-        )
-      }
-    }
+    const message = error instanceof Error ? error.message : ''
+    const unauthorized = ['No token provided', 'Invalid token', 'Unauthorized'].includes(message)
+    const forbidden = message === 'Insufficient permissions'
     return NextResponse.json(
-      { error: 'Failed to fetch trash items' },
-      { status: 500 }
+      { error: unauthorized ? 'Authentication required' : forbidden ? 'Administrator access required' : 'Failed to fetch trash items' },
+      { status: unauthorized ? 401 : forbidden ? 403 : 500, headers: { 'Cache-Control': 'no-store' } }
     )
   }
 }
