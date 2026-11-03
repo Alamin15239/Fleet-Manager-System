@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { writeFile, mkdir } from 'fs/promises';
+import { writeFile, mkdir, unlink } from 'fs/promises';
 import { join } from 'path';
 import { randomUUID } from 'crypto';
 import { db } from '@/lib/db';
@@ -95,6 +95,17 @@ export async function POST(request: NextRequest) {
       });
     } catch (dbError) {
       console.error('Error saving file metadata to database:', dbError);
+      // Do not report a successful upload when its metadata was not persisted.
+      // Remove the just-written file to avoid an untracked orphan.
+      try {
+        await unlink(filepath);
+      } catch (cleanupError) {
+        console.error('Failed to clean up untracked upload:', cleanupError);
+      }
+      return NextResponse.json({ error: 'File metadata could not be saved. Please retry the upload.' }, {
+        status: 500,
+        headers: { 'Cache-Control': 'no-store' }
+      });
     }
 
     const uploadedFile = {
