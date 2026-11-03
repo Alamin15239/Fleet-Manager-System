@@ -7,12 +7,13 @@ export const dynamic = 'force-dynamic'
 export async function GET(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params
   const token = request.nextUrl.searchParams.get('token') || ''
-  if (!verifyJobCardShareToken(id, token)) {
+  const organizationSlug = request.nextUrl.searchParams.get('org') || ''
+  if (!organizationSlug || !verifyJobCardShareToken(id, organizationSlug, token)) {
     return NextResponse.json({ error: 'This job-card link is invalid' }, { status: 401, headers: { 'Cache-Control': 'no-store' } })
   }
 
   try {
-    const organization = await findOrganizationBySlug(request.nextUrl.searchParams.get('org'))
+    const organization = await findOrganizationBySlug(organizationSlug)
     return await withOrganization(organization, async () => {
     const [jobCard, company] = await Promise.all([
       db.workshopJobCard.findUnique({
