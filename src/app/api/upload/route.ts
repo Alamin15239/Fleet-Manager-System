@@ -110,11 +110,12 @@ export async function POST(request: NextRequest) {
     await writeFile(filepath, buffer, { flag: 'wx' });
 
     const fileUrl = '/uploads/' + filename;
+    let documentRecord;
     try {
-      await db.document.create({
+      documentRecord = await db.document.create({
         data: {
           title: originalName || filename,
-          type: type || 'general',
+          type,
           fileUrl,
           createdById: user.id
         }
@@ -135,7 +136,7 @@ export async function POST(request: NextRequest) {
     }
 
     const uploadedFile = {
-      id: 'file_' + timestamp,
+      id: documentRecord.id,
       name: filename,
       originalName: originalName || filename,
       size: file.size,
