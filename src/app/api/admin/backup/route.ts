@@ -9,6 +9,11 @@ function quoteIdentifier(identifier: string) {
   return `"${identifier.replace(/"/g, '""')}"`
 }
 
+// Backups are for operational recovery, not credential recovery. Keep secrets
+// out even when a new sensitive column is added to the schema in the future.
+const SENSITIVE_COLUMN_PATTERN =
+  /password|passwd|pass_hash|otp|totp|mfa.?secret|token|secret|credential|private.?key|api.?key|access.?key|refresh|authorization|cookie|session|database.?url|connection.?string|encryption.?key|encrypted|(^|_)salt($|_)|recovery.?code|code.?verifier/i
+
 export async function POST(request: NextRequest) {
   try {
     const admin = await requireAdmin(request)
@@ -20,9 +25,33 @@ export async function POST(request: NextRequest) {
     `
 
     const tables: Record<string, unknown[]> = {}
+    const exportedTableNames: string[] = []
+    let excludedSensitiveColumnCount = 0
+
     for (const { table_name: tableName } of tableRows) {
-      const rows = await db.$queryRawUnsafe<unknown[]>(`SELECT * FROM public.${quoteIdentifier(tableName)}`)
+      const columnRows = await db.$queryRaw<Array<{ column_name: string }>>`
+        SELECT column_name
+        FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = ${tableName}
+        ORDER BY ordinal_position
+      `
+
+      const safeColumns = columnRows
+        .map(({ column_name }) => column_name)
+        .filter((columnName) => !SENSITIVE_COLUMN_PATTERN.test(columnName))
+
+      excludedSensitiveColumnCount += columnRows.length - safeColumns.length
+
+      // A table containing only secret material must not be exported.
+      if (safeColumns.length === 0) continue
+
+      const selectedColumns = safeColumns.map(quoteIdentifier).join(', ')
+      const rows = await db.$queryRawUnsafe<unknown[]>(
+        `SELECT ${selectedColumns} FROM public.${quoteIdentifier(tableName)}`,
+      )
+
       tables[tableName] = rows
+      exportedTableNames.push(tableName)
     }
 
     const createdAt = new Date()
@@ -35,7 +64,11 @@ export async function POST(request: NextRequest) {
         userName: admin.name || null,
         userEmail: admin.email,
         userRole: admin.role,
-        changes: { tableCount: tableRows.length, formatVersion: 1 },
+        changes: {
+          tableCount: exportedTableNames.length,
+          excludedSensitiveColumnCount,
+          formatVersion: 1,
+        },
       },
     })
 
@@ -44,9 +77,18 @@ export async function POST(request: NextRequest) {
     const backupStream = new ReadableStream<Uint8Array>({
       start(controller) {
         const write = (chunk: string) => controller.enqueue(encoder.encode(chunk))
-        const serialized = (value: unknown) => JSON.stringify(value, (_key, nested) => typeof nested === 'bigint' ? nested.toString() : nested)
-        write(`{"format":"fleet-manager-postgres-json-backup","formatVersion":1,"createdAt":${JSON.stringify(createdAt.toISOString())},"tableCount":${tableRows.length},"tables":{`)
-        tableRows.forEach(({ table_name: tableName }, tableIndex) => {
+        const serialized = (value: unknown) =>
+          JSON.stringify(value, (_key, nested) =>
+            typeof nested === 'bigint' ? nested.toString() : nested,
+          )
+
+        write(
+          `{"format":"fleet-manager-postgres-json-backup","formatVersion":1,"createdAt":${JSON.stringify(
+            createdAt.toISOString(),
+          )},"tableCount":${exportedTableNames.length},"tables":{`,
+        )
+
+        exportedTableNames.forEach((tableName, tableIndex) => {
           if (tableIndex > 0) write(',')
           write(`${JSON.stringify(tableName)}:[`)
           tables[tableName].forEach((row, rowIndex) => {
@@ -55,6 +97,7 @@ export async function POST(request: NextRequest) {
           })
           write(']')
         })
+
         write('}}')
         controller.close()
       },
@@ -65,6 +108,8 @@ export async function POST(request: NextRequest) {
         'Content-Type': 'application/json; charset=utf-8',
         'Content-Disposition': `attachment; filename="fleet-database-backup-${date}.json"`,
         'Cache-Control': 'no-store, max-age=0',
+        Pragma: 'no-cache',
+        'X-Content-Type-Options': 'nosniff',
       },
     })
   } catch (error) {
@@ -73,7 +118,10 @@ export async function POST(request: NextRequest) {
     console.error('Database backup failed:', error)
     return NextResponse.json(
       { error: unauthorized ? 'Authentication required' : forbidden ? 'Administrator access required' : 'Database backup failed' },
-      { status: unauthorized ? 401 : forbidden ? 403 : 503 },
+      {
+        status: unauthorized ? 401 : forbidden ? 403 : 503,
+        headers: { 'Cache-Control': 'no-store, max-age=0' },
+      },
     )
   }
 }
