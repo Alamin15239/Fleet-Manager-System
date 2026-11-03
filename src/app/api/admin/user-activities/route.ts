@@ -107,16 +107,12 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('Error fetching user activities:', error)
     
-    if (error instanceof Error && error.message === 'Insufficient permissions') {
-      return NextResponse.json(
-        { error: 'Access denied. Admin privileges required.' },
-        { status: 403 }
-      )
-    }
-    
+    const message = error instanceof Error ? error.message : ''
+    const unauthorized = ['No token provided', 'Invalid token', 'Unauthorized'].includes(message)
+    const forbidden = message === 'Insufficient permissions'
     return NextResponse.json(
-      { error: 'Failed to fetch user activities' },
-      { status: 500 }
+      { error: unauthorized ? 'Authentication required' : forbidden ? 'Administrator access required' : 'Failed to fetch user activities' },
+      { status: unauthorized ? 401 : forbidden ? 403 : 500, headers: { 'Cache-Control': 'no-store' } }
     )
   }
 }
