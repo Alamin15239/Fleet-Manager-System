@@ -36,12 +36,15 @@ export async function GET(request: NextRequest) {
 
   } catch (error) {
     console.error('Database health check failed:', error)
-    
+    const message = error instanceof Error ? error.message : ''
+    const unauthorized = ['No token provided', 'Invalid token'].includes(message)
+    const forbidden = message === 'Insufficient permissions'
+
     return NextResponse.json({
       success: false,
       status: 'unhealthy',
-      error: error instanceof Error ? error.message : 'Unknown error',
+      error: unauthorized ? 'Authentication required' : forbidden ? 'Administrator access required' : 'Database health check failed',
       timestamp: new Date().toISOString()
-    }, { status: 500 })
+    }, { status: unauthorized ? 401 : forbidden ? 403 : 503, headers: { 'Cache-Control': 'no-store' } })
   }
 }
