@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { requireAuth } from '@/lib/auth'
 import { requireRolePermission } from '@/lib/permission-middleware'
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    await requireAuth(request)
     const { id } = await params
     const owner = await db.vehicleDocument.findUnique({ where: { id }, select: { truckId: true, trailerId: true, driverId: true } })
     if (!owner) return NextResponse.json({ error: 'Document not found' }, { status: 404 })
