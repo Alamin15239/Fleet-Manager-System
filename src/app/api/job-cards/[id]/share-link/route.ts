@@ -8,11 +8,12 @@ export const dynamic = 'force-dynamic'
 export async function GET(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
     const user = await requireRolePermission(request, 'maintenance', 'read')
+    if (!user.organizationSlug) return NextResponse.json({ error: 'Organization context is required' }, { status: 400 })
     const { id } = await context.params
     const jobCard = await db.workshopJobCard.findUnique({ where: { id }, select: { id: true } })
     if (!jobCard) return NextResponse.json({ error: 'Job card not found' }, { status: 404 })
 
-    const token = createJobCardShareToken(id)
+    const token = createJobCardShareToken(id, user.organizationSlug)
     const organizationQuery = user.organizationSlug ? `&org=${encodeURIComponent(user.organizationSlug)}` : ''
     const shareUrl = new URL(`/share/job-cards/${encodeURIComponent(id)}?token=${encodeURIComponent(token)}${organizationQuery}`, request.nextUrl.origin).toString()
     return NextResponse.json({ shareUrl }, { headers: { 'Cache-Control': 'no-store' } })
