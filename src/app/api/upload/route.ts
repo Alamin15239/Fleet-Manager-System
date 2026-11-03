@@ -47,12 +47,15 @@ export async function POST(request: NextRequest) {
     // Authenticate before parsing an attacker-controlled multipart body.
     await requireAuth(request);
     const data = await request.formData();
-    const type = String(data.get('type') || 'general').toLowerCase();
-    const permissionResource = type === 'truck'
-      ? 'trucks'
-      : type === 'maintenance'
-        ? 'maintenance'
-        : 'admin';
+    const type = String(data.get('type') || '').toLowerCase();
+    if (type !== 'truck' && type !== 'maintenance') {
+      return NextResponse.json({ error: 'Unsupported upload section' }, { status: 400 });
+    }
+    const entityId = String(data.get('entityId') || '').trim();
+    if (!entityId || entityId.length > 128) {
+      return NextResponse.json({ error: 'A valid truck or maintenance record is required' }, { status: 400 });
+    }
+    const permissionResource = type === 'truck' ? 'trucks' : 'maintenance';
     const user = await requireRolePermission(request, permissionResource, 'update');
 
     const submittedFile = data.get('file');
