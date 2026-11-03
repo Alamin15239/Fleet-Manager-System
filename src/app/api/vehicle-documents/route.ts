@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { randomBytes } from 'crypto'
 import { Resend } from 'resend'
 import { db } from '@/lib/db'
+import { requireAuth } from '@/lib/auth'
 import { requireRolePermission } from '@/lib/permission-middleware'
 
 const allowedFiles = new Set(['application/pdf', 'image/jpeg', 'image/png', 'image/webp'])
@@ -111,6 +112,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    await requireAuth(request)
     const form = await request.formData()
     const sourceType = String(form.get('sourceType') || '')
     const sourceId = String(form.get('sourceId') || '').trim()
