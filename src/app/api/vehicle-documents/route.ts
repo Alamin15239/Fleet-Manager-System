@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { randomBytes } from 'crypto'
 import { Resend } from 'resend'
 import { db } from '@/lib/db'
+import { requireAuth } from '@/lib/auth'
 import { requireRolePermission } from '@/lib/permission-middleware'
 
 const allowedFiles = new Set(['application/pdf', 'image/jpeg', 'image/png', 'image/webp'])
@@ -111,6 +112,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    await requireAuth(request)
     const form = await request.formData()
     const sourceType = String(form.get('sourceType') || '')
     const sourceId = String(form.get('sourceId') || '').trim()
@@ -152,7 +154,7 @@ export async function POST(request: NextRequest) {
         ? { truckId_documentType: { truckId: sourceId, documentType } }
         : { trailerId_documentType: { trailerId: sourceId, documentType } }
     const existingDocument = await db.vehicleDocument.findUnique({ where: uniqueWhere as any, select: { id: true, title: true, notes: true, fileName: true, validUntil: true, shareToken: true, shareExpiresAt: true } })
-    await requireRolePermission(request, sourceType === 'TRAILER' ? 'trailers' : 'trucks', existingDocument ? 'update' : 'create')
+    const user = await requireRolePermission(request, sourceType === 'TRAILER' ? 'trailers' : 'trucks', existingDocument ? 'update' : 'create')
     // Expiry records can be stored without a file. Protection Card creation is
     // itself a file upload, so only that document type requires a file payload.
     const fileRequired = (isProtectionCard && !existingDocument) || (isDriverCard && !existingDocument?.fileName)
@@ -223,7 +225,7 @@ export async function POST(request: NextRequest) {
         if (recipients.length && prefs.documentExpiryEmailVerified === true && process.env.RESEND_API_KEY) {
           const origin = process.env.NEXT_PUBLIC_APP_URL || (process.env.VERCEL_URL ? 'https://' + process.env.VERCEL_URL : request.nextUrl.origin)
           const shareUrl = document.fileName && document.shareToken
-            ? origin.replace(/\/$/, '') + '/api/public/documents/' + document.shareToken
+            ? origin.replace(/\/$/, '') + '/api/public/documents/' + document.shareToken + '?org=' + encodeURIComponent(user.organizationSlug || '')
             : null
           const owner = sourceType === 'DRIVER' ? 'Driver: ' + ((await db.driver.findUnique({ where: { id: sourceId }, select: { name: true } }))?.name || '')
             : sourceType === 'TRUCK' ? 'Truck: ' + ((await db.truck.findUnique({ where: { id: sourceId }, select: { licensePlate: true } }))?.licensePlate || '')

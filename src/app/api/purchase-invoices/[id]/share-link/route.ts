@@ -7,13 +7,15 @@ export const dynamic = 'force-dynamic'
 
 export async function GET(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
-    await requireRolePermission(request, 'purchase-invoices', 'read')
+    const user = await requireRolePermission(request, 'purchase-invoices', 'read')
+    if (!user.organizationSlug) return NextResponse.json({ error: 'Organization context is required' }, { status: 400 })
     const { id } = await context.params
     const invoice = await db.purchaseInvoice.findUnique({ where: { id }, select: { id: true } })
     if (!invoice) return NextResponse.json({ error: 'Purchase invoice not found' }, { status: 404 })
 
-    const token = createPurchaseInvoiceShareToken(id)
-    const shareUrl = new URL(`/share/purchase-invoices/${encodeURIComponent(id)}?token=${encodeURIComponent(token)}`, request.nextUrl.origin).toString()
+    const token = createPurchaseInvoiceShareToken(id, user.organizationSlug)
+    const organizationQuery = `&org=${encodeURIComponent(user.organizationSlug)}`
+    const shareUrl = new URL(`/share/purchase-invoices/${encodeURIComponent(id)}?token=${encodeURIComponent(token)}${organizationQuery}`, request.nextUrl.origin).toString()
     const company = await db.settings.findFirst({ select: { companyName: true, companyAddress: true, companyPhone: true, companyEmail: true } })
     return NextResponse.json({ shareUrl, company }, { headers: { 'Cache-Control': 'no-store' } })
   } catch (error) {

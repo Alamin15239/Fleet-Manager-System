@@ -38,20 +38,30 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 })
     }
 
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-      return NextResponse.json({ error: 'File must be an image' }, { status: 400 })
+    // Accept only raster image formats. SVG and other active content are not allowed.
+    const allowedImageTypes = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp'])
+    if (!(file instanceof File) || !allowedImageTypes.has(file.type)) {
+      return NextResponse.json({ error: 'Only JPEG, PNG, GIF, and WebP images are allowed' }, { status: 415 })
     }
 
-    // Validate file size (5MB max)
-    if (file.size > 5 * 1024 * 1024) {
-      return NextResponse.json({ error: 'File size must be less than 5MB' }, { status: 400 })
+    // Validate file size (5MB max) and reject empty uploads.
+    if (file.size <= 0 || file.size > 5 * 1024 * 1024) {
+      return NextResponse.json({ error: 'Image must be between 1 byte and 5MB' }, { status: 413 })
     }
 
     try {
       // Convert file to base64
       const bytes = await file.arrayBuffer()
       const buffer = Buffer.from(bytes)
+      const startsWith = (signature: number[]) => buffer.length >= signature.length && buffer.subarray(0, signature.length).equals(Buffer.from(signature))
+      const validSignature =
+        (file.type === 'image/jpeg' && startsWith([0xff, 0xd8, 0xff])) ||
+        (file.type === 'image/png' && startsWith([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])) ||
+        (file.type === 'image/gif' && (buffer.subarray(0, 6).toString('ascii') === 'GIF87a' || buffer.subarray(0, 6).toString('ascii') === 'GIF89a')) ||
+        (file.type === 'image/webp' && buffer.length >= 12 && buffer.subarray(0, 4).toString('ascii') === 'RIFF' && buffer.subarray(8, 12).toString('ascii') === 'WEBP')
+      if (!validSignature) {
+        return NextResponse.json({ error: 'Image content does not match the declared file type' }, { status: 415 })
+      }
       const base64 = buffer.toString('base64')
       const dataUrl = `data:${file.type};base64,${base64}`
 

@@ -39,12 +39,12 @@ export async function POST(request: NextRequest) {
     
   } catch (error) {
     console.error('Database initialization failed:', error)
+    const message = error instanceof Error ? error.message : ''
+    const unauthorized = ['No token provided', 'Invalid token'].includes(message)
+    const forbidden = message === 'Insufficient permissions'
     return NextResponse.json(
-      { 
-        error: 'Database initialization failed', 
-        details: error instanceof Error ? error.message : 'Unknown error' 
-      },
-      { status: 500 }
+      { error: unauthorized ? 'Authentication required' : forbidden ? 'Administrator access required' : 'Database initialization failed' },
+      { status: unauthorized ? 401 : forbidden ? 403 : 500, headers: { 'Cache-Control': 'no-store' } }
     )
   }
 }

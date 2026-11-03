@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
     await db.user.update({
       where: { id: user.id },
       data: {
-        resetToken: resetToken,
+        resetToken: crypto.createHash('sha256').update(resetToken).digest('hex'),
         resetTokenExpires: resetTokenExpiry
       }
     })

@@ -128,17 +128,12 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error('Error restoring item:', error)
-    if (error instanceof Error) {
-      if (error.message === 'Unauthorized' || error.message === 'Insufficient permissions') {
-        return NextResponse.json(
-          { error: error.message },
-          { status: 403 }
-        )
-      }
-    }
+    const message = error instanceof Error ? error.message : ''
+    const unauthorized = ['No token provided', 'Invalid token', 'Unauthorized'].includes(message)
+    const forbidden = message === 'Insufficient permissions'
     return NextResponse.json(
-      { error: 'Failed to restore item' },
-      { status: 500 }
+      { error: unauthorized ? 'Authentication required' : forbidden ? 'Administrator access required' : 'Failed to restore item' },
+      { status: unauthorized ? 401 : forbidden ? 403 : 500, headers: { 'Cache-Control': 'no-store' } }
     )
   }
 }

@@ -8,6 +8,8 @@ export const dynamic = 'force-dynamic'
 export async function POST(request: NextRequest) {
   try {
     const user = await requireRolePermission(request, 'purchase-invoices', 'read')
+    const organizationSlug = user.organizationSlug
+    if (!organizationSlug) return NextResponse.json({ error: 'Organization context is required' }, { status: 400 })
     const body = await request.json()
     const rawIds: unknown[] = Array.isArray(body.invoiceIds) ? body.invoiceIds : []
     const normalizedIds = rawIds.filter((id): id is string => typeof id === 'string').map((id) => id.trim()).filter(Boolean)
@@ -25,7 +27,7 @@ export async function POST(request: NextRequest) {
     const organizationQuery = user.organizationSlug ? `&org=${encodeURIComponent(user.organizationSlug)}` : ''
     const links = invoices.map(({ id }) => ({
       invoiceId: id,
-      shareUrl: new URL(`/share/purchase-invoices/${encodeURIComponent(id)}?token=${encodeURIComponent(createPurchaseInvoiceShareToken(id))}${organizationQuery}`, request.nextUrl.origin).toString(),
+      shareUrl: new URL(`/share/purchase-invoices/${encodeURIComponent(id)}?token=${encodeURIComponent(createPurchaseInvoiceShareToken(id, organizationSlug))}${organizationQuery}`, request.nextUrl.origin).toString(),
     }))
     return NextResponse.json({ links, company }, { headers: { 'Cache-Control': 'no-store' } })
   } catch (error) {
