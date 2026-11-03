@@ -923,7 +923,11 @@ model Document {
 
 model EmailLog {
   id        String   @id @default(cuid())
-  emailId   String   @unique
+  // One email can generate multiple distinct Resend webhook events.
+  // Nullable preserves compatibility with historical rows created before
+  // Svix event IDs were recorded.
+  eventId   String?  @unique
+  emailId   String
   type      String
   from      String
   to        String
