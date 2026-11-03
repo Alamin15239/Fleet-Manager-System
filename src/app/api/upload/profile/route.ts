@@ -29,9 +29,10 @@ export async function POST(request: NextRequest) {
       )
     }
     
-    const file: File | null = data.get('file') as unknown as File
+    const submittedFile = data.get('file')
+    const file: File | null = submittedFile instanceof File ? submittedFile : null
 
-    if (!file) {
+    if (!file || file.size <= 0) {
       return NextResponse.json(
         { error: 'No file uploaded' },
         { status: 400 }
@@ -69,7 +70,17 @@ export async function POST(request: NextRequest) {
     }
     
     const buffer = Buffer.from(bytes)
-    
+    const startsWith = (signature: number[]) => buffer.length >= signature.length && buffer.subarray(0, signature.length).equals(Buffer.from(signature))
+    const validSignature =
+      (file.type === 'image/jpeg' && startsWith([0xff, 0xd8, 0xff])) ||
+      (file.type === 'image/jpg' && startsWith([0xff, 0xd8, 0xff])) ||
+      (file.type === 'image/png' && startsWith([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])) ||
+      (file.type === 'image/gif' && (buffer.subarray(0, 6).toString('ascii') === 'GIF87a' || buffer.subarray(0, 6).toString('ascii') === 'GIF89a')) ||
+      (file.type === 'image/webp' && buffer.length >= 12 && buffer.subarray(0, 4).toString('ascii') === 'RIFF' && buffer.subarray(8, 12).toString('ascii') === 'WEBP')
+    if (!validSignature) {
+      return NextResponse.json({ error: 'Image content does not match the declared file type.' }, { status: 415 })
+    }
+
     // Convert to base64 data URL
     const base64 = buffer.toString('base64')
     const dataUrl = `data:${file.type};base64,${base64}`
