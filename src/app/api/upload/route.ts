@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
     if (!hasFileSignature(buffer, file.type)) {
       return NextResponse.json({ error: 'The uploaded file content does not match its declared file type.' }, { status: 415 });
     }
-    const originalName = file.name.replace(/[\\u0000-\\u001f\\u007f]/g, '').slice(0, 180);
+    const originalName = file.name.replace(/[\u0000-\u001f\u007f]/g, '').slice(0, 180);
     const uploadsDir = join(process.cwd(), 'public', 'uploads');
     await mkdir(uploadsDir, { recursive: true });
 
