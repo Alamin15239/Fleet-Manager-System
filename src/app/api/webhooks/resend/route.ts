@@ -33,16 +33,16 @@ export async function POST(request: NextRequest) {
 
     // Resend uses Svix-standard signed headers and timestamp validation.
     const payload = await request.text()
+    const svixHeaders = new Headers()
+    svixHeaders.set('svix-id', svixId)
+    svixHeaders.set('svix-timestamp', svixTimestamp)
+    svixHeaders.set('svix-signature', svixSignature)
     let event: ResendWebhookEvent
     try {
       const resend = new Resend(process.env.RESEND_API_KEY)
       event = resend.webhooks.verify({
         payload,
-        headers: {
-          'svix-id': svixId,
-          'svix-timestamp': svixTimestamp,
-          'svix-signature': svixSignature,
-        },
+        headers: svixHeaders,
         secret: webhookSecret,
       }) as ResendWebhookEvent
     } catch {
