@@ -9,7 +9,7 @@
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Prisma-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 [![Production](https://img.shields.io/badge/Production-fleetmaintenance.site-16a34a)](https://fleetmaintenance.site)
 
-[Open the app](https://fleetmaintenance.site) · [User guide](docs/user-guide.md) · [Local development](docs/LOCAL-DEVELOPMENT.md)
+[Open the app](fleetinspections.tech/) · [User guide](docs/user-guide.md) · [Local development](docs/LOCAL-DEVELOPMENT.md)
 
 </div>
 
