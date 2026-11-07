@@ -1,0 +1,69 @@
+name: Build Nexora OCI image
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - "Dockerfile"
+      - ".dockerignore"
+      - "package.json"
+      - "package-lock.json"
+      - "next.config.js"
+      - "prisma/**"
+      - "src/**"
+      - "server.ts"
+      - "public/**"
+      - "scripts/**"
+      - ".github/workflows/nexora-oci-image.yml"
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: nexora-oci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Authenticate to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate immutable image tags
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=sha,format=long,prefix=
+            type=raw,value=staging,enable=${{ github.ref == 'refs/heads/main' }}
+
+      - name: Build and publish OCI image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          platforms: linux/amd64
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            DATABASE_URL=postgresql://build:build@127.0.0.1:5432/build?schema=public
+            NEXTAUTH_SECRET=nexora-build-placeholder-not-a-runtime-secret
+            NEXTAUTH_URL=https://staging.invalid
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
