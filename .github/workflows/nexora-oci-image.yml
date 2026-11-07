@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - main
+      - deploy/nexora-oci-staging
     paths:
       - "Dockerfile"
       - ".dockerignore"
