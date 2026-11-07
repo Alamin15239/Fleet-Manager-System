@@ -21,20 +21,20 @@ WORKDIR /app
 
 # tsx is currently declared in devDependencies and is required to run server.ts.
 COPY package.json package-lock.json ./
-RUN npm ci --no-audit --no-fund
+RUN npm install --no-audit --no-fund
 
 COPY . .
 
 # Safe build-only placeholders. Production secrets and DATABASE_URL are injected
 # by the runtime secret manager and are never embedded as real credentials.
-ARG DATABASE_URL="postgresql://build:build@127.0.0.1:5432/build?schema=public"
-ARG NEXTAUTH_SECRET="nexora-build-placeholder-not-a-runtime-secret"
-ARG NEXTAUTH_URL="https://staging.invalid"
-ENV DATABASE_URL=${DATABASE_URL} \
-    NEXTAUTH_SECRET=${NEXTAUTH_SECRET} \
-    NEXTAUTH_URL=${NEXTAUTH_URL}
-
-RUN npx prisma generate && npm run build
+RUN DATABASE_URL="postgresql://build:build@127.0.0.1:5432/build?schema=public" \
+    NEXTAUTH_SECRET="nexora-build-placeholder-not-a-runtime-secret" \
+    NEXTAUTH_URL="https://staging.invalid" \
+    npx prisma generate && \
+    DATABASE_URL="postgresql://build:build@127.0.0.1:5432/build?schema=public" \
+    NEXTAUTH_SECRET="nexora-build-placeholder-not-a-runtime-secret" \
+    NEXTAUTH_URL="https://staging.invalid" \
+    npm run build
 
 RUN chown -R node:node /app
 USER node
