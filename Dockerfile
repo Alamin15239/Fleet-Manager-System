@@ -21,7 +21,7 @@ WORKDIR /app
 
 # tsx is currently declared in devDependencies and is required to run server.ts.
 COPY package.json package-lock.json ./
-RUN npm install --no-audit --no-fund
+RUN npm install --ignore-scripts --no-audit --no-fund
 
 COPY . .
 
