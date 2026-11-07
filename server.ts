@@ -7,8 +7,12 @@ import next from 'next';
 import { readFileSync } from 'fs';
 
 const dev = process.env.NODE_ENV !== 'production';
-const currentPort = 3000;
-const hostname = '0.0.0.0';
+const currentPort = Number.parseInt(process.env.PORT || '3000', 10);
+const hostname = process.env.HOST || '0.0.0.0';
+
+if (!Number.isInteger(currentPort) || currentPort < 1 || currentPort > 65535) {
+  throw new Error('PORT must be a valid TCP port between 1 and 65535');
+}
 
 // Custom server with Socket.IO integration
 async function createCustomServer() {

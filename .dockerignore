@@ -1,0 +1,12 @@
+.git
+.github
+.next
+node_modules
+coverage
+.nyc_output
+*.log
+.env
+.env.*
+!.env.example
+.vercel
+.DS_Store
