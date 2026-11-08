@@ -38,6 +38,16 @@ type GoogleIdentity = {
 let cachedGoogleJwks: { keys: GoogleJwk[]; expiresAt: number } | null = null
 
 function getAppBaseUrl(request: NextRequest) {
+  // OAuth must return to the same host that initiated the flow. The state
+  // cookie is host-only, so a callback on the canonical sibling domain cannot
+  // read a cookie created on the alternate production domain.
+  const hostname = request.nextUrl.hostname.toLowerCase()
+  const officialHosts = new Set(['fleetmaintenance.site', 'fleetinspections.tech'])
+  if (officialHosts.has(hostname)) {
+    return new URL(request.nextUrl.origin)
+  }
+
+  // Keep local development and preview deployments on the configured base URL.
   const configuredUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL
   return new URL(configuredUrl || request.nextUrl.origin)
 }
