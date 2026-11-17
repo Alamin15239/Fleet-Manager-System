@@ -93,7 +93,18 @@ export default function AdvancedAnalytics() {
       const trucksResponse = await apiGet('/api/trucks?limit=1000')
       if (trucksResponse.ok) {
         const trucksData = await trucksResponse.json()
-        setTrucks(trucksData.trucks || [])
+        // /api/trucks returns its records in the "data" property (not "trucks").
+        // Keep the legacy key as a fallback for compatible deployments.
+        const truckRows = Array.isArray(trucksData.data)
+          ? trucksData.data
+          : Array.isArray(trucksData.trucks)
+            ? trucksData.trucks
+            : []
+        setTrucks(truckRows)
+      } else {
+        // Analytics remains usable for users who can view analytics but cannot
+        // access the separate truck-register endpoint.
+        setTrucks([])
       }
       
       // Fetch analytics data
