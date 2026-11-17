@@ -111,11 +111,20 @@ export default function AdvancedAnalytics() {
       const response = await apiGet(`/api/analytics?period=${selectedPeriod}&truckId=${selectedTruck}`)
       
       if (response.ok) {
-        const data = await response.json()
-        
+        const payload = await response.json()
+        // Treat the API response as untrusted runtime data: older deployments and
+        // partial API failures may omit individual collections.
+        const data = {
+          maintenanceTrends: Array.isArray(payload.maintenanceTrends) ? payload.maintenanceTrends : [],
+          costAnalysis: Array.isArray(payload.costAnalysis) ? payload.costAnalysis : [],
+          truckPerformance: Array.isArray(payload.truckPerformance) ? payload.truckPerformance : [],
+          mechanicProductivity: Array.isArray(payload.mechanicProductivity) ? payload.mechanicProductivity : [],
+          predictiveInsights: Array.isArray(payload.predictiveInsights) ? payload.predictiveInsights : []
+        }
+
         const fleetMetrics = {
           uptime: null,
-          totalCost: data.costAnalysis.reduce((sum: number, cost: any) => sum + cost.cost, 0),
+          totalCost: data.costAnalysis.reduce((sum: number, cost: any) => sum + (Number(cost.cost) || 0), 0),
           efficiency: null,
           utilization: null
         }
@@ -165,20 +174,27 @@ export default function AdvancedAnalytics() {
   }
 
   const exportData = () => {
-    const csvData = [
-      ['Metric', 'Value', 'Change'],
-      ['Fleet Uptime', 'Not collected', 'Not available'],
-      ['Maintenance Costs', formatCurrency(analyticsData.fleetMetrics.totalCost), 'No comparison data'],
-      ['Mechanic Efficiency', 'Not measured', 'No labor-hour data']
+    const escapeCsv = (value: unknown) => {
+      const text = value === null || value === undefined ? '' : String(value)
+      return `"${text.replace(/"/g, '""')}"`
+    }
+    const rows: unknown[][] = [
+      ['Section', 'Date / Period', 'Name / Category', 'Status', 'Count', 'Cost', 'Downtime Hours', 'Percentage / Impact'],
+      ...analyticsData.maintenanceTrends.map(item => ['Maintenance trend', item.month, '', '', Number(item.completed || 0) + Number(item.inProgress || 0) + Number(item.scheduled || 0), '', '', '']),
+      ...analyticsData.costAnalysis.map(item => ['Cost breakdown', '', item.category, '', '', Number(item.cost) || 0, '', Number(item.percentage) || 0]),
+      ...analyticsData.truckPerformance.map(item => ['Vehicle performance', '', item.name, '', '', Number(item.maintenanceCost) || 0, Number(item.downtime) || 0, '']),
+      ...analyticsData.mechanicProductivity.map(item => ['Mechanic productivity', '', item.name, 'COMPLETED', Number(item.completedJobs) || 0, Number(item.totalCost) || 0, '', '']),
+      ...analyticsData.predictiveInsights.map(item => ['Predictive alert', '', item.title, item.type, '', '', '', item.impact])
     ]
-    
-    const csvContent = csvData.map(row => row.join(',')).join('\n')
-    const blob = new Blob([csvContent], { type: 'text/csv' })
+    const csvContent = rows.map(row => row.map(escapeCsv).join(',')).join('\r\n')
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
     link.download = `fleet-analytics-${new Date().toISOString().split('T')[0]}.csv`
+    document.body.appendChild(link)
     link.click()
+    link.remove()
     URL.revokeObjectURL(url)
     toast.success('Analytics data exported successfully')
   }
