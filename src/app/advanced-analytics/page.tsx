@@ -201,6 +201,18 @@ export default function AdvancedAnalytics() {
 
 
 
+  const totalMaintenanceJobs = analyticsData.maintenanceTrends.reduce(
+    (sum, item) => sum + Number(item.completed || 0) + Number(item.inProgress || 0) + Number(item.scheduled || 0),
+    0
+  )
+  const completedMaintenanceJobs = analyticsData.maintenanceTrends.reduce(
+    (sum, item) => sum + Number(item.completed || 0),
+    0
+  )
+  const completionRate = totalMaintenanceJobs > 0
+    ? Math.round((completedMaintenanceJobs / totalMaintenanceJobs) * 100)
+    : 0
+
   const getInsightColor = (type: string) => {
     switch (type) {
       case 'warning': return 'bg-yellow-100 text-yellow-800'
@@ -285,12 +297,12 @@ export default function AdvancedAnalytics() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium"><LocalizedText>Fleet Uptime</LocalizedText></CardTitle>
+            <CardTitle className="text-sm font-medium"><LocalizedText>Maintenance Jobs</LocalizedText></CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">—</div>
-            <p className="text-xs text-muted-foreground"><LocalizedText>Uptime telemetry is not collected.</LocalizedText></p>
+            <div className="text-2xl font-bold">{totalMaintenanceJobs.toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground"><LocalizedText>Recorded jobs in the selected period</LocalizedText></p>
           </CardContent>
         </Card>
 
@@ -307,23 +319,23 @@ export default function AdvancedAnalytics() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium"><LocalizedText>Mechanic Efficiency</LocalizedText></CardTitle>
+            <CardTitle className="text-sm font-medium"><LocalizedText>Completion Rate</LocalizedText></CardTitle>
             <Target className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">—</div>
-            <p className="text-xs text-muted-foreground"><LocalizedText>Labor hours are not recorded for efficiency analysis.</LocalizedText></p>
+            <div className="text-2xl font-bold">{completionRate}%</div>
+            <p className="text-xs text-muted-foreground">{completedMaintenanceJobs.toLocaleString()} / {totalMaintenanceJobs.toLocaleString()} <LocalizedText>completed jobs</LocalizedText></p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium"><LocalizedText>Fleet Utilization</LocalizedText></CardTitle>
+            <CardTitle className="text-sm font-medium"><LocalizedText>Vehicles Serviced</LocalizedText></CardTitle>
             <Activity className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">—</div>
-            <p className="text-xs text-muted-foreground"><LocalizedText>Vehicle usage data is not collected.</LocalizedText></p>
+            <div className="text-2xl font-bold">{analyticsData.truckPerformance.length.toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground"><LocalizedText>Vehicles with maintenance records</LocalizedText></p>
           </CardContent>
         </Card>
       </div>
