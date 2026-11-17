@@ -5,15 +5,12 @@ import { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Progress } from '@/components/ui/progress'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { 
-  Calendar, 
   TrendingUp, 
   BarChart3, 
-  PieChart, 
   Download, 
   RefreshCw, 
   AlertTriangle,
@@ -22,10 +19,9 @@ import {
   Activity,
   Zap,
   Target,
-  Clock
 } from 'lucide-react'
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
-import { Bar, BarChart, Line, LineChart, XAxis, YAxis, CartesianGrid, Pie, PieChart as RechartsPieChart, Cell, Legend, ResponsiveContainer, Area, AreaChart } from 'recharts'
+import { ChartTooltip } from '@/components/ui/chart'
+import { Bar, BarChart, XAxis, YAxis, CartesianGrid, Pie, PieChart as RechartsPieChart, Cell, Legend, ResponsiveContainer, Area, AreaChart } from 'recharts'
 import { apiGet } from '@/lib/api'
 import { formatCurrency } from '@/lib/currency'
 import { toast } from '@/lib/localized-toast'
@@ -93,18 +89,38 @@ export default function AdvancedAnalytics() {
       const trucksResponse = await apiGet('/api/trucks?limit=1000')
       if (trucksResponse.ok) {
         const trucksData = await trucksResponse.json()
-        setTrucks(trucksData.trucks || [])
+        // /api/trucks returns its records in the "data" property (not "trucks").
+        // Keep the legacy key as a fallback for compatible deployments.
+        const truckRows = Array.isArray(trucksData.data)
+          ? trucksData.data
+          : Array.isArray(trucksData.trucks)
+            ? trucksData.trucks
+            : []
+        setTrucks(truckRows)
+      } else {
+        // Analytics remains usable for users who can view analytics but cannot
+        // access the separate truck-register endpoint.
+        setTrucks([])
       }
       
       // Fetch analytics data
       const response = await apiGet(`/api/analytics?period=${selectedPeriod}&truckId=${selectedTruck}`)
       
       if (response.ok) {
-        const data = await response.json()
-        
+        const payload = await response.json()
+        // Treat the API response as untrusted runtime data: older deployments and
+        // partial API failures may omit individual collections.
+        const data = {
+          maintenanceTrends: Array.isArray(payload.maintenanceTrends) ? payload.maintenanceTrends : [],
+          costAnalysis: Array.isArray(payload.costAnalysis) ? payload.costAnalysis : [],
+          truckPerformance: Array.isArray(payload.truckPerformance) ? payload.truckPerformance : [],
+          mechanicProductivity: Array.isArray(payload.mechanicProductivity) ? payload.mechanicProductivity : [],
+          predictiveInsights: Array.isArray(payload.predictiveInsights) ? payload.predictiveInsights : []
+        }
+
         const fleetMetrics = {
           uptime: null,
-          totalCost: data.costAnalysis.reduce((sum: number, cost: any) => sum + cost.cost, 0),
+          totalCost: data.costAnalysis.reduce((sum: number, cost: any) => sum + (Number(cost.cost) || 0), 0),
           efficiency: null,
           utilization: null
         }
@@ -154,34 +170,44 @@ export default function AdvancedAnalytics() {
   }
 
   const exportData = () => {
-    const csvData = [
-      ['Metric', 'Value', 'Change'],
-      ['Fleet Uptime', 'Not collected', 'Not available'],
-      ['Maintenance Costs', formatCurrency(analyticsData.fleetMetrics.totalCost), 'No comparison data'],
-      ['Mechanic Efficiency', 'Not measured', 'No labor-hour data']
+    const escapeCsv = (value: unknown) => {
+      const text = value === null || value === undefined ? '' : String(value)
+      return `"${text.replace(/"/g, '""')}"`
+    }
+    const rows: unknown[][] = [
+      ['Section', 'Date / Period', 'Name / Category', 'Status', 'Count', 'Cost', 'Downtime Hours', 'Percentage / Impact'],
+      ...analyticsData.maintenanceTrends.map(item => ['Maintenance trend', item.month, '', '', Number(item.completed || 0) + Number(item.inProgress || 0) + Number(item.scheduled || 0), '', '', '']),
+      ...analyticsData.costAnalysis.map(item => ['Cost breakdown', '', item.category, '', '', Number(item.cost) || 0, '', Number(item.percentage) || 0]),
+      ...analyticsData.truckPerformance.map(item => ['Vehicle performance', '', item.name, '', '', Number(item.maintenanceCost) || 0, Number(item.downtime) || 0, '']),
+      ...analyticsData.mechanicProductivity.map(item => ['Mechanic productivity', '', item.name, 'COMPLETED', Number(item.completedJobs) || 0, Number(item.totalCost) || 0, '', '']),
+      ...analyticsData.predictiveInsights.map(item => ['Predictive alert', '', item.title, item.type, '', '', '', item.impact])
     ]
-    
-    const csvContent = csvData.map(row => row.join(',')).join('\n')
-    const blob = new Blob([csvContent], { type: 'text/csv' })
+    const csvContent = rows.map(row => row.map(escapeCsv).join(',')).join('\r\n')
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
     link.download = `fleet-analytics-${new Date().toISOString().split('T')[0]}.csv`
+    document.body.appendChild(link)
     link.click()
+    link.remove()
     URL.revokeObjectURL(url)
     toast.success('Analytics data exported successfully')
   }
 
 
 
-  const getInsightColor = (type: string) => {
-    switch (type) {
-      case 'warning': return 'bg-yellow-100 text-yellow-800'
-      case 'info': return 'bg-blue-100 text-blue-800'
-      case 'success': return 'bg-green-100 text-green-800'
-      default: return 'bg-gray-100 text-gray-800'
-    }
-  }
+  const totalMaintenanceJobs = analyticsData.maintenanceTrends.reduce(
+    (sum, item) => sum + Number(item.completed || 0) + Number(item.inProgress || 0) + Number(item.scheduled || 0),
+    0
+  )
+  const completedMaintenanceJobs = analyticsData.maintenanceTrends.reduce(
+    (sum, item) => sum + Number(item.completed || 0),
+    0
+  )
+  const completionRate = totalMaintenanceJobs > 0
+    ? Math.round((completedMaintenanceJobs / totalMaintenanceJobs) * 100)
+    : 0
 
   const getImpactColor = (impact: string) => {
     switch (impact) {
@@ -258,12 +284,12 @@ export default function AdvancedAnalytics() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium"><LocalizedText>Fleet Uptime</LocalizedText></CardTitle>
+            <CardTitle className="text-sm font-medium"><LocalizedText>Maintenance Jobs</LocalizedText></CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">—</div>
-            <p className="text-xs text-muted-foreground"><LocalizedText>Uptime telemetry is not collected.</LocalizedText></p>
+            <div className="text-2xl font-bold">{totalMaintenanceJobs.toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground"><LocalizedText>Recorded jobs in the selected period</LocalizedText></p>
           </CardContent>
         </Card>
 
@@ -280,30 +306,29 @@ export default function AdvancedAnalytics() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium"><LocalizedText>Mechanic Efficiency</LocalizedText></CardTitle>
+            <CardTitle className="text-sm font-medium"><LocalizedText>Completion Rate</LocalizedText></CardTitle>
             <Target className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">—</div>
-            <p className="text-xs text-muted-foreground"><LocalizedText>Labor hours are not recorded for efficiency analysis.</LocalizedText></p>
+            <div className="text-2xl font-bold">{completionRate}%</div>
+            <p className="text-xs text-muted-foreground">{completedMaintenanceJobs.toLocaleString()} / {totalMaintenanceJobs.toLocaleString()} <LocalizedText>completed jobs</LocalizedText></p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium"><LocalizedText>Fleet Utilization</LocalizedText></CardTitle>
+            <CardTitle className="text-sm font-medium"><LocalizedText>Vehicles Serviced</LocalizedText></CardTitle>
             <Activity className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">—</div>
-            <p className="text-xs text-muted-foreground"><LocalizedText>Vehicle usage data is not collected.</LocalizedText></p>
+            <div className="text-2xl font-bold">{analyticsData.truckPerformance.length.toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground"><LocalizedText>Vehicles with maintenance records</LocalizedText></p>
           </CardContent>
         </Card>
       </div>
 
       {/* Predictive Insights */}
-      {analyticsData.predictiveInsights.length > 0 && (
-        <Card>
+      <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Zap className="h-5 w-5 text-yellow-600" />
@@ -342,9 +367,11 @@ export default function AdvancedAnalytics() {
                 </div>
               ))}
             </div>
+            {analyticsData.predictiveInsights.length === 0 && (
+              <p className="py-4 text-sm text-muted-foreground"><LocalizedText>No unresolved predictive alerts for the selected vehicle filter.</LocalizedText></p>
+            )}
           </CardContent>
         </Card>
-      )}
 
       {/* Analytics Charts */}
       <Tabs defaultValue="trends" className="space-y-4">
