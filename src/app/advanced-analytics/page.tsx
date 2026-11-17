@@ -5,15 +5,12 @@ import { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Progress } from '@/components/ui/progress'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { 
-  Calendar, 
   TrendingUp, 
   BarChart3, 
-  PieChart, 
   Download, 
   RefreshCw, 
   AlertTriangle,
@@ -22,10 +19,9 @@ import {
   Activity,
   Zap,
   Target,
-  Clock
 } from 'lucide-react'
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
-import { Bar, BarChart, Line, LineChart, XAxis, YAxis, CartesianGrid, Pie, PieChart as RechartsPieChart, Cell, Legend, ResponsiveContainer, Area, AreaChart } from 'recharts'
+import { ChartTooltip } from '@/components/ui/chart'
+import { Bar, BarChart, XAxis, YAxis, CartesianGrid, Pie, PieChart as RechartsPieChart, Cell, Legend, ResponsiveContainer, Area, AreaChart } from 'recharts'
 import { apiGet } from '@/lib/api'
 import { formatCurrency } from '@/lib/currency'
 import { toast } from '@/lib/localized-toast'
@@ -213,15 +209,6 @@ export default function AdvancedAnalytics() {
     ? Math.round((completedMaintenanceJobs / totalMaintenanceJobs) * 100)
     : 0
 
-  const getInsightColor = (type: string) => {
-    switch (type) {
-      case 'warning': return 'bg-yellow-100 text-yellow-800'
-      case 'info': return 'bg-blue-100 text-blue-800'
-      case 'success': return 'bg-green-100 text-green-800'
-      default: return 'bg-gray-100 text-gray-800'
-    }
-  }
-
   const getImpactColor = (impact: string) => {
     switch (impact) {
       case 'high': return 'bg-red-100 text-red-800'
@@ -341,8 +328,7 @@ export default function AdvancedAnalytics() {
       </div>
 
       {/* Predictive Insights */}
-      {analyticsData.predictiveInsights.length > 0 && (
-        <Card>
+      <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Zap className="h-5 w-5 text-yellow-600" />
@@ -381,9 +367,11 @@ export default function AdvancedAnalytics() {
                 </div>
               ))}
             </div>
+            {analyticsData.predictiveInsights.length === 0 && (
+              <p className="py-4 text-sm text-muted-foreground"><LocalizedText>No unresolved predictive alerts for the selected vehicle filter.</LocalizedText></p>
+            )}
           </CardContent>
         </Card>
-      )}
 
       {/* Analytics Charts */}
       <Tabs defaultValue="trends" className="space-y-4">
