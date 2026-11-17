@@ -1,0 +1,116 @@
+name: Nexora OCI staging build
+
+on:
+  workflow_dispatch:
+    inputs:
+      deployment_id:
+        description: Nexora staging deployment ID
+        required: true
+        type: string
+      commit_sha:
+        description: Exact immutable commit selected by Nexora
+        required: true
+        type: string
+      nexora_api:
+        description: Nexora staging API base URL
+        required: true
+        type: string
+      oidc_audience:
+        description: Nexora GitHub OIDC audience
+        required: true
+        type: string
+      image_name:
+        description: Lowercase GHCR image name
+        required: false
+        default: fleet-manager-system
+        type: string
+      build_context:
+        description: Repository-relative Docker build context
+        required: false
+        default: .
+        type: string
+      dockerfile:
+        description: Repository-relative Dockerfile
+        required: false
+        default: Dockerfile
+        type: string
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+
+concurrency:
+  group: nexora-oci-${{ inputs.image_name }}-${{ inputs.commit_sha }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    env:
+      DEPLOYMENT_ID: ${{ inputs.deployment_id }}
+      EXPECTED_COMMIT: ${{ inputs.commit_sha }}
+      IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/${{ inputs.image_name }}
+      BUILD_CONTEXT: ${{ inputs.build_context }}
+      DOCKERFILE: ${{ inputs.dockerfile }}
+      NEXORA_API: ${{ inputs.nexora_api }}
+      OIDC_AUDIENCE: ${{ inputs.oidc_audience }}
+    steps:
+      - name: Check out exact commit
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ inputs.commit_sha }}
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Validate source and build paths
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$EXPECTED_COMMIT" =~ ^[a-fA-F0-9]{40}$ ]]
+          [[ "$(git rev-parse HEAD)" == "$EXPECTED_COMMIT" ]]
+          [[ "$IMAGE_NAME" == "${IMAGE_NAME,,}" ]]
+          [[ "$IMAGE_NAME" =~ ^ghcr\.io/[a-z0-9][a-z0-9_.-]{0,127}/[a-z0-9][a-z0-9_.-]{0,127}$ ]]
+          [[ "$BUILD_CONTEXT" =~ ^[A-Za-z0-9._/-]{1,160}$ && "$DOCKERFILE" =~ ^[A-Za-z0-9._/-]{1,160}$ ]]
+          [[ "/$BUILD_CONTEXT/" != *"/../"* && "/$DOCKERFILE/" != *"/../"* ]]
+          test -d "$BUILD_CONTEXT" && test -f "$DOCKERFILE"
+          ! find "$BUILD_CONTEXT" -type l -print -quit | grep -q .
+          ! find "$BUILD_CONTEXT" ! -type d ! -type f -print -quit | grep -q .
+
+      - name: Log in to GHCR
+        uses: docker/login-action@9780b0c442fbb1117ed29eefdff1e18412f7567
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push immutable image
+        id: build
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83
+        with:
+          context: ${{ env.BUILD_CONTEXT }}
+          file: ${{ env.DOCKERFILE }}
+          push: true
+          tags: ${{ env.IMAGE_NAME }}:${{ env.EXPECTED_COMMIT }}
+          provenance: false
+          sbom: false
+
+      - name: Verify digest and submit callback
+        shell: bash
+        env:
+          IMAGE_DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          set -euo pipefail
+          [[ "$IMAGE_DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]]
+          docker buildx imagetools inspect "$IMAGE_NAME@$IMAGE_DIGEST" >/dev/null
+          oidc_url="${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=${OIDC_AUDIENCE}"
+          oidc_token="$(curl --fail --silent --show-error -H "Authorization: Bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" "$oidc_url" | jq -er '.value')"
+          curl --fail --silent --show-error -X POST \
+            -H "Authorization: Bearer $oidc_token" -H "Content-Type: application/json" \
+            --data "$(jq -cn --arg ref "$IMAGE_NAME" --arg digest "$IMAGE_NAME@$IMAGE_DIGEST" '{imageRef:$ref,imageDigest:$digest}')" \
+            "$NEXORA_API/v1/github/deployments/$DEPLOYMENT_ID/oci-build-result"
