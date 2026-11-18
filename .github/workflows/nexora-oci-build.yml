@@ -1,28 +1,22 @@
-name: Nexora OCI staging build
+name: Nexora OCI deployment image build
 
 on:
+  push:
+    branches:
+      - deploy/nexora-oci-staging
   workflow_dispatch:
     inputs:
       deployment_id:
-        description: Nexora staging deployment ID
+        description: Nexora deployment ID
         required: true
         type: string
       commit_sha:
-        description: Exact immutable commit selected by Nexora
-        required: true
-        type: string
-      nexora_api:
-        description: Nexora staging API base URL
-        required: true
-        type: string
-      oidc_audience:
-        description: Nexora GitHub OIDC audience
+        description: Immutable Git commit SHA selected by Nexora
         required: true
         type: string
       image_name:
-        description: Lowercase GHCR image name
-        required: false
-        default: fleet-manager-system
+        description: Full lowercase GHCR owner/repository path without the registry prefix
+        required: true
         type: string
       build_context:
         description: Repository-relative Docker build context
@@ -30,9 +24,17 @@ on:
         default: .
         type: string
       dockerfile:
-        description: Repository-relative Dockerfile
+        description: Repository-relative Dockerfile path
         required: false
         default: Dockerfile
+        type: string
+      api_url:
+        description: HTTPS origin of the Nexora API environment that created this deployment
+        required: true
+        type: string
+      oidc_audience:
+        description: Exact GitHub OIDC audience configured on that Nexora API environment
+        required: true
         type: string
 
 permissions:
@@ -45,7 +47,26 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  build:
+  # Safe branch validation: compile the Docker image but do not publish it,
+  # request an OIDC token, or call the Nexora API.
+  validate-image:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - name: Check out the exact pushed commit
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Build the OCI image without publishing
+        run: docker build --file Dockerfile --tag nexora-oci-validation:${GITHUB_SHA} .
+
+  build-and-push:
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -55,41 +76,53 @@ jobs:
     env:
       DEPLOYMENT_ID: ${{ inputs.deployment_id }}
       EXPECTED_COMMIT: ${{ inputs.commit_sha }}
-      IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/${{ inputs.image_name }}
+      IMAGE_NAME: ghcr.io/${{ inputs.image_name }}
       BUILD_CONTEXT: ${{ inputs.build_context }}
       DOCKERFILE: ${{ inputs.dockerfile }}
-      NEXORA_API: ${{ inputs.nexora_api }}
+      NEXORA_API: ${{ inputs.api_url }}
       OIDC_AUDIENCE: ${{ inputs.oidc_audience }}
     steps:
-      - name: Check out exact commit
+      - name: Check out the exact deployment commit
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           ref: ${{ inputs.commit_sha }}
           persist-credentials: false
           fetch-depth: 1
 
-      - name: Validate source and build paths
+      - name: Validate immutable source and build paths
         shell: bash
         run: |
           set -euo pipefail
           [[ "$EXPECTED_COMMIT" =~ ^[a-fA-F0-9]{40}$ ]]
           [[ "$(git rev-parse HEAD)" == "$EXPECTED_COMMIT" ]]
           [[ "$IMAGE_NAME" == "${IMAGE_NAME,,}" ]]
+          [[ "$NEXORA_API" =~ ^https://[A-Za-z0-9.-]+(:[0-9]{1,5})?$ ]]
+          [[ "$OIDC_AUDIENCE" =~ ^https://[A-Za-z0-9./_-]{1,200}$ ]]
           [[ "$IMAGE_NAME" =~ ^ghcr\.io/[a-z0-9][a-z0-9_.-]{0,127}/[a-z0-9][a-z0-9_.-]{0,127}$ ]]
-          [[ "$BUILD_CONTEXT" =~ ^[A-Za-z0-9._/-]{1,160}$ && "$DOCKERFILE" =~ ^[A-Za-z0-9._/-]{1,160}$ ]]
+          [[ "$BUILD_CONTEXT" =~ ^[A-Za-z0-9._/-]{1,160}$ ]]
+          [[ "$DOCKERFILE" =~ ^[A-Za-z0-9._/-]{1,160}$ ]]
+          [[ "$BUILD_CONTEXT" != /* && "$DOCKERFILE" != /* ]]
           [[ "/$BUILD_CONTEXT/" != *"/../"* && "/$DOCKERFILE/" != *"/../"* ]]
-          test -d "$BUILD_CONTEXT" && test -f "$DOCKERFILE"
-          ! find "$BUILD_CONTEXT" -type l -print -quit | grep -q .
-          ! find "$BUILD_CONTEXT" ! -type d ! -type f -print -quit | grep -q .
+          [[ "$BUILD_CONTEXT" != *"//"* && "$DOCKERFILE" != *"//"* ]]
+          test -d "$BUILD_CONTEXT"
+          test -f "$DOCKERFILE"
+          if find "$BUILD_CONTEXT" -type l -print -quit | grep -q .; then
+            echo "Symbolic links are not permitted in the build context." >&2
+            exit 1
+          fi
+          if find "$BUILD_CONTEXT" ! -type d ! -type f -print -quit | grep -q .; then
+            echo "Special files are not permitted in the build context." >&2
+            exit 1
+          fi
 
-      - name: Log in to GHCR
-        uses: docker/login-action@9780b0c442fbb1117ed29eefdff1e18412f7567
+      - name: Log in to GHCR with the short-lived workflow token
+        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push immutable image
+      - name: Build and push immutable commit image
         id: build
         uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83
         with:
@@ -99,8 +132,9 @@ jobs:
           tags: ${{ env.IMAGE_NAME }}:${{ env.EXPECTED_COMMIT }}
           provenance: false
           sbom: false
+          outputs: type=image,name=${{ env.IMAGE_NAME }},push=true
 
-      - name: Verify digest and submit callback
+      - name: Verify pushed image by digest
         shell: bash
         env:
           IMAGE_DIGEST: ${{ steps.build.outputs.digest }}
@@ -108,9 +142,21 @@ jobs:
           set -euo pipefail
           [[ "$IMAGE_DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]]
           docker buildx imagetools inspect "$IMAGE_NAME@$IMAGE_DIGEST" >/dev/null
+          printf 'image=%s\ncommit=%s\ndigest=%s\n' "$IMAGE_NAME" "$EXPECTED_COMMIT" "$IMAGE_DIGEST" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Submit verified digest to Nexora
+        shell: bash
+        env:
+          IMAGE_DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          set -euo pipefail
           oidc_url="${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=${OIDC_AUDIENCE}"
-          oidc_token="$(curl --fail --silent --show-error -H "Authorization: Bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" "$oidc_url" | jq -er '.value')"
-          curl --fail --silent --show-error -X POST \
-            -H "Authorization: Bearer $oidc_token" -H "Content-Type: application/json" \
+          oidc_token="$(curl --fail --silent --show-error \
+            -H "Authorization: Bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" \
+            "$oidc_url" | jq -er '.value')"
+          curl --fail --silent --show-error \
+            -X POST \
+            -H "Authorization: Bearer $oidc_token" \
+            -H "Content-Type: application/json" \
             --data "$(jq -cn --arg ref "$IMAGE_NAME" --arg digest "$IMAGE_NAME@$IMAGE_DIGEST" '{imageRef:$ref,imageDigest:$digest}')" \
             "$NEXORA_API/v1/github/deployments/$DEPLOYMENT_ID/oci-build-result"

@@ -8,10 +8,12 @@ async function setupProductionDatabase() {
   
   try {
     // Create default admin user
+    const adminEmail = process.env.BOOTSTRAP_ADMIN_EMAIL?.trim().toLowerCase() || ''
+    const adminPassword = process.env.BOOTSTRAP_ADMIN_PASSWORD || ''
     const defaultAdmin = {
-      email: 'alamin.kha.saadfreeh@gmail.com',
+      email: adminEmail,
       name: 'System Administrator',
-      password: 'oOck7534#@',
+      password: adminPassword,
       role: 'ADMIN'
     }
 
@@ -21,6 +23,9 @@ async function setupProductionDatabase() {
     })
 
     if (!existingAdmin) {
+      if (!defaultAdmin.email || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(defaultAdmin.email) || defaultAdmin.password.length < 16) {
+        throw new Error('Set BOOTSTRAP_ADMIN_EMAIL and a BOOTSTRAP_ADMIN_PASSWORD of at least 16 characters before bootstrapping an administrator')
+      }
       const hashedPassword = await bcrypt.hash(defaultAdmin.password, 10)
       await prisma.user.create({
         data: {

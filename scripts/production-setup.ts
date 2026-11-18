@@ -17,11 +17,16 @@ async function setupProduction() {
     
     if (!adminExists) {
       const bcrypt = require('bcryptjs');
-      const hashedPassword = await bcrypt.hash('admin123', 10);
+      const adminEmail = process.env.BOOTSTRAP_ADMIN_EMAIL?.trim().toLowerCase() || '';
+      const adminPassword = process.env.BOOTSTRAP_ADMIN_PASSWORD || '';
+      if (!adminEmail || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(adminEmail) || adminPassword.length < 16) {
+        throw new Error('Set BOOTSTRAP_ADMIN_EMAIL and a BOOTSTRAP_ADMIN_PASSWORD of at least 16 characters before bootstrapping an administrator');
+      }
+      const hashedPassword = await bcrypt.hash(adminPassword, 12);
       
       await prisma.user.create({
         data: {
-          email: 'alamin.kha.saadfreeh@gmail.com',
+          email: adminEmail,
           name: 'Admin User',
           password: hashedPassword,
           role: 'ADMIN',
