@@ -16,6 +16,10 @@ COPY . .
 
 ENV NEXT_TELEMETRY_DISABLED 1
 
+# Build-time only — next build validates the Prisma datasource URL at
+# page-data collection. Passed in as a Docker build-arg by NexoraEdge.
+ARG DATABASE_URL
+
 RUN npx prisma generate
 RUN npm run build
 
