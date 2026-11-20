@@ -1,0 +1,146 @@
+# Managed by NexoraEdge — builds this repository as a container image,
+# pushes it to GHCR and reports the digest back to NexoraEdge with a signed
+# OIDC callback. Do not edit by hand; NexoraEdge updates it on each deploy.
+name: NexoraEdge OCI Build
+on:
+  workflow_dispatch:
+    inputs:
+      deployment_id:
+        description: "NexoraEdge deployment id"
+        required: true
+      commit_sha:
+        description: "Exact immutable commit selected by NexoraEdge"
+        required: true
+      nexora_api:
+        description: "NexoraEdge API base URL"
+        required: true
+      oidc_audience:
+        description: "NexoraEdge GitHub OIDC audience"
+        required: true
+      image_name:
+        description: "Lowercase GHCR image name"
+        required: false
+        default: "app"
+      build_context:
+        description: "Repository-relative Docker build context"
+        required: false
+        default: "."
+      dockerfile:
+        description: "Repository-relative Dockerfile"
+        required: false
+        default: "Dockerfile"
+      env_vars:
+        description: "NexoraEdge build environment variables (JSON)"
+        required: false
+        default: ""
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+concurrency:
+  group: nexora-oci-${{ github.event.inputs.deployment_id }}
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    env:
+      DEPLOYMENT_ID: ${{ inputs.deployment_id }}
+      EXPECTED_COMMIT: ${{ inputs.commit_sha }}
+      NEXORA_API: ${{ inputs.nexora_api }}
+      OIDC_AUDIENCE: ${{ inputs.oidc_audience }}
+      IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/${{ inputs.image_name }}
+      BUILD_CONTEXT: ${{ inputs.build_context }}
+      DOCKERFILE: ${{ inputs.dockerfile }}
+    steps:
+      - name: Check out the exact commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.commit_sha }}
+          persist-credentials: false
+
+      - name: Apply NexoraEdge environment variables
+        if: ${{ github.event.inputs.env_vars != '' }}
+        env:
+          NEXORA_ENV_VARS: ${{ github.event.inputs.env_vars }}
+        run: node .github/nexora-env.cjs
+
+      - name: Validate source and build paths
+        run: |
+          set -euo pipefail
+          # GHCR paths are lowercase; repository owners may not be.
+          IMAGE_NAME="${IMAGE_NAME,,}"
+          echo "IMAGE_NAME=$IMAGE_NAME" >> "$GITHUB_ENV"
+          [[ "$EXPECTED_COMMIT" =~ ^[a-fA-F0-9]{40}$ ]]
+          [[ "$(git rev-parse HEAD)" == "$EXPECTED_COMMIT" ]]
+          [[ "$IMAGE_NAME" =~ ^ghcr\.io/[a-z0-9][a-z0-9_.-]{0,127}/[a-z0-9][a-z0-9_.-]{0,127}$ ]]
+          [[ "$BUILD_CONTEXT" =~ ^[A-Za-z0-9._/-]{1,160}$ && "$DOCKERFILE" =~ ^[A-Za-z0-9._/-]{1,160}$ ]]
+          [[ "/$BUILD_CONTEXT/" != *"/../"* && "/$DOCKERFILE/" != *"/../"* ]]
+          test -d "$BUILD_CONTEXT" && test -f "$DOCKERFILE"
+          ! find "$BUILD_CONTEXT" -type l -print -quit | grep -q .
+          ! find "$BUILD_CONTEXT" ! -type d ! -type f -print -quit | grep -q .
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Prepare Docker build args
+        id: bargs
+        env:
+          NEXORA_ENV_VARS: ${{ github.event.inputs.env_vars }}
+        run: |
+          set -euo pipefail
+          # NexoraEdge build env vars become Docker build args — apps whose
+          # build needs them (e.g. DATABASE_URL for next build) declare the
+          # matching ARG in their Dockerfile.
+          node -e '
+            const vars = JSON.parse(process.env.NEXORA_ENV_VARS || "{}");
+            for (const [k, v] of Object.entries(vars)) {
+              if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(k) || typeof v !== "string") continue;
+              process.stdout.write(k + "=" + v + "\n");
+            }
+          ' > /tmp/nexora-bargs.txt
+          {
+            echo "args<<NEXORA_ARGS_EOF"
+            if [ -s /tmp/nexora-bargs.txt ]; then
+              cat /tmp/nexora-bargs.txt
+            else
+              echo "NEXORA_NO_BUILD_ARGS=1"
+            fi
+            echo "NEXORA_ARGS_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Build and push the image
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ env.BUILD_CONTEXT }}
+          file: ${{ env.DOCKERFILE }}
+          push: true
+          tags: ${{ env.IMAGE_NAME }}:${{ env.EXPECTED_COMMIT }}
+          build-args: ${{ steps.bargs.outputs.args }}
+          provenance: false
+          sbom: false
+
+      - name: Verify digest and report to NexoraEdge
+        env:
+          IMAGE_DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          set -euo pipefail
+          [[ "$IMAGE_DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]]
+          docker buildx imagetools inspect "$IMAGE_NAME@$IMAGE_DIGEST" > /dev/null
+          oidc_url="${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=${OIDC_AUDIENCE}"
+          oidc_token="$(curl --fail --silent --show-error \
+            -H "Authorization: Bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" "$oidc_url" | jq -er '.value')"
+          curl --fail --silent --show-error -X POST \
+            -H "Authorization: Bearer $oidc_token" -H "Content-Type: application/json" \
+            --data "$(jq -cn --arg ref "$IMAGE_NAME" --arg digest "$IMAGE_NAME@$IMAGE_DIGEST" \
+              '{imageRef:$ref,imageDigest:$digest}')" \
+            "$NEXORA_API/api/v1/github/deployments/$DEPLOYMENT_ID/oci-build-result"
