@@ -10,7 +10,7 @@ RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists
 FROM base AS deps
 WORKDIR /app
 
-COPY package.json package-lock.json* ./
+COPY package.json ./
 # prisma generate runs during npm's postinstall — it needs the schema here.
 COPY prisma ./prisma
 # Real npm install (not npm ci / not --package-lock-only): resolves and
