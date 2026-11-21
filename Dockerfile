@@ -13,10 +13,10 @@ WORKDIR /app
 COPY package.json package-lock.json* ./
 # prisma generate runs during npm's postinstall — it needs the schema here.
 COPY prisma ./prisma
-# Regenerate the lock on THIS platform (glibc) so glibc variants of native
-# packages exist, then clean-install from it.
-RUN npm install --package-lock-only --ignore-scripts --no-audit --no-fund \
- && npm ci --no-audit --no-fund
+# Real npm install (not npm ci / not --package-lock-only): resolves and
+# installs the native packages for THIS platform, immune to the npm bug
+# where lockfiles generated elsewhere miss platform variants.
+RUN npm install --no-audit --no-fund
 
 # Rebuild the source code only when needed
 FROM base AS builder

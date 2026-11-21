@@ -19,8 +19,8 @@ jobs:
         with:
           node-version: 20
 
-      - name: Rebuild package-lock.json
-        run: npm install --package-lock-only --no-audit --no-fund
+      - name: Rebuild package-lock.json (real install on Linux)
+        run: npm install --no-audit --no-fund
 
       - name: Commit the rebuilt lockfile
         run: |
