@@ -6,7 +6,9 @@ RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
 COPY package.json package-lock.json* ./
-RUN npm ci
+# npm install (not npm ci): repairs platform-specific optional packages that
+# lock files generated on another OS may be missing (Windows lock → Linux build).
+RUN npm install --no-audit --no-fund
 
 # Rebuild the source code only when needed
 FROM base AS builder
