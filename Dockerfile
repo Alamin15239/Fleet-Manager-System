@@ -1,16 +1,20 @@
-FROM node:20-alpine AS base
+# Debian slim (glibc) — native packages (lightningcss, @swc/core, @next/swc)
+# resolve reliably here; Alpine (musl) variants are often missing from lock
+# files generated on other OSes and crash next/font at build time.
+FROM node:20-slim AS base
+
+# Prisma engines require OpenSSL, which slim images don't include.
+RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 
 # Install dependencies only when needed
 FROM base AS deps
-RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
 COPY package.json package-lock.json* ./
 # prisma generate runs during npm's postinstall — it needs the schema here.
 COPY prisma ./prisma
-# Locks generated on a different OS (e.g. Windows) miss this platform's
-# optional native packages (lightningcss, @swc/core, @next/swc variants).
-# Regenerate the lock on THIS platform, then clean-install from it.
+# Regenerate the lock on THIS platform (glibc) so glibc variants of native
+# packages exist, then clean-install from it.
 RUN npm install --package-lock-only --ignore-scripts --no-audit --no-fund \
  && npm ci --no-audit --no-fund
 
