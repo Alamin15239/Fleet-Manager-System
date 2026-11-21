@@ -11,7 +11,7 @@ COPY prisma ./prisma
 # Locks generated on a different OS (e.g. Windows) miss this platform's
 # optional native packages (lightningcss, @swc/core, @next/swc variants).
 # Regenerate the lock on THIS platform, then clean-install from it.
-RUN npm install --package-lock-only --no-audit --no-fund \
+RUN npm install --package-lock-only --ignore-scripts --no-audit --no-fund \
  && npm ci --no-audit --no-fund
 
 # Rebuild the source code only when needed
