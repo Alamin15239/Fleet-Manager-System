@@ -8,9 +8,11 @@ WORKDIR /app
 COPY package.json package-lock.json* ./
 # prisma generate runs during npm's postinstall — it needs the schema here.
 COPY prisma ./prisma
-# npm install (not npm ci): repairs platform-specific optional packages that
-# lock files generated on another OS may be missing (Windows lock → Linux build).
-RUN npm install --no-audit --no-fund
+# Locks generated on a different OS (e.g. Windows) miss this platform's
+# optional native packages (lightningcss, @swc/core, @next/swc variants).
+# Regenerate the lock on THIS platform, then clean-install from it.
+RUN npm install --package-lock-only --no-audit --no-fund \
+ && npm ci --no-audit --no-fund
 
 # Rebuild the source code only when needed
 FROM base AS builder
