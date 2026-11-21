@@ -1,8 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Standalone output: the Docker runner stage executes `node server.js`
-  // from .next/standalone (standard Next.js Docker deployment setup).
-  output: 'standalone',
+  // Standalone output ONLY for the Docker build (NexoraEdge sets
+  // DOCKER_BUILD=1 in its builder stage). Vercel builds without it.
+  ...(process.env.DOCKER_BUILD === '1' ? { output: 'standalone' } : {}),
   serverExternalPackages: ['puppeteer-core'],
   typescript: {
     ignoreBuildErrors: true

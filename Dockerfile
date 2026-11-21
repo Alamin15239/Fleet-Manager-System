@@ -25,6 +25,8 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 ENV NEXT_TELEMETRY_DISABLED 1
+# Tells next.config.js to emit .next/standalone for the Docker runner stage.
+ENV DOCKER_BUILD 1
 
 # Build-time only — next build validates the Prisma datasource URL at
 # page-data collection. Passed in as a Docker build-arg by NexoraEdge.
