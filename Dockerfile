@@ -6,6 +6,8 @@ RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
 COPY package.json package-lock.json* ./
+# prisma generate runs during npm's postinstall — it needs the schema here.
+COPY prisma ./prisma
 # npm install (not npm ci): repairs platform-specific optional packages that
 # lock files generated on another OS may be missing (Windows lock → Linux build).
 RUN npm install --no-audit --no-fund
