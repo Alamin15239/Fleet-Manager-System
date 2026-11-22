@@ -104,8 +104,11 @@ export async function POST(request: NextRequest) {
     const allowed = ['OPENING','PURCHASE','ISSUE','CUSTOMER_RETURN','SUPPLIER_RETURN','ADJUSTMENT_IN','ADJUSTMENT_OUT']
     const type = String(body.type || '')
     const quantity = Number(body.quantity)
+    const suppliedUnitCost = body.unitCost == null ? null : Number(body.unitCost)
     if (!body.itemId || !allowed.includes(type) || !Number.isFinite(quantity) || quantity <= 0)
       return NextResponse.json({ error: 'Select a part, valid transaction type, and quantity greater than zero' }, { status: 400 })
+    if (suppliedUnitCost !== null && (!Number.isFinite(suppliedUnitCost) || suppliedUnitCost < 0))
+      return NextResponse.json({ error: 'Unit cost must be a non-negative number' }, { status: 400 })
     const transactionDate = body.transactionDate ? new Date(body.transactionDate) : now
     if (Number.isNaN(transactionDate.getTime())) return NextResponse.json({ error: 'Invalid transaction date' }, { status: 400 })
     const id = `itx_${crypto.randomUUID()}`
@@ -132,6 +135,8 @@ export async function POST(request: NextRequest) {
           })
         }
       } else if (type === 'ISSUE' && jobCardId) {
+        await tx.$executeRaw`LOCK TABLE "workshop_job_cards" IN EXCLUSIVE MODE`
+        if (vehicleId && !['truck','trailer'].includes(normalizedVehicleType)) throw new Error('Select a valid vehicle type for this job-card issue')
         const linkedCard = await tx.workshopJobCard.findFirst({
           where: { id: jobCardId, status: { in: ['OPEN', 'IN_PROGRESS'] } },
           select: { id: true, truckId: true, trailerId: true }
@@ -142,25 +147,53 @@ export async function POST(request: NextRequest) {
           else if (linkedCard.trailerId) { body.vehicleType = 'trailer'; body.vehicleId = linkedCard.trailerId }
         }
       }
-      const item = await tx.$queryRawUnsafe<any[]>(`SELECT "id" FROM "inventory_items" WHERE "id"=$1 FOR UPDATE`, body.itemId)
+      const item = await tx.$queryRawUnsafe<any[]>(`SELECT "id","name","unit" FROM "inventory_items" WHERE "id"=$1 FOR UPDATE`, body.itemId)
       if (!item.length) throw new Error('Inventory item not found')
+      let resolvedUnitCost = suppliedUnitCost
+      if (type === 'ISSUE' && resolvedUnitCost === null) {
+        const recentCost = await tx.$queryRawUnsafe<any[]>(`SELECT "unitCost" FROM "inventory_transactions"
+          WHERE "itemId"=$1 AND "type" IN ('PURCHASE','OPENING') AND "unitCost" IS NOT NULL
+          ORDER BY "transactionDate" DESC,"createdAt" DESC LIMIT 1`, body.itemId)
+        resolvedUnitCost = recentCost.length ? Number(recentCost[0].unitCost) : 0
+      }
       const balance = await tx.$queryRawUnsafe<any[]>(`
         SELECT COALESCE(SUM(CASE WHEN "type" IN ('OPENING','PURCHASE','CUSTOMER_RETURN','ADJUSTMENT_IN') THEN "quantity" WHEN "type" IN ('ISSUE','SUPPLIER_RETURN','ADJUSTMENT_OUT') THEN -"quantity" ELSE 0 END),0)::float AS qty
         FROM "inventory_transactions" WHERE "itemId"=$1`, body.itemId)
       const delta = ['ISSUE','SUPPLIER_RETURN','ADJUSTMENT_OUT'].includes(type) ? -quantity : quantity
       if (Number(balance[0]?.qty || 0) + delta < -0.000001) throw new Error('Insufficient stock for this transaction')
-      return tx.$queryRawUnsafe<any[]>(`
+      const inserted = await tx.$queryRawUnsafe<any[]>(`
         INSERT INTO "inventory_transactions"
         ("id","itemId","type","quantity","transactionDate","reference","vehicleType","vehicleId","jobCardId","unitCost","notes","createdById")
         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
         id, body.itemId, type, quantity, transactionDate, body.reference || null,
         normalizedVehicleType || (body.vehicleType ? String(body.vehicleType).toLowerCase() : null) || null, vehicleId || body.vehicleId || null, jobCardId,
-        body.unitCost == null ? null : Number(body.unitCost), body.notes || null, user.id)
+        resolvedUnitCost, body.notes || null, user.id)
+      if (type === 'ISSUE' && jobCardId) {
+        const card = await tx.workshopJobCard.findUnique({
+          where: { id: jobCardId }, select: { id: true, items: true, partsCost: true, totalCost: true }
+        })
+        if (!card) throw new Error('Selected job card not found')
+        const currentItems = Array.isArray(card.items) ? card.items as any[] : []
+        const lineCost = quantity * Number(resolvedUnitCost || 0)
+        const line = {
+          type: 'PART', description: item[0].name, quantity, inventoryItemId: body.itemId,
+          unitCost: Number(resolvedUnitCost || 0), remarks: String(body.notes || 'Issued from spare-parts inventory')
+        }
+        await tx.workshopJobCard.update({
+          where: { id: jobCardId },
+          data: {
+            items: [...currentItems, line],
+            partsCost: Number(card.partsCost || 0) + lineCost,
+            totalCost: Number(card.totalCost || 0) + lineCost
+          }
+        })
+      }
+      return inserted
     })
     return NextResponse.json({ transaction: created[0] }, { status: 201 })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unable to save inventory transaction'
-    const status = message === 'Insufficient stock for this transaction' ? 409 : message === 'Inventory item not found' || message === 'Selected vehicle not found or inactive' ? 404 : message === 'Selected job card does not belong to this vehicle' ? 400 : message === 'Insufficient permissions' ? 403 : 500
+    const status = message === 'Insufficient stock for this transaction' ? 409 : message === 'Inventory item not found' || message === 'Selected vehicle not found or inactive' ? 404 : message === 'Selected job card does not belong to this vehicle' || message === 'Selected job card is not open' || message === 'Select a valid vehicle type for this job-card issue' ? 400 : message === 'Selected job card not found' ? 404 : message === 'Insufficient permissions' ? 403 : 500
     return NextResponse.json({ error: message }, { status })
   }
 }
