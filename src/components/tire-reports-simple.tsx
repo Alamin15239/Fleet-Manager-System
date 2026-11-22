@@ -387,7 +387,7 @@ export default function TireReportsSimple() {
   )).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
 
   useEffect(() => {
-    const handleFleetDataChanged = () => { void fetchAnalytics() }
+    const handleFleetDataChanged = () => { void generateReport() }
     window.addEventListener('fleet:data-changed', handleFleetDataChanged)
     return () => window.removeEventListener('fleet:data-changed', handleFleetDataChanged)
   }, [])
