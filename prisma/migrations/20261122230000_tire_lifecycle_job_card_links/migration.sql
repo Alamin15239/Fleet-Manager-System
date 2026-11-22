@@ -25,17 +25,11 @@ ALTER TABLE "trailer_maintenance_records" ADD COLUMN IF NOT EXISTS "jobCardId" T
 CREATE INDEX IF NOT EXISTS "maintenance_records_jobCardId_idx" ON "maintenance_records" ("jobCardId");
 CREATE INDEX IF NOT EXISTS "trailer_maintenance_records_jobCardId_idx" ON "trailer_maintenance_records" ("jobCardId");
 
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'maintenance_records_jobCardId_fkey') THEN
-    ALTER TABLE "maintenance_records" ADD CONSTRAINT "maintenance_records_jobCardId_fkey"
-      FOREIGN KEY ("jobCardId") REFERENCES "workshop_job_cards"("id") ON DELETE SET NULL ON UPDATE CASCADE ON UPDATE CASCADE;
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'trailer_maintenance_records_jobCardId_fkey') THEN
-    ALTER TABLE "trailer_maintenance_records" ADD CONSTRAINT "trailer_maintenance_records_jobCardId_fkey"
-      FOREIGN KEY ("jobCardId") REFERENCES "workshop_job_cards"("id") ON DELETE SET NULL ON UPDATE CASCADE ON UPDATE CASCADE;
-  END IF;
-END $$;
+ALTER TABLE "maintenance_records" ADD CONSTRAINT "maintenance_records_jobCardId_fkey"
+  FOREIGN KEY ("jobCardId") REFERENCES "workshop_job_cards"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "trailer_maintenance_records" ADD CONSTRAINT "trailer_maintenance_records_jobCardId_fkey"
+  FOREIGN KEY ("jobCardId") REFERENCES "workshop_job_cards"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
 
 CREATE TABLE IF NOT EXISTS "tire_lifecycle_events" (
   "id" TEXT PRIMARY KEY,
