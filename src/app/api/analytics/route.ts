@@ -84,7 +84,7 @@ export async function GET(request: NextRequest) {
         downtimeHours: record.downtimeHours,
         mechanicName: record.mechanic?.name || record.mechanicName || null,
         vehicleName: record.truck?.licensePlate || 'Unknown truck',
-        vehicleId: record.truckId
+        vehicleId: record.truckId || ''
       })),
       ...trailerRecords.map(record => ({
         serviceType: record.serviceType,
