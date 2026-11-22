@@ -8,6 +8,7 @@ import { ensureMaintenanceJobCardColumns, getOrCreateOpenJobCard } from '@/lib/t
 export async function GET(request: NextRequest) {
   try {
     await requireRolePermission(request, 'maintenance', 'read')
+    await db.$transaction(async tx => ensureMaintenanceJobCardColumns(tx))
     // Get both truck and trailer maintenance records
     const [truckRecords, trailerRecords] = await Promise.all([
       db.maintenanceRecord.findMany({
