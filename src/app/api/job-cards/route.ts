@@ -4,10 +4,15 @@ import { requireRolePermission } from '@/lib/permission-middleware'
 import { cleanJobCardPayload } from '@/lib/job-card-validation'
 import { syncOneDriveWorkbookAfterChange } from '@/lib/onedrive-excel-sync'
 import { reconcileJobCardInventory } from '@/lib/job-card-inventory'
+import { ensureMaintenanceJobCardColumns, ensureTireLifecycleTables } from '@/lib/tire-lifecycle'
 
 export async function GET(request: NextRequest) {
   try {
     await requireRolePermission(request, 'maintenance', 'read')
+    await db.$transaction(async tx => {
+      await ensureMaintenanceJobCardColumns(tx)
+      await ensureTireLifecycleTables(tx)
+    })
     const trackingView = new URL(request.url).searchParams.get('tracking') === '1'
     const cardsQuery = trackingView
       ? db.workshopJobCard.findMany({
@@ -28,7 +33,40 @@ export async function GET(request: NextRequest) {
           take: 500
         })
     const [jobCards, settings] = await Promise.all([cardsQuery, db.settings.findFirst({ select: { companyName: true, companyAddress: true, companyPhone: true, companyEmail: true } })])
-    return NextResponse.json({ jobCards, company: settings })
+    const ids = jobCards.map(card => card.id)
+    const [maintenanceActivities, trailerActivities, tireEvents] = ids.length ? await Promise.all([
+      db.$queryRawUnsafe<any[]>(`SELECT "id","jobCardId","serviceType","description","datePerformed","totalCost","driverName","status"
+        FROM "maintenance_records" WHERE "jobCardId" = ANY($1::text[])`, ids),
+      db.$queryRawUnsafe<any[]>(`SELECT "id","jobCardId","serviceType","description","datePerformed","totalCost","driverName","status"
+        FROM "trailer_maintenance_records" WHERE "jobCardId" = ANY($1::text[])`, ids),
+      db.$queryRawUnsafe<any[]>(`SELECT e."id",e."jobCardId",e."tireId",e."eventType",e."eventAt",e."driverNameSnapshot",e."reason",e."damageType",e."cost",e."notes",
+          t."internalCode",t."tireSize",t."manufacturer"
+        FROM "tire_lifecycle_events" e JOIN "tires" t ON t."id"=e."tireId"
+        WHERE e."jobCardId" = ANY($1::text[]) ORDER BY e."eventAt" DESC`, ids)
+    ]) : [[], [], []]
+    const activitiesByCard = new Map<string, any[]>()
+    for (const activity of maintenanceActivities) {
+      const list = activitiesByCard.get(activity.jobCardId) || []
+      list.push({ ...activity, activityType: 'MAINTENANCE' })
+      activitiesByCard.set(activity.jobCardId, list)
+    }
+    for (const activity of trailerActivities) {
+      const list = activitiesByCard.get(activity.jobCardId) || []
+      list.push({ ...activity, activityType: 'TRAILER_MAINTENANCE' })
+      activitiesByCard.set(activity.jobCardId, list)
+    }
+    for (const activity of tireEvents) {
+      const list = activitiesByCard.get(activity.jobCardId) || []
+      list.push({ ...activity, activityType: 'TIRE' })
+      activitiesByCard.set(activity.jobCardId, list)
+    }
+    const jobCardsWithActivities = jobCards.map(card => ({
+      ...card,
+      linkedActivities: (activitiesByCard.get(card.id) || []).sort((a, b) =>
+        new Date(b.datePerformed || b.eventAt).getTime() - new Date(a.datePerformed || a.eventAt).getTime()
+      )
+    }))
+    return NextResponse.json({ jobCards: jobCardsWithActivities, company: settings })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to fetch job cards'
     return NextResponse.json({ error: message }, { status: message.includes('token') ? 401 : message === 'Insufficient permissions' ? 403 : 500 })
