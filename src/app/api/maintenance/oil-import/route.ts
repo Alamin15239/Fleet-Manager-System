@@ -40,7 +40,7 @@ function parseFile(buffer: Buffer) {
     const rawPlate = String(value(r, ['plateno','platenumber','licenseplate','trucknumber']) ?? '').trim()
     const oilText = String(value(r, ['litterandoiltype','literandoiltype','oiltype','oilused','oilquantity','oil']) ?? '').trim()
     const plate = rawPlate || 'Missing'
-    const quantityMatch = oilText.replace(/,/g,'.').match(/\d+(?:\.\d+)?/)
+    const quantityMatch = oilText.replace(/,/g,'.').match(/^\s*(\d+(?:\.\d+)?)/)
     const quantity = quantityMatch ? Number(quantityMatch[0]) : null
     const keyData = [date || '', plateKey(plate), mileage ?? '', driver.toLowerCase(), oilText.toLowerCase()]
     const importKey = 'oil-upload-v1:' + createHash('sha256').update(JSON.stringify(keyData)).digest('hex')
