@@ -14,7 +14,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Textarea } from '@/components/ui/textarea'
 import { Search, Droplets, Calendar, Truck, User, BarChart3, Plus, Filter, Check, ChevronsUpDown, Pencil, FileDown, Printer, X, Upload, FileSpreadsheet, AlertCircle } from 'lucide-react'
-import { apiGet, apiPost, apiPut } from '@/lib/api'
+import { apiFetch, apiGet, apiPost, apiPut } from '@/lib/api'
 import { formatCurrency } from '@/lib/currency'
 import { toast } from '@/lib/localized-toast'
 import { usePermissions } from '@/contexts/permissions-context'
@@ -208,7 +208,7 @@ export default function OilChangesPage() {
       const form = new FormData()
       form.append('file', importFile)
       form.append('mode', 'preview')
-      const response = await fetch('/api/maintenance/oil-import', { method: 'POST', body: form, credentials: 'include' })
+      const response = await apiFetch('/api/maintenance/oil-import', { method: 'POST', body: form })
       const result = await response.json()
       if (!response.ok) throw new Error(result.error || 'Preview failed')
       setImportPreview(result)
@@ -224,7 +224,7 @@ export default function OilChangesPage() {
       const form = new FormData()
       form.append('file', importFile)
       form.append('mode', 'import')
-      const response = await fetch('/api/maintenance/oil-import', { method: 'POST', body: form, credentials: 'include' })
+      const response = await apiFetch('/api/maintenance/oil-import', { method: 'POST', body: form })
       const result = await response.json()
       if (!response.ok) throw new Error(result.error || 'Import failed')
       toast.success(`Imported ${result.imported} records. ${result.duplicates} duplicates and ${result.invalid} invalid rows skipped.`)
