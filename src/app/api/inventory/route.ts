@@ -119,7 +119,7 @@ export async function POST(request: NextRequest) {
       if (type === 'ISSUE' && vehicleId && ['truck','trailer'].includes(normalizedVehicleType)) {
         const vehicleType = normalizedVehicleType as 'truck' | 'trailer'
         const vehicle = vehicleType === 'truck'
-          ? await tx.truck.findFirst({ where: { id: vehicleId, isDeleted: false }, select: { id: true, driverName: true } })
+          ? await tx.truck.findFirst({ where: { id: vehicleId, isDeleted: false, status: { not: 'INACTIVE' } }, select: { id: true, driverName: true } })
           : await tx.trailer.findFirst({ where: { id: vehicleId, isDeleted: false }, select: { id: true, driverName: true } })
         if (!vehicle) throw new Error('Selected vehicle not found or inactive')
         if (jobCardId) {
@@ -144,8 +144,15 @@ export async function POST(request: NextRequest) {
         })
         if (!linkedCard) throw new Error('Selected job card is not open')
         if (!vehicleId) {
-          if (linkedCard.truckId) { body.vehicleType = 'truck'; body.vehicleId = linkedCard.truckId }
-          else if (linkedCard.trailerId) { body.vehicleType = 'trailer'; body.vehicleId = linkedCard.trailerId }
+          if (linkedCard.truckId) {
+            const active = await tx.truck.findFirst({ where: { id: linkedCard.truckId, isDeleted: false, status: { not: 'INACTIVE' } }, select: { id: true } })
+            if (!active) throw new Error('Selected vehicle not found or inactive')
+            body.vehicleType = 'truck'; body.vehicleId = linkedCard.truckId
+          } else if (linkedCard.trailerId) {
+            const active = await tx.trailer.findFirst({ where: { id: linkedCard.trailerId, isDeleted: false, status: { not: 'INACTIVE' } }, select: { id: true } })
+            if (!active) throw new Error('Selected vehicle not found or inactive')
+            body.vehicleType = 'trailer'; body.vehicleId = linkedCard.trailerId
+          }
         }
       }
       const item = await tx.$queryRawUnsafe<any[]>(`SELECT "id","name","unit" FROM "inventory_items" WHERE "id"=$1 FOR UPDATE`, body.itemId)
