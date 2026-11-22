@@ -55,7 +55,7 @@ async function getOrCreateJobCard(tx: any, vehicle: VehicleRef, details: {
     where: { jobNumber: { startsWith: prefix } }, select: { jobNumber: true }
   })
   const highest = numbers.reduce((max: number, item: { jobNumber: string }) => {
-    const match = item.jobNumber.match(/^JC-\\d{4}-(\\d+)$/)
+    const match = item.jobNumber.match(/^JC-\d{4}-(\d+)$/)
     return match ? Math.max(max, Number(match[1]) || 0) : max
   }, 0)
   const id = `jc_${randomUUID()}`
@@ -81,7 +81,7 @@ export async function recordTireLifecycleEvent(tx: any, input: {
 }) {
   await ensureTireLifecycleTables(tx)
   const tireRows = await tx.$queryRawUnsafe(
-    `SELECT "id","truckId","plateNumber","lifecycleStatus","currentPosition","internalCode","installedAt"
+    `SELECT "id","truckId","plateNumber","trailerNumber","lifecycleStatus","currentPosition","internalCode","installedAt"
      FROM "tires" WHERE "id"=$1 FOR UPDATE`, input.tireId
   )
   const tire = tireRows[0]
@@ -93,14 +93,19 @@ export async function recordTireLifecycleEvent(tx: any, input: {
   const currentTruckId = tire.truckId || null
   const target = input.vehicle || null
   if (['INSTALL','TRANSFER'].includes(eventType) && !target) throw new Error('Select a destination vehicle')
-  if (eventType === 'INSTALL' && tire.lifecycleStatus === 'INSTALLED') throw new Error('This tire is already installed; use transfer to move it')
+  if (eventType === 'INSTALL' && tire.lifecycleStatus !== 'STOCK') throw new Error('Only a tire in stock can be installed')
   if (eventType === 'TRANSFER' && tire.lifecycleStatus !== 'INSTALLED') throw new Error('Only an installed tire can be transferred')
   if (eventType === 'REMOVE' && tire.lifecycleStatus !== 'INSTALLED') throw new Error('Only an installed tire can be removed')
   if (eventType === 'DISPOSE' && tire.lifecycleStatus === 'INSTALLED') throw new Error('Remove the tire before disposal')
   if (eventType === 'REPAIR' && tire.lifecycleStatus !== 'DAMAGED') throw new Error('Only a damaged tire can be marked repaired')
 
   let jobCardId: string | null = null
-  const operationalVehicle = target || (currentTruckId ? { vehicleType: 'truck' as const, vehicleId: currentTruckId } : null)
+  const currentTrailer = tire.trailerNumber ? await tx.trailer.findFirst({ where: { number: tire.trailerNumber }, select: { id: true } }) : null
+  const currentVehicle: VehicleRef | null = currentTruckId
+    ? { vehicleType: 'truck', vehicleId: currentTruckId }
+    : currentTrailer ? { vehicleType: 'trailer', vehicleId: currentTrailer.id } : null
+  const operationalVehicle = ['TRANSFER','REMOVE','DAMAGE','REPAIR','DISPOSE'].includes(eventType)
+    ? currentVehicle || target : target || currentVehicle
   if (operationalVehicle && !['RECEIVE'].includes(eventType)) {
     jobCardId = await getOrCreateJobCard(tx, operationalVehicle, {
       eventAt: input.eventAt, odometerKm: input.odometerKm, driverName: input.driverName, userId: input.userId
@@ -114,9 +119,9 @@ export async function recordTireLifecycleEvent(tx: any, input: {
   const eventId = `tireevt_${randomUUID()}`
   await tx.$executeRawUnsafe(
     `INSERT INTO "tire_lifecycle_events"
-     ("id","tireId","eventType","eventAt","fromTruckId","toTruckId","toTrailerId","fromPosition","toPosition","driverNameSnapshot","odometerKm","reason","damageType","repairable","cost","notes","jobCardId","createdById")
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)`,
-    eventId, input.tireId, eventType, input.eventAt, fromTruckId, toTruckId, toTrailerId,
+     ("id","tireId","eventType","eventAt","fromTruckId","fromTrailerId","toTruckId","toTrailerId","fromPosition","toPosition","driverNameSnapshot","odometerKm","reason","damageType","repairable","cost","notes","jobCardId","createdById")
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)`,
+    eventId, input.tireId, eventType, input.eventAt, fromTruckId, currentTrailer?.id || null, toTruckId, toTrailerId,
     fromPosition, input.position || null, input.driverName || null, input.odometerKm ?? null,
     input.reason || null, input.damageType || null, input.repairable ?? null, input.cost ?? null,
     input.notes || null, jobCardId, input.userId
