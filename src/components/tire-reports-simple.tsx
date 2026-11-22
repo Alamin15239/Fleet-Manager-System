@@ -386,6 +386,12 @@ export default function TireReportsSimple() {
     (reportData?.tireRows || []).map(tire => String(tire[field] || '').trim()).filter(Boolean)
   )).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
 
+  useEffect(() => {
+    const handleFleetDataChanged = () => { void fetchAnalytics() }
+    window.addEventListener('fleet:data-changed', handleFleetDataChanged)
+    return () => window.removeEventListener('fleet:data-changed', handleFleetDataChanged)
+  }, [])
+
   return (
     <div className="space-y-6">
       {/* Header */}
