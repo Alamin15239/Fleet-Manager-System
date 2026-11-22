@@ -1,10 +1,8 @@
 // server.ts - Next.js Standalone + Socket.IO + Real-time Sync
 import { setupSocket } from './src/lib/socket';
-import { RealtimeSync } from './src/lib/realtime-sync';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import next from 'next';
-import { readFileSync } from 'fs';
 
 const dev = process.env.NODE_ENV !== 'production';
 const currentPort = 3000;
@@ -35,7 +33,7 @@ async function createCustomServer() {
 
     // Setup Socket.IO
     const io = new Server(server, {
-      path: '/api/socketio',
+      path: '/api/socket',
       cors: {
         origin: "*",
         methods: ["GET", "POST"]
@@ -43,15 +41,6 @@ async function createCustomServer() {
     });
 
     setupSocket(io);
-
-    // Initialize real-time sync
-    try {
-      const syncConfig = JSON.parse(readFileSync('./sync-config.json', 'utf8'));
-      const realtimeSync = new RealtimeSync(io, syncConfig);
-      await realtimeSync.start();
-    } catch (error) {
-      console.log('⚠️  Real-time sync disabled:', error instanceof Error ? error.message : 'Unknown error');
-    }
 
     // Start the server
     server.listen(currentPort, hostname, () => {
