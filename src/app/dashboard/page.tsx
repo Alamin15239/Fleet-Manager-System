@@ -157,14 +157,15 @@ export default function DashboardPage() {
     }
   }
 
-  if (permissionsLoading) return <EnhancedLoading />
-  if (!canViewDashboard) return <div className="container mx-auto p-6"><Card><CardContent className="p-6 text-muted-foreground"><LocalizedText>You do not have permission to view the dashboard.</LocalizedText></CardContent></Card></div>
-
   useEffect(() => {
     const handleFleetDataChanged = () => { void fetchDashboardStats(true) }
     window.addEventListener('fleet:data-changed', handleFleetDataChanged)
     return () => window.removeEventListener('fleet:data-changed', handleFleetDataChanged)
   }, [])
+
+  if (permissionsLoading) return <EnhancedLoading />
+  if (!canViewDashboard) return <div className="container mx-auto p-6"><Card><CardContent className="p-6 text-muted-foreground"><LocalizedText>You do not have permission to view the dashboard.</LocalizedText></CardContent></Card></div>
+
 
   return (
     <div className="container mx-auto p-6 space-y-6">
