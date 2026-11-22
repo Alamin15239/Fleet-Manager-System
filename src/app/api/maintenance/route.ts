@@ -188,6 +188,6 @@ export async function POST(request: NextRequest) {
     const unauthorized = error instanceof Error && ['No token provided', 'Invalid token'].includes(error.message)
     const forbidden = error instanceof Error && error.message === 'Insufficient permissions'
     const insufficient = error instanceof Error && error.message.includes('Insufficient oil stock')
-    return NextResponse.json({ error: unauthorized ? 'Authentication required' : forbidden ? 'Manager access required' : error instanceof Error ? error.message : 'Failed to create record' }, { status: unauthorized ? 401 : forbidden ? 403 : insufficient ? 409 : 500 })
+    return NextResponse.json({ error: unauthorized ? 'Authentication required' : forbidden ? 'Manager access required' : error instanceof Error ? error.message : 'Failed to create record' }, { status: unauthorized ? 401 : forbidden ? 403 : insufficient ? 409 : error instanceof Error && error.message.includes('Selected vehicle was not found') ? 400 : 500 })
   }
 }
