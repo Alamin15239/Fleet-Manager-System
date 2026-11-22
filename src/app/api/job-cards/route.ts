@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
           t."internalCode",t."tireSize",t."manufacturer"
         FROM "tire_lifecycle_events" e JOIN "tires" t ON t."id"=e."tireId"
         WHERE e."jobCardId" = ANY($1::text[]) ORDER BY e."eventAt" DESC`, ids),
-      db.$queryRawUnsafe<any[]>(`SELECT x."id",x."jobCardId",x."type" AS "eventType",x."quantity",x."unitCost",
+      db.$queryRawUnsafe<any[]>(`SELECT x."id",x."jobCardId",x."itemId",x."type" AS "eventType",x."quantity",x."unitCost",
           x."transactionDate" AS "eventAt",x."notes",i."name" AS "description",i."unit"
         FROM "inventory_transactions" x JOIN "inventory_items" i ON i."id"=x."itemId"
         WHERE x."jobCardId" = ANY($1::text[]) AND x."type" IN ('ISSUE','CUSTOMER_RETURN')
