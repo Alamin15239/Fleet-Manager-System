@@ -3,6 +3,7 @@ import { db } from '@/lib/db'
 import { requireRolePermission } from '@/lib/permission-middleware'
 import { syncOneDriveWorkbookAfterChange } from '@/lib/onedrive-excel-sync'
 import { reconcileOilChangeInventory } from '@/lib/job-card-inventory'
+import { ensureMaintenanceJobCardColumns, getOrCreateOpenJobCard } from '@/lib/tire-lifecycle'
 
 // GET single maintenance record by ID
 export async function GET(
@@ -11,6 +12,7 @@ export async function GET(
 ) {
   try {
     await requireRolePermission(request, 'maintenance', 'read')
+    await db.$transaction(async tx => ensureMaintenanceJobCardColumns(tx))
     const { id } = await params;
     
     // Try to find in truck maintenance records first
@@ -135,6 +137,7 @@ export async function PUT(
 ) {
   try {
     const user = await requireRolePermission(request, 'maintenance', 'update')
+    await db.$transaction(async tx => ensureMaintenanceJobCardColumns(tx))
     const { id } = await params;
     const body = await request.json()
 
@@ -176,6 +179,21 @@ export async function PUT(
     
     if (recordType === 'truck') {
       updatedRecord = await db.$transaction(async tx => {
+        await ensureMaintenanceJobCardColumns(tx)
+        const targetTruckId = body.truckId !== undefined ? body.truckId || null : existingRecord.truckId
+        const vehicleChanged = body.truckId !== undefined && body.truckId !== existingRecord.truckId
+        let jobCardId: string | null = existingRecord.jobCardId || null
+        if (vehicleChanged && !targetTruckId) jobCardId = null
+        else if (targetTruckId && (!jobCardId || vehicleChanged)) {
+          jobCardId = await getOrCreateOpenJobCard(tx, { vehicleType: 'truck', vehicleId: targetTruckId }, {
+            eventAt: body.datePerformed ? new Date(body.datePerformed) : existingRecord.datePerformed,
+            odometerKm: body.currentMileage !== undefined ? Number(body.currentMileage) : existingRecord.currentMileage,
+            driverName: body.driverName !== undefined ? body.driverName : existingRecord.driverName,
+            userId: user.id,
+            serviceType: body.serviceType || existingRecord.serviceType || 'MAINTENANCE',
+            reportedIssue: body.description || existingRecord.description || 'Updated maintenance activity'
+          })
+        }
         const updated = await tx.maintenanceRecord.update({
         where: { id: id },
         data: {
@@ -198,7 +216,8 @@ export async function PUT(
           ...(body.oilChangeInterval !== undefined && { oilChangeInterval: body.oilChangeInterval ? parseInt(body.oilChangeInterval) : null }),
           ...(body.oilQuantityLiters !== undefined && { oilQuantityLiters: body.oilQuantityLiters ? parseFloat(body.oilQuantityLiters) : null }),
           ...(body.currentMileage !== undefined && { currentMileage: body.currentMileage ? parseInt(body.currentMileage) : null }),
-          ...(body.maintenanceJobId !== undefined && { maintenanceJobId: body.maintenanceJobId || null })
+          ...(body.maintenanceJobId !== undefined && { maintenanceJobId: body.maintenanceJobId || null }),
+          jobCardId
         },
         include: {
           truck: {
@@ -237,10 +256,10 @@ export async function PUT(
         })
         const nowOilChange = body.isOilChange !== undefined ? body.isOilChange : existingRecord.isOilChange
         const wasOilService = Boolean(existingRecord.isOilChange || String(existingRecord.serviceType || '').toLowerCase().includes('oil'))
-        const isOilService = Boolean(wasOilService || nowOilChange || String(body.serviceType ?? existingRecord.serviceType).toLowerCase().includes('oil'))
-        if (isOilService) {
-          let linkedItemId = body.oilInventoryItemId
-          if (linkedItemId === undefined) {
+        const isOilService = Boolean(nowOilChange || String(body.serviceType ?? existingRecord.serviceType).toLowerCase().includes('oil'))
+        if (wasOilService || isOilService) {
+          let linkedItemId = isOilService ? body.oilInventoryItemId : null
+          if (isOilService && linkedItemId === undefined) {
             const previousLinks = await tx.$queryRawUnsafe<any[]>(
               `SELECT "itemId" FROM "inventory_transactions" WHERE "sourceType"='OIL_CHANGE' AND "sourceId"=$1 AND "type"='ISSUE' ORDER BY "createdAt" DESC LIMIT 1`,
               id
@@ -250,18 +269,35 @@ export async function PUT(
           await reconcileOilChangeInventory(tx, {
             maintenanceId: id,
             inventoryItemId: linkedItemId || null,
-            quantityLiters: body.oilQuantityLiters !== undefined ? body.oilQuantityLiters : existingRecord.oilQuantityLiters,
+            quantityLiters: isOilService ? (body.oilQuantityLiters !== undefined ? body.oilQuantityLiters : existingRecord.oilQuantityLiters) : null,
             transactionDate: body.datePerformed ? new Date(body.datePerformed) : existingRecord.datePerformed,
-            vehicleId: body.truckId || existingRecord.truckId,
-            userId: user.id
+            vehicleId: targetTruckId || existingRecord.truckId || 'unassigned',
+            userId: user.id,
+            previousJobCardId: existingRecord.jobCardId || null,
+            jobCardId
           })
         }
         return updated
       })
     } else {
-      updatedRecord = await db.trailerMaintenanceRecord.update({
+      updatedRecord = await db.$transaction(async tx => {
+        await ensureMaintenanceJobCardColumns(tx)
+        const targetTrailerId = body.truckId !== undefined ? body.truckId || null : existingRecord.trailerId
+        const vehicleChanged = body.truckId !== undefined && body.truckId !== existingRecord.trailerId
+        let jobCardId: string | null = existingRecord.jobCardId || null
+        if (vehicleChanged && !targetTrailerId) jobCardId = null
+        else if (targetTrailerId && (!jobCardId || vehicleChanged)) {
+          jobCardId = await getOrCreateOpenJobCard(tx, { vehicleType: 'trailer', vehicleId: targetTrailerId }, {
+            eventAt: body.datePerformed ? new Date(body.datePerformed) : existingRecord.datePerformed,
+            driverName: body.driverName !== undefined ? body.driverName : existingRecord.driverName,
+            userId: user.id, serviceType: body.serviceType || existingRecord.serviceType || 'TRAILER MAINTENANCE',
+            reportedIssue: body.description || existingRecord.description || 'Updated trailer maintenance activity'
+          })
+        }
+        return tx.trailerMaintenanceRecord.update({
         where: { id: id },
         data: {
+          jobCardId,
           ...(body.truckId !== undefined && { trailerId: body.truckId }),
           ...(body.serviceType !== undefined && { serviceType: body.serviceType }),
           ...(body.description !== undefined && { description: body.description }),
@@ -309,6 +345,7 @@ export async function PUT(
             }
           }
         }
+        })
       })
     }
 
@@ -337,6 +374,7 @@ export async function DELETE(
 ) {
   try {
     const user = await requireRolePermission(request, 'maintenance', 'delete')
+    await db.$transaction(async tx => ensureMaintenanceJobCardColumns(tx))
     const { id } = await params;
     
     // Check if maintenance record exists in truck records
@@ -376,8 +414,10 @@ export async function DELETE(
             inventoryItemId: null,
             quantityLiters: null,
             transactionDate: new Date(),
-            vehicleId: record.truckId,
-            userId: user.id
+            vehicleId: record.truckId || 'unassigned',
+            userId: user.id,
+            previousJobCardId: record.jobCardId || null,
+            jobCardId: null
           })
         }
         await tx.maintenanceRecord.update({
