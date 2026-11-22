@@ -289,6 +289,15 @@ export default function TireManagementForm() {
     )
   }
 
+  useEffect(() => {
+    const handleFleetDataChanged = () => {
+      void fetchVehicles()
+      void fetchRecentTires()
+    }
+    window.addEventListener('fleet:data-changed', handleFleetDataChanged)
+    return () => window.removeEventListener('fleet:data-changed', handleFleetDataChanged)
+  }, [])
+
   return (
     <div className="space-y-4 sm:space-y-6">
       {/* Recent Tires Preview */}
