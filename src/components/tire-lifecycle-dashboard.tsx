@@ -158,7 +158,7 @@ export default function TireLifecycleDashboard() {
               <Select value={tireId} onValueChange={setTireId}>
                 <SelectTrigger><SelectValue placeholder="Select a tire" /></SelectTrigger>
                 <SelectContent>
-                  {tires.map(t => <SelectItem key={t.id} value={t.id}>
+                  {tires.filter(t => t.lifecycleStatus !== 'DISPOSED').map(t => <SelectItem key={t.id} value={t.id}>
                     {(t.internalCode || t.id)} · {t.tireSize} · {t.manufacturer} · {t.lifecycleStatus || 'STOCK'}
                   </SelectItem>)}
                 </SelectContent>
