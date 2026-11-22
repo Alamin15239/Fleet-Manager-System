@@ -9,6 +9,8 @@ export async function ensureTireLifecycleTables(tx: any) {
   await tx.$executeRawUnsafe(`ALTER TABLE "tires" ADD COLUMN IF NOT EXISTS "installedAt" TIMESTAMP(3)`)
   await tx.$executeRawUnsafe(`ALTER TABLE "tires" ADD COLUMN IF NOT EXISTS "installationOdometer" INTEGER`)
   await tx.$executeRawUnsafe(`ALTER TABLE "tires" ADD COLUMN IF NOT EXISTS "deletedAt" TIMESTAMP(3)`)
+  await tx.$executeRawUnsafe(`CREATE SEQUENCE IF NOT EXISTS "tire_internal_code_seq"`)
+  await tx.$executeRawUnsafe(`UPDATE "tires" SET "internalCode"='TY-' || LPAD(nextval('"tire_internal_code_seq"')::text,6,'0') WHERE "internalCode" IS NULL`)
   await tx.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "tires_internalCode_key" ON "tires" ("internalCode") WHERE "internalCode" IS NOT NULL`)
   await tx.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "tire_lifecycle_events" (
     "id" TEXT PRIMARY KEY,
@@ -34,6 +36,20 @@ export async function ensureTireLifecycleTables(tx: any) {
   )`)
   await tx.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "tire_lifecycle_events_tireId_eventAt_idx" ON "tire_lifecycle_events" ("tireId","eventAt" DESC)`)
   await tx.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "tire_lifecycle_events_jobCardId_idx" ON "tire_lifecycle_events" ("jobCardId")`)
+  await tx.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "tire_usage_periods" (
+    "id" TEXT PRIMARY KEY,
+    "tireId" TEXT NOT NULL REFERENCES "tires"("id") ON DELETE RESTRICT,
+    "vehicleType" TEXT NOT NULL,
+    "vehicleId" TEXT NOT NULL,
+    "installedAt" TIMESTAMP(3) NOT NULL,
+    "removedAt" TIMESTAMP(3),
+    "startOdometer" INTEGER,
+    "endOdometer" INTEGER,
+    "driverNameSnapshot" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`)
+  await tx.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "tire_usage_periods_tireId_installedAt_idx" ON "tire_usage_periods" ("tireId","installedAt")`)
+  await tx.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "tire_usage_periods_vehicleType_vehicleId_idx" ON "tire_usage_periods" ("vehicleType","vehicleId")`)
 }
 
 export async function getOrCreateOpenJobCard(tx: any, vehicle: VehicleRef, details: {
@@ -129,6 +145,21 @@ export async function recordTireLifecycleEvent(tx: any, input: {
     input.notes || null, jobCardId, input.userId
   )
 
+  if (eventType === 'TRANSFER' || eventType === 'REMOVE') {
+    await tx.$executeRawUnsafe(
+      `UPDATE "tire_usage_periods" SET "removedAt"=$2,"endOdometer"=$3
+       WHERE "tireId"=$1 AND "removedAt" IS NULL`,
+      input.tireId, input.eventAt, input.odometerKm ?? null
+    )
+  }
+  if ((eventType === 'INSTALL' || eventType === 'TRANSFER') && target) {
+    await tx.$executeRawUnsafe(
+      `INSERT INTO "tire_usage_periods" ("id","tireId","vehicleType","vehicleId","installedAt","startOdometer","driverNameSnapshot")
+       VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+      `tyuse_${randomUUID()}`, input.tireId, target.vehicleType, target.vehicleId,
+      input.eventAt, input.odometerKm ?? null, input.driverName || null
+    )
+  }
   const nextStatus = eventType === 'INSTALL' || eventType === 'TRANSFER' ? 'INSTALLED'
     : eventType === 'DAMAGE' ? 'DAMAGED'
     : eventType === 'DISPOSE' ? 'DISPOSED'
