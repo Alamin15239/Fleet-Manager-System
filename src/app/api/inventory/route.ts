@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireRolePermission } from '@/lib/permission-middleware'
+import { getOrCreateOpenJobCard } from '@/lib/tire-lifecycle'
 
 async function ensureInventorySchema() {
   await db.$executeRawUnsafe(`
@@ -109,6 +110,26 @@ export async function POST(request: NextRequest) {
     if (Number.isNaN(transactionDate.getTime())) return NextResponse.json({ error: 'Invalid transaction date' }, { status: 400 })
     const id = `itx_${crypto.randomUUID()}`
     const created = await db.$transaction(async tx => {
+      const normalizedVehicleType = String(body.vehicleType || '').toLowerCase()
+      const vehicleId = typeof body.vehicleId === 'string' ? body.vehicleId.trim() : ''
+      let jobCardId = typeof body.jobCardId === 'string' && body.jobCardId.trim() ? body.jobCardId.trim() : null
+      if (type === 'ISSUE' && vehicleId && ['truck','trailer'].includes(normalizedVehicleType)) {
+        const vehicleType = normalizedVehicleType as 'truck' | 'trailer'
+        const vehicle = vehicleType === 'truck'
+          ? await tx.truck.findFirst({ where: { id: vehicleId, isDeleted: false }, select: { id: true, driverName: true } })
+          : await tx.trailer.findFirst({ where: { id: vehicleId, isDeleted: false }, select: { id: true, driverName: true } })
+        if (!vehicle) throw new Error('Selected vehicle not found or inactive')
+        if (jobCardId) {
+          const where = vehicleType === 'truck' ? { id: jobCardId, truckId: vehicleId } : { id: jobCardId, trailerId: vehicleId }
+          const linkedCard = await tx.workshopJobCard.findFirst({ where, select: { id: true } })
+          if (!linkedCard) throw new Error('Selected job card does not belong to this vehicle')
+        } else {
+          jobCardId = await getOrCreateOpenJobCard(tx, { vehicleType, vehicleId }, {
+            eventAt: transactionDate, driverName: vehicle.driverName, userId: user.id,
+            serviceType: 'SPARE PARTS', reportedIssue: 'Automatically created from spare-parts issue'
+          })
+        }
+      }
       const item = await tx.$queryRawUnsafe<any[]>(`SELECT "id" FROM "inventory_items" WHERE "id"=$1 FOR UPDATE`, body.itemId)
       if (!item.length) throw new Error('Inventory item not found')
       const balance = await tx.$queryRawUnsafe<any[]>(`
@@ -121,13 +142,13 @@ export async function POST(request: NextRequest) {
         ("id","itemId","type","quantity","transactionDate","reference","vehicleType","vehicleId","jobCardId","unitCost","notes","createdById")
         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
         id, body.itemId, type, quantity, transactionDate, body.reference || null,
-        body.vehicleType || null, body.vehicleId || null, body.jobCardId || null,
+        normalizedVehicleType || null, vehicleId || null, jobCardId,
         body.unitCost == null ? null : Number(body.unitCost), body.notes || null, user.id)
     })
     return NextResponse.json({ transaction: created[0] }, { status: 201 })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unable to save inventory transaction'
-    const status = message === 'Insufficient stock for this transaction' ? 409 : message === 'Inventory item not found' ? 404 : message === 'Insufficient permissions' ? 403 : 500
+    const status = message === 'Insufficient stock for this transaction' ? 409 : message === 'Inventory item not found' || message === 'Selected vehicle not found or inactive' ? 404 : message === 'Selected job card does not belong to this vehicle' ? 400 : message === 'Insufficient permissions' ? 403 : 500
     return NextResponse.json({ error: message }, { status })
   }
 }
