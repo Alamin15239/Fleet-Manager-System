@@ -7,6 +7,13 @@ import { trackAPIActivity } from '@/lib/activity-middleware'
 
 const categories = new Set(Object.values(PurchaseExpenseCategory))
 
+async function ensureInventoryInvoiceColumns() {
+  await db.$executeRawUnsafe(`ALTER TABLE "inventory_transactions" ADD COLUMN IF NOT EXISTS "sourceType" TEXT`)
+  await db.$executeRawUnsafe(`ALTER TABLE "inventory_transactions" ADD COLUMN IF NOT EXISTS "sourceId" TEXT`)
+  await db.$executeRawUnsafe(`ALTER TABLE "purchase_invoice_lines" ADD COLUMN IF NOT EXISTS "inventoryItemId" TEXT`)
+  await db.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "inventory_transactions_source_type_key" ON "inventory_transactions"("sourceType","sourceId","type") WHERE "sourceType" IS NOT NULL AND "sourceId" IS NOT NULL`)
+}
+
 function asNumber(value: unknown) {
   if (value === null || value === undefined) return 0
   return Number(value)
@@ -37,8 +44,9 @@ function serializeInvoice(invoice: any) {
 export async function GET(request: NextRequest) {
   try {
     await requireRolePermission(request, 'purchase-invoices', 'read')
+    await ensureInventoryInvoiceColumns()
 
-    const [invoices, vendors, trucks, trailers, accounts, balances, totals, company] = await Promise.all([
+    const [invoices, vendors, trucks, trailers, accounts, balances, totals, company, inventoryItems] = await Promise.all([
       db.purchaseInvoice.findMany({
         include: {
           vendor: true,
@@ -58,6 +66,7 @@ export async function GET(request: NextRequest) {
         _sum: { subtotal: true, vatTotal: true, grandTotal: true },
       }),
       db.settings.findFirst({ select: { companyName: true, companyAddress: true, companyPhone: true, companyEmail: true } }),
+      db.$queryRawUnsafe<any[]>(`SELECT "id","name","partNumber","category","unit","oilGrade" FROM "inventory_items" ORDER BY "name" ASC`),
     ])
 
     const balanceByAccount = new Map(balances.map((row) => [row.accountId, {
@@ -94,6 +103,7 @@ export async function GET(request: NextRequest) {
       company,
       invoices: invoices.map(serializeInvoice),
       vendors,
+      inventoryItems,
       trucks,
       trailers,
       vehicleAccounts,
@@ -116,6 +126,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const user = await requireRolePermission(request, 'purchase-invoices', 'create')
+    await ensureInventoryInvoiceColumns()
     const body = await request.json()
 
     const vendorId = typeof body.vendorId === 'string' ? body.vendorId.trim() : ''
@@ -142,6 +153,7 @@ export async function POST(request: NextRequest) {
       const unitPrice = Math.round(rawUnitPrice * 10000) / 10000
       const assetType = line.assetType === 'TRAILER' ? 'TRAILER' : line.assetType === 'TRUCK' ? 'TRUCK' : ''
       const assetId = typeof line.assetId === 'string' ? line.assetId.trim() : ''
+      const inventoryItemId = typeof line.inventoryItemId === 'string' && line.inventoryItemId.trim() ? line.inventoryItemId.trim() : null
       if (!categories.has(category)) throw new Error(`Line ${index + 1}: select a valid expense category`)
       if (!description) throw new Error(`Line ${index + 1}: enter a description`)
       if (!Number.isFinite(quantity) || quantity <= 0 || quantity > 100000000) throw new Error(`Line ${index + 1}: quantity must be greater than zero`)
@@ -152,7 +164,7 @@ export async function POST(request: NextRequest) {
       const netCents = !isVatInvoice ? enteredCents : pricesIncludeVat ? Math.round(enteredCents / (1 + vatRate / 100)) : enteredCents
       const vatCents = !isVatInvoice ? 0 : pricesIncludeVat ? enteredCents - netCents : Math.round(netCents * vatRate / 100)
       const totalCents = netCents + vatCents
-      return { category, description, quantity, unitPrice, assetType, assetId, lineNumber: index + 1, netCents, vatCents, totalCents }
+      return { category, description, quantity, unitPrice, assetType, assetId, inventoryItemId, lineNumber: index + 1, netCents, vatCents, totalCents }
     })
 
     const subtotalCents = calculatedLines.reduce((sum: number, line: any) => sum + line.netCents, 0)
@@ -165,6 +177,10 @@ export async function POST(request: NextRequest) {
       if (!vendor || !vendor.isActive) throw new Error('Select an active vendor')
 
       for (const line of calculatedLines) {
+        if (line.inventoryItemId) {
+          const inventoryItem = await tx.$queryRawUnsafe<any[]>(`SELECT "id" FROM "inventory_items" WHERE "id"=$1`, line.inventoryItemId)
+          if (!inventoryItem.length) throw new Error(`Line ${line.lineNumber}: selected inventory item no longer exists`)
+        }
         const asset = line.assetType === 'TRUCK'
           ? await tx.truck.findFirst({ where: { id: line.assetId, isDeleted: false }, select: { id: true } })
           : await tx.trailer.findFirst({ where: { id: line.assetId, isDeleted: false }, select: { id: true } })
@@ -197,12 +213,29 @@ export async function POST(request: NextRequest) {
               netAmount: decimalFromCents(line.netCents),
               vatAmount: decimalFromCents(line.vatCents),
               totalAmount: decimalFromCents(line.totalCents),
+              inventoryItemId: line.inventoryItemId,
               ...(line.assetType === 'TRUCK' ? { truckId: line.assetId } : { trailerId: line.assetId }),
             })),
           },
         },
         include: { lines: true },
       })
+
+      // A linked invoice line posts one stock receipt in the same database transaction.
+      for (let index = 0; index < invoice.lines.length; index++) {
+        const savedLine = invoice.lines[index]
+        const sourceLine = calculatedLines[index]
+        if (!sourceLine.inventoryItemId) continue
+        await tx.$queryRawUnsafe(`
+          INSERT INTO "inventory_transactions"
+          ("id","itemId","type","quantity","transactionDate","reference","unitCost","notes","createdById","sourceType","sourceId")
+          VALUES ($1,$2,'PURCHASE',$3,$4,$5,$6,$7,$8,'PURCHASE_INVOICE',$9)
+          ON CONFLICT ("sourceType","sourceId","type") WHERE "sourceType" IS NOT NULL AND "sourceId" IS NOT NULL DO NOTHING
+        `,
+          `itx_${randomUUID()}`, sourceLine.inventoryItemId, sourceLine.quantity, invoiceDate,
+          invoice.internalNumber, sourceLine.netCents / 100 / sourceLine.quantity,
+          `Stock received from invoice ${invoice.internalNumber}`, user.id, savedLine.id)
+      }
 
       const vendorAccount = await tx.fleetLedgerAccount.upsert({
         where: { vendorId },
@@ -304,6 +337,7 @@ export async function POST(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   try {
     const user = await requireRolePermission(request, 'purchase-invoices', 'update')
+    await ensureInventoryInvoiceColumns()
     const body = await request.json()
     if (body.action !== 'void' || typeof body.invoiceId !== 'string') {
       return NextResponse.json({ error: 'Choose a posted invoice to reverse' }, { status: 400 })
@@ -311,11 +345,37 @@ export async function PATCH(request: NextRequest) {
 
     const invoiceId = body.invoiceId
     const result = await db.$transaction(async (tx) => {
-      const invoice = await tx.purchaseInvoice.findUnique({ where: { id: invoiceId } })
+      const invoice = await tx.purchaseInvoice.findUnique({ where: { id: invoiceId }, include: { lines: true } })
       if (!invoice) throw new Error('Purchase invoice not found')
       if (invoice.status !== 'POSTED') throw new Error('Only a posted invoice can be reversed')
       const original = await tx.purchaseJournalEntry.findUnique({ where: { invoiceId_isReversal: { invoiceId, isReversal: false } }, include: { lines: true } })
       if (!original || !original.lines.length) throw new Error('The invoice ledger entry is missing; it cannot be safely reversed')
+
+      // Reverse linked stock receipts only when the stock is still available.
+      for (const line of invoice.lines) {
+        if (!line.inventoryItemId) continue
+        const alreadyReversed = await tx.$queryRawUnsafe<any[]>(`
+          SELECT "id" FROM "inventory_transactions"
+          WHERE "sourceType"='PURCHASE_INVOICE' AND "sourceId"=$1 AND "type"='SUPPLIER_RETURN' LIMIT 1
+        `, line.id)
+        if (alreadyReversed.length) continue
+        const balance = await tx.$queryRawUnsafe<any[]>(`
+          SELECT COALESCE(SUM(CASE WHEN "type" IN ('OPENING','PURCHASE','CUSTOMER_RETURN','ADJUSTMENT_IN') THEN "quantity" WHEN "type" IN ('ISSUE','SUPPLIER_RETURN','ADJUSTMENT_OUT') THEN -"quantity" ELSE 0 END),0)::float AS qty
+          FROM "inventory_transactions" WHERE "itemId"=$1 FOR UPDATE
+        `, line.inventoryItemId)
+        const available = Number(balance[0]?.qty || 0)
+        const receiptQty = Number(line.quantity)
+        if (available + 0.000001 < receiptQty) {
+          throw new Error(`Cannot reverse invoice: only ${available} stock units remain, but ${receiptQty} must be returned`)
+        }
+        await tx.$queryRawUnsafe(`
+          INSERT INTO "inventory_transactions"
+          ("id","itemId","type","quantity","transactionDate","reference","unitCost","notes","createdById","sourceType","sourceId")
+          VALUES ($1,$2,'SUPPLIER_RETURN',$3,NOW(),$4,$5,$6,$7,'PURCHASE_INVOICE',$8)
+        `,
+          `itx_${randomUUID()}`, line.inventoryItemId, receiptQty, invoice.internalNumber,
+          Number(line.netAmount) / receiptQty, `Stock reversed with invoice ${invoice.internalNumber}`, user.id, line.id)
+      }
 
       await tx.purchaseJournalEntry.create({
         data: {
