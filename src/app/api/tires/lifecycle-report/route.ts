@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
 
   try {
     await db.$transaction(async tx => ensureTireLifecycleTables(tx))
-    const [summary, inventory, damageByDriver, damageByReason, vehicleUsage, tireLife] = await Promise.all([
+    const [summary, inventory, damageByDriver, damageByReason, damageByVehicle, vehicleUsage, tireLife, averageLife] = await Promise.all([
       db.$queryRawUnsafe<any[]>(`SELECT
         COUNT(*) FILTER (WHERE "lifecycleStatus"='STOCK')::int AS "inStock",
         COUNT(*) FILTER (WHERE "lifecycleStatus"='INSTALLED')::int AS "installed",
@@ -32,6 +32,15 @@ export async function GET(request: NextRequest) {
         COALESCE(SUM("cost"),0)::float AS "damageCost"
         FROM "tire_lifecycle_events" WHERE "eventType"='DAMAGE'
         GROUP BY "damageType","reason" ORDER BY "damageCount" DESC`),
+      db.$queryRawUnsafe<any[]>(`SELECT e."fromTruckId",e."fromTrailerId",
+        COALESCE(t."licensePlate",tr."number",'Unknown vehicle') AS "vehicleLabel",
+        COUNT(*)::int AS "damageCount",COALESCE(SUM(e."cost"),0)::float AS "damageCost"
+        FROM "tire_lifecycle_events" e
+        LEFT JOIN "trucks" t ON t."id"=e."fromTruckId"
+        LEFT JOIN "trailers" tr ON tr."id"=e."fromTrailerId"
+        WHERE e."eventType"='DAMAGE'
+        GROUP BY e."fromTruckId",e."fromTrailerId",t."licensePlate",tr."number"
+        ORDER BY "damageCount" DESC`),
       db.$queryRawUnsafe<any[]>(`SELECT p."vehicleType",p."vehicleId",
         COALESCE(t."licensePlate",tr."number",p."vehicleId") AS "vehicleLabel",
         COUNT(*)::int AS "tiresUsed",
@@ -48,11 +57,20 @@ export async function GET(request: NextRequest) {
         COALESCE(SUM(EXTRACT(EPOCH FROM (COALESCE(p."removedAt",NOW())-p."installedAt"))/86400),0)::float AS "lifetimeDays"
         FROM "tires" t LEFT JOIN "tire_usage_periods" p ON p."tireId"=t."id"
         GROUP BY t."id",t."internalCode",t."tireSize",t."manufacturer"
-        ORDER BY "lifetimeKm" DESC`)
+        ORDER BY "lifetimeKm" DESC`),
+      db.$queryRawUnsafe<any[]>(`SELECT "manufacturer","tireSize",COUNT(*)::int AS "tireCount",
+        AVG("lifetimeDays")::float AS "averageLifeDays",AVG("lifetimeKm")::float AS "averageLifeKm"
+        FROM (
+          SELECT t."id",t."manufacturer",t."tireSize",
+            COALESCE(SUM(EXTRACT(EPOCH FROM (COALESCE(p."removedAt",NOW())-p."installedAt"))/86400),0)::float AS "lifetimeDays",
+            COALESCE(SUM(GREATEST(COALESCE(p."endOdometer",0)-COALESCE(p."startOdometer",0),0)),0)::float AS "lifetimeKm"
+          FROM "tires" t LEFT JOIN "tire_usage_periods" p ON p."tireId"=t."id"
+          GROUP BY t."id",t."manufacturer",t."tireSize"
+        ) life GROUP BY "manufacturer","tireSize" ORDER BY "averageLifeKm" DESC`)
     ])
     return NextResponse.json({
       summary: summary[0] || { inStock: 0, installed: 0, damaged: 0, disposed: 0, totalReceived: 0, damageEvents: 0 },
-      inventory, damageByDriver, damageByReason, vehicleUsage, tireLife
+      inventory, damageByDriver, damageByReason, damageByVehicle, vehicleUsage, tireLife, averageLife
     })
   } catch (error) {
     console.error('Tire lifecycle report error:', error)
