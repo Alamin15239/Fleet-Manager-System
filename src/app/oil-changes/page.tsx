@@ -21,6 +21,7 @@ import { usePermissions } from '@/contexts/permissions-context'
 
 interface OilChangeRecord {
   id: string
+  vehiclePlateNumber?: string | null
   datePerformed: string
   serviceType: string
   description: string
@@ -107,7 +108,8 @@ export default function OilChangesPage() {
     nextServiceDue: '',
     description: '',
     notes: '',
-    oilInventoryItemId: ''
+    oilInventoryItemId: '',
+    vehiclePlateNumber: ''
   })
 
   useEffect(() => {
@@ -198,7 +200,7 @@ export default function OilChangesPage() {
 
     if (searchTerm) {
       filtered = filtered.filter(record => 
-        record.truck?.licensePlate?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (record.truck?.licensePlate || record.vehiclePlateNumber || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
         record.truck?.make?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         record.truck?.model?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         record.driverName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -226,15 +228,11 @@ export default function OilChangesPage() {
 
   const handleAddOilChange = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!selectedTruck) {
-      toast.error('Please select a vehicle')
-      return
-    }
-    
     setIsSubmitting(true)
     try {
       const maintenanceData = {
-        truckId: selectedTruck,
+        truckId: selectedTruck || null,
+        vehiclePlateNumber: formData.vehiclePlateNumber.trim() || trucks.find((truck) => truck.id === selectedTruck)?.licensePlate || null,
         serviceType: 'Oil Change',
         description: formData.description || 'Regular oil change service',
         datePerformed: formData.datePerformed,
@@ -272,7 +270,8 @@ export default function OilChangesPage() {
           nextServiceDue: '',
           description: '',
           notes: '',
-          oilInventoryItemId: ''
+          oilInventoryItemId: '',
+          vehiclePlateNumber: ''
         })
         fetchOilChanges()
       } else {
@@ -303,7 +302,8 @@ export default function OilChangesPage() {
       nextServiceDue: record.nextServiceDue ? new Date(record.nextServiceDue).toISOString().slice(0, 10) : '',
       description: record.description || '',
       notes: record.notes || '',
-      oilInventoryItemId: record.oilInventoryItemId || ''
+      oilInventoryItemId: record.oilInventoryItemId || '',
+      vehiclePlateNumber: record.vehiclePlateNumber || record.truck?.licensePlate || ''
     })
     setIsAddDialogOpen(true)
   }
@@ -318,7 +318,7 @@ export default function OilChangesPage() {
   const reportOilTotal = reportRecords.reduce((sum, record) => sum + (Number(record.oilQuantityLiters) || 0), 0)
   const oilTotalsByTruck = reportRecords.reduce((totals, record) => {
     const id = record.truck?.id || 'unknown'
-    const label = record.truck?.licensePlate || 'Vehicle not recorded'
+    const label = record.truck?.licensePlate || record.vehiclePlateNumber || 'Plate not provided'
     if (!totals[id]) totals[id] = { truckLabel: label, records: 0, liters: 0 }
     totals[id].records += 1
     totals[id].liters += Number(record.oilQuantityLiters) || 0
@@ -328,7 +328,7 @@ export default function OilChangesPage() {
   const generateOilReport = () => {
     const headers = ['Date', 'Truck Number', 'Make', 'Model', 'Year', 'Odometer (km)', 'Oil Used (liters)', 'Driver', 'Mechanic', 'Cost (SAR)', 'Status', 'Notes']
     const rows = reportRecords.map((record) => [
-      new Date(record.datePerformed).toISOString().slice(0, 10), record.truck?.licensePlate || '',
+      new Date(record.datePerformed).toISOString().slice(0, 10), record.truck?.licensePlate || record.vehiclePlateNumber || '',
       record.truck?.make || '', record.truck?.model || '', record.truck?.year ?? '',
       record.currentMileage ?? '', record.oilQuantityLiters ?? '', record.driverName || '',
       record.mechanic?.name || record.mechanicName || '', record.totalCost ?? 0, record.status || '', record.notes || ''
@@ -401,7 +401,7 @@ export default function OilChangesPage() {
             <form onSubmit={handleAddOilChange} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="truckId"><LocalizedText>Vehicle *</LocalizedText></Label>
+                  <Label htmlFor="truckId"><LocalizedText>Registered vehicle (optional)</LocalizedText></Label>
                   <Popover open={truckSearchOpen} onOpenChange={setTruckSearchOpen}>
                     <PopoverTrigger asChild>
                       <Button
@@ -454,6 +454,10 @@ export default function OilChangesPage() {
                   </Popover>
                 </div>
                 <div className="space-y-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="vehiclePlateNumber">Plate number (if vehicle is not registered)</Label>
+                    <Input id="vehiclePlateNumber" value={formData.vehiclePlateNumber} onChange={(e) => setFormData({...formData, vehiclePlateNumber: e.target.value})} placeholder="Enter plate exactly as shown in source" />
+                  </div>
                   <Label htmlFor="datePerformed"><LocalizedText>Service Date *</LocalizedText></Label>
                   <Input
                     id="datePerformed"
@@ -613,13 +617,14 @@ export default function OilChangesPage() {
                       nextServiceDue: '',
                       description: '',
                       notes: '',
-                      oilInventoryItemId: ''
+                      oilInventoryItemId: '',
+                    vehiclePlateNumber: ''
                     })
                   }}
                 >
                   Cancel
                 </Button>
-                <Button type="submit" disabled={!(editingRecordId ? canUpdate('maintenance') : canCreate('maintenance')) || isSubmitting || !selectedTruck}>
+                <Button type="submit" disabled={!(editingRecordId ? canUpdate('maintenance') : canCreate('maintenance')) || isSubmitting}>
                   {isSubmitting ? 'Saving...' : editingRecordId ? 'Save Changes' : 'Add Oil Change'}
                 </Button>
               </div>
@@ -883,12 +888,15 @@ export default function OilChangesPage() {
                               <div className="font-medium">
                                 {record.truck.year} {record.truck.make} {record.truck.model}
                               </div>
-                              <div className="text-sm text-gray-500">
-                                {record.truck.licensePlate}
-                              </div>
+                              <div className="text-sm text-gray-500">{record.truck.licensePlate}</div>
+                            </div>
+                          ) : record.vehiclePlateNumber ? (
+                            <div>
+                              <div className="font-medium">Unlinked vehicle</div>
+                              <div className="text-sm text-amber-700">{record.vehiclePlateNumber}</div>
                             </div>
                           ) : (
-                            <span className="text-gray-400">-</span>
+                            <span className="text-gray-400">Plate not provided</span>
                           )}
                         </TableCell>
                         <TableCell>
