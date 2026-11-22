@@ -128,7 +128,7 @@ export async function recordTireLifecycleEvent(tx: any, input: {
   const tire = tireRows[0]
   if (!tire) throw new Error('Tire not found')
   const eventType = input.eventType.toUpperCase()
-  const allowed = ['RECEIVE','INSTALL','REMOVE','TRANSFER','DAMAGE','REPAIR','INSPECT','DISPOSE']
+  const allowed = ['RECEIVE','INSTALL','REMOVE','TRANSFER','POSITION_CHANGE','DAMAGE','REPAIR','INSPECT','DISPOSE']
   if (!allowed.includes(eventType)) throw new Error('Unsupported tire event type')
 
   const currentTruckId = tire.truckId || null
@@ -141,6 +141,7 @@ export async function recordTireLifecycleEvent(tx: any, input: {
   }
   if (eventType === 'INSTALL' && tire.lifecycleStatus !== 'STOCK') throw new Error('Only a tire in stock can be installed')
   if (eventType === 'TRANSFER' && tire.lifecycleStatus !== 'INSTALLED') throw new Error('Only an installed tire can be transferred')
+  if (eventType === 'POSITION_CHANGE' && tire.lifecycleStatus !== 'INSTALLED') throw new Error('Only an installed tire can change wheel position')
   if (eventType === 'REMOVE' && tire.lifecycleStatus !== 'INSTALLED') throw new Error('Only an installed tire can be removed')
   if (eventType === 'DISPOSE' && (tire.lifecycleStatus === 'INSTALLED' || currentTruckId || tire.trailerNumber)) throw new Error('Remove the tire before disposal')
   if (eventType === 'REPAIR' && tire.lifecycleStatus !== 'DAMAGED') throw new Error('Only a damaged tire can be marked repaired')
@@ -155,6 +156,12 @@ export async function recordTireLifecycleEvent(tx: any, input: {
     : target?.vehicleType === 'trailer'
       ? (await tx.trailer.findUnique({ where: { id: target.vehicleId }, select: { driverName: true } }))?.driverName
       : null
+  if (eventType === 'TRANSFER' && currentVehicle && target &&
+      currentVehicle.vehicleType === target.vehicleType && currentVehicle.vehicleId === target.vehicleId)
+    throw new Error('Use Change wheel position when moving a tire within the same vehicle')
+  if (eventType === 'POSITION_CHANGE' && (!currentVehicle || !target ||
+      currentVehicle.vehicleType !== target.vehicleType || currentVehicle.vehicleId !== target.vehicleId))
+    throw new Error('A wheel-position change must stay on the same vehicle')
   if (target && input.position) {
     if (target.vehicleType === 'truck' && currentTruckId === target.vehicleId && tire.currentPosition === input.position)
       throw new Error('Tire is already in this wheel position')
@@ -171,7 +178,7 @@ export async function recordTireLifecycleEvent(tx: any, input: {
   const currentVehicle: VehicleRef | null = currentTruckId
     ? { vehicleType: 'truck', vehicleId: currentTruckId }
     : currentTrailer ? { vehicleType: 'trailer', vehicleId: currentTrailer.id } : null
-  const operationalVehicle = ['TRANSFER','REMOVE','DAMAGE','REPAIR','DISPOSE'].includes(eventType)
+  const operationalVehicle = ['TRANSFER','POSITION_CHANGE','REMOVE','DAMAGE','REPAIR','DISPOSE'].includes(eventType)
     ? currentVehicle || target : target || currentVehicle
   if (operationalVehicle && !['RECEIVE'].includes(eventType)) {
     jobCardId = await getOrCreateOpenJobCard(tx, operationalVehicle, {
@@ -259,6 +266,11 @@ export async function recordTireLifecycleEvent(tx: any, input: {
         input.tireId, rows[0].number, input.position || null, input.eventAt, input.odometerKm ?? null
       )
     }
+  } else if (eventType === 'POSITION_CHANGE') {
+    await tx.$executeRawUnsafe(
+      `UPDATE "tires" SET "currentPosition"=$2,"updatedAt"=NOW() WHERE "id"=$1`,
+      input.tireId, input.position || null
+    )
   } else {
     await tx.$executeRawUnsafe(
       `UPDATE "tires" SET "truckId"=CASE WHEN $2 THEN NULL ELSE "truckId" END,
