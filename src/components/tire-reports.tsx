@@ -197,6 +197,12 @@ export default function TireReports() {
     }
   }
 
+  useEffect(() => {
+    const handleFleetDataChanged = () => { void fetchAnalytics() }
+    window.addEventListener('fleet:data-changed', handleFleetDataChanged)
+    return () => window.removeEventListener('fleet:data-changed', handleFleetDataChanged)
+  }, [])
+
   if (loading) {
     return (
       <div className="flex items-center justify-center p-8">
@@ -213,11 +219,6 @@ export default function TireReports() {
     )
   }
 
-  useEffect(() => {
-    const handleFleetDataChanged = () => { void fetchAnalytics() }
-    window.addEventListener('fleet:data-changed', handleFleetDataChanged)
-    return () => window.removeEventListener('fleet:data-changed', handleFleetDataChanged)
-  }, [])
 
   return (
     <div className="space-y-4 sm:space-y-6">
