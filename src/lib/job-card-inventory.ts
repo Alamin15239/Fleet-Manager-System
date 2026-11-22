@@ -32,8 +32,7 @@ export async function reconcileJobCardInventory(tx: any, args: {
   )
   for (const row of previous) {
     const qty = Number(row.qty)
-    if (qty > 0) await tx.$queryRawUnsafe(
-      `INSERT INTO "inventory_transactions" ("id","itemId","type","quantity","transactionDate","reference","jobCardId","notes","createdById")
+    if (qty > 0) await tx.$executeRawUnsafe(`INSERT INTO "inventory_transactions" ("id","itemId","type","quantity","transactionDate","reference","jobCardId","notes","createdById")
        VALUES ($1,$2,'CUSTOMER_RETURN',$3,$4,$5,$6,$7,$8)`,
       `itx_${randomUUID()}`, row.itemId, qty, args.transactionDate, `Job card ${args.jobCardId}`,
       args.jobCardId, 'Automatic reversal of previous job-card issue', args.userId
@@ -53,8 +52,7 @@ export async function reconcileJobCardInventory(tx: any, args: {
         line.inventoryItemId
       )
       if (Number(balance[0]?.qty || 0) + 0.000001 < qty) throw new Error(`Insufficient stock for ${line.description || 'selected part'}`)
-      await tx.$queryRawUnsafe(
-        `INSERT INTO "inventory_transactions" ("id","itemId","type","quantity","transactionDate","reference","vehicleType","vehicleId","jobCardId","unitCost","notes","createdById")
+      await tx.$executeRawUnsafe(`INSERT INTO "inventory_transactions" ("id","itemId","type","quantity","transactionDate","reference","vehicleType","vehicleId","jobCardId","unitCost","notes","createdById")
          VALUES ($1,$2,'ISSUE',$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
         `itx_${randomUUID()}`, line.inventoryItemId, qty, args.transactionDate,
         `Job card ${args.jobCardId}`, args.vehicleType, args.vehicleId, args.jobCardId,
