@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { requireRolePermission } from '@/lib/permission-middleware'
+import { requirePermission } from '@/lib/permission-middleware'
 import { ensureTireLifecycleTables, recordTireLifecycleEvent } from '@/lib/tire-lifecycle'
 
 export async function POST(request: NextRequest) {
   try {
-    const user = await requireRolePermission(request, 'maintenance', 'create')
+    const authResult = await requirePermission(request, 'tire-management', 'create')
+    if (authResult instanceof NextResponse) return authResult
+    const user = authResult.user
     const body = await request.json()
     const tireId = typeof body.tireId === 'string' ? body.tireId.trim() : ''
     const eventType = typeof body.eventType === 'string' ? body.eventType.trim().toUpperCase() : ''
@@ -42,7 +44,8 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    await requireRolePermission(request, 'maintenance', 'read')
+    const authResult = await requirePermission(request, 'tire-management', 'read')
+    if (authResult instanceof NextResponse) return authResult
     const { searchParams } = new URL(request.url)
     const tireId = searchParams.get('tireId')
     const jobCardId = searchParams.get('jobCardId')
