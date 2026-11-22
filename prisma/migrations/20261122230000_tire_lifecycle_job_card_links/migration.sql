@@ -69,6 +69,13 @@ WHERE NOT EXISTS (
   SELECT 1 FROM "tire_lifecycle_events" e
   WHERE e."tireId"=t."id" AND e."eventType"='RECEIVE'
 );
+INSERT INTO "tire_lifecycle_events" ("id","tireId","eventType","eventAt","toTruckId","toTrailerId","driverNameSnapshot","reason","createdById")
+SELECT 'tireevt_install_legacy_' || t."id", t."id", 'INSTALL', COALESCE(t."installedAt",t."createdAt"),
+  t."truckId", tr."id", t."driverName", 'Initial installation; legacy wheel position and odometer were not available', t."createdById"
+FROM "tires" t LEFT JOIN "trailers" tr ON tr."number"=t."trailerNumber"
+WHERE t."lifecycleStatus"='INSTALLED'
+  AND NOT EXISTS (SELECT 1 FROM "tire_lifecycle_events" e
+    WHERE e."tireId"=t."id" AND e."eventType" IN ('INSTALL','TRANSFER'));
 
 CREATE TABLE IF NOT EXISTS "tire_usage_periods" (
   "id" TEXT PRIMARY KEY,
