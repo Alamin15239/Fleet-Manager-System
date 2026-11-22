@@ -9,6 +9,7 @@ import { ZodError } from 'zod'
 import path from 'path'
 import fs from 'fs/promises'
 import { syncOneDriveWorkbookAfterChange } from '@/lib/onedrive-excel-sync'
+import { ensureTireLifecycleTables } from '@/lib/tire-lifecycle'
 
 // GET /api/tires - Get all tires with filtering and pagination
 export async function GET(request: NextRequest) {
@@ -16,7 +17,8 @@ export async function GET(request: NextRequest) {
   if (authResult instanceof NextResponse) return authResult
 
   try {
-    // Test database connection first
+    // Initialize lifecycle metadata and internal tire IDs for both new and legacy rows.
+    await db.$transaction(async tx => ensureTireLifecycleTables(tx))
     await db.$queryRaw`SELECT 1`
 
     const { searchParams } = new URL(request.url)
@@ -263,6 +265,8 @@ export async function POST(request: NextRequest) {
     const createdTires = await db.tire.createMany({
       data: tiresData
     })
+    // Assign permanent TY-xxxxxx identifiers to newly received individual tires.
+    await db.$transaction(async tx => ensureTireLifecycleTables(tx))
 
     await syncOneDriveWorkbookAfterChange()
     
