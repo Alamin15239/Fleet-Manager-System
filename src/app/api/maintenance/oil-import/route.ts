@@ -19,8 +19,19 @@ function dateValue(v: unknown): string | null {
     const d = XLSX.SSF.parse_date_code(v)
     return d ? `${d.y}-${String(d.m).padStart(2,'0')}-${String(d.d).padStart(2,'0')}` : null
   }
-  const s = String(v ?? '').trim().replace(/N0v/ig, 'Nov')
+  const s = String(v ?? '').trim().replace(/N0v/ig, 'Nov').replace(/-+/g, '-')
   if (!s) return null
+  const monthNames = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec']
+  const named = s.match(/^(\\d{1,2})-([a-z]{3})-(\\d{4})$/i)
+  if (named) {
+    const month = monthNames.indexOf(named[2].toLowerCase())
+    const day = Number(named[1])
+    const year = Number(named[3])
+    if (month >= 0 && day >= 1 && day <= 31) {
+      const d = new Date(Date.UTC(year, month, day))
+      if (d.getUTCFullYear() === year && d.getUTCMonth() === month && d.getUTCDate() === day) return d.toISOString().slice(0, 10)
+    }
+  }
   const d = new Date(s)
   return Number.isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10)
 }
