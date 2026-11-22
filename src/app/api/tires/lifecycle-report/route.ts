@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
         (SELECT COUNT(*)::int FROM "tire_lifecycle_events" WHERE "eventType"='DAMAGE') AS "damageEvents"
         FROM "tires"`),
       db.$queryRawUnsafe<any[]>(`SELECT "tireSize","manufacturer","lifecycleStatus",COUNT(*)::int AS "tireCount"
-        FROM "tires" WHERE "deletedAt" IS NULL
+        FROM "tires" WHERE "deletedAt" IS NULL AND "lifecycleStatus"<>'DISPOSED'
         GROUP BY "tireSize","manufacturer","lifecycleStatus"
         ORDER BY "tireSize","manufacturer","lifecycleStatus"`),
       db.$queryRawUnsafe<any[]>(`SELECT COALESCE(NULLIF("driverNameSnapshot",''),'Unknown driver') AS "driverName",
