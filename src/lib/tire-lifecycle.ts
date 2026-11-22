@@ -13,6 +13,8 @@ export async function ensureTireLifecycleTables(tx: any) {
   await tx.$executeRawUnsafe(`UPDATE "tires" SET "internalCode"='TY-' || LPAD(nextval('"tire_internal_code_seq"')::text,6,'0') WHERE "internalCode" IS NULL`)
   await tx.$executeRawUnsafe(`UPDATE "tires" SET "lifecycleStatus"='INSTALLED', "installedAt"=COALESCE("installedAt","createdAt") WHERE "lifecycleStatus"='STOCK' AND ("truckId" IS NOT NULL OR NULLIF("trailerNumber",'') IS NOT NULL)`)
   await tx.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "tires_internalCode_key" ON "tires" ("internalCode") WHERE "internalCode" IS NOT NULL`)
+  await tx.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "tires_truck_position_active_key" ON "tires" ("truckId","currentPosition") WHERE "lifecycleStatus"='INSTALLED' AND "truckId" IS NOT NULL AND "currentPosition" IS NOT NULL`)
+  await tx.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "tires_trailer_position_active_key" ON "tires" ("trailerNumber","currentPosition") WHERE "lifecycleStatus"='INSTALLED' AND "trailerNumber" IS NOT NULL AND "currentPosition" IS NOT NULL`)
   await tx.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "tire_lifecycle_events" (
     "id" TEXT PRIMARY KEY,
     "tireId" TEXT NOT NULL REFERENCES "tires"("id") ON DELETE RESTRICT,
@@ -37,6 +39,14 @@ export async function ensureTireLifecycleTables(tx: any) {
   )`)
   await tx.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "tire_lifecycle_events_tireId_eventAt_idx" ON "tire_lifecycle_events" ("tireId","eventAt" DESC)`)
   await tx.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "tire_lifecycle_events_jobCardId_idx" ON "tire_lifecycle_events" ("jobCardId")`)
+  await tx.$executeRawUnsafe(`INSERT INTO "tire_lifecycle_events" ("id","tireId","eventType","eventAt","reason","notes","createdById")
+    SELECT 'tireevt_receipt_' || t."id", t."id", 'RECEIVE', t."createdAt",
+      'Initial receipt; legacy purchase details were not available', t."notes", t."createdById"
+    FROM "tires" t
+    WHERE NOT EXISTS (
+      SELECT 1 FROM "tire_lifecycle_events" e
+      WHERE e."tireId"=t."id" AND e."eventType"='RECEIVE'
+    )`)
   await tx.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "tire_usage_periods" (
     "id" TEXT PRIMARY KEY,
     "tireId" TEXT NOT NULL REFERENCES "tires"("id") ON DELETE RESTRICT,
@@ -111,6 +121,11 @@ export async function recordTireLifecycleEvent(tx: any, input: {
   const currentTruckId = tire.truckId || null
   const target = input.vehicle || null
   if (['INSTALL','TRANSFER'].includes(eventType) && !target) throw new Error('Select a destination vehicle')
+  if (['INSTALL','TRANSFER'].includes(eventType) && !input.position?.trim()) throw new Error('Select a wheel position before installation')
+  if (eventType === 'RECEIVE') {
+    const priorReceipt = await tx.$queryRawUnsafe(`SELECT 1 FROM "tire_lifecycle_events" WHERE "tireId"=$1 AND "eventType"='RECEIVE' LIMIT 1`, input.tireId)
+    if (priorReceipt.length) throw new Error('This tire has already been received')
+  }
   if (eventType === 'INSTALL' && tire.lifecycleStatus !== 'STOCK') throw new Error('Only a tire in stock can be installed')
   if (eventType === 'TRANSFER' && tire.lifecycleStatus !== 'INSTALLED') throw new Error('Only an installed tire can be transferred')
   if (eventType === 'REMOVE' && tire.lifecycleStatus !== 'INSTALLED') throw new Error('Only an installed tire can be removed')
@@ -127,6 +142,16 @@ export async function recordTireLifecycleEvent(tx: any, input: {
     : target?.vehicleType === 'trailer'
       ? (await tx.trailer.findUnique({ where: { id: target.vehicleId }, select: { driverName: true } }))?.driverName
       : null
+  if (target && input.position) {
+    if (target.vehicleType === 'truck' && currentTruckId === target.vehicleId && tire.currentPosition === input.position)
+      throw new Error('Tire is already in this wheel position')
+    if (target.vehicleType === 'trailer' && currentTrailer?.id === target.vehicleId && tire.currentPosition === input.position)
+      throw new Error('Tire is already in this wheel position')
+    const occupied = target.vehicleType === 'truck'
+      ? await tx.$queryRawUnsafe(`SELECT "id" FROM "tires" WHERE "truckId"=$1 AND "currentPosition"=$2 AND "lifecycleStatus"='INSTALLED' AND "id"<>$3 LIMIT 1`, target.vehicleId, input.position, input.tireId)
+      : await tx.$queryRawUnsafe(`SELECT "id" FROM "tires" WHERE "trailerNumber"=(SELECT "number" FROM "trailers" WHERE "id"=$1) AND "currentPosition"=$2 AND "lifecycleStatus"='INSTALLED' AND "id"<>$3 LIMIT 1`, target.vehicleId, input.position, input.tireId)
+    if (occupied.length) throw new Error('Wheel position already occupied by another tire')
+  }
   const sourceDriverName = currentTruck?.driverName || currentTrailer?.driverName || null
   const eventDriverName = input.driverName || (eventType === 'INSTALL' ? targetVehicleDriver : sourceDriverName) || targetVehicleDriver || null
   const usageDriverName = input.driverName || targetVehicleDriver || eventDriverName
