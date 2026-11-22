@@ -3,7 +3,7 @@ import { db } from '@/lib/db'
 import { requireRolePermission } from '@/lib/permission-middleware'
 import { cleanJobCardPayload } from '@/lib/job-card-validation'
 import { syncOneDriveWorkbookAfterChange } from '@/lib/onedrive-excel-sync'
-import { reconcileJobCardInventory } from '@/lib/job-card-inventory'
+import { ensureInventoryTables, reconcileJobCardInventory } from '@/lib/job-card-inventory'
 import { ensureMaintenanceJobCardColumns, ensureTireLifecycleTables } from '@/lib/tire-lifecycle'
 
 export async function GET(request: NextRequest) {
@@ -12,6 +12,7 @@ export async function GET(request: NextRequest) {
     await db.$transaction(async tx => {
       await ensureMaintenanceJobCardColumns(tx)
       await ensureTireLifecycleTables(tx)
+      await ensureInventoryTables(tx)
     })
     const trackingView = new URL(request.url).searchParams.get('tracking') === '1'
     const cardsQuery = trackingView
@@ -34,7 +35,7 @@ export async function GET(request: NextRequest) {
         })
     const [jobCards, settings] = await Promise.all([cardsQuery, db.settings.findFirst({ select: { companyName: true, companyAddress: true, companyPhone: true, companyEmail: true } })])
     const ids = jobCards.map(card => card.id)
-    const [maintenanceActivities, trailerActivities, tireEvents] = ids.length ? await Promise.all([
+    const [maintenanceActivities, trailerActivities, tireEvents, partsActivities] = ids.length ? await Promise.all([
       db.$queryRawUnsafe<any[]>(`SELECT "id","jobCardId","serviceType","description","datePerformed","totalCost","driverName","status"
         FROM "maintenance_records" WHERE "jobCardId" = ANY($1::text[])`, ids),
       db.$queryRawUnsafe<any[]>(`SELECT "id","jobCardId","serviceType","description","datePerformed","totalCost","driverName","status"
@@ -42,8 +43,13 @@ export async function GET(request: NextRequest) {
       db.$queryRawUnsafe<any[]>(`SELECT e."id",e."jobCardId",e."tireId",e."eventType",e."eventAt",e."driverNameSnapshot",e."reason",e."damageType",e."cost",e."notes",
           t."internalCode",t."tireSize",t."manufacturer"
         FROM "tire_lifecycle_events" e JOIN "tires" t ON t."id"=e."tireId"
-        WHERE e."jobCardId" = ANY($1::text[]) ORDER BY e."eventAt" DESC`, ids)
-    ]) : [[], [], []]
+        WHERE e."jobCardId" = ANY($1::text[]) ORDER BY e."eventAt" DESC`, ids),
+      db.$queryRawUnsafe<any[]>(`SELECT x."id",x."jobCardId",x."type" AS "eventType",x."quantity",x."unitCost",
+          x."transactionDate" AS "eventAt",x."notes",i."name" AS "description",i."unit"
+        FROM "inventory_transactions" x JOIN "inventory_items" i ON i."id"=x."itemId"
+        WHERE x."jobCardId" = ANY($1::text[]) AND x."type" IN ('ISSUE','CUSTOMER_RETURN')
+        ORDER BY x."transactionDate" DESC`, ids)
+    ]) : [[], [], [], []]
     const activitiesByCard = new Map<string, any[]>()
     for (const activity of maintenanceActivities) {
       const list = activitiesByCard.get(activity.jobCardId) || []
@@ -58,6 +64,11 @@ export async function GET(request: NextRequest) {
     for (const activity of tireEvents) {
       const list = activitiesByCard.get(activity.jobCardId) || []
       list.push({ ...activity, activityType: 'TIRE' })
+      activitiesByCard.set(activity.jobCardId, list)
+    }
+    for (const activity of partsActivities) {
+      const list = activitiesByCard.get(activity.jobCardId) || []
+      list.push({ ...activity, activityType: 'PART' })
       activitiesByCard.set(activity.jobCardId, list)
     }
     const jobCardsWithActivities = jobCards.map(card => ({
