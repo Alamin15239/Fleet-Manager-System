@@ -52,8 +52,14 @@ export async function GET(request: NextRequest) {
     const jobCardId = searchParams.get('jobCardId')
     await db.$transaction(async tx => ensureTireLifecycleTables(tx))
     const rows = await db.$queryRawUnsafe(
-      `SELECT e.*, t."tireSize",t."manufacturer",t."serialNumber",t."internalCode"
+      `SELECT e.*, t."tireSize",t."manufacturer",t."serialNumber",t."internalCode",
+         COALESCE(ft."licensePlate",ftr."number") AS "fromVehicleLabel",
+         COALESCE(tt."licensePlate",ttr."number") AS "toVehicleLabel"
        FROM "tire_lifecycle_events" e JOIN "tires" t ON t."id"=e."tireId"
+       LEFT JOIN "trucks" ft ON ft."id"=e."fromTruckId"
+       LEFT JOIN "trailers" ftr ON ftr."id"=e."fromTrailerId"
+       LEFT JOIN "trucks" tt ON tt."id"=e."toTruckId"
+       LEFT JOIN "trailers" ttr ON ttr."id"=e."toTrailerId"
        WHERE ($1::text IS NULL OR e."tireId"=$1) AND ($2::text IS NULL OR e."jobCardId"=$2)
        ORDER BY e."eventAt" DESC LIMIT 500`, tireId, jobCardId
     )
