@@ -84,3 +84,15 @@ CREATE TABLE IF NOT EXISTS "tire_usage_periods" (
 );
 CREATE INDEX IF NOT EXISTS "tire_usage_periods_tireId_installedAt_idx" ON "tire_usage_periods" ("tireId", "installedAt");
 CREATE INDEX IF NOT EXISTS "tire_usage_periods_vehicleType_vehicleId_idx" ON "tire_usage_periods" ("vehicleType", "vehicleId");
+INSERT INTO "tire_usage_periods" ("id","tireId","vehicleType","vehicleId","installedAt","driverNameSnapshot")
+SELECT 'tyuse_legacy_truck_' || t."id", t."id", 'truck', t."truckId",
+  COALESCE(t."installedAt",t."createdAt"), t."driverName"
+FROM "tires" t
+WHERE t."lifecycleStatus"='INSTALLED' AND t."truckId" IS NOT NULL
+  AND NOT EXISTS (SELECT 1 FROM "tire_usage_periods" p WHERE p."tireId"=t."id" AND p."removedAt" IS NULL);
+INSERT INTO "tire_usage_periods" ("id","tireId","vehicleType","vehicleId","installedAt","driverNameSnapshot")
+SELECT 'tyuse_legacy_trailer_' || t."id", t."id", 'trailer', tr."id",
+  COALESCE(t."installedAt",t."createdAt"), t."driverName"
+FROM "tires" t JOIN "trailers" tr ON tr."number"=t."trailerNumber"
+WHERE t."lifecycleStatus"='INSTALLED' AND t."truckId" IS NULL AND NULLIF(t."trailerNumber",'') IS NOT NULL
+  AND NOT EXISTS (SELECT 1 FROM "tire_usage_periods" p WHERE p."tireId"=t."id" AND p."removedAt" IS NULL);
