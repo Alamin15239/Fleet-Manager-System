@@ -560,6 +560,7 @@ model PurchaseInvoiceLine {
   totalAmount  Decimal                 @db.Decimal(14, 2)
   truckId      String?
   trailerId    String?
+  inventoryItemId String?
   invoice      PurchaseInvoice         @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
   truck        Truck?                  @relation(fields: [truckId], references: [id], onDelete: Restrict)
   trailer      Trailer?                @relation(fields: [trailerId], references: [id], onDelete: Restrict)
