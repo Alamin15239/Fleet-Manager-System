@@ -15,8 +15,17 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       : await db.trailer.findFirst({ where: { id: data.trailerId!, isDeleted: false, status: { not: 'INACTIVE' } }, select: { id: true } })
     if (!vehicleExists) return NextResponse.json({ error: 'Selected vehicle was not found or is inactive' }, { status: 400 })
     const jobCard = await db.$transaction(async tx => {
-      const existing = await tx.workshopJobCard.findUnique({ where: { id }, select: { id: true } })
+      await tx.$executeRaw`LOCK TABLE "workshop_job_cards" IN EXCLUSIVE MODE`
+      const existing = await tx.workshopJobCard.findUnique({ where: { id }, select: { id: true, truckId: true, trailerId: true, status: true } })
       if (!existing) throw new Error('Job card not found')
+      if (['OPEN', 'IN_PROGRESS'].includes(data.status)) {
+        const vehicleWhere = data.truckId ? { truckId: data.truckId } : { trailerId: data.trailerId! }
+        const conflictingCard = await tx.workshopJobCard.findFirst({
+          where: { ...vehicleWhere, id: { not: id }, status: { in: ['OPEN', 'IN_PROGRESS'] } },
+          select: { id: true, jobNumber: true }
+        })
+        if (conflictingCard) throw new Error(`Another open job card (${conflictingCard.jobNumber}) already exists for this vehicle`)
+      }
       const updated = await tx.workshopJobCard.update({
         where: { id }, data,
         include: {
@@ -42,7 +51,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     return NextResponse.json({ jobCard })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to update job card'
-    const status = ['No token provided', 'Invalid token'].includes(message) ? 401 : message === 'Insufficient permissions' ? 403 : message.startsWith('Select ') || message.startsWith('Enter ') || message.startsWith('Service ') ? 400 : 500
+    const status = ['No token provided', 'Invalid token'].includes(message) ? 401 : message === 'Insufficient permissions' ? 403 : message.startsWith('Another open job card') ? 409 : message.startsWith('Select ') || message.startsWith('Enter ') || message.startsWith('Service ') ? 400 : 500
     console.error('Job card update error:', error)
     return NextResponse.json({ error: status === 500 ? 'Failed to update job card' : message }, { status })
   }
