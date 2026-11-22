@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
     // Check if the selected vehicle is a trailer by checking if it exists in trailer table
     let isTrailer = false
     try {
-      const trailer = await db.trailer.findUnique({ where: { id: body.truckId } })
+      const trailer = body.truckId ? await db.trailer.findUnique({ where: { id: body.truckId } }) : null
       isTrailer = !!trailer
     } catch (e) {
       // If trailer table doesn't exist, treat as truck
@@ -112,7 +112,8 @@ export async function POST(request: NextRequest) {
     } else {
       // Create truck maintenance record
       const data = {
-        truckId: body.truckId,
+        truckId: body.truckId || null,
+        vehiclePlateNumber: body.vehiclePlateNumber || null,
         serviceType: body.serviceType,
         description: body.description,
         datePerformed: new Date(body.datePerformed),
@@ -132,7 +133,7 @@ export async function POST(request: NextRequest) {
       }
       record = await db.$transaction(async tx => {
         const created = await tx.maintenanceRecord.create({ data })
-        if (body.isOilChange && body.oilInventoryItemId) {
+        if (body.isOilChange && body.oilInventoryItemId && body.truckId) {
           await reconcileOilChangeInventory(tx, {
             maintenanceId: created.id,
             inventoryItemId: body.oilInventoryItemId,
