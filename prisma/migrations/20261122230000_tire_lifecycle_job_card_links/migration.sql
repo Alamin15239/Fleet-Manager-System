@@ -15,6 +15,10 @@ SET "lifecycleStatus" = 'INSTALLED', "installedAt" = COALESCE("installedAt", "cr
 WHERE "lifecycleStatus" = 'STOCK'
   AND ("truckId" IS NOT NULL OR NULLIF("trailerNumber", '') IS NOT NULL);
 CREATE UNIQUE INDEX IF NOT EXISTS "tires_internalCode_key" ON "tires" ("internalCode");
+CREATE UNIQUE INDEX IF NOT EXISTS "tires_truck_position_active_key" ON "tires" ("truckId","currentPosition")
+  WHERE "lifecycleStatus"='INSTALLED' AND "truckId" IS NOT NULL AND "currentPosition" IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS "tires_trailer_position_active_key" ON "tires" ("trailerNumber","currentPosition")
+  WHERE "lifecycleStatus"='INSTALLED' AND "trailerNumber" IS NOT NULL AND "currentPosition" IS NOT NULL;
 
 ALTER TABLE "maintenance_records" ADD COLUMN IF NOT EXISTS "jobCardId" TEXT;
 ALTER TABLE "trailer_maintenance_records" ADD COLUMN IF NOT EXISTS "jobCardId" TEXT;
@@ -57,6 +61,14 @@ CREATE TABLE IF NOT EXISTS "tire_lifecycle_events" (
 );
 CREATE INDEX IF NOT EXISTS "tire_lifecycle_events_tireId_eventAt_idx" ON "tire_lifecycle_events" ("tireId", "eventAt" DESC);
 CREATE INDEX IF NOT EXISTS "tire_lifecycle_events_jobCardId_idx" ON "tire_lifecycle_events" ("jobCardId");
+INSERT INTO "tire_lifecycle_events" ("id","tireId","eventType","eventAt","reason","notes","createdById")
+SELECT 'tireevt_receipt_' || t."id", t."id", 'RECEIVE', t."createdAt",
+  'Initial receipt; legacy purchase details were not available', t."notes", t."createdById"
+FROM "tires" t
+WHERE NOT EXISTS (
+  SELECT 1 FROM "tire_lifecycle_events" e
+  WHERE e."tireId"=t."id" AND e."eventType"='RECEIVE'
+);
 
 CREATE TABLE IF NOT EXISTS "tire_usage_periods" (
   "id" TEXT PRIMARY KEY,
