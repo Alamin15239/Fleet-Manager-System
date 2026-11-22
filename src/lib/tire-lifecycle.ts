@@ -142,7 +142,9 @@ export async function recordTireLifecycleEvent(tx: any, input: {
   if (eventType === 'INSTALL' && tire.lifecycleStatus !== 'STOCK') throw new Error('Only a tire in stock can be installed')
   if (eventType === 'TRANSFER' && tire.lifecycleStatus !== 'INSTALLED') throw new Error('Only an installed tire can be transferred')
   if (eventType === 'POSITION_CHANGE' && tire.lifecycleStatus !== 'INSTALLED') throw new Error('Only an installed tire can change wheel position')
-  if (eventType === 'REMOVE' && tire.lifecycleStatus !== 'INSTALLED') throw new Error('Only an installed tire can be removed')
+  if (eventType === 'REMOVE' && tire.lifecycleStatus !== 'INSTALLED' &&
+      !(tire.lifecycleStatus === 'DAMAGED' && (currentTruckId || tire.trailerNumber)))
+    throw new Error('Only an installed or vehicle-assigned damaged tire can be removed')
   if (eventType === 'DISPOSE' && (tire.lifecycleStatus === 'INSTALLED' || currentTruckId || tire.trailerNumber)) throw new Error('Remove the tire before disposal')
   if (eventType === 'REPAIR' && tire.lifecycleStatus !== 'DAMAGED') throw new Error('Only a damaged tire can be marked repaired')
   if (eventType === 'REPAIR' && (currentTruckId || tire.trailerNumber)) throw new Error('Remove the damaged tire before repair')
