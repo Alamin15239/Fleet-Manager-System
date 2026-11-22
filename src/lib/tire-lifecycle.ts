@@ -17,7 +17,7 @@ export async function ensureTireLifecycleTables(tx: any) {
   await tx.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "tires_trailer_position_active_key" ON "tires" ("trailerNumber","currentPosition") WHERE "lifecycleStatus"='INSTALLED' AND "trailerNumber" IS NOT NULL AND "currentPosition" IS NOT NULL`)
   await tx.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "tire_lifecycle_events" (
     "id" TEXT PRIMARY KEY,
-    "tireId" TEXT NOT NULL REFERENCES "tires"("id") ON DELETE RESTRICT,
+    "tireId" TEXT NOT NULL REFERENCES "tires"("id") ON DELETE RESTRICT ON UPDATE CASCADE,
     "eventType" TEXT NOT NULL,
     "eventAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "fromTruckId" TEXT,
@@ -33,7 +33,7 @@ export async function ensureTireLifecycleTables(tx: any) {
     "repairable" BOOLEAN,
     "cost" DOUBLE PRECISION,
     "notes" TEXT,
-    "jobCardId" TEXT REFERENCES "workshop_job_cards"("id") ON DELETE SET NULL,
+    "jobCardId" TEXT REFERENCES "workshop_job_cards"("id") ON DELETE SET NULL ON UPDATE CASCADE,
     "createdById" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`)
