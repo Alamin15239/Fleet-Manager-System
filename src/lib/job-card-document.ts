@@ -23,6 +23,7 @@ export async function renderJobCardDocument(card: any, company: Company | null, 
     }
     const linkedActivities = allLinkedActivities.filter((activity: any) => {
       if (activity.activityType !== 'PART' || !activity.itemId) return true
+      if (items.some((item: any) => item?.inventoryItemId === activity.itemId)) return false
       const key = `${activity.itemId}:${Number(activity.quantity || 0)}`
       const remaining = partLineCounts.get(key) || 0
       if (remaining > 0) { partLineCounts.set(key, remaining - 1); return false }
