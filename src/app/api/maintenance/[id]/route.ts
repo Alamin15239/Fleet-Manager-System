@@ -179,7 +179,8 @@ export async function PUT(
         const updated = await tx.maintenanceRecord.update({
         where: { id: id },
         data: {
-          ...(body.truckId !== undefined && { truckId: body.truckId }),
+          ...(body.truckId !== undefined && { truckId: body.truckId || null }),
+          ...(body.vehiclePlateNumber !== undefined && { vehiclePlateNumber: body.vehiclePlateNumber || null }),
           ...(body.serviceType !== undefined && { serviceType: body.serviceType }),
           ...(body.description !== undefined && { description: body.description }),
           ...(body.datePerformed !== undefined && { datePerformed: new Date(body.datePerformed) }),
