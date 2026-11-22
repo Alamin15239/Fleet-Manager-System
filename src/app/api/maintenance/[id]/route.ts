@@ -274,6 +274,7 @@ export async function PUT(
             vehicleId: targetTruckId || existingRecord.truckId || 'unassigned',
             userId: user.id,
             previousJobCardId: existingRecord.jobCardId || null,
+            previousVehicleId: existingRecord.truckId || null,
             jobCardId
           })
         }
@@ -362,7 +363,7 @@ export async function PUT(
     const forbidden = error instanceof Error && error.message === 'Insufficient permissions'
     return NextResponse.json(
       { error: unauthorized ? 'Authentication required' : forbidden ? 'Manager access required' : error instanceof Error ? error.message : 'Failed to update maintenance record' },
-      { status: unauthorized ? 401 : forbidden ? 403 : error instanceof Error && error.message.includes('Insufficient oil stock') ? 409 : 500 }
+      { status: unauthorized ? 401 : forbidden ? 403 : error instanceof Error && error.message.includes('Insufficient oil stock') ? 409 : error instanceof Error && error.message.includes('Selected vehicle was not found') ? 400 : 500 }
     )
   }
 }
@@ -417,6 +418,7 @@ export async function DELETE(
             vehicleId: record.truckId || 'unassigned',
             userId: user.id,
             previousJobCardId: record.jobCardId || null,
+            previousVehicleId: record.truckId || null,
             jobCardId: null
           })
         }
