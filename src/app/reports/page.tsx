@@ -365,6 +365,18 @@ export default function ReportsPage() {
     downloadBlob(workbook, `maintenance-report-${new Date().toISOString().slice(0, 10)}.xlsx`)
   }
 
+  useEffect(() => {
+    const handleFleetDataChanged = () => {
+      const requestId = ++maintenanceRequestId.current
+      void fetchMaintenance(requestId)
+      void fetchTrucks()
+      void fetchMechanics()
+      void fetchTrailers()
+    }
+    window.addEventListener('fleet:data-changed', handleFleetDataChanged)
+    return () => window.removeEventListener('fleet:data-changed', handleFleetDataChanged)
+  }, [])
+
   if (permissionsLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -733,18 +745,7 @@ export default function ReportsPage() {
                   <tbody>
                     {getSearchedMaintenance().map((record) => {
                       const isSelected = selectedRecords.includes(record.id)
-                      useEffect(() => {
-    const handleFleetDataChanged = () => {
-      void fetchMaintenance()
-      void fetchTrucks()
-      void fetchMechanics()
-      void fetchTrailers()
-    }
-    window.addEventListener('fleet:data-changed', handleFleetDataChanged)
-    return () => window.removeEventListener('fleet:data-changed', handleFleetDataChanged)
-  }, [])
-
-  return (
+                      return (
                         <tr key={record.id} className={isSelected ? 'bg-blue-50' : ''}>
                           <td className="border border-gray-300 p-2">
                             <Checkbox
