@@ -44,11 +44,17 @@ export async function GET(request: NextRequest) {
           t."internalCode",t."tireSize",t."manufacturer"
         FROM "tire_lifecycle_events" e JOIN "tires" t ON t."id"=e."tireId"
         WHERE e."jobCardId" = ANY($1::text[]) ORDER BY e."eventAt" DESC`, ids),
-      db.$queryRawUnsafe<any[]>(`SELECT x."id",x."jobCardId",x."itemId",x."type" AS "eventType",x."quantity",x."unitCost",
-          x."transactionDate" AS "eventAt",x."notes",i."name" AS "description",i."unit"
+      db.$queryRawUnsafe<any[]>(`SELECT x."jobCardId" || ':' || x."itemId" AS "id",x."jobCardId",x."itemId",
+          'ISSUE' AS "eventType",
+          SUM(CASE WHEN x."type"='ISSUE' THEN x."quantity" WHEN x."type"='CUSTOMER_RETURN' THEN -x."quantity" ELSE 0 END)::float AS "quantity",
+          (SUM(CASE WHEN x."type"='ISSUE' THEN x."quantity"*COALESCE(x."unitCost",0) ELSE 0 END)
+            / NULLIF(SUM(CASE WHEN x."type"='ISSUE' THEN x."quantity" ELSE 0 END),0))::float AS "unitCost",
+          MAX(x."transactionDate") AS "eventAt",MAX(x."notes") AS "notes",i."name" AS "description",i."unit"
         FROM "inventory_transactions" x JOIN "inventory_items" i ON i."id"=x."itemId"
         WHERE x."jobCardId" = ANY($1::text[]) AND x."type" IN ('ISSUE','CUSTOMER_RETURN')
-        ORDER BY x."transactionDate" DESC`, ids)
+        GROUP BY x."jobCardId",x."itemId",i."name",i."unit"
+        HAVING SUM(CASE WHEN x."type"='ISSUE' THEN x."quantity" WHEN x."type"='CUSTOMER_RETURN' THEN -x."quantity" ELSE 0 END)>0
+        ORDER BY MAX(x."transactionDate") DESC`, ids)
     ]) : [[], [], [], []]
     const activitiesByCard = new Map<string, any[]>()
     for (const activity of maintenanceActivities) {
