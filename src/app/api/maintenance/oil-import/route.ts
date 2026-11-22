@@ -45,7 +45,8 @@ function parseFile(buffer: Buffer) {
   return rows.map((r, i) => {
     const date = dateValue(value(r, ['date','dateperformed','servicedate']))
     const driver = String(value(r, ['drivernm','drivername','driver']) ?? '').trim()
-    const km = Number(String(value(r, ['km','mileage','odometer'])).replace(/,/g,''))
+    const kmText = String(value(r, ['km','mileage','odometer']) ?? '').trim()
+    const km = kmText ? Number(kmText.replace(/,/g,'')) : Number.NaN
     const mileage = Number.isFinite(km) && km >= 0 ? Math.floor(km) : null
     const make = String(value(r, ['make','manufacturer']) ?? '').trim()
     const rawPlate = String(value(r, ['plateno','platenumber','licenseplate','trucknumber']) ?? '').trim()
