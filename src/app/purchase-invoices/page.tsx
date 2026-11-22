@@ -721,6 +721,12 @@ export default function PurchaseInvoicesPage() {
   if (!canRead) return <div className="container mx-auto p-6"><Card><CardContent className="py-12 text-center"><ShieldCheck className="mx-auto mb-3 h-9 w-9 text-muted-foreground" /><p className="font-semibold"><LocalizedText>You do not have access to purchase invoices</LocalizedText></p></CardContent></Card></div>
   if (entryMode && !canWrite) return <div className="container mx-auto p-6"><Card><CardContent className="py-12 text-center"><ShieldCheck className="mx-auto mb-3 h-9 w-9 text-muted-foreground" /><p className="font-semibold"><LocalizedText>You do not have permission to create purchase invoices or vendors</LocalizedText></p><Button className="mt-4" variant="outline" onClick={closeEntry}><LocalizedText>Back to invoices</LocalizedText></Button></CardContent></Card></div>
 
+  useEffect(() => {
+    const handleFleetDataChanged = () => { void loadData() }
+    window.addEventListener('fleet:data-changed', handleFleetDataChanged)
+    return () => window.removeEventListener('fleet:data-changed', handleFleetDataChanged)
+  }, [])
+
   return (
     <div className="container mx-auto max-w-7xl space-y-6 p-4 sm:p-6">
       {!entryMode && <>
