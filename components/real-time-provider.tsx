@@ -1,8 +1,8 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState } from 'react'
-import { useSocket } from '../hooks/useSocket'
-import { toast } from 'sonner'
+import { createContext, useCallback, useContext, useEffect, useState } from 'react'
+import { useAuth } from '../src/contexts/auth-context'
+import { apiGet } from '../src/lib/api'
 
 interface RealTimeContextType {
   isConnected: boolean
@@ -17,37 +17,61 @@ const RealTimeContext = createContext<RealTimeContextType>({
 export const useRealTime = () => useContext(RealTimeContext)
 
 export function RealTimeProvider({ children }: { children: React.ReactNode }) {
-  const { socket, isConnected } = useSocket()
-  const [refreshTrigger, setRefreshTrigger] = useState(0)
+  const { isAuthenticated, token } = useAuth()
+  const [isConnected, setIsConnected] = useState(false)
+
+  const refreshData = useCallback(() => {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('fleet:data-changed', { detail: { source: 'manual' } }))
+    }
+  }, [])
 
   useEffect(() => {
-    if (!socket) return
+    if (!isAuthenticated || !token) {
+      setIsConnected(false)
+      return
+    }
 
-    socket.on('tire-created', (data) => {
-      toast.success(`${data.count} tire(s) added for ${data.plateNumber || 'inventory'}`)
-      setRefreshTrigger(prev => prev + 1)
-    })
+    let stopped = false
+    let lastVersion: string | null = null
+    let checking = false
 
-    socket.on('truck-updated', (data) => {
-      toast.info(`Truck ${data.licensePlate} updated`)
-      setRefreshTrigger(prev => prev + 1)
-    })
+    const checkForChanges = async () => {
+      if (stopped || checking || document.visibilityState !== 'visible') return
+      checking = true
+      try {
+        const response = await apiGet('/api/realtime/changes')
+        if (!response.ok) throw new Error(`Realtime check failed (${response.status})`)
+        const payload = await response.json() as { version?: string }
+        if (!payload.version) throw new Error('Realtime version missing')
+        if (lastVersion !== null && payload.version !== lastVersion) {
+          window.dispatchEvent(new CustomEvent('fleet:data-changed', {
+            detail: { version: payload.version, source: 'database' }
+          }))
+        }
+        lastVersion = payload.version
+        if (!stopped) setIsConnected(true)
+      } catch (error) {
+        if (!stopped) setIsConnected(false)
+        console.warn('Fleet data update check failed:', error)
+      } finally {
+        checking = false
+      }
+    }
 
-    socket.on('maintenance-created', (data) => {
-      toast.info(`New maintenance record for ${data.truckId}`)
-      setRefreshTrigger(prev => prev + 1)
-    })
+    void checkForChanges()
+    const interval = window.setInterval(() => { void checkForChanges() }, 12000)
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') void checkForChanges()
+    }
+    document.addEventListener('visibilitychange', onVisibilityChange)
 
     return () => {
-      socket.off('tire-created')
-      socket.off('truck-updated')
-      socket.off('maintenance-created')
+      stopped = true
+      window.clearInterval(interval)
+      document.removeEventListener('visibilitychange', onVisibilityChange)
     }
-  }, [socket])
-
-  const refreshData = () => {
-    setRefreshTrigger(prev => prev + 1)
-  }
+  }, [isAuthenticated, token])
 
   return (
     <RealTimeContext.Provider value={{ isConnected, refreshData }}>
