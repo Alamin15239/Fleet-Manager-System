@@ -41,6 +41,7 @@ export default function TireLifecycleDashboard() {
   const [driverName, setDriverName] = useState('')
   const [odometerKm, setOdometerKm] = useState('')
   const [damageType, setDamageType] = useState('')
+  const [repairable, setRepairable] = useState('unknown')
   const [reason, setReason] = useState('')
   const [cost, setCost] = useState('')
   const [notes, setNotes] = useState('')
@@ -97,6 +98,7 @@ export default function TireLifecycleDashboard() {
         driverName: driverName.trim() || null,
         odometerKm: odometerKm ? Number(odometerKm) : null,
         damageType: damageType.trim() || null,
+        repairable: eventType === 'DAMAGE' ? (repairable === 'yes' ? true : repairable === 'no' ? false : null) : null,
         reason: reason.trim() || null,
         cost: cost ? Number(cost) : null,
         notes: notes.trim() || null
@@ -104,7 +106,7 @@ export default function TireLifecycleDashboard() {
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || 'Could not save tire event')
       toast.success(`${eventLabels[eventType]} saved. ${data.jobCardId ? 'Linked to the open job card.' : ''}`)
-      setPosition(''); setOdometerKm(''); setDamageType(''); setReason(''); setCost(''); setNotes('')
+      setPosition(''); setOdometerKm(''); setDamageType(''); setRepairable('unknown'); setReason(''); setCost(''); setNotes('')
       await load()
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to save tire event')
@@ -192,8 +194,9 @@ export default function TireLifecycleDashboard() {
             {eventType === 'DAMAGE' && <>
               <div className="space-y-2"><Label>Damage type</Label><Input value={damageType} onChange={e => setDamageType(e.target.value)} placeholder="e.g. sidewall cut, puncture, burst" /></div>
               <div className="space-y-2"><Label>Damage reason</Label><Input value={reason} onChange={e => setReason(e.target.value)} placeholder="e.g. road debris, overload, impact" /></div>
-              <div className="space-y-2"><Label>Repair / replacement cost (SAR)</Label><Input type="number" min="0" step="0.01" value={cost} onChange={e => setCost(e.target.value)} /></div>
+              <div className="space-y-2"><Label>Repairable?</Label><Select value={repairable} onValueChange={setRepairable}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="yes">Yes</SelectItem><SelectItem value="no">No</SelectItem><SelectItem value="unknown">Not assessed</SelectItem></SelectContent></Select></div>
             </>}
+            {(eventType === 'DAMAGE' || eventType === 'REPAIR') && <div className="space-y-2"><Label>{eventType === 'REPAIR' ? 'Repair cost (SAR)' : 'Damage / replacement cost (SAR)'}</Label><Input type="number" min="0" step="0.01" value={cost} onChange={e => setCost(e.target.value)} /></div>}
             <div className="space-y-2 md:col-span-2 xl:col-span-3">
               <Label>Notes</Label><Textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} placeholder="Additional details, inspection notes or damage location" />
             </div>
