@@ -29,17 +29,17 @@ DO $$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'maintenance_records_jobCardId_fkey') THEN
     ALTER TABLE "maintenance_records" ADD CONSTRAINT "maintenance_records_jobCardId_fkey"
-      FOREIGN KEY ("jobCardId") REFERENCES "workshop_job_cards"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+      FOREIGN KEY ("jobCardId") REFERENCES "workshop_job_cards"("id") ON DELETE SET NULL ON UPDATE CASCADE ON UPDATE CASCADE;
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'trailer_maintenance_records_jobCardId_fkey') THEN
     ALTER TABLE "trailer_maintenance_records" ADD CONSTRAINT "trailer_maintenance_records_jobCardId_fkey"
-      FOREIGN KEY ("jobCardId") REFERENCES "workshop_job_cards"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+      FOREIGN KEY ("jobCardId") REFERENCES "workshop_job_cards"("id") ON DELETE SET NULL ON UPDATE CASCADE ON UPDATE CASCADE;
   END IF;
 END $$;
 
 CREATE TABLE IF NOT EXISTS "tire_lifecycle_events" (
   "id" TEXT PRIMARY KEY,
-  "tireId" TEXT NOT NULL REFERENCES "tires"("id") ON DELETE RESTRICT,
+  "tireId" TEXT NOT NULL REFERENCES "tires"("id") ON DELETE RESTRICT ON UPDATE CASCADE,
   "eventType" TEXT NOT NULL,
   "eventAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   "fromTruckId" TEXT,
@@ -55,7 +55,7 @@ CREATE TABLE IF NOT EXISTS "tire_lifecycle_events" (
   "repairable" BOOLEAN,
   "cost" DOUBLE PRECISION,
   "notes" TEXT,
-  "jobCardId" TEXT REFERENCES "workshop_job_cards"("id") ON DELETE SET NULL,
+  "jobCardId" TEXT REFERENCES "workshop_job_cards"("id") ON DELETE SET NULL ON UPDATE CASCADE,
   "createdById" TEXT,
   "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -72,7 +72,7 @@ WHERE NOT EXISTS (
 
 CREATE TABLE IF NOT EXISTS "tire_usage_periods" (
   "id" TEXT PRIMARY KEY,
-  "tireId" TEXT NOT NULL REFERENCES "tires"("id") ON DELETE RESTRICT,
+  "tireId" TEXT NOT NULL REFERENCES "tires"("id") ON DELETE RESTRICT ON UPDATE CASCADE,
   "vehicleType" TEXT NOT NULL,
   "vehicleId" TEXT NOT NULL,
   "installedAt" TIMESTAMP(3) NOT NULL,
