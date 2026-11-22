@@ -100,16 +100,37 @@ export async function POST(req: NextRequest) {
     })
     if (!fresh.length) return NextResponse.json({ imported: 0, duplicates, invalid: parsed.length - valid.length })
 
-    const result = await db.$transaction(tx => tx.maintenanceRecord.createMany({
-      data: fresh.map(r => ({
-        truckId: r.truckId, vehiclePlateNumber: r.plate, sourceData: JSON.parse(JSON.stringify(r.sourceData)), sourceImportKey: r.importKey,
-        serviceType: 'Oil Change', description: r.oilText || 'Historical oil change (oil details not provided)',
-        datePerformed: new Date(`${r.date}T00:00:00.000Z`), partsCost: 0, laborCost: 0, totalCost: 0,
-        status: 'COMPLETED', isOilChange: true, oilQuantityLiters: r.quantity, currentMileage: r.mileage,
-        driverName: r.driver, createdById: user.id
-      })),
-      skipDuplicates: true
-    }))
+    const result = await db.$transaction(async tx => {
+      const inserted = await tx.maintenanceRecord.createMany({
+        data: fresh.map(r => ({
+          truckId: r.truckId, vehiclePlateNumber: r.plate, sourceData: JSON.parse(JSON.stringify(r.sourceData)), sourceImportKey: r.importKey,
+          serviceType: 'Oil Change', description: r.oilText || 'Historical oil change (oil details not provided)',
+          datePerformed: new Date(`${r.date}T00:00:00.000Z`), partsCost: 0, laborCost: 0, totalCost: 0,
+          status: 'COMPLETED', isOilChange: true, oilQuantityLiters: r.quantity, currentMileage: r.mileage,
+          driverName: r.driver, createdById: user.id
+        })),
+        skipDuplicates: true
+      })
+
+      // Keep the canonical truck odometer and last-oil-change fields aligned
+      // with imported history, but never move either value backwards.
+      const truckIds = [...new Set(fresh.map(row => row.truckId).filter((id): id is string => Boolean(id)))]
+      for (const truckId of truckIds) {
+        const truckRows = fresh.filter(row => row.truckId === truckId)
+        const mileages = truckRows.map(row => row.mileage).filter((value): value is number => value !== null)
+        const maxMileage = mileages.length ? Math.max(...mileages) : null
+        const latestDate = new Date(`${truckRows.reduce((latest, row) => row.date && row.date > latest ? row.date : latest, '1900-01-01')}T00:00:00.000Z`)
+        await tx.$executeRawUnsafe(
+          `UPDATE "trucks"
+           SET "currentMileage" = CASE WHEN $2::integer IS NULL THEN "currentMileage" ELSE GREATEST("currentMileage", $2::integer) END,
+               "lastOilChange" = CASE WHEN "lastOilChange" IS NULL OR "lastOilChange" < $3 THEN $3 ELSE "lastOilChange" END,
+               "updatedAt" = NOW()
+           WHERE "id" = $1 AND "isDeleted" = false`,
+          truckId, maxMileage, latestDate
+        )
+      }
+      return inserted
+    })
     try { await syncOneDriveWorkbookAfterChange() } catch (e) { console.warn('Oil import OneDrive sync failed', e) }
     return NextResponse.json({ imported: result.count, duplicates: duplicates + fresh.length - result.count,
       invalid: parsed.length - valid.length, unmatched: rows.filter(r => ['Unmatched','Ambiguous'].includes(r.matchStatus)).length,
