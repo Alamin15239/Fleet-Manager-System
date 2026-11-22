@@ -266,8 +266,8 @@ export default function TireLifecycleDashboard() {
           <CardHeader><CardTitle className="flex items-center gap-2"><Activity className="h-5 w-5" />Recent tire history</CardTitle></CardHeader>
           <CardContent className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead><tr className="border-b text-left text-muted-foreground"><th className="py-2">Date</th><th>Tire</th><th>Operation</th><th>Driver</th><th>Reason</th></tr></thead>
-              <tbody>{events.slice(0,30).map((row, i) => <tr key={row.id || i} className="border-b last:border-0"><td className="py-2 whitespace-nowrap">{formatDate(row.eventAt)}</td><td>{row.internalCode || row.tireId}</td><td><Badge variant="outline">{row.eventType}</Badge></td><td>{row.driverNameSnapshot || '—'}</td><td>{row.reason || row.damageType || '—'}</td></tr>)}</tbody>
+              <thead><tr className="border-b text-left text-muted-foreground"><th className="py-2">Date</th><th>Tire</th><th>Operation</th><th>Movement / position</th><th>Driver</th><th>Reason</th></tr></thead>
+              <tbody>{events.slice(0,30).map((row, i) => <tr key={row.id || i} className="border-b last:border-0"><td className="py-2 whitespace-nowrap">{formatDate(row.eventAt)}</td><td>{row.internalCode || row.tireId}</td><td><Badge variant="outline">{row.eventType}</Badge></td><td>{row.fromVehicleLabel || 'Stock'} {row.fromPosition ? `· ${row.fromPosition}` : ''}{row.toVehicleLabel ? ` → ${row.toVehicleLabel}` : ''}{row.toPosition ? ` · ${row.toPosition}` : ''}</td><td>{row.driverNameSnapshot || '—'}</td><td>{row.reason || row.damageType || '—'}</td></tr>)}</tbody>
             </table>
           </CardContent>
         </Card>
