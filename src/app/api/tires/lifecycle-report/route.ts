@@ -11,13 +11,13 @@ export async function GET(request: NextRequest) {
     await db.$transaction(async tx => ensureTireLifecycleTables(tx))
     const [summary, inventory, damageByDriver, damageByReason, damageByVehicle, vehicleUsage, tireLife, averageLife] = await Promise.all([
       db.$queryRawUnsafe<any[]>(`SELECT
-        COUNT(*) FILTER (WHERE "lifecycleStatus"='STOCK')::int AS "inStock",
-        COUNT(*) FILTER (WHERE "lifecycleStatus"='INSTALLED')::int AS "installed",
-        COUNT(*) FILTER (WHERE "lifecycleStatus"='DAMAGED')::int AS "damaged",
+        COUNT(*) FILTER (WHERE "deletedAt" IS NULL AND "lifecycleStatus"='STOCK')::int AS "inStock",
+        COUNT(*) FILTER (WHERE "deletedAt" IS NULL AND "lifecycleStatus"='INSTALLED')::int AS "installed",
+        COUNT(*) FILTER (WHERE "deletedAt" IS NULL AND "lifecycleStatus"='DAMAGED')::int AS "damaged",
         COUNT(*) FILTER (WHERE "lifecycleStatus"='DISPOSED')::int AS "disposed",
         (SELECT COUNT(*)::int FROM "tire_lifecycle_events" WHERE "eventType"='RECEIVE') AS "totalReceived",
         (SELECT COUNT(*)::int FROM "tire_lifecycle_events" WHERE "eventType"='DAMAGE') AS "damageEvents"
-        FROM "tires" WHERE "deletedAt" IS NULL`),
+        FROM "tires"`),
       db.$queryRawUnsafe<any[]>(`SELECT "tireSize","manufacturer","lifecycleStatus",COUNT(*)::int AS "tireCount"
         FROM "tires" WHERE "deletedAt" IS NULL
         GROUP BY "tireSize","manufacturer","lifecycleStatus"
