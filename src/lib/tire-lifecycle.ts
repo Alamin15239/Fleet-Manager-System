@@ -133,8 +133,8 @@ export async function recordTireLifecycleEvent(tx: any, input: {
 
   const currentTruckId = tire.truckId || null
   const target = input.vehicle || null
-  if (['INSTALL','TRANSFER'].includes(eventType) && !target) throw new Error('Select a destination vehicle')
-  if (['INSTALL','TRANSFER'].includes(eventType) && !input.position?.trim()) throw new Error('Select a wheel position before installation')
+  if (['INSTALL','TRANSFER','POSITION_CHANGE'].includes(eventType) && !target) throw new Error('Select a destination vehicle')
+  if (['INSTALL','TRANSFER','POSITION_CHANGE'].includes(eventType) && !input.position?.trim()) throw new Error('Select a wheel position before installation')
   if (eventType === 'RECEIVE') {
     const priorReceipt = await tx.$queryRawUnsafe(`SELECT 1 FROM "tire_lifecycle_events" WHERE "tireId"=$1 AND "eventType"='RECEIVE' LIMIT 1`, input.tireId)
     if (priorReceipt.length) throw new Error('This tire has already been received')
@@ -172,12 +172,12 @@ export async function recordTireLifecycleEvent(tx: any, input: {
       : await tx.$queryRawUnsafe(`SELECT "id" FROM "tires" WHERE "trailerNumber"=(SELECT "number" FROM "trailers" WHERE "id"=$1) AND "currentPosition"=$2 AND "lifecycleStatus"='INSTALLED' AND "id"<>$3 LIMIT 1`, target.vehicleId, input.position, input.tireId)
     if (occupied.length) throw new Error('Wheel position already occupied by another tire')
   }
-  const sourceDriverName = currentTruck?.driverName || currentTrailer?.driverName || null
-  const eventDriverName = input.driverName || (eventType === 'INSTALL' ? targetVehicleDriver : sourceDriverName) || targetVehicleDriver || null
-  const usageDriverName = input.driverName || targetVehicleDriver || eventDriverName
   const currentVehicle: VehicleRef | null = currentTruckId
     ? { vehicleType: 'truck', vehicleId: currentTruckId }
     : currentTrailer ? { vehicleType: 'trailer', vehicleId: currentTrailer.id } : null
+  const sourceDriverName = currentTruck?.driverName || currentTrailer?.driverName || null
+  const eventDriverName = input.driverName || (eventType === 'INSTALL' ? targetVehicleDriver : sourceDriverName) || targetVehicleDriver || null
+  const usageDriverName = input.driverName || targetVehicleDriver || eventDriverName
   const operationalVehicle = ['TRANSFER','POSITION_CHANGE','REMOVE','DAMAGE','REPAIR','DISPOSE'].includes(eventType)
     ? currentVehicle || target : target || currentVehicle
   if (operationalVehicle && !['RECEIVE'].includes(eventType)) {
