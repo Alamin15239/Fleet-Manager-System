@@ -227,6 +227,8 @@ model MaintenanceRecord {
   id                String            @id @default(cuid())
   truckId           String?
   vehiclePlateNumber String?
+  sourceData         Json?
+  sourceImportKey    String?           @unique
   serviceType       String
   description       String?
   datePerformed     DateTime
