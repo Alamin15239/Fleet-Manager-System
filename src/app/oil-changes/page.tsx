@@ -23,6 +23,7 @@ interface OilChangeRecord {
   id: string
   vehiclePlateNumber?: string | null
   sourceData?: { make?: string | number | null; changedAt?: string | number | null }
+  sourceImportKey?: string | null
   datePerformed: string
   serviceType: string
   description: string
@@ -830,7 +831,7 @@ export default function OilChangesPage() {
             Oil Change Records
           </CardTitle>
           <p className="text-sm text-muted-foreground">
-            Showing {filteredRecords.length} oil change records
+            Showing {filteredRecords.length} oil change records · {oilChanges.filter((record) => record.sourceImportKey?.startsWith('oil_qty_xlsx:')).length} imported spreadsheet rows
           </p>
         </CardHeader>
         <CardContent>
