@@ -218,6 +218,14 @@ export default function AdvancedAnalytics() {
     }
   }
 
+  useEffect(() => {
+    const handleFleetDataChanged = () => {
+      void fetchAnalyticsData()
+    }
+    window.addEventListener('fleet:data-changed', handleFleetDataChanged)
+    return () => window.removeEventListener('fleet:data-changed', handleFleetDataChanged)
+  }, [])
+
   if (permissionsLoading) {
     return <div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900" /></div>
   }
@@ -234,13 +242,6 @@ export default function AdvancedAnalytics() {
     )
   }
 
-  useEffect(() => {
-    const handleFleetDataChanged = () => {
-      void fetchAnalyticsData()
-    }
-    window.addEventListener('fleet:data-changed', handleFleetDataChanged)
-    return () => window.removeEventListener('fleet:data-changed', handleFleetDataChanged)
-  }, [])
 
   return (
     <div className="container mx-auto p-6 space-y-6">
