@@ -4,7 +4,7 @@ import { LocalizedText } from '@/components/localized-text'
 import { useEffect, useState } from 'react'
 import dynamic from 'next/dynamic'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { BarChart3, FileText, List, Loader2, Plus, Settings } from 'lucide-react'
+import { Activity, BarChart3, FileText, List, Loader2, Plus, Settings } from 'lucide-react'
 import { useLanguage } from '@/contexts/language-context'
 import { usePermissions } from '@/contexts/permissions-context'
 
@@ -13,6 +13,7 @@ const TireManagementForm = dynamic(() => import('@/components/tire-management-fo
 const TireInventoryGrouped = dynamic(() => import('@/components/tire-inventory-grouped'), { loading: TabContentLoading })
 const TireReports = dynamic(() => import('@/components/tire-reports'), { loading: TabContentLoading })
 const TireReportsSimple = dynamic(() => import('@/components/tire-reports-simple'), { loading: TabContentLoading })
+const TireLifecycleDashboard = dynamic(() => import('@/components/tire-lifecycle-dashboard'), { loading: TabContentLoading })
 const TireExcelViewer = dynamic(() => import('@/components/tire-excel-viewer'), { loading: TabContentLoading })
 
 export default function TireManagementPage() {
@@ -33,7 +34,7 @@ export default function TireManagementPage() {
       </header>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className={`grid h-auto w-full grid-cols-2 gap-1 p-1 ${canAddTires ? 'sm:grid-cols-5' : 'sm:grid-cols-4'}`}>
+        <TabsList className={`grid h-auto w-full grid-cols-2 gap-1 p-1 ${canAddTires ? 'sm:grid-cols-6' : 'sm:grid-cols-5'}`}>
           {canAddTires && <TabsTrigger value="form" className="flex min-h-[60px] flex-col items-center gap-1 p-1.5 text-xs">
             <Plus className="h-4 w-4" />
             <span className="leading-tight"><LocalizedText>Add</LocalizedText></span>
@@ -49,6 +50,10 @@ export default function TireManagementPage() {
           <TabsTrigger value="analytics" className="flex min-h-[60px] flex-col items-center gap-1 p-1.5 text-xs">
             <BarChart3 className="h-4 w-4" />
             <span className="leading-tight"><LocalizedText>Stats</LocalizedText></span>
+          </TabsTrigger>
+          <TabsTrigger value="lifecycle" className="flex min-h-[60px] flex-col items-center gap-1 p-1.5 text-xs">
+            <Activity className="h-4 w-4" />
+            <span className="leading-tight"><LocalizedText>Lifecycle</LocalizedText></span>
           </TabsTrigger>
           <TabsTrigger value="reports" className="flex min-h-[60px] flex-col items-center gap-1 p-1.5 text-xs">
             <Settings className="h-4 w-4" />
@@ -67,6 +72,9 @@ export default function TireManagementPage() {
         </TabsContent>
         <TabsContent value="analytics" className="space-y-4">
           <TireReports />
+        </TabsContent>
+        <TabsContent value="lifecycle" className="space-y-4">
+          <TireLifecycleDashboard />
         </TabsContent>
         <TabsContent value="reports" className="space-y-4">
           <TireReportsSimple />
