@@ -78,7 +78,7 @@ export async function POST(req: NextRequest) {
     const activeTrucks = plates.length ? await db.truck.findMany({ where: { isDeleted: false, status: 'ACTIVE' }, select: { id: true, licensePlate: true } }) : []
     const byPlate = new Map<string, typeof activeTrucks>()
     for (const truck of activeTrucks) {
-      const key = plateKey(truck.licensePlate)
+      const key = plateKey(String(truck.licensePlate).trim().split(/\s+/)[0])
       if (plates.includes(key)) byPlate.set(key, [...(byPlate.get(key) || []), truck])
     }
     const rows = valid.map(r => {
