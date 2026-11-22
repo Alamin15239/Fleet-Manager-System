@@ -733,7 +733,18 @@ export default function ReportsPage() {
                   <tbody>
                     {getSearchedMaintenance().map((record) => {
                       const isSelected = selectedRecords.includes(record.id)
-                      return (
+                      useEffect(() => {
+    const handleFleetDataChanged = () => {
+      void fetchMaintenance()
+      void fetchTrucks()
+      void fetchMechanics()
+      void fetchTrailers()
+    }
+    window.addEventListener('fleet:data-changed', handleFleetDataChanged)
+    return () => window.removeEventListener('fleet:data-changed', handleFleetDataChanged)
+  }, [])
+
+  return (
                         <tr key={record.id} className={isSelected ? 'bg-blue-50' : ''}>
                           <td className="border border-gray-300 p-2">
                             <Checkbox
