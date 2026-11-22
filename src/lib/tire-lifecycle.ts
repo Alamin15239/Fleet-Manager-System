@@ -114,8 +114,10 @@ export async function recordTireLifecycleEvent(tx: any, input: {
   if (eventType === 'INSTALL' && tire.lifecycleStatus !== 'STOCK') throw new Error('Only a tire in stock can be installed')
   if (eventType === 'TRANSFER' && tire.lifecycleStatus !== 'INSTALLED') throw new Error('Only an installed tire can be transferred')
   if (eventType === 'REMOVE' && tire.lifecycleStatus !== 'INSTALLED') throw new Error('Only an installed tire can be removed')
-  if (eventType === 'DISPOSE' && tire.lifecycleStatus === 'INSTALLED') throw new Error('Remove the tire before disposal')
+  if (eventType === 'DISPOSE' && (tire.lifecycleStatus === 'INSTALLED' || currentTruckId || tire.trailerNumber)) throw new Error('Remove the tire before disposal')
   if (eventType === 'REPAIR' && tire.lifecycleStatus !== 'DAMAGED') throw new Error('Only a damaged tire can be marked repaired')
+  if (eventType === 'REPAIR' && (currentTruckId || tire.trailerNumber)) throw new Error('Remove the damaged tire before repair')
+  if (eventType === 'RECEIVE' && (tire.lifecycleStatus === 'INSTALLED' || currentTruckId || tire.trailerNumber)) throw new Error('An installed tire cannot be received again')
 
   let jobCardId: string | null = null
   const currentTrailer = tire.trailerNumber ? await tx.trailer.findFirst({ where: { number: tire.trailerNumber }, select: { id: true } }) : null
@@ -164,7 +166,8 @@ export async function recordTireLifecycleEvent(tx: any, input: {
   const nextStatus = eventType === 'INSTALL' || eventType === 'TRANSFER' ? 'INSTALLED'
     : eventType === 'DAMAGE' ? 'DAMAGED'
     : eventType === 'DISPOSE' ? 'DISPOSED'
-    : eventType === 'REMOVE' || eventType === 'REPAIR' ? 'STOCK'
+    : eventType === 'REMOVE' ? (tire.lifecycleStatus === 'DAMAGED' ? 'DAMAGED' : 'STOCK')
+    : eventType === 'REPAIR' ? 'STOCK'
     : eventType === 'RECEIVE' ? 'STOCK' : String(tire.lifecycleStatus || 'STOCK')
   if (eventType === 'INSTALL' || eventType === 'TRANSFER') {
     if (target?.vehicleType === 'truck') {
