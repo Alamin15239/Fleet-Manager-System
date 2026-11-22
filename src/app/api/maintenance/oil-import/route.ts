@@ -90,7 +90,7 @@ export async function POST(req: NextRequest) {
 
     const result = await db.$transaction(tx => tx.maintenanceRecord.createMany({
       data: fresh.map(r => ({
-        truckId: r.truckId, vehiclePlateNumber: r.plate, sourceData: r.sourceData, sourceImportKey: r.importKey,
+        truckId: r.truckId, vehiclePlateNumber: r.plate, sourceData: JSON.parse(JSON.stringify(r.sourceData)), sourceImportKey: r.importKey,
         serviceType: 'Oil Change', description: r.oilText || 'Historical oil change (oil details not provided)',
         datePerformed: new Date(`${r.date}T00:00:00.000Z`), partsCost: 0, laborCost: 0, totalCost: 0,
         status: 'COMPLETED', isOilChange: true, oilQuantityLiters: r.quantity, currentMileage: r.mileage,
