@@ -12,7 +12,7 @@ export async function ensureTireLifecycleTables(tx: any) {
   await tx.$executeRawUnsafe(`CREATE SEQUENCE IF NOT EXISTS "tire_internal_code_seq"`)
   await tx.$executeRawUnsafe(`UPDATE "tires" SET "internalCode"='TY-' || LPAD(nextval('"tire_internal_code_seq"')::text,6,'0') WHERE "internalCode" IS NULL`)
   await tx.$executeRawUnsafe(`UPDATE "tires" SET "lifecycleStatus"='INSTALLED', "installedAt"=COALESCE("installedAt","createdAt") WHERE "lifecycleStatus"='STOCK' AND ("truckId" IS NOT NULL OR NULLIF("trailerNumber",'') IS NOT NULL)`)
-  await tx.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "tires_internalCode_key" ON "tires" ("internalCode") WHERE "internalCode" IS NOT NULL`)
+  await tx.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "tires_internalCode_key" ON "tires" ("internalCode")`)
   await tx.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "tires_truck_position_active_key" ON "tires" ("truckId","currentPosition") WHERE "lifecycleStatus"='INSTALLED' AND "truckId" IS NOT NULL AND "currentPosition" IS NOT NULL`)
   await tx.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "tires_trailer_position_active_key" ON "tires" ("trailerNumber","currentPosition") WHERE "lifecycleStatus"='INSTALLED' AND "trailerNumber" IS NOT NULL AND "currentPosition" IS NOT NULL`)
   await tx.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "tire_lifecycle_events" (
