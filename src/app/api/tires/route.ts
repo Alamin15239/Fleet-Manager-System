@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
     const positiveQuantityOnly = searchParams.get('positiveQuantityOnly') === 'true'
     const offset = (page - 1) * limit
 
-    let whereClause: any = {}
+    let whereClause: any = { deletedAt: null }
 
     if (search) {
       whereClause.OR = [
