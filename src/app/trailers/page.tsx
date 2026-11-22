@@ -160,6 +160,12 @@ export default function TrailersPage() {
 
 
 
+  useEffect(() => {
+    const handleFleetDataChanged = () => { void fetchTrailers() }
+    window.addEventListener('fleet:data-changed', handleFleetDataChanged)
+    return () => window.removeEventListener('fleet:data-changed', handleFleetDataChanged)
+  }, [])
+
   if (permissionsLoading || loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
