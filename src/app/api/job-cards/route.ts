@@ -70,6 +70,13 @@ export async function POST(request: NextRequest) {
       // Only touch the inventory ledger when this job card actually issues
       // a catalogued stock item. Manual parts/labour lines must remain usable
       // even when the optional inventory tables or integration are unavailable.
+      if (data.truckId && Number.isInteger(data.odometerKm) && data.odometerKm! >= 0) {
+        await tx.$executeRawUnsafe(
+          `UPDATE "trucks" SET "currentMileage" = GREATEST("currentMileage", $2), "updatedAt" = NOW()
+           WHERE "id" = $1 AND "isDeleted" = false`,
+          data.truckId, data.odometerKm
+        )
+      }
       const hasTrackedParts = (data.items as any[]).some(
         item => item.type === 'PART' && typeof item.inventoryItemId === 'string' && item.inventoryItemId
       )
