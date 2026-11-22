@@ -104,6 +104,9 @@ export async function GET(request: NextRequest) {
         include: {
           createdBy: {
             select: { id: true, name: true, email: true }
+          },
+          truck: {
+            select: { id: true, licensePlate: true, make: true, model: true, year: true }
           }
         },
         orderBy: { createdAt: 'desc' },
@@ -175,6 +178,23 @@ export async function POST(request: NextRequest) {
       })
     }
 
+    // Link truck tires to the canonical fleet record only when the plate prefix is unique.
+    let linkedTruckId: string | null = null
+    if (plateNumber) {
+      const truckMatches = await db.truck.findMany({
+        where: {
+          isDeleted: false,
+          OR: [
+            { licensePlate: plateNumber },
+            { licensePlate: { startsWith: `${plateNumber} ` } }
+          ]
+        },
+        select: { id: true },
+        take: 2
+      })
+      if (truckMatches.length === 1) linkedTruckId = truckMatches[0].id
+    }
+
     const tiresData: Prisma.TireCreateManyInput[] = []
     let totalTires = 0
 
@@ -186,6 +206,7 @@ export async function POST(request: NextRequest) {
           manufacturer,
           origin,
           plateNumber: plateNumber,
+          truckId: linkedTruckId,
           trailerNumber: null, // Truck tires don't have trailer number
           driverName: driverName || null,
           quantity: 1,
