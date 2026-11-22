@@ -696,5 +696,11 @@ export function VehicleExpiryTracker() {
 
 function Metric({ icon, label, value, tone }: { icon: React.ReactNode; label: string; value: number; tone: string }) {
   const tones: Record<string, string> = { blue: 'bg-blue-500/10 text-blue-600', green: 'bg-emerald-500/10 text-emerald-600', amber: 'bg-amber-500/10 text-amber-600', rose: 'bg-rose-500/10 text-rose-600' }
+  useEffect(() => {
+    const handleFleetDataChanged = () => { void load(); void loadDrivers() }
+    window.addEventListener('fleet:data-changed', handleFleetDataChanged)
+    return () => window.removeEventListener('fleet:data-changed', handleFleetDataChanged)
+  }, [])
+
   return <Card className="glass-card"><CardContent className="flex items-center gap-3 p-4"><span className={`flex h-10 w-10 items-center justify-center rounded-xl ${tones[tone] || tones.blue}`}>{icon}</span><div><p className="text-xs text-muted-foreground"><LocalizedText>{label}</LocalizedText></p><p className="text-2xl font-bold tabular-nums">{value}</p></div></CardContent></Card>
 }
