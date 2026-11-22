@@ -24,6 +24,13 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
           trailer: { select: { id: true, number: true } }
         }
       })
+      if (data.truckId && Number.isInteger(data.odometerKm) && data.odometerKm! >= 0) {
+        await tx.$executeRawUnsafe(
+          `UPDATE "trucks" SET "currentMileage" = GREATEST("currentMileage", $2), "updatedAt" = NOW()
+           WHERE "id" = $1 AND "isDeleted" = false`,
+          data.truckId, data.odometerKm
+        )
+      }
       await reconcileJobCardInventory(tx, {
         jobCardId: id, lines: updated.status === 'CANCELLED' ? [] : data.items as any[],
         vehicleType: data.truckId ? 'truck' : 'trailer', vehicleId: data.truckId || data.trailerId!,
