@@ -227,6 +227,15 @@ export default function TireLifecycleDashboard() {
           </CardContent>
         </Card>
         <Card>
+          <CardHeader><CardTitle>Damage reasons</CardTitle></CardHeader>
+          <CardContent className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead><tr className="border-b text-left text-muted-foreground"><th className="py-2">Damage type</th><th>Reason</th><th className="text-right">Count</th><th className="text-right">Cost (SAR)</th></tr></thead>
+              <tbody>{(report?.damageByReason || []).map((row, i) => <tr key={i} className="border-b last:border-0"><td className="py-2">{row.damageType}</td><td>{row.reason}</td><td className="text-right">{formatNumber(row.damageCount)}</td><td className="text-right">{Number(row.damageCost || 0).toLocaleString(undefined,{maximumFractionDigits:2})}</td></tr>)}</tbody>
+            </table>
+          </CardContent>
+        </Card>
+        <Card>
           <CardHeader><CardTitle>Damage by vehicle</CardTitle></CardHeader>
           <CardContent className="overflow-x-auto">
             <table className="w-full text-sm">
