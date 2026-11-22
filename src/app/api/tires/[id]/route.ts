@@ -75,10 +75,9 @@ export async function PUT(
       )
     }
 
-    if (existingTire.lifecycleStatus === 'INSTALLED' &&
-        ((plateNumber !== undefined && plateNumber !== existingTire.plateNumber) ||
-         (trailerNumber !== undefined && trailerNumber !== existingTire.trailerNumber))) {
-      return NextResponse.json({ error: 'Use the Transfer operation to change an installed tire vehicle' }, { status: 409 })
+    if ((plateNumber !== undefined && plateNumber !== existingTire.plateNumber) ||
+        (trailerNumber !== undefined && trailerNumber !== existingTire.trailerNumber)) {
+      return NextResponse.json({ error: 'Use the Install or Transfer operation to change a tire vehicle assignment' }, { status: 409 })
     }
     if (quantity !== undefined && Number(quantity) !== 1) {
       return NextResponse.json({ error: 'Each tire is tracked as an individual record; quantity must remain 1' }, { status: 400 })
