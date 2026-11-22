@@ -193,6 +193,12 @@ export default function TireInventoryGrouped() {
     )
   }
 
+  useEffect(() => {
+    const handleFleetDataChanged = () => { void fetchAndGroupTires() }
+    window.addEventListener('fleet:data-changed', handleFleetDataChanged)
+    return () => window.removeEventListener('fleet:data-changed', handleFleetDataChanged)
+  }, [])
+
   return (
     <div className="space-y-4">
       {/* Filters */}
