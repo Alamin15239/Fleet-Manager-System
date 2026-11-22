@@ -125,6 +125,7 @@ model Truck {
   nextInspection     DateTime?
   driverName         String?
   maintenanceRecords MaintenanceRecord[]
+  tires              Tire[]
   workshopJobCards   WorkshopJobCard[]
   notifications      Notification[]
   predictiveAlerts   PredictiveAlert[]
@@ -897,7 +898,9 @@ model Tire {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   serialNumber  String?
+  truckId       String?
   createdBy     User?    @relation(fields: [createdById], references: [id])
+  truck         Truck?   @relation(fields: [truckId], references: [id], onDelete: SetNull)
   vehicle       Vehicle? @relation(fields: [plateNumber], references: [plateNumber])
 
   @@index([manufacturer])
