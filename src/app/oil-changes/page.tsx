@@ -318,7 +318,7 @@ export default function OilChangesPage() {
   })
   const reportOilTotal = reportRecords.reduce((sum, record) => sum + (Number(record.oilQuantityLiters) || 0), 0)
   const oilTotalsByTruck = reportRecords.reduce((totals, record) => {
-    const id = record.truck?.id || 'unknown'
+    const id = record.truck?.id || (record.vehiclePlateNumber ? `plate:${record.vehiclePlateNumber}` : `unidentified:${record.id}`)
     const label = record.truck?.licensePlate || record.vehiclePlateNumber || 'Plate not provided'
     if (!totals[id]) totals[id] = { truckLabel: label, records: 0, liters: 0 }
     totals[id].records += 1
