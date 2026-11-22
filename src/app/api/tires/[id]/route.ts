@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requirePermission } from '@/lib/permission-middleware'
 import { syncOneDriveWorkbookAfterChange } from '@/lib/onedrive-excel-sync'
+import { ensureTireLifecycleTables, recordTireLifecycleEvent } from '@/lib/tire-lifecycle'
 
 // GET /api/tires/[id] - Get single tire
 export async function GET(
@@ -11,9 +12,10 @@ export async function GET(
   try {
     const authResult = await requirePermission(request, 'tire-management', 'read')
     if (authResult instanceof NextResponse) return authResult
+    await db.$transaction(async tx => ensureTireLifecycleTables(tx))
     const { id } = await params;
     const tire = await db.tire.findUnique({
-      where: { id: id },
+      where: { id: id, deletedAt: null },
       include: {
         createdBy: {
           select: { id: true, name: true, email: true }
@@ -47,6 +49,7 @@ export async function PUT(
     const { id } = await params;
     const authResult = await requirePermission(request, 'tire-management', 'update')
     if (authResult instanceof NextResponse) return authResult
+    await db.$transaction(async tx => ensureTireLifecycleTables(tx))
     const body = await request.json()
     const { 
       tireSize, 
@@ -62,7 +65,7 @@ export async function PUT(
 
     // Check if tire exists
     const existingTire = await db.tire.findUnique({
-      where: { id: id }
+      where: { id: id, deletedAt: null }
     })
 
     if (!existingTire) {
@@ -72,7 +75,16 @@ export async function PUT(
       )
     }
 
-    // Update the tire
+    if (existingTire.lifecycleStatus === 'INSTALLED' &&
+        ((plateNumber !== undefined && plateNumber !== existingTire.plateNumber) ||
+         (trailerNumber !== undefined && trailerNumber !== existingTire.trailerNumber))) {
+      return NextResponse.json({ error: 'Use the Transfer operation to change an installed tire vehicle' }, { status: 409 })
+    }
+    if (quantity !== undefined && Number(quantity) !== 1) {
+      return NextResponse.json({ error: 'Each tire is tracked as an individual record; quantity must remain 1' }, { status: 400 })
+    }
+
+    // Update tire specifications only; installation and movement are lifecycle events.
     const updatedTire = await db.tire.update({
       where: { id: id },
       data: {
@@ -146,10 +158,11 @@ export async function DELETE(
     const { id } = await params;
     const authResult = await requirePermission(request, 'tire-management', 'delete')
     if (authResult instanceof NextResponse) return authResult
+    await db.$transaction(async tx => ensureTireLifecycleTables(tx))
 
     // Check if tire exists
-    const existingTire = await db.tire.findUnique({
-      where: { id: id }
+    const existingTire = await db.tire.findFirst({
+      where: { id: id, deletedAt: null }
     })
 
     if (!existingTire) {
@@ -159,21 +172,28 @@ export async function DELETE(
       )
     }
 
-    // Delete the tire
-    await db.tire.delete({
-      where: { id: id }
+    if (existingTire.lifecycleStatus === 'INSTALLED' || existingTire.truckId || existingTire.trailerNumber) {
+      return NextResponse.json({ error: 'Remove the tire from its vehicle before disposing it' }, { status: 409 })
+    }
+    await db.$transaction(async tx => {
+      await recordTireLifecycleEvent(tx, {
+        tireId: id, eventType: 'DISPOSE', eventAt: new Date(),
+        reason: 'Removed from inventory', notes: 'Soft-disposed from the tire inventory screen',
+        userId: authResult.user.id
+      })
+      await tx.$executeRawUnsafe(`UPDATE "tires" SET "deletedAt"=NOW() WHERE "id"=$1`, id)
     })
 
     await syncOneDriveWorkbookAfterChange()
 
     return NextResponse.json({ 
-      message: 'Tire deleted successfully' 
+      message: 'Tire disposed successfully; history retained' 
     })
   } catch (error) {
     console.error('Error deleting tire:', error)
     
     return NextResponse.json(
-      { error: 'Failed to delete tire' },
+      { error: 'Failed to dispose tire' },
       { status: 500 }
     )
   }
