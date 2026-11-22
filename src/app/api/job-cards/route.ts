@@ -37,9 +37,9 @@ export async function GET(request: NextRequest) {
     const ids = jobCards.map(card => card.id)
     const [maintenanceActivities, trailerActivities, tireEvents, partsActivities] = ids.length ? await Promise.all([
       db.$queryRawUnsafe<any[]>(`SELECT "id","jobCardId","serviceType","description","datePerformed","totalCost","driverName","status"
-        FROM "maintenance_records" WHERE "jobCardId" = ANY($1::text[])`, ids),
+        FROM "maintenance_records" WHERE "jobCardId" = ANY($1::text[]) AND "isDeleted"=false`, ids),
       db.$queryRawUnsafe<any[]>(`SELECT "id","jobCardId","serviceType","description","datePerformed","totalCost","driverName","status"
-        FROM "trailer_maintenance_records" WHERE "jobCardId" = ANY($1::text[])`, ids),
+        FROM "trailer_maintenance_records" WHERE "jobCardId" = ANY($1::text[]) AND "isDeleted"=false`, ids),
       db.$queryRawUnsafe<any[]>(`SELECT e."id",e."jobCardId",e."tireId",e."eventType",e."eventAt",e."driverNameSnapshot",e."reason",e."damageType",e."cost",e."notes",
           t."internalCode",t."tireSize",t."manufacturer"
         FROM "tire_lifecycle_events" e JOIN "tires" t ON t."id"=e."tireId"
