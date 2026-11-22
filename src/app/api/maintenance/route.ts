@@ -143,6 +143,19 @@ export async function POST(request: NextRequest) {
             userId: user.id
           })
         }
+        if (body.truckId) {
+          const mileageValue = Number(body.currentMileage)
+          const mileage = Number.isInteger(mileageValue) && mileageValue >= 0 ? mileageValue : null
+          const isOilChange = body.isOilChange === true || /oil/i.test(String(body.serviceType || ''))
+          await tx.$executeRawUnsafe(
+            `UPDATE "trucks"
+             SET "currentMileage" = CASE WHEN $2::integer IS NULL THEN "currentMileage" ELSE GREATEST("currentMileage", $2::integer) END,
+                 "lastOilChange" = CASE WHEN $3::boolean AND ("lastOilChange" IS NULL OR "lastOilChange" < $4) THEN $4 ELSE "lastOilChange" END,
+                 "updatedAt" = NOW()
+             WHERE "id" = $1 AND "isDeleted" = false`,
+            body.truckId, mileage, isOilChange, new Date(body.datePerformed)
+          )
+        }
         return created
       })
     }
