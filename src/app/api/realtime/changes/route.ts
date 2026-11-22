@@ -13,24 +13,24 @@ export async function GET(request: NextRequest) {
       "SELECT MAX(changed_at) AS version, SUM(row_count)::bigint AS \"rowCount\" FROM (" +
       "SELECT MAX(\"updatedAt\") AS changed_at, COUNT(*)::bigint AS row_count FROM \"trucks\" " +
       "UNION ALL SELECT MAX(\"updatedAt\"), COUNT(*)::bigint FROM \"trailers\" " +
-      "UNION ALL SELECT MAX(\\\"updatedAt\\\"), COUNT(*)::bigint FROM \\\"drivers\\\" " +
-      "UNION ALL SELECT MAX(\\\"updatedAt\\\"), COUNT(*)::bigint FROM \\\"maintenance_jobs\\\" " +
-      "UNION ALL SELECT MAX(\\\"updatedAt\\\"), COUNT(*)::bigint FROM \\\"predictive_alerts\\\" " +
-      "UNION ALL SELECT MAX(\\\"updatedAt\\\"), COUNT(*)::bigint FROM \\\"trailer_predictive_alerts\\\" " +
-      "UNION ALL SELECT MAX(\\\"updatedAt\\\"), COUNT(*)::bigint FROM \\\"settings\\\" " +
-      "UNION ALL SELECT MAX(\\\"updatedAt\\\"), COUNT(*)::bigint FROM \\\"vendors\\\" " +
-      "UNION ALL SELECT MAX(\\\"updatedAt\\\"), COUNT(*)::bigint FROM \\\"fleet_ledger_accounts\\\" " +
-      "UNION ALL SELECT MAX(\\\"updatedAt\\\"), COUNT(*)::bigint FROM \\\"notifications\\\" " +
-      "UNION ALL SELECT MAX(\\\"updatedAt\\\"), COUNT(*)::bigint FROM \\\"trailer_notifications\\\" " +
-      "UNION ALL SELECT MAX(\\\"updatedAt\\\"), COUNT(*)::bigint FROM \\\"vehicles\\\" " +
-      "UNION ALL SELECT MAX(\\\"updatedAt\\\"), COUNT(*)::bigint FROM \\\"vehicle_types\\\" " +
-      "UNION ALL SELECT MAX(\\\"updatedAt\\\"), COUNT(*)::bigint FROM \\\"fleet_vehicles\\\" " +
-      "UNION ALL SELECT MAX(\\\"updatedAt\\\"), COUNT(*)::bigint FROM \\\"vehicle_documents\\\" " +
-      "UNION ALL SELECT MAX(\\\"updatedAt\\\"), COUNT(*)::bigint FROM \\\"maintenance_types\\\" " +
-      "UNION ALL SELECT MAX(\\\"updatedAt\\\"), COUNT(*)::bigint FROM \\\"documents\\\" " +
-      "UNION ALL SELECT MAX(\\\"updatedAt\\\"), COUNT(*)::bigint FROM \\\"organizations\\\" " +
-      "UNION ALL SELECT MAX(\\\"updatedAt\\\"), COUNT(*)::bigint FROM \\\"organization_purchase_requests\\\" " +
-      "UNION ALL SELECT MAX(\\\"updatedAt\\\"), COUNT(*)::bigint FROM \\\"organization_billing_payments\\\" " +
+      "UNION ALL SELECT MAX(\"updatedAt\"), COUNT(*)::bigint FROM \"drivers\" " +
+      "UNION ALL SELECT MAX(\"updatedAt\"), COUNT(*)::bigint FROM \"maintenance_jobs\" " +
+      "UNION ALL SELECT MAX(\"updatedAt\"), COUNT(*)::bigint FROM \"predictive_alerts\" " +
+      "UNION ALL SELECT MAX(\"updatedAt\"), COUNT(*)::bigint FROM \"trailer_predictive_alerts\" " +
+      "UNION ALL SELECT MAX(\"updatedAt\"), COUNT(*)::bigint FROM \"settings\" " +
+      "UNION ALL SELECT MAX(\"updatedAt\"), COUNT(*)::bigint FROM \"vendors\" " +
+      "UNION ALL SELECT MAX(\"updatedAt\"), COUNT(*)::bigint FROM \"fleet_ledger_accounts\" " +
+      "UNION ALL SELECT MAX(\"updatedAt\"), COUNT(*)::bigint FROM \"notifications\" " +
+      "UNION ALL SELECT MAX(\"updatedAt\"), COUNT(*)::bigint FROM \"trailer_notifications\" " +
+      "UNION ALL SELECT MAX(\"updatedAt\"), COUNT(*)::bigint FROM \"vehicles\" " +
+      "UNION ALL SELECT MAX(\"updatedAt\"), COUNT(*)::bigint FROM \"vehicle_types\" " +
+      "UNION ALL SELECT MAX(\"updatedAt\"), COUNT(*)::bigint FROM \"fleet_vehicles\" " +
+      "UNION ALL SELECT MAX(\"updatedAt\"), COUNT(*)::bigint FROM \"vehicle_documents\" " +
+      "UNION ALL SELECT MAX(\"updatedAt\"), COUNT(*)::bigint FROM \"maintenance_types\" " +
+      "UNION ALL SELECT MAX(\"updatedAt\"), COUNT(*)::bigint FROM \"documents\" " +
+      "UNION ALL SELECT MAX(\"updatedAt\"), COUNT(*)::bigint FROM \"organizations\" " +
+      "UNION ALL SELECT MAX(\"updatedAt\"), COUNT(*)::bigint FROM \"organization_purchase_requests\" " +
+      "UNION ALL SELECT MAX(\"updatedAt\"), COUNT(*)::bigint FROM \"organization_billing_payments\" " +
       "UNION ALL SELECT MAX(\"updatedAt\"), COUNT(*)::bigint FROM \"maintenance_records\" " +
       "UNION ALL SELECT MAX(\"updatedAt\"), COUNT(*)::bigint FROM \"trailer_maintenance_records\" " +
       "UNION ALL SELECT MAX(\"updatedAt\"), COUNT(*)::bigint FROM \"tires\" " +
