@@ -281,14 +281,6 @@ export default function TireManagementForm() {
     }
   }
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center p-8">
-        <Loader2 className="h-8 w-8 animate-spin" />
-      </div>
-    )
-  }
-
   useEffect(() => {
     const handleFleetDataChanged = () => {
       void fetchVehicles()
@@ -297,6 +289,15 @@ export default function TireManagementForm() {
     window.addEventListener('fleet:data-changed', handleFleetDataChanged)
     return () => window.removeEventListener('fleet:data-changed', handleFleetDataChanged)
   }, [])
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    )
+  }
+
 
   return (
     <div className="space-y-4 sm:space-y-6">
