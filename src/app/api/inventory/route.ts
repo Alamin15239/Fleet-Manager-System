@@ -123,6 +123,7 @@ export async function POST(request: NextRequest) {
           : await tx.trailer.findFirst({ where: { id: vehicleId, isDeleted: false }, select: { id: true, driverName: true } })
         if (!vehicle) throw new Error('Selected vehicle not found or inactive')
         if (jobCardId) {
+          await tx.$executeRaw`LOCK TABLE "workshop_job_cards" IN EXCLUSIVE MODE`
           const where = vehicleType === 'truck'
             ? { id: jobCardId, truckId: vehicleId, status: { in: ['OPEN', 'IN_PROGRESS'] } }
             : { id: jobCardId, trailerId: vehicleId, status: { in: ['OPEN', 'IN_PROGRESS'] } }
