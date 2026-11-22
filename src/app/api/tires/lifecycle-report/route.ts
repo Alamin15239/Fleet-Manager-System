@@ -68,6 +68,7 @@ export async function GET(request: NextRequest) {
           FROM "tires" t LEFT JOIN "tire_usage_periods" p ON p."tireId"=t."id"
           LEFT JOIN "trucks" v ON p."vehicleType"='truck' AND v."id"=p."vehicleId"
           GROUP BY t."id",t."manufacturer",t."tireSize"
+          HAVING COUNT(p."id")>0
         ) life GROUP BY "manufacturer","tireSize" ORDER BY "averageLifeKm" DESC`)
     ])
     return NextResponse.json({
