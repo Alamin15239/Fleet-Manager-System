@@ -80,7 +80,11 @@ export async function getOrCreateOpenJobCard(tx: any, vehicle: VehicleRef, detai
   eventAt: Date; odometerKm?: number | null; driverName?: string | null; userId: string;
   serviceType?: string; reportedIssue?: string
 }) {
-  // Serialize card creation to prevent two simultaneous tire operations opening duplicate cards.
+  const activeVehicle = vehicle.vehicleType === 'truck'
+    ? await tx.truck.findFirst({ where: { id: vehicle.vehicleId, isDeleted: false, status: { not: 'INACTIVE' } }, select: { id: true } })
+    : await tx.trailer.findFirst({ where: { id: vehicle.vehicleId, isDeleted: false, status: { not: 'INACTIVE' } }, select: { id: true } })
+  if (!activeVehicle) throw new Error('Selected vehicle was not found or inactive')
+  // Serialize card creation to prevent concurrent writes from opening duplicate cards.
   await tx.$executeRawUnsafe(`LOCK TABLE "workshop_job_cards" IN EXCLUSIVE MODE`)
   const vehicleWhere = vehicle.vehicleType === 'truck' ? { truckId: vehicle.vehicleId } : { trailerId: vehicle.vehicleId }
   const existing = await tx.workshopJobCard.findFirst({
