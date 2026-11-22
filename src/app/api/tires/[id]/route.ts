@@ -14,7 +14,7 @@ export async function GET(
     if (authResult instanceof NextResponse) return authResult
     await db.$transaction(async tx => ensureTireLifecycleTables(tx))
     const { id } = await params;
-    const tire = await db.tire.findUnique({
+    const tire = await db.tire.findFirst({
       where: { id: id, deletedAt: null },
       include: {
         createdBy: {
@@ -64,7 +64,7 @@ export async function PUT(
     } = body
 
     // Check if tire exists
-    const existingTire = await db.tire.findUnique({
+    const existingTire = await db.tire.findFirst({
       where: { id: id, deletedAt: null }
     })
 
