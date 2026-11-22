@@ -912,7 +912,7 @@ export default function OilChangesPage() {
             Oil Change Records
           </CardTitle>
           <p className="text-sm text-muted-foreground">
-            Showing {filteredRecords.length} oil change records · {oilChanges.filter((record) => record.sourceImportKey?.startsWith('oil_qty_xlsx:')).length} imported spreadsheet rows
+            Showing {filteredRecords.length} oil change records · {oilChanges.filter((record) => record.sourceImportKey?.startsWith('oil-upload-v1:')).length} imported spreadsheet rows
           </p>
         </CardHeader>
         <CardContent>
