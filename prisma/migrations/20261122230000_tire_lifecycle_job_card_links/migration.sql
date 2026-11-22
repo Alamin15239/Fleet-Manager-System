@@ -84,6 +84,7 @@ CREATE TABLE IF NOT EXISTS "tire_usage_periods" (
 );
 CREATE INDEX IF NOT EXISTS "tire_usage_periods_tireId_installedAt_idx" ON "tire_usage_periods" ("tireId", "installedAt");
 CREATE INDEX IF NOT EXISTS "tire_usage_periods_vehicleType_vehicleId_idx" ON "tire_usage_periods" ("vehicleType", "vehicleId");
+CREATE UNIQUE INDEX IF NOT EXISTS "tire_usage_periods_one_active_per_tire_key" ON "tire_usage_periods" ("tireId") WHERE "removedAt" IS NULL;
 INSERT INTO "tire_usage_periods" ("id","tireId","vehicleType","vehicleId","installedAt","driverNameSnapshot")
 SELECT 'tyuse_legacy_truck_' || t."id", t."id", 'truck', t."truckId",
   COALESCE(t."installedAt",t."createdAt"), t."driverName"
