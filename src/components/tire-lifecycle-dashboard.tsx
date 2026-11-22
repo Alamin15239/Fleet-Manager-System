@@ -19,7 +19,7 @@ type Tire = {
 type Vehicle = { id: string; vehicleType: 'truck' | 'trailer'; label: string; detail?: string; mileage?: number | null; driverName?: string | null }
 type Report = {
   summary?: { inStock: number; installed: number; damaged: number; disposed: number; totalReceived: number; damageEvents: number }
-  inventory?: any[]; damageByDriver?: any[]; damageByReason?: any[]; vehicleUsage?: any[]; tireLife?: any[]
+  inventory?: any[]; damageByDriver?: any[]; damageByReason?: any[]; damageByVehicle?: any[]; vehicleUsage?: any[]; tireLife?: any[]; averageLife?: any[]
 }
 
 const eventLabels: Record<string, string> = {
