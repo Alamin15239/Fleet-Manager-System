@@ -22,6 +22,7 @@ import { usePermissions } from '@/contexts/permissions-context'
 interface OilChangeRecord {
   id: string
   vehiclePlateNumber?: string | null
+  sourceData?: { make?: string | number | null; changedAt?: string | number | null }
   datePerformed: string
   serviceType: string
   description: string
@@ -894,6 +895,7 @@ export default function OilChangesPage() {
                             <div>
                               <div className="font-medium">Unlinked vehicle</div>
                               <div className="text-sm text-amber-700">{record.vehiclePlateNumber}</div>
+                              {(record.sourceData?.make != null || record.sourceData?.changedAt != null) && <div className="text-xs text-gray-500">Sheet Make: {record.sourceData?.make ?? '—'} · Changed At: {record.sourceData?.changedAt ?? '—'}</div>}
                             </div>
                           ) : (
                             <span className="text-gray-400">Plate not provided</span>
