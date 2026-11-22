@@ -3,6 +3,7 @@ import { db } from '@/lib/db'
 import { requireRolePermission } from '@/lib/permission-middleware'
 import { syncOneDriveWorkbookAfterChange } from '@/lib/onedrive-excel-sync'
 import { reconcileOilChangeInventory } from '@/lib/job-card-inventory'
+import { ensureMaintenanceJobCardColumns, getOrCreateOpenJobCard } from '@/lib/tire-lifecycle'
 
 export async function GET(request: NextRequest) {
   try {
@@ -94,20 +95,30 @@ export async function POST(request: NextRequest) {
     let record
     if (isTrailer) {
       // Create trailer maintenance record
-      record = await db.trailerMaintenanceRecord.create({
-        data: {
-          trailerId: body.truckId,
-          serviceType: body.serviceType,
-          description: body.description,
-          datePerformed: new Date(body.datePerformed),
-          partsCost: parseFloat(body.partsCost) || 0,
-          laborCost: parseFloat(body.laborCost) || 0,
-          totalCost: (parseFloat(body.partsCost) || 0) + (parseFloat(body.laborCost) || 0),
-          mechanicId: body.mechanicId || null,
-          mechanicName: body.mechanicName || null,
-          driverName: body.driverName || null,
-          status: body.status || 'COMPLETED'
-        }
+      record = await db.$transaction(async tx => {
+        await ensureMaintenanceJobCardColumns(tx)
+        const created = await tx.trailerMaintenanceRecord.create({
+          data: {
+            trailerId: body.truckId,
+            serviceType: body.serviceType,
+            description: body.description,
+            datePerformed: new Date(body.datePerformed),
+            partsCost: parseFloat(body.partsCost) || 0,
+            laborCost: parseFloat(body.laborCost) || 0,
+            totalCost: (parseFloat(body.partsCost) || 0) + (parseFloat(body.laborCost) || 0),
+            mechanicId: body.mechanicId || null,
+            mechanicName: body.mechanicName || null,
+            driverName: body.driverName || null,
+            status: body.status || 'COMPLETED'
+          }
+        })
+        const jobCardId = await getOrCreateOpenJobCard(tx, { vehicleType: 'trailer', vehicleId: body.truckId }, {
+          eventAt: new Date(body.datePerformed), driverName: body.driverName || null, userId: user.id,
+          serviceType: body.serviceType || 'TRAILER MAINTENANCE',
+          reportedIssue: body.description || 'Automatically linked trailer maintenance activity'
+        })
+        await tx.$executeRawUnsafe(`UPDATE "trailer_maintenance_records" SET "jobCardId"=$2 WHERE "id"=$1`, created.id, jobCardId)
+        return { ...created, jobCardId }
       })
     } else {
       // Create truck maintenance record
@@ -132,7 +143,15 @@ export async function POST(request: NextRequest) {
         notes: body.notes || null
       }
       record = await db.$transaction(async tx => {
+        await ensureMaintenanceJobCardColumns(tx)
         const created = await tx.maintenanceRecord.create({ data })
+        const jobCardId = body.truckId ? await getOrCreateOpenJobCard(tx, { vehicleType: 'truck', vehicleId: body.truckId }, {
+          eventAt: new Date(body.datePerformed), odometerKm: Number.isInteger(Number(body.currentMileage)) ? Number(body.currentMileage) : null,
+          driverName: body.driverName || null, userId: user.id,
+          serviceType: body.serviceType || (body.isOilChange ? 'OIL CHANGE' : 'MAINTENANCE'),
+          reportedIssue: body.description || 'Automatically linked maintenance activity'
+        }) : null
+        if (jobCardId) await tx.$executeRawUnsafe(`UPDATE "maintenance_records" SET "jobCardId"=$2 WHERE "id"=$1`, created.id, jobCardId)
         if (body.isOilChange && body.oilInventoryItemId && body.truckId) {
           await reconcileOilChangeInventory(tx, {
             maintenanceId: created.id,
@@ -140,7 +159,8 @@ export async function POST(request: NextRequest) {
             quantityLiters: body.oilQuantityLiters,
             transactionDate: new Date(body.datePerformed),
             vehicleId: body.truckId,
-            userId: user.id
+            userId: user.id,
+            jobCardId
           })
         }
         if (body.truckId) {
@@ -156,7 +176,7 @@ export async function POST(request: NextRequest) {
             body.truckId, mileage, isOilChange, new Date(body.datePerformed)
           )
         }
-        return created
+        return { ...created, jobCardId }
       })
     }
 
