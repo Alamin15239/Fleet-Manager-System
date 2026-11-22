@@ -184,6 +184,12 @@ export default function TireInventoryGrouped() {
     }
   }
 
+  useEffect(() => {
+    const handleFleetDataChanged = () => { void fetchAndGroupTires() }
+    window.addEventListener('fleet:data-changed', handleFleetDataChanged)
+    return () => window.removeEventListener('fleet:data-changed', handleFleetDataChanged)
+  }, [])
+
   if (loading) {
     return (
       <div role="status" className="flex items-center justify-center gap-2 p-8 text-sm text-muted-foreground">
@@ -193,11 +199,6 @@ export default function TireInventoryGrouped() {
     )
   }
 
-  useEffect(() => {
-    const handleFleetDataChanged = () => { void fetchAndGroupTires() }
-    window.addEventListener('fleet:data-changed', handleFleetDataChanged)
-    return () => window.removeEventListener('fleet:data-changed', handleFleetDataChanged)
-  }, [])
 
   return (
     <div className="space-y-4">
