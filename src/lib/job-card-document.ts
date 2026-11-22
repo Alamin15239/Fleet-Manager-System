@@ -13,7 +13,21 @@ const esc = (value: unknown) => String(value ?? '').replace(/[&<>"']/g, char => 
 
 export async function renderJobCardDocument(card: any, company: Company | null, qrValue: string, origin: string) {
     const items = Array.isArray(card.items) ? card.items : []
-    const linkedActivities = Array.isArray(card.linkedActivities) ? card.linkedActivities : []
+    const allLinkedActivities = Array.isArray(card.linkedActivities) ? card.linkedActivities : []
+    const partLineCounts = new Map<string, number>()
+    for (const item of items) {
+      if (item?.inventoryItemId) {
+        const key = `${item.inventoryItemId}:${Number(item.quantity || 0)}`
+        partLineCounts.set(key, (partLineCounts.get(key) || 0) + 1)
+      }
+    }
+    const linkedActivities = allLinkedActivities.filter((activity: any) => {
+      if (activity.activityType !== 'PART' || !activity.itemId) return true
+      const key = `${activity.itemId}:${Number(activity.quantity || 0)}`
+      const remaining = partLineCounts.get(key) || 0
+      if (remaining > 0) { partLineCounts.set(key, remaining - 1); return false }
+      return true
+    })
     const printableItems = [
       ...items,
       ...linkedActivities.map((activity: any) => ({
