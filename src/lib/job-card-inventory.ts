@@ -2,7 +2,7 @@ import { randomUUID } from 'crypto'
 
 type InventoryLine = { type?: string; inventoryItemId?: string | null; description?: string; quantity?: number; unitCost?: number | null }
 
-async function ensureInventoryTables(tx: any) {
+export async function ensureInventoryTables(tx: any) {
   await tx.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "inventory_items" (
     "id" TEXT PRIMARY KEY, "name" TEXT NOT NULL, "partNumber" TEXT,
     "category" TEXT NOT NULL DEFAULT 'GENERAL', "unit" TEXT NOT NULL DEFAULT 'pcs',
