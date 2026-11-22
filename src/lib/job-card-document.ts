@@ -13,6 +13,18 @@ const esc = (value: unknown) => String(value ?? '').replace(/[&<>"']/g, char => 
 
 export async function renderJobCardDocument(card: any, company: Company | null, qrValue: string, origin: string) {
     const items = Array.isArray(card.items) ? card.items : []
+    const linkedActivities = Array.isArray(card.linkedActivities) ? card.linkedActivities : []
+    const printableItems = [
+      ...items,
+      ...linkedActivities.map((activity: any) => ({
+        type: activity.activityType === 'TIRE' ? `TIRE ${activity.eventType || 'ACTIVITY'}` : activity.activityType || 'MAINTENANCE',
+        description: activity.activityType === 'TIRE'
+          ? [activity.internalCode, activity.tireSize, activity.manufacturer, activity.damageType, activity.reason].filter(Boolean).join(' · ')
+          : [activity.serviceType, activity.description].filter(Boolean).join(' · '),
+        quantity: 1,
+        remarks: activity.driverNameSnapshot || activity.driverName || activity.notes || ''
+      }))
+    ]
     const checks = card.checklist || {}
     const truck = card.truck
     const plate = truck?.licensePlate || card.trailer?.number || ''
@@ -55,8 +67,8 @@ export async function renderJobCardDocument(card: any, company: Company | null, 
       return '<div class="field"><div class="field-label"><span>' + esc(label) + '</span><span dir="rtl">' + esc(arabic) + '</span></div><div class="field-value">' + (text ? esc(text) : '<span class="empty-value">—</span>') + '</div></div>'
     }
 
-    const itemRows = Array.from({ length: Math.max(3, items.length) }, (_, index) => {
-      const item = items[index]
+    const itemRows = Array.from({ length: Math.max(3, printableItems.length) }, (_, index) => {
+      const item = printableItems[index]
       const itemType = String(item?.type || '').replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, letter => letter.toUpperCase())
       return '<tr><td>' + esc(itemType) + '</td><td>' + esc(item?.description || '') + '</td><td class="qty-cell">' + (item ? esc(item.quantity) : '') + '</td><td>' + esc(item?.remarks || '') + '</td></tr>'
     }).join('')
