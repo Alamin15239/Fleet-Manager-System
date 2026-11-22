@@ -267,7 +267,10 @@ model MaintenanceRecord {
   maintenanceJob    MaintenanceJob?   @relation(fields: [maintenanceJobId], references: [id])
   mechanic          Mechanic?         @relation(fields: [mechanicId], references: [id])
   truck             Truck?            @relation(fields: [truckId], references: [id], onDelete: SetNull)
+  jobCardId         String?
+  jobCard           WorkshopJobCard?  @relation(fields: [jobCardId], references: [id], onDelete: SetNull)
 
+  @@index([jobCardId])
   @@map("maintenance_records")
 }
 
@@ -307,7 +310,10 @@ model TrailerMaintenanceRecord {
   maintenanceJob    MaintenanceJob?   @relation(fields: [maintenanceJobId], references: [id])
   mechanic          Mechanic?         @relation(fields: [mechanicId], references: [id])
   trailer           Trailer           @relation(fields: [trailerId], references: [id], onDelete: Cascade)
+  jobCardId         String?
+  jobCard           WorkshopJobCard?  @relation(fields: [jobCardId], references: [id], onDelete: SetNull)
 
+  @@index([jobCardId])
   @@map("trailer_maintenance_records")
 }
 
@@ -341,6 +347,9 @@ model WorkshopJobCard {
   truck                Truck?   @relation(fields: [truckId], references: [id], onDelete: Restrict)
   trailer              Trailer? @relation(fields: [trailerId], references: [id], onDelete: Restrict)
   createdBy            User?    @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  maintenanceRecords   MaintenanceRecord[]
+  trailerMaintenanceRecords TrailerMaintenanceRecord[]
+  tireEvents           TireLifecycleEvent[]
 
   @@index([serviceDate])
   @@index([truckId])
@@ -900,9 +909,17 @@ model Tire {
   updatedAt     DateTime @updatedAt
   serialNumber  String?
   truckId       String?
+  internalCode  String?  @unique
+  lifecycleStatus String @default("STOCK")
+  currentPosition String?
+  installedAt DateTime?
+  installationOdometer Int?
+  deletedAt DateTime?
   createdBy     User?    @relation(fields: [createdById], references: [id])
   truck         Truck?   @relation(fields: [truckId], references: [id], onDelete: SetNull)
   vehicle       Vehicle? @relation(fields: [plateNumber], references: [plateNumber])
+  lifecycleEvents TireLifecycleEvent[]
+  usagePeriods TireUsagePeriod[]
 
   @@index([manufacturer])
   @@index([origin])
@@ -911,6 +928,53 @@ model Tire {
   @@index([serialNumber])
   @@index([createdAt])
   @@map("tires")
+}
+
+model TireLifecycleEvent {
+  id                  String   @id
+  tireId              String
+  eventType           String
+  eventAt             DateTime @default(now())
+  fromTruckId         String?
+  fromTrailerId       String?
+  toTruckId           String?
+  toTrailerId         String?
+  fromPosition        String?
+  toPosition          String?
+  driverNameSnapshot  String?
+  odometerKm          Int?
+  reason              String?
+  damageType          String?
+  repairable          Boolean?
+  cost                Float?
+  notes               String?
+  jobCardId           String?
+  createdById         String?
+  createdAt           DateTime @default(now())
+  tire                Tire     @relation(fields: [tireId], references: [id], onDelete: Restrict)
+  jobCard             WorkshopJobCard? @relation(fields: [jobCardId], references: [id], onDelete: SetNull)
+
+  @@index([tireId, eventAt])
+  @@index([jobCardId])
+  @@map("tire_lifecycle_events")
+}
+
+model TireUsagePeriod {
+  id                 String   @id
+  tireId             String
+  vehicleType        String
+  vehicleId          String
+  installedAt        DateTime
+  removedAt          DateTime?
+  startOdometer      Int?
+  endOdometer        Int?
+  driverNameSnapshot String?
+  createdAt          DateTime @default(now())
+  tire               Tire     @relation(fields: [tireId], references: [id], onDelete: Restrict)
+
+  @@index([tireId, installedAt])
+  @@index([vehicleType, vehicleId])
+  @@map("tire_usage_periods")
 }
 
 model Document {
