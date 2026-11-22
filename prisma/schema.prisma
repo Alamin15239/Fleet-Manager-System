@@ -225,7 +225,8 @@ model TrailerPredictiveAlert {
 
 model MaintenanceRecord {
   id                String            @id @default(cuid())
-  truckId           String
+  truckId           String?
+  vehiclePlateNumber String?
   serviceType       String
   description       String?
   datePerformed     DateTime
@@ -262,7 +263,7 @@ model MaintenanceRecord {
   createdBy         User?             @relation(fields: [createdById], references: [id])
   maintenanceJob    MaintenanceJob?   @relation(fields: [maintenanceJobId], references: [id])
   mechanic          Mechanic?         @relation(fields: [mechanicId], references: [id])
-  truck             Truck             @relation(fields: [truckId], references: [id], onDelete: Cascade)
+  truck             Truck?            @relation(fields: [truckId], references: [id], onDelete: SetNull)
 
   @@map("maintenance_records")
 }
