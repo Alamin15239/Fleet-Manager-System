@@ -177,6 +177,31 @@ export async function recordTireLifecycleEvent(tx: any, input: {
       eventAt: input.eventAt, odometerKm: input.odometerKm, driverName: eventDriverName, userId: input.userId,
       serviceType: 'TIRE MAINTENANCE', reportedIssue: 'Automatically created from tire lifecycle activity'
     })
+  } else if (['REPAIR','DISPOSE','DAMAGE'].includes(eventType)) {
+    const previousVehicleEvent = await tx.$queryRawUnsafe(
+      `SELECT "jobCardId","fromTruckId","fromTrailerId" FROM "tire_lifecycle_events"
+       WHERE "tireId"=$1 AND "jobCardId" IS NOT NULL
+       ORDER BY "eventAt" DESC,"createdAt" DESC LIMIT 1`, input.tireId
+    )
+    const previous = previousVehicleEvent[0]
+    if (previous?.jobCardId) {
+      const openCard = await tx.workshopJobCard.findFirst({
+        where: { id: previous.jobCardId, status: { in: ['OPEN','IN_PROGRESS'] } },
+        select: { id: true }
+      })
+      if (openCard) jobCardId = openCard.id
+    }
+    if (!jobCardId && previous?.fromTruckId) {
+      jobCardId = await getOrCreateOpenJobCard(tx, { vehicleType: 'truck', vehicleId: previous.fromTruckId }, {
+        eventAt: input.eventAt, odometerKm: input.odometerKm, driverName: eventDriverName, userId: input.userId,
+        serviceType: 'TIRE MAINTENANCE', reportedIssue: 'Automatically created for tire repair or disposal'
+      })
+    } else if (!jobCardId && previous?.fromTrailerId) {
+      jobCardId = await getOrCreateOpenJobCard(tx, { vehicleType: 'trailer', vehicleId: previous.fromTrailerId }, {
+        eventAt: input.eventAt, odometerKm: input.odometerKm, driverName: eventDriverName, userId: input.userId,
+        serviceType: 'TIRE MAINTENANCE', reportedIssue: 'Automatically created for tire repair or disposal'
+      })
+    }
   }
 
   const fromTruckId = currentTruckId
