@@ -36,8 +36,9 @@ export async function ensureTireLifecycleTables(tx: any) {
   await tx.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "tire_lifecycle_events_jobCardId_idx" ON "tire_lifecycle_events" ("jobCardId")`)
 }
 
-async function getOrCreateJobCard(tx: any, vehicle: VehicleRef, details: {
-  eventAt: Date; odometerKm?: number | null; driverName?: string | null; userId: string
+export async function getOrCreateOpenJobCard(tx: any, vehicle: VehicleRef, details: {
+  eventAt: Date; odometerKm?: number | null; driverName?: string | null; userId: string;
+  serviceType?: string; reportedIssue?: string
 }) {
   // Serialize card creation to prevent two simultaneous tire operations opening duplicate cards.
   await tx.$executeRawUnsafe(`LOCK TABLE "workshop_job_cards" IN EXCLUSIVE MODE`)
@@ -64,9 +65,9 @@ async function getOrCreateJobCard(tx: any, vehicle: VehicleRef, details: {
       id, jobNumber: `${prefix}${String(highest + 1).padStart(4, '0')}`,
       ...(vehicle.vehicleType === 'truck' ? { truckId: vehicle.vehicleId } : { trailerId: vehicle.vehicleId }),
       serviceDate: details.eventAt, odometerKm: details.odometerKm ?? undefined,
-      serviceType: 'TIRE MAINTENANCE', priority: 'NORMAL',
+      serviceType: details.serviceType || 'TIRE MAINTENANCE', priority: 'NORMAL',
       driverName: details.driverName || undefined, status: 'OPEN',
-      reportedIssue: 'Automatically created from tire lifecycle activity',
+      reportedIssue: details.reportedIssue || 'Automatically created from maintenance activity',
       createdById: details.userId, items: [], checklist: {}
     }
   })
@@ -107,8 +108,9 @@ export async function recordTireLifecycleEvent(tx: any, input: {
   const operationalVehicle = ['TRANSFER','REMOVE','DAMAGE','REPAIR','DISPOSE'].includes(eventType)
     ? currentVehicle || target : target || currentVehicle
   if (operationalVehicle && !['RECEIVE'].includes(eventType)) {
-    jobCardId = await getOrCreateJobCard(tx, operationalVehicle, {
-      eventAt: input.eventAt, odometerKm: input.odometerKm, driverName: input.driverName, userId: input.userId
+    jobCardId = await getOrCreateOpenJobCard(tx, operationalVehicle, {
+      eventAt: input.eventAt, odometerKm: input.odometerKm, driverName: input.driverName, userId: input.userId,
+      serviceType: 'TIRE MAINTENANCE', reportedIssue: 'Automatically created from tire lifecycle activity'
     })
   }
 
@@ -161,4 +163,12 @@ export async function recordTireLifecycleEvent(tx: any, input: {
     )
   }
   return { eventId, jobCardId, lifecycleStatus: nextStatus }
+}
+
+
+export async function ensureMaintenanceJobCardColumns(tx: any) {
+  await tx.$executeRawUnsafe(`ALTER TABLE "maintenance_records" ADD COLUMN IF NOT EXISTS "jobCardId" TEXT`)
+  await tx.$executeRawUnsafe(`ALTER TABLE "trailer_maintenance_records" ADD COLUMN IF NOT EXISTS "jobCardId" TEXT`)
+  await tx.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "maintenance_records_jobCardId_idx" ON "maintenance_records" ("jobCardId")`)
+  await tx.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "trailer_maintenance_records_jobCardId_idx" ON "trailer_maintenance_records" ("jobCardId")`)
 }
