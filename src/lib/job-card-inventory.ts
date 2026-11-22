@@ -96,7 +96,7 @@ export async function reconcileOilChangeInventory(tx: any, args: OilChangeInvent
       `INSERT INTO "inventory_transactions" ("id","itemId","type","quantity","transactionDate","reference","vehicleType","vehicleId","jobCardId","notes","createdById","sourceType","sourceId")
        VALUES ($1,$2,'CUSTOMER_RETURN',$3,$4,$5,'truck',$6,$7,$8,$9,'OIL_CHANGE',$10)`,
       `itx_${randomUUID()}`, row.itemId, qty, args.transactionDate,
-      `Oil change ${args.maintenanceId}`, args.vehicleId,
+      `Oil change ${args.maintenanceId}`, args.vehicleId, args.jobCardId || null,
       'Automatic reversal of previous oil issue', args.userId, args.maintenanceId
     )
   }
@@ -122,7 +122,7 @@ export async function reconcileOilChangeInventory(tx: any, args: OilChangeInvent
     `INSERT INTO "inventory_transactions" ("id","itemId","type","quantity","transactionDate","reference","vehicleType","vehicleId","jobCardId","notes","createdById","sourceType","sourceId")
      VALUES ($1,$2,'ISSUE',$3,$4,$5,'truck',$6,$7,$8,$9,'OIL_CHANGE',$10)`,
     `itx_${randomUUID()}`, args.inventoryItemId, qty, args.transactionDate,
-    `Oil change ${args.maintenanceId}`, args.vehicleId,
+    `Oil change ${args.maintenanceId}`, args.vehicleId, args.jobCardId || null,
     'Oil consumed during oil change', args.userId, args.maintenanceId
   )
 }
