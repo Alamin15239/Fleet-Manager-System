@@ -120,7 +120,9 @@ export async function POST(request: NextRequest) {
           : await tx.trailer.findFirst({ where: { id: vehicleId, isDeleted: false }, select: { id: true, driverName: true } })
         if (!vehicle) throw new Error('Selected vehicle not found or inactive')
         if (jobCardId) {
-          const where = vehicleType === 'truck' ? { id: jobCardId, truckId: vehicleId } : { id: jobCardId, trailerId: vehicleId }
+          const where = vehicleType === 'truck'
+            ? { id: jobCardId, truckId: vehicleId, status: { in: ['OPEN', 'IN_PROGRESS'] } }
+            : { id: jobCardId, trailerId: vehicleId, status: { in: ['OPEN', 'IN_PROGRESS'] } }
           const linkedCard = await tx.workshopJobCard.findFirst({ where, select: { id: true } })
           if (!linkedCard) throw new Error('Selected job card does not belong to this vehicle')
         } else {
@@ -128,6 +130,16 @@ export async function POST(request: NextRequest) {
             eventAt: transactionDate, driverName: vehicle.driverName, userId: user.id,
             serviceType: 'SPARE PARTS', reportedIssue: 'Automatically created from spare-parts issue'
           })
+        }
+      } else if (type === 'ISSUE' && jobCardId) {
+        const linkedCard = await tx.workshopJobCard.findFirst({
+          where: { id: jobCardId, status: { in: ['OPEN', 'IN_PROGRESS'] } },
+          select: { id: true, truckId: true, trailerId: true }
+        })
+        if (!linkedCard) throw new Error('Selected job card is not open')
+        if (!vehicleId) {
+          if (linkedCard.truckId) { body.vehicleType = 'truck'; body.vehicleId = linkedCard.truckId }
+          else if (linkedCard.trailerId) { body.vehicleType = 'trailer'; body.vehicleId = linkedCard.trailerId }
         }
       }
       const item = await tx.$queryRawUnsafe<any[]>(`SELECT "id" FROM "inventory_items" WHERE "id"=$1 FOR UPDATE`, body.itemId)
@@ -142,7 +154,7 @@ export async function POST(request: NextRequest) {
         ("id","itemId","type","quantity","transactionDate","reference","vehicleType","vehicleId","jobCardId","unitCost","notes","createdById")
         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
         id, body.itemId, type, quantity, transactionDate, body.reference || null,
-        normalizedVehicleType || null, vehicleId || null, jobCardId,
+        normalizedVehicleType || (body.vehicleType ? String(body.vehicleType).toLowerCase() : null) || null, vehicleId || body.vehicleId || null, jobCardId,
         body.unitCost == null ? null : Number(body.unitCost), body.notes || null, user.id)
     })
     return NextResponse.json({ transaction: created[0] }, { status: 201 })
