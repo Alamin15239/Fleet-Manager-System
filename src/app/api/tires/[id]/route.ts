@@ -171,6 +171,9 @@ export async function DELETE(
       )
     }
 
+    if (existingTire.lifecycleStatus === 'DISPOSED') {
+      return NextResponse.json({ error: 'This tire has already been disposed' }, { status: 409 })
+    }
     if (existingTire.lifecycleStatus === 'INSTALLED' || existingTire.truckId || existingTire.trailerNumber) {
       return NextResponse.json({ error: 'Remove the tire from its vehicle before disposing it' }, { status: 409 })
     }
