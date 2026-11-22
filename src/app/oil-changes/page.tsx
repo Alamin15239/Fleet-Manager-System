@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Textarea } from '@/components/ui/textarea'
-import { Search, Droplets, Calendar, Truck, User, BarChart3, Plus, Filter, Check, ChevronsUpDown, Pencil, FileDown, Printer, X } from 'lucide-react'
+import { Search, Droplets, Calendar, Truck, User, BarChart3, Plus, Filter, Check, ChevronsUpDown, Pencil, FileDown, Printer, X, Upload, FileSpreadsheet, AlertCircle } from 'lucide-react'
 import { apiGet, apiPost, apiPut } from '@/lib/api'
 import { formatCurrency } from '@/lib/currency'
 import { toast } from '@/lib/localized-toast'
@@ -77,6 +77,9 @@ export default function OilChangesPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [loading, setLoading] = useState(true)
+  const [importFile, setImportFile] = useState<File | null>(null)
+  const [importPreview, setImportPreview] = useState<any>(null)
+  const [importBusy, setImportBusy] = useState(false)
   const [summary, setSummary] = useState({
     totalRecords: 0,
     totalCost: 0,
@@ -195,6 +198,42 @@ export default function OilChangesPage() {
     } catch (error) {
       console.error('Error fetching mechanics:', error)
     }
+  }
+
+  const handleImportPreview = async () => {
+    if (!importFile) return
+    setImportBusy(true)
+    setImportPreview(null)
+    try {
+      const form = new FormData()
+      form.append('file', importFile)
+      form.append('mode', 'preview')
+      const response = await fetch('/api/maintenance/oil-import', { method: 'POST', body: form, credentials: 'include' })
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error || 'Preview failed')
+      setImportPreview(result)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Preview failed')
+    } finally { setImportBusy(false) }
+  }
+
+  const handleImportCommit = async () => {
+    if (!importFile || !importPreview) return
+    setImportBusy(true)
+    try {
+      const form = new FormData()
+      form.append('file', importFile)
+      form.append('mode', 'import')
+      const response = await fetch('/api/maintenance/oil-import', { method: 'POST', body: form, credentials: 'include' })
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error || 'Import failed')
+      toast.success(`Imported ${result.imported} records. ${result.duplicates} duplicates and ${result.invalid} invalid rows skipped.`)
+      setImportFile(null)
+      setImportPreview(null)
+      await fetchOilChanges()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Import failed')
+    } finally { setImportBusy(false) }
   }
 
   const filterRecords = () => {
@@ -634,6 +673,48 @@ export default function OilChangesPage() {
           </DialogContent>
         </Dialog>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2"><FileSpreadsheet className="h-5 w-5" /> Import oil changes from Excel or CSV</CardTitle>
+          <p className="text-sm text-muted-foreground">Upload, preview plate matching, then import directly into maintenance records. Blank plate numbers are saved as “Missing”.</p>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+            <div className="flex-1 space-y-2">
+              <Label htmlFor="oil-import-file">Excel or CSV file (.xlsx, .xls, .csv)</Label>
+              <Input id="oil-import-file" type="file" accept=".xlsx,.xls,.csv" disabled={!canCreate('maintenance') || importBusy} onChange={(e) => { setImportFile(e.target.files?.[0] || null); setImportPreview(null) }} />
+              <p className="text-xs text-muted-foreground">Columns: Date, Driver Nm, kM, Changed At, Make, Plate No, litter and oil type. Maximum 10 MB.</p>
+            </div>
+            <Button type="button" variant="outline" onClick={handleImportPreview} disabled={!importFile || importBusy || !canCreate('maintenance')}>
+              <Upload className="mr-2 h-4 w-4" /> {importBusy ? 'Please wait…' : 'Preview file'}
+            </Button>
+          </div>
+          {importPreview && <div className="space-y-3 rounded-lg border p-4">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+              <div><p className="text-xs text-muted-foreground">Rows found</p><p className="text-xl font-semibold">{importPreview.total}</p></div>
+              <div><p className="text-xs text-muted-foreground">Plate matched</p><p className="text-xl font-semibold text-green-600">{importPreview.matched}</p></div>
+              <div><p className="text-xs text-muted-foreground">Unmatched</p><p className="text-xl font-semibold">{importPreview.unmatched}</p></div>
+              <div><p className="text-xs text-muted-foreground">Blank → Missing</p><p className="text-xl font-semibold">{importPreview.missing}</p></div>
+              <div><p className="text-xs text-muted-foreground">Duplicates / invalid</p><p className="text-xl font-semibold">{importPreview.duplicates} / {importPreview.invalid}</p></div>
+            </div>
+            {importPreview.unmatched > 0 && <p className="flex items-center gap-2 text-sm text-amber-700"><AlertCircle className="h-4 w-4" /> Unmatched plates are kept as text and imported without a truck link.</p>}
+            {importPreview.invalid > 0 && <p className="text-sm text-amber-700">{importPreview.invalid} rows with invalid or missing dates will be skipped.</p>}
+            <div className="max-h-64 overflow-auto rounded-md border">
+              <Table>
+                <TableHeader><TableRow><TableHead>Row</TableHead><TableHead>Date</TableHead><TableHead>Plate</TableHead><TableHead>Match</TableHead><TableHead>Oil entry</TableHead></TableRow></TableHeader>
+                <TableBody>{(importPreview.rows || []).map((row: any) => <TableRow key={row.rowNumber}><TableCell>{row.rowNumber}</TableCell><TableCell>{row.date || '—'}</TableCell><TableCell>{row.plate || 'Missing'}</TableCell><TableCell><Badge variant={row.matchStatus === 'Matched' ? 'default' : 'outline'}>{row.matchStatus}</Badge></TableCell><TableCell>{row.oilText || '—'}</TableCell></TableRow>)}</TableBody>
+              </Table>
+            </div>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-xs text-muted-foreground">Preview shows up to 50 rows. Existing imports are detected and skipped.</p>
+              <Button type="button" onClick={handleImportCommit} disabled={importBusy || !canCreate('maintenance') || importPreview.valid === 0}>
+                <Upload className="mr-2 h-4 w-4" /> {importBusy ? 'Importing…' : `Import ${importPreview.valid} valid rows`}
+              </Button>
+            </div>
+          </div>}
+        </CardContent>
+      </Card>
 
       <div className="grid gap-4 md:grid-cols-5">
         <Card>
