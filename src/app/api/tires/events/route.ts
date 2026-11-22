@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireRolePermission } from '@/lib/permission-middleware'
-import { recordTireLifecycleEvent } from '@/lib/tire-lifecycle'
+import { ensureTireLifecycleTables, recordTireLifecycleEvent } from '@/lib/tire-lifecycle'
 
 export async function POST(request: NextRequest) {
   try {
@@ -46,6 +46,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const tireId = searchParams.get('tireId')
     const jobCardId = searchParams.get('jobCardId')
+    await db.$transaction(async tx => ensureTireLifecycleTables(tx))
     const rows = await db.$queryRawUnsafe(
       `SELECT e.*, t."tireSize",t."manufacturer",t."serialNumber",t."internalCode"
        FROM "tire_lifecycle_events" e JOIN "tires" t ON t."id"=e."tireId"
