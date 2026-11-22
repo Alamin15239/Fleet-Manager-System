@@ -70,6 +70,7 @@ type OilChangeInventoryArgs = {
   transactionDate: Date
   vehicleId: string
   userId: string
+  jobCardId?: string | null
 }
 
 /** Reconciles oil consumption against the tenant's inventory ledger.
@@ -92,8 +93,8 @@ export async function reconcileOilChangeInventory(tx: any, args: OilChangeInvent
     const qty = Number(row.qty)
     if (qty <= 0) continue
     await tx.$executeRawUnsafe(
-      `INSERT INTO "inventory_transactions" ("id","itemId","type","quantity","transactionDate","reference","vehicleType","vehicleId","notes","createdById","sourceType","sourceId")
-       VALUES ($1,$2,'CUSTOMER_RETURN',$3,$4,$5,'truck',$6,$7,$8,'OIL_CHANGE',$9)`,
+      `INSERT INTO "inventory_transactions" ("id","itemId","type","quantity","transactionDate","reference","vehicleType","vehicleId","jobCardId","notes","createdById","sourceType","sourceId")
+       VALUES ($1,$2,'CUSTOMER_RETURN',$3,$4,$5,'truck',$6,$7,$8,$9,'OIL_CHANGE',$10)`,
       `itx_${randomUUID()}`, row.itemId, qty, args.transactionDate,
       `Oil change ${args.maintenanceId}`, args.vehicleId,
       'Automatic reversal of previous oil issue', args.userId, args.maintenanceId
@@ -118,8 +119,8 @@ export async function reconcileOilChangeInventory(tx: any, args: OilChangeInvent
   if (Number(balance[0]?.qty || 0) + 0.000001 < qty) throw new Error('Insufficient oil stock for this oil change')
 
   await tx.$executeRawUnsafe(
-    `INSERT INTO "inventory_transactions" ("id","itemId","type","quantity","transactionDate","reference","vehicleType","vehicleId","notes","createdById","sourceType","sourceId")
-     VALUES ($1,$2,'ISSUE',$3,$4,$5,'truck',$6,$7,$8,'OIL_CHANGE',$9)`,
+    `INSERT INTO "inventory_transactions" ("id","itemId","type","quantity","transactionDate","reference","vehicleType","vehicleId","jobCardId","notes","createdById","sourceType","sourceId")
+     VALUES ($1,$2,'ISSUE',$3,$4,$5,'truck',$6,$7,$8,$9,'OIL_CHANGE',$10)`,
     `itx_${randomUUID()}`, args.inventoryItemId, qty, args.transactionDate,
     `Oil change ${args.maintenanceId}`, args.vehicleId,
     'Oil consumed during oil change', args.userId, args.maintenanceId
