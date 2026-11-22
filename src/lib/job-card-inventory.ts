@@ -72,6 +72,7 @@ type OilChangeInventoryArgs = {
   userId: string
   jobCardId?: string | null
   previousJobCardId?: string | null
+  previousVehicleId?: string | null
 }
 
 /** Reconciles oil consumption against the tenant's inventory ledger.
