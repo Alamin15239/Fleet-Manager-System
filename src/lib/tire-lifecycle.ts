@@ -156,6 +156,9 @@ export async function recordTireLifecycleEvent(tx: any, input: {
     : target?.vehicleType === 'trailer'
       ? (await tx.trailer.findUnique({ where: { id: target.vehicleId }, select: { driverName: true } }))?.driverName
       : null
+  const currentVehicle: VehicleRef | null = currentTruckId
+    ? { vehicleType: 'truck', vehicleId: currentTruckId }
+    : currentTrailer ? { vehicleType: 'trailer', vehicleId: currentTrailer.id } : null
   if (eventType === 'TRANSFER' && currentVehicle && target &&
       currentVehicle.vehicleType === target.vehicleType && currentVehicle.vehicleId === target.vehicleId)
     throw new Error('Use Change wheel position when moving a tire within the same vehicle')
@@ -172,9 +175,6 @@ export async function recordTireLifecycleEvent(tx: any, input: {
       : await tx.$queryRawUnsafe(`SELECT "id" FROM "tires" WHERE "trailerNumber"=(SELECT "number" FROM "trailers" WHERE "id"=$1) AND "currentPosition"=$2 AND "lifecycleStatus"='INSTALLED' AND "id"<>$3 LIMIT 1`, target.vehicleId, input.position, input.tireId)
     if (occupied.length) throw new Error('Wheel position already occupied by another tire')
   }
-  const currentVehicle: VehicleRef | null = currentTruckId
-    ? { vehicleType: 'truck', vehicleId: currentTruckId }
-    : currentTrailer ? { vehicleType: 'trailer', vehicleId: currentTrailer.id } : null
   const sourceDriverName = currentTruck?.driverName || currentTrailer?.driverName || null
   const eventDriverName = input.driverName || (eventType === 'INSTALL' ? targetVehicleDriver : sourceDriverName) || targetVehicleDriver || null
   const usageDriverName = input.driverName || targetVehicleDriver || eventDriverName
