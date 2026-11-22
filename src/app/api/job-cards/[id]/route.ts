@@ -18,8 +18,11 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       await tx.$executeRaw`LOCK TABLE "workshop_job_cards" IN EXCLUSIVE MODE`
       const existing = await tx.workshopJobCard.findUnique({ where: { id }, select: { id: true, truckId: true, trailerId: true, status: true } })
       if (!existing) throw new Error('Job card not found')
-      if (['OPEN', 'IN_PROGRESS'].includes(data.status)) {
-        const vehicleWhere = data.truckId ? { truckId: data.truckId } : { trailerId: data.trailerId! }
+      const targetTruckId = data.truckId !== undefined ? data.truckId : existing.truckId
+      const targetTrailerId = data.trailerId !== undefined ? data.trailerId : existing.trailerId
+      const targetStatus = data.status || existing.status
+      if (['OPEN', 'IN_PROGRESS'].includes(targetStatus) && (targetTruckId || targetTrailerId)) {
+        const vehicleWhere = targetTruckId ? { truckId: targetTruckId } : { trailerId: targetTrailerId! }
         const conflictingCard = await tx.workshopJobCard.findFirst({
           where: { ...vehicleWhere, id: { not: id }, status: { in: ['OPEN', 'IN_PROGRESS'] } },
           select: { id: true, jobNumber: true }
@@ -33,7 +36,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
           trailer: { select: { id: true, number: true } }
         }
       })
-      if (data.truckId && Number.isInteger(data.odometerKm) && data.odometerKm! >= 0) {
+      if (targetTruckId && Number.isInteger(data.odometerKm) && data.odometerKm! >= 0) {
         await tx.$executeRawUnsafe(
           `UPDATE "trucks" SET "currentMileage" = GREATEST("currentMileage", $2), "updatedAt" = NOW()
            WHERE "id" = $1 AND "isDeleted" = false`,
@@ -42,7 +45,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       }
       await reconcileJobCardInventory(tx, {
         jobCardId: id, lines: updated.status === 'CANCELLED' ? [] : data.items as any[],
-        vehicleType: data.truckId ? 'truck' : 'trailer', vehicleId: data.truckId || data.trailerId!,
+        vehicleType: targetTruckId ? 'truck' : 'trailer', vehicleId: targetTruckId || targetTrailerId!,
         transactionDate: data.serviceDate, userId: user.id
       })
       return updated
