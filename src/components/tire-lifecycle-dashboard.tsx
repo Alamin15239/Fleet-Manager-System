@@ -266,6 +266,15 @@ export default function TireLifecycleDashboard() {
           </CardContent>
         </Card>
         <Card>
+          <CardHeader><CardTitle>Lifetime usage by tire</CardTitle></CardHeader>
+          <CardContent className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead><tr className="border-b text-left text-muted-foreground"><th className="py-2">Tire ID</th><th>Brand / size</th><th className="text-right">Installations</th><th className="text-right">Days</th><th className="text-right">Known km</th></tr></thead>
+              <tbody>{(report?.tireLife || []).slice(0,100).map((row, i) => <tr key={row.id || i} className="border-b last:border-0"><td className="py-2">{row.internalCode || row.id}</td><td>{row.manufacturer} · {row.tireSize}</td><td className="text-right">{formatNumber(row.installations)}</td><td className="text-right">{Math.round(Number(row.lifetimeDays || 0))}</td><td className="text-right">{formatNumber(row.lifetimeKm)}</td></tr>)}</tbody>
+            </table>
+          </CardContent>
+        </Card>
+        <Card>
           <CardHeader><CardTitle className="flex items-center gap-2"><Activity className="h-5 w-5" />Recent tire history</CardTitle></CardHeader>
           <CardContent className="overflow-x-auto">
             <table className="w-full text-sm">
