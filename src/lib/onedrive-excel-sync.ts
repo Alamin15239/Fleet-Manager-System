@@ -594,6 +594,7 @@ export async function createFleetWorkbook() {
 
   const latestOilChangeByTruck = new Map<string, typeof oilChanges[number]>()
   for (const record of oilChanges) {
+    if (!record.truckId) continue
     const existing = latestOilChangeByTruck.get(record.truckId)
     if (!existing || record.datePerformed > existing.datePerformed) latestOilChangeByTruck.set(record.truckId, record)
   }
@@ -670,7 +671,7 @@ export async function createFleetWorkbook() {
   ], trailers.map(row => ({ number: row.number, driver: row.driverName, status: row.status, healthScore: row.healthScore, riskLevel: row.riskLevel, lastInspection: row.lastInspection, nextInspection: row.nextInspection, updatedAt: trailerLastUpdated.get(row.id) || row.updatedAt, recordId: row.id })), 1, true)
 
   const maintenanceRows = [
-    ...truckMaintenance.map(row => ({ id: row.id, recordId: row.id, assetType: 'Truck', asset: row.truck.licensePlate, date: row.datePerformed, serviceType: row.serviceType, description: row.description, status: row.status, partsCost: row.partsCost, laborCost: row.laborCost, totalCost: row.totalCost, mechanic: row.mechanic?.name || row.mechanicName, driver: row.driverName, nextServiceDue: row.nextServiceDue, notes: row.notes, updatedAt: row.updatedAt })),
+    ...truckMaintenance.map(row => ({ id: row.id, recordId: row.id, assetType: 'Truck', asset: row.truck?.licensePlate || row.vehiclePlateNumber || 'Missing', date: row.datePerformed, serviceType: row.serviceType, description: row.description, status: row.status, partsCost: row.partsCost, laborCost: row.laborCost, totalCost: row.totalCost, mechanic: row.mechanic?.name || row.mechanicName, driver: row.driverName, nextServiceDue: row.nextServiceDue, notes: row.notes, updatedAt: row.updatedAt })),
     ...trailerMaintenance.map(row => ({ id: row.id, recordId: row.id, assetType: 'Trailer', asset: row.trailer.number, date: row.datePerformed, serviceType: row.serviceType, description: row.description, status: row.status, partsCost: row.partsCost, laborCost: row.laborCost, totalCost: row.totalCost, mechanic: row.mechanic?.name || row.mechanicName, driver: row.driverName, nextServiceDue: row.nextServiceDue, notes: row.notes, updatedAt: row.updatedAt }))
   ].sort((a, b) => b.date.getTime() - a.date.getTime())
   const maintenanceColumns = [
@@ -695,7 +696,7 @@ export async function createFleetWorkbook() {
     { header: 'Mechanic', key: 'mechanic', width: 22 }, { header: 'Notes', key: 'notes', width: 36 },
     { header: 'Last Updated', key: 'updatedAt', width: 22, numFmt: DATE_TIME_FORMAT },
     { header: 'Record ID', key: 'recordId', width: 28, hidden: true }
-  ], oilChanges.map(row => ({ truck: row.truck.licensePlate, vehicle: `${row.truck.make} ${row.truck.model}`.trim(), driver: row.driverName, date: row.datePerformed, mileage: row.currentMileage, quantity: row.oilQuantityLiters, interval: row.oilChangeInterval, nextDue: row.nextServiceDue, partsCost: row.partsCost, laborCost: row.laborCost, totalCost: row.totalCost, mechanic: row.mechanic?.name || row.mechanicName, notes: row.notes, updatedAt: row.updatedAt, recordId: row.id })), 1, true)
+  ], oilChanges.map(row => ({ truck: row.truck?.licensePlate || row.vehiclePlateNumber || 'Missing', vehicle: `${row.truck?.make || ''} ${row.truck?.model || ''}`.trim(), driver: row.driverName, date: row.datePerformed, mileage: row.currentMileage, quantity: row.oilQuantityLiters, interval: row.oilChangeInterval, nextDue: row.nextServiceDue, partsCost: row.partsCost, laborCost: row.laborCost, totalCost: row.totalCost, mechanic: row.mechanic?.name || row.mechanicName, notes: row.notes, updatedAt: row.updatedAt, recordId: row.id })), 1, true)
 
   addTableSheet(workbook, 'Tires', 'Tires', [
     { header: 'Tire Size', key: 'tireSize', width: 18 }, { header: 'Truck Number', key: 'truck', width: 20 },
