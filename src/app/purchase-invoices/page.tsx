@@ -45,6 +45,8 @@ interface TruckOption {
 
 interface TrailerOption { id: string; number: string }
 
+interface InventoryItemOption { id: string; name: string; partNumber?: string | null; category: string; unit: string; oilGrade?: string | null }
+
 interface DraftLine {
   key: string
   category: Category
@@ -53,6 +55,7 @@ interface DraftLine {
   unitPrice: string
   assetType: AssetType
   assetId: string
+  inventoryItemId: string
 }
 
 interface InvoiceLine {
@@ -125,6 +128,7 @@ const blankLine = (): DraftLine => ({
   unitPrice: '',
   assetType: 'TRUCK',
   assetId: '',
+  inventoryItemId: '',
 })
 
 const categoryLabels: Record<Category, string> = {
@@ -151,6 +155,7 @@ export default function PurchaseInvoicesPage() {
   const [vendors, setVendors] = useState<Vendor[]>([])
   const [trucks, setTrucks] = useState<TruckOption[]>([])
   const [trailers, setTrailers] = useState<TrailerOption[]>([])
+  const [inventoryItems, setInventoryItems] = useState<InventoryItemOption[]>([])
   const [vehicleAccounts, setVehicleAccounts] = useState<AccountRow[]>([])
   const [vendorAccounts, setVendorAccounts] = useState<AccountRow[]>([])
   const [inputVatBalance, setInputVatBalance] = useState(0)
@@ -258,6 +263,7 @@ export default function PurchaseInvoicesPage() {
       setVendors(payload.vendors || [])
       setTrucks(payload.trucks || [])
       setTrailers(payload.trailers || [])
+      setInventoryItems(payload.inventoryItems || [])
       setVehicleAccounts(payload.vehicleAccounts || [])
       setVendorAccounts(payload.vendorAccounts || [])
       setInputVatBalance(payload.inputVatBalance || 0)
@@ -951,6 +957,7 @@ export default function PurchaseInvoicesPage() {
                       <div className="space-y-2 xl:col-span-3"><Label><LocalizedText>Asset type</LocalizedText></Label><select value={line.assetType} onChange={(event) => { patchLine(line.key, { assetType: event.target.value as AssetType, assetId: '' }); setAssetSearch((current) => ({ ...current, [line.key]: '' })) }} className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm"><option value="TRUCK">Truck</option><option value="TRAILER">Trailer</option></select></div>
                       <div className="relative space-y-2 xl:col-span-6"><Label><LocalizedText>Search and select vehicle</LocalizedText> *</Label><Input value={query} onFocus={() => setActiveAssetLine(line.key)} onChange={(event) => { setActiveAssetLine(line.key); setAssetSearch((current) => ({ ...current, [line.key]: event.target.value })); patchLine(line.key, { assetId: '' }) }} placeholder={line.assetType === 'TRUCK' ? 'Search truck plate, make, or model' : 'Search trailer number'} autoComplete="off" />{activeAssetLine === line.key && <div className="absolute inset-x-0 top-full z-20 mt-1 max-h-52 overflow-y-auto rounded-xl border bg-popover p-1 shadow-xl">{matches.length ? matches.map((asset) => <button key={asset.id} type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => { patchLine(line.key, { assetType: asset.type, assetId: asset.id }); setAssetSearch((current) => ({ ...current, [line.key]: asset.label })); setActiveAssetLine(null) }} className="block w-full rounded-lg px-3 py-2 text-start text-sm hover:bg-accent">{asset.label}</button>) : <p className="px-3 py-3 text-sm text-muted-foreground"><LocalizedText>No matching vehicles</LocalizedText></p>}</div>}{line.assetId && <p className="text-xs text-emerald-700 dark:text-emerald-400"><LocalizedText>Assigned to separate</LocalizedText> {line.assetType.toLowerCase()} <LocalizedText>expense account</LocalizedText></p>}</div>
                       <div className="space-y-2 sm:col-span-2 xl:col-span-5"><Label><LocalizedText>Description</LocalizedText></Label><Input required value={line.description} onChange={(event) => patchLine(line.key, { description: event.target.value })} placeholder="Describe the service or item" /></div>
+                      <div className="space-y-2 sm:col-span-2 xl:col-span-4"><Label><LocalizedText>Stock item (optional)</LocalizedText></Label><select value={line.inventoryItemId} onChange={(event) => patchLine(line.key, { inventoryItemId: event.target.value })} className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm"><option value=""><LocalizedText>Do not update stock</LocalizedText></option>{inventoryItems.map((item) => <option key={item.id} value={item.id}>{item.name}{item.partNumber ? ` · ${item.partNumber}` : ''} ({item.unit})</option>)}</select><p className="text-xs text-muted-foreground"><LocalizedText>Choose a stock item to receive this invoice quantity into inventory.</LocalizedText></p></div>
                       <div className="space-y-2 xl:col-span-2"><Label><LocalizedText>Quantity</LocalizedText></Label><Input required min="0.001" step="0.001" type="number" value={line.quantity} onChange={(event) => patchLine(line.key, { quantity: event.target.value })} /></div>
                       <div className="space-y-2 xl:col-span-2"><Label><LocalizedText>Unit price</LocalizedText></Label><Input required min="0" step="0.0001" type="number" value={line.unitPrice} onChange={(event) => patchLine(line.key, { unitPrice: event.target.value })} /></div>
                       <div className="flex items-end justify-between rounded-lg bg-background px-3 py-2 text-xs sm:col-span-2 xl:col-span-3"><span className="text-muted-foreground"><LocalizedText>Expense</LocalizedText> {formatCurrency(totals.net)}<br /><LocalizedText>VAT</LocalizedText> {formatCurrency(totals.vat)}</span><span className="text-end font-semibold">{formatCurrency(totals.total)}<br /><span className="font-normal text-muted-foreground"><LocalizedText>Line total</LocalizedText></span></span></div>
