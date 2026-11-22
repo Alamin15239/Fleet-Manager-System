@@ -31,6 +31,12 @@ export function SparePartsInventory() {
   const [saving,setSaving]=useState(false)
   const load=useCallback(async()=>{setLoading(true);try{const r=await apiGet('/api/inventory');const d=await r.json();if(!r.ok)throw new Error(d.error||'Unable to load stock');setItems(d.items||[]);setTransactions(d.transactions||[])}catch(e){toast.error(e instanceof Error?e.message:'Unable to load stock')}finally{setLoading(false)}},[])
   useEffect(()=>{void load()},[load])
+  useEffect(() => {
+    const handleFleetDataChanged = () => { void load() }
+    window.addEventListener('fleet:data-changed', handleFleetDataChanged)
+    return () => window.removeEventListener('fleet:data-changed', handleFleetDataChanged)
+  }, [load])
+
   const filtered=useMemo(()=>items.filter(x=>[x.name,x.partNumber,x.category,x.oilGrade].join(' ').toLowerCase().includes(search.toLowerCase())),[items,search])
   const low=items.filter(x=>x.stockQty<=x.reorderLevel)
   const reportRows=useMemo(()=>{
