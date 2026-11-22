@@ -359,9 +359,10 @@ export async function PATCH(request: NextRequest) {
           WHERE "sourceType"='PURCHASE_INVOICE' AND "sourceId"=$1 AND "type"='SUPPLIER_RETURN' LIMIT 1
         `, line.id)
         if (alreadyReversed.length) continue
+        await tx.$queryRawUnsafe(`SELECT "id" FROM "inventory_items" WHERE "id"=$1 FOR UPDATE`, line.inventoryItemId)
         const balance = await tx.$queryRawUnsafe<any[]>(`
           SELECT COALESCE(SUM(CASE WHEN "type" IN ('OPENING','PURCHASE','CUSTOMER_RETURN','ADJUSTMENT_IN') THEN "quantity" WHEN "type" IN ('ISSUE','SUPPLIER_RETURN','ADJUSTMENT_OUT') THEN -"quantity" ELSE 0 END),0)::float AS qty
-          FROM "inventory_transactions" WHERE "itemId"=$1 FOR UPDATE
+          FROM "inventory_transactions" WHERE "itemId"=$1
         `, line.inventoryItemId)
         const available = Number(balance[0]?.qty || 0)
         const receiptQty = Number(line.quantity)
