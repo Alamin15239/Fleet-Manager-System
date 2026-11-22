@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
       if (openCard) {
         const existingItems = Array.isArray(openCard.items) ? openCard.items as any[] : []
         const mergedItems = [...existingItems, ...(data.items as any[])]
-        const joinText = (a?: string | null, b?: string | null) => [a, b].filter(Boolean).join('\\n')
+        const joinText = (a?: string | null, b?: string | null) => [a, b].filter(Boolean).join('\n')
         const updated = await tx.workshopJobCard.update({
           where: { id: openCard.id },
           data: {
