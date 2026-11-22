@@ -162,6 +162,12 @@ export default function MechanicsPage() {
     })
   }
 
+  useEffect(() => {
+    const handleFleetDataChanged = () => { void fetchMechanics() }
+    window.addEventListener('fleet:data-changed', handleFleetDataChanged)
+    return () => window.removeEventListener('fleet:data-changed', handleFleetDataChanged)
+  }, [])
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
