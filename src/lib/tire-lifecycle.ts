@@ -120,7 +120,16 @@ export async function recordTireLifecycleEvent(tx: any, input: {
   if (eventType === 'RECEIVE' && (tire.lifecycleStatus === 'INSTALLED' || currentTruckId || tire.trailerNumber)) throw new Error('An installed tire cannot be received again')
 
   let jobCardId: string | null = null
-  const currentTrailer = tire.trailerNumber ? await tx.trailer.findFirst({ where: { number: tire.trailerNumber }, select: { id: true } }) : null
+  const currentTrailer = tire.trailerNumber ? await tx.trailer.findFirst({ where: { number: tire.trailerNumber }, select: { id: true, driverName: true } }) : null
+  const currentTruck = currentTruckId ? await tx.truck.findUnique({ where: { id: currentTruckId }, select: { driverName: true } }) : null
+  const targetVehicleDriver = target?.vehicleType === 'truck'
+    ? (await tx.truck.findUnique({ where: { id: target.vehicleId }, select: { driverName: true } }))?.driverName
+    : target?.vehicleType === 'trailer'
+      ? (await tx.trailer.findUnique({ where: { id: target.vehicleId }, select: { driverName: true } }))?.driverName
+      : null
+  const sourceDriverName = currentTruck?.driverName || currentTrailer?.driverName || null
+  const eventDriverName = input.driverName || (eventType === 'INSTALL' ? targetVehicleDriver : sourceDriverName) || targetVehicleDriver || null
+  const usageDriverName = input.driverName || targetVehicleDriver || eventDriverName
   const currentVehicle: VehicleRef | null = currentTruckId
     ? { vehicleType: 'truck', vehicleId: currentTruckId }
     : currentTrailer ? { vehicleType: 'trailer', vehicleId: currentTrailer.id } : null
@@ -128,7 +137,7 @@ export async function recordTireLifecycleEvent(tx: any, input: {
     ? currentVehicle || target : target || currentVehicle
   if (operationalVehicle && !['RECEIVE'].includes(eventType)) {
     jobCardId = await getOrCreateOpenJobCard(tx, operationalVehicle, {
-      eventAt: input.eventAt, odometerKm: input.odometerKm, driverName: input.driverName, userId: input.userId,
+      eventAt: input.eventAt, odometerKm: input.odometerKm, driverName: eventDriverName, userId: input.userId,
       serviceType: 'TIRE MAINTENANCE', reportedIssue: 'Automatically created from tire lifecycle activity'
     })
   }
@@ -143,7 +152,7 @@ export async function recordTireLifecycleEvent(tx: any, input: {
      ("id","tireId","eventType","eventAt","fromTruckId","fromTrailerId","toTruckId","toTrailerId","fromPosition","toPosition","driverNameSnapshot","odometerKm","reason","damageType","repairable","cost","notes","jobCardId","createdById")
      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)`,
     eventId, input.tireId, eventType, input.eventAt, fromTruckId, currentTrailer?.id || null, toTruckId, toTrailerId,
-    fromPosition, input.position || null, input.driverName || null, input.odometerKm ?? null,
+    fromPosition, input.position || null, eventDriverName, input.odometerKm ?? null,
     input.reason || null, input.damageType || null, input.repairable ?? null, input.cost ?? null,
     input.notes || null, jobCardId, input.userId
   )
@@ -160,7 +169,7 @@ export async function recordTireLifecycleEvent(tx: any, input: {
       `INSERT INTO "tire_usage_periods" ("id","tireId","vehicleType","vehicleId","installedAt","startOdometer","driverNameSnapshot")
        VALUES ($1,$2,$3,$4,$5,$6,$7)`,
       `tyuse_${randomUUID()}`, input.tireId, target.vehicleType, target.vehicleId,
-      input.eventAt, input.odometerKm ?? null, input.driverName || null
+      input.eventAt, input.odometerKm ?? null, usageDriverName
     )
   }
   const nextStatus = eventType === 'INSTALL' || eventType === 'TRANSFER' ? 'INSTALLED'
