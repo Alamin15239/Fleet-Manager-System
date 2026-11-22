@@ -213,6 +213,12 @@ export default function TireReports() {
     )
   }
 
+  useEffect(() => {
+    const handleFleetDataChanged = () => { void fetchAnalytics() }
+    window.addEventListener('fleet:data-changed', handleFleetDataChanged)
+    return () => window.removeEventListener('fleet:data-changed', handleFleetDataChanged)
+  }, [])
+
   return (
     <div className="space-y-4 sm:space-y-6">
       {/* Header */}
