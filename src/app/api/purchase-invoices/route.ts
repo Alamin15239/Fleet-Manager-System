@@ -8,6 +8,26 @@ import { trackAPIActivity } from '@/lib/activity-middleware'
 const categories = new Set(Object.values(PurchaseExpenseCategory))
 
 async function ensureInventoryInvoiceColumns() {
+  await db.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS "inventory_items" (
+      "id" TEXT PRIMARY KEY, "name" TEXT NOT NULL, "partNumber" TEXT,
+      "category" TEXT NOT NULL DEFAULT 'GENERAL', "unit" TEXT NOT NULL DEFAULT 'pcs',
+      "oilGrade" TEXT, "reorderLevel" DOUBLE PRECISION NOT NULL DEFAULT 0,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`)
+  await db.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS "inventory_transactions" (
+      "id" TEXT PRIMARY KEY, "itemId" TEXT NOT NULL REFERENCES "inventory_items"("id") ON DELETE RESTRICT,
+      "type" TEXT NOT NULL, "quantity" DOUBLE PRECISION NOT NULL,
+      "transactionDate" TIMESTAMP(3) NOT NULL, "reference" TEXT,
+      "vehicleType" TEXT, "vehicleId" TEXT, "jobCardId" TEXT,
+      "unitCost" DOUBLE PRECISION, "notes" TEXT, "createdById" TEXT,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "sourceType" TEXT, "sourceId" TEXT
+    )`)
+  await db.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "inventory_items_partNumber_key" ON "inventory_items"("partNumber") WHERE "partNumber" IS NOT NULL`)
+  await db.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "inventory_transactions_itemId_date_idx" ON "inventory_transactions"("itemId","transactionDate" DESC)`)
   await db.$executeRawUnsafe(`ALTER TABLE "inventory_transactions" ADD COLUMN IF NOT EXISTS "sourceType" TEXT`)
   await db.$executeRawUnsafe(`ALTER TABLE "inventory_transactions" ADD COLUMN IF NOT EXISTS "sourceId" TEXT`)
   await db.$executeRawUnsafe(`ALTER TABLE "purchase_invoice_lines" ADD COLUMN IF NOT EXISTS "inventoryItemId" TEXT`)
