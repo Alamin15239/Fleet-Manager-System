@@ -49,7 +49,7 @@ export async function ensureTireLifecycleTables(tx: any) {
     )`)
   await tx.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "tire_usage_periods" (
     "id" TEXT PRIMARY KEY,
-    "tireId" TEXT NOT NULL REFERENCES "tires"("id") ON DELETE RESTRICT,
+    "tireId" TEXT NOT NULL REFERENCES "tires"("id") ON DELETE RESTRICT ON UPDATE CASCADE,
     "vehicleType" TEXT NOT NULL,
     "vehicleId" TEXT NOT NULL,
     "installedAt" TIMESTAMP(3) NOT NULL,
