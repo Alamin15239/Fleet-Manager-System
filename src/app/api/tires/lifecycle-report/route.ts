@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
       db.$queryRawUnsafe<any[]>(`SELECT p."vehicleType",p."vehicleId",
         COALESCE(t."licensePlate",tr."number",p."vehicleId") AS "vehicleLabel",
         COUNT(*)::int AS "tiresUsed",
-        COALESCE(SUM(CASE WHEN p."startOdometer" IS NULL THEN 0 ELSE GREATEST(COALESCE(p."endOdometer",CASE WHEN p."removedAt" IS NULL THEN t."currentMileage" END,p."startOdometer")-p."startOdometer",0) END),0)::bigint AS "totalKm",
+        COALESCE(SUM(CASE WHEN p."startOdometer" IS NULL THEN 0 ELSE GREATEST(COALESCE(p."endOdometer",CASE WHEN p."removedAt" IS NULL THEN t."currentMileage" END,p."startOdometer")-p."startOdometer",0) END),0)::float AS "totalKm",
         COALESCE(SUM(EXTRACT(EPOCH FROM (COALESCE(p."removedAt",NOW())-p."installedAt"))/86400),0)::float AS "totalDays"
         FROM "tire_usage_periods" p
         LEFT JOIN "trucks" t ON p."vehicleType"='truck' AND t."id"=p."vehicleId"
@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
         ORDER BY "tiresUsed" DESC,"totalKm" DESC`),
       db.$queryRawUnsafe<any[]>(`SELECT t."id",t."internalCode",t."tireSize",t."manufacturer",
         COUNT(p."id")::int AS "installations",
-        COALESCE(SUM(CASE WHEN p."startOdometer" IS NULL THEN 0 ELSE GREATEST(COALESCE(p."endOdometer",CASE WHEN p."removedAt" IS NULL THEN v."currentMileage" END,p."startOdometer")-p."startOdometer",0) END),0)::bigint AS "lifetimeKm",
+        COALESCE(SUM(CASE WHEN p."startOdometer" IS NULL THEN 0 ELSE GREATEST(COALESCE(p."endOdometer",CASE WHEN p."removedAt" IS NULL THEN v."currentMileage" END,p."startOdometer")-p."startOdometer",0) END),0)::float AS "lifetimeKm",
         COALESCE(SUM(EXTRACT(EPOCH FROM (COALESCE(p."removedAt",NOW())-p."installedAt"))/86400),0)::float AS "lifetimeDays"
         FROM "tires" t LEFT JOIN "tire_usage_periods" p ON p."tireId"=t."id"
         LEFT JOIN "trucks" v ON p."vehicleType"='truck' AND v."id"=p."vehicleId"
