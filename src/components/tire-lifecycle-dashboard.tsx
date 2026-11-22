@@ -23,7 +23,7 @@ type Report = {
 }
 
 const eventLabels: Record<string, string> = {
-  INSTALL: 'Install', TRANSFER: 'Transfer', REMOVE: 'Remove', DAMAGE: 'Report damage',
+  INSTALL: 'Install', TRANSFER: 'Transfer to another vehicle', POSITION_CHANGE: 'Change wheel position', REMOVE: 'Remove', DAMAGE: 'Report damage',
   REPAIR: 'Mark repaired', INSPECT: 'Inspect', DISPOSE: 'Dispose'
 }
 
@@ -47,7 +47,7 @@ export default function TireLifecycleDashboard() {
 
   const selectedTire = useMemo(() => tires.find(t => t.id === tireId), [tires, tireId])
   const selectedVehicle = useMemo(() => vehicles.find(v => v.id === vehicleId), [vehicles, vehicleId])
-  const needsVehicle = eventType === 'INSTALL' || eventType === 'TRANSFER'
+  const needsVehicle = eventType === 'INSTALL' || eventType === 'TRANSFER' || eventType === 'POSITION_CHANGE'
   const needsPosition = needsVehicle
 
   const load = useCallback(async () => {
@@ -171,7 +171,7 @@ export default function TireLifecycleDashboard() {
               </Select>
             </div>
             {needsVehicle && <div className="space-y-2">
-              <Label>{eventType === 'TRANSFER' ? 'Destination vehicle' : 'Vehicle'}</Label>
+              <Label>{eventType === 'TRANSFER' ? 'Destination vehicle' : eventType === 'POSITION_CHANGE' ? 'Same vehicle' : 'Vehicle'}</Label>
               <Select value={vehicleId} onValueChange={value => { setVehicleId(value); const v = vehicles.find(item => item.id === value); if (v?.driverName) setDriverName(v.driverName) }}>
                 <SelectTrigger><SelectValue placeholder="Select truck or trailer" /></SelectTrigger>
                 <SelectContent>{vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.label}{v.detail ? ` · ${v.detail}` : ''}</SelectItem>)}</SelectContent>
