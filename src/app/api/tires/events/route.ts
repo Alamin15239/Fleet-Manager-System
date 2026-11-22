@@ -35,6 +35,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to record tire event'
     const status = message.includes('not found') ? 404
+      : message.includes('Wheel position already occupied') || message.includes('already received') || message.includes('already in this wheel position') ? 409
       : message.includes('Select ') || message.includes('already installed') || message.includes('Only ') || message.includes('before disposal') || message.includes('before repair') || message.includes('received again') || message.includes('Unsupported') ? 400
       : message.includes('token') ? 401 : message === 'Insufficient permissions' ? 403 : 500
     console.error('Tire lifecycle event error:', error)
