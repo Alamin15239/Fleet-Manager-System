@@ -1,0 +1,61 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { db } from '@/lib/db'
+import { requirePermission } from '@/lib/permission-middleware'
+import { ensureTireLifecycleTables } from '@/lib/tire-lifecycle'
+
+export async function GET(request: NextRequest) {
+  const auth = await requirePermission(request, 'tire-management', 'read')
+  if (auth instanceof NextResponse) return auth
+
+  try {
+    await db.$transaction(async tx => ensureTireLifecycleTables(tx))
+    const [summary, inventory, damageByDriver, damageByReason, vehicleUsage, tireLife] = await Promise.all([
+      db.$queryRawUnsafe<any[]>(`SELECT
+        COUNT(*) FILTER (WHERE "lifecycleStatus"='STOCK')::int AS "inStock",
+        COUNT(*) FILTER (WHERE "lifecycleStatus"='INSTALLED')::int AS "installed",
+        COUNT(*) FILTER (WHERE "lifecycleStatus"='DAMAGED')::int AS "damaged",
+        COUNT(*) FILTER (WHERE "lifecycleStatus"='DISPOSED')::int AS "disposed",
+        (SELECT COUNT(*)::int FROM "tire_lifecycle_events" WHERE "eventType"='RECEIVE') AS "totalReceived",
+        (SELECT COUNT(*)::int FROM "tire_lifecycle_events" WHERE "eventType"='DAMAGE') AS "damageEvents"
+        FROM "tires" WHERE "deletedAt" IS NULL`),
+      db.$queryRawUnsafe<any[]>(`SELECT "tireSize","manufacturer","lifecycleStatus",COUNT(*)::int AS "tireCount"
+        FROM "tires" WHERE "deletedAt" IS NULL
+        GROUP BY "tireSize","manufacturer","lifecycleStatus"
+        ORDER BY "tireSize","manufacturer","lifecycleStatus"`),
+      db.$queryRawUnsafe<any[]>(`SELECT COALESCE(NULLIF("driverNameSnapshot",''),'Unknown driver') AS "driverName",
+        COUNT(*)::int AS "damageCount",COALESCE(SUM("cost"),0)::float AS "damageCost"
+        FROM "tire_lifecycle_events" WHERE "eventType"='DAMAGE'
+        GROUP BY COALESCE(NULLIF("driverNameSnapshot",''),'Unknown driver')
+        ORDER BY "damageCount" DESC,"damageCost" DESC`),
+      db.$queryRawUnsafe<any[]>(`SELECT COALESCE(NULLIF("damageType",''),'Unspecified') AS "damageType",
+        COALESCE(NULLIF("reason",''),'Unspecified') AS "reason",COUNT(*)::int AS "damageCount",
+        COALESCE(SUM("cost"),0)::float AS "damageCost"
+        FROM "tire_lifecycle_events" WHERE "eventType"='DAMAGE'
+        GROUP BY "damageType","reason" ORDER BY "damageCount" DESC`),
+      db.$queryRawUnsafe<any[]>(`SELECT p."vehicleType",p."vehicleId",
+        COALESCE(t."licensePlate",tr."number",p."vehicleId") AS "vehicleLabel",
+        COUNT(*)::int AS "tiresUsed",
+        COALESCE(SUM(GREATEST(COALESCE(p."endOdometer",0)-COALESCE(p."startOdometer",0),0)),0)::bigint AS "totalKm",
+        COALESCE(SUM(EXTRACT(EPOCH FROM (COALESCE(p."removedAt",NOW())-p."installedAt"))/86400),0)::float AS "totalDays"
+        FROM "tire_usage_periods" p
+        LEFT JOIN "trucks" t ON p."vehicleType"='truck' AND t."id"=p."vehicleId"
+        LEFT JOIN "trailers" tr ON p."vehicleType"='trailer' AND tr."id"=p."vehicleId"
+        GROUP BY p."vehicleType",p."vehicleId",t."licensePlate",tr."number"
+        ORDER BY "tiresUsed" DESC,"totalKm" DESC`),
+      db.$queryRawUnsafe<any[]>(`SELECT t."id",t."internalCode",t."tireSize",t."manufacturer",
+        COUNT(p."id")::int AS "installations",
+        COALESCE(SUM(GREATEST(COALESCE(p."endOdometer",0)-COALESCE(p."startOdometer",0),0)),0)::bigint AS "lifetimeKm",
+        COALESCE(SUM(EXTRACT(EPOCH FROM (COALESCE(p."removedAt",NOW())-p."installedAt"))/86400),0)::float AS "lifetimeDays"
+        FROM "tires" t LEFT JOIN "tire_usage_periods" p ON p."tireId"=t."id"
+        GROUP BY t."id",t."internalCode",t."tireSize",t."manufacturer"
+        ORDER BY "lifetimeKm" DESC`)
+    ])
+    return NextResponse.json({
+      summary: summary[0] || { inStock: 0, installed: 0, damaged: 0, disposed: 0, totalReceived: 0, damageEvents: 0 },
+      inventory, damageByDriver, damageByReason, vehicleUsage, tireLife
+    })
+  } catch (error) {
+    console.error('Tire lifecycle report error:', error)
+    return NextResponse.json({ error: 'Failed to build tire lifecycle report' }, { status: 500 })
+  }
+}
