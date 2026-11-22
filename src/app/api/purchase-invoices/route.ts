@@ -246,7 +246,7 @@ export async function POST(request: NextRequest) {
         const savedLine = invoice.lines[index]
         const sourceLine = calculatedLines[index]
         if (!sourceLine.inventoryItemId) continue
-        await tx.$queryRawUnsafe(`
+        await tx.$executeRawUnsafe(`
           INSERT INTO "inventory_transactions"
           ("id","itemId","type","quantity","transactionDate","reference","unitCost","notes","createdById","sourceType","sourceId")
           VALUES ($1,$2,'PURCHASE',$3,$4,$5,$6,$7,$8,'PURCHASE_INVOICE',$9)
@@ -389,7 +389,7 @@ export async function PATCH(request: NextRequest) {
         if (available + 0.000001 < receiptQty) {
           throw new Error(`Cannot reverse invoice: only ${available} stock units remain, but ${receiptQty} must be returned`)
         }
-        await tx.$queryRawUnsafe(`
+        await tx.$executeRawUnsafe(`
           INSERT INTO "inventory_transactions"
           ("id","itemId","type","quantity","transactionDate","reference","unitCost","notes","createdById","sourceType","sourceId")
           VALUES ($1,$2,'SUPPLIER_RETURN',$3,NOW(),$4,$5,$6,$7,'PURCHASE_INVOICE',$8)
