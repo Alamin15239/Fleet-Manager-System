@@ -227,6 +227,24 @@ export default function TireLifecycleDashboard() {
           </CardContent>
         </Card>
         <Card>
+          <CardHeader><CardTitle>Damage by vehicle</CardTitle></CardHeader>
+          <CardContent className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead><tr className="border-b text-left text-muted-foreground"><th className="py-2">Vehicle</th><th className="text-right">Damage reports</th><th className="text-right">Cost (SAR)</th></tr></thead>
+              <tbody>{(report?.damageByVehicle || []).map((row, i) => <tr key={i} className="border-b last:border-0"><td className="py-2">{row.vehicleLabel}</td><td className="text-right">{formatNumber(row.damageCount)}</td><td className="text-right">{Number(row.damageCost || 0).toLocaleString(undefined,{maximumFractionDigits:2})}</td></tr>)}</tbody>
+            </table>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader><CardTitle>Average tire life by brand and size</CardTitle></CardHeader>
+          <CardContent className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead><tr className="border-b text-left text-muted-foreground"><th className="py-2">Brand / size</th><th className="text-right">Tires</th><th className="text-right">Avg. days</th><th className="text-right">Known km</th></tr></thead>
+              <tbody>{(report?.averageLife || []).map((row, i) => <tr key={i} className="border-b last:border-0"><td className="py-2">{row.manufacturer} · {row.tireSize}</td><td className="text-right">{formatNumber(row.tireCount)}</td><td className="text-right">{Math.round(Number(row.averageLifeDays || 0))}</td><td className="text-right">{formatNumber(Math.round(Number(row.averageLifeKm || 0)))}</td></tr>)}</tbody>
+            </table>
+          </CardContent>
+        </Card>
+        <Card>
           <CardHeader><CardTitle>Truck / trailer tire consumption</CardTitle></CardHeader>
           <CardContent className="overflow-x-auto">
             <table className="w-full text-sm">
