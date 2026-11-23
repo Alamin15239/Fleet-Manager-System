@@ -277,6 +277,19 @@ export async function recordTireLifecycleEvent(tx: any, input: {
     input.purchaseReference || null, input.purchaseCost ?? null, input.notes || null, jobCardId, input.userId
   )
 
+  // Tire work performed on a vehicle is part of its job-card cost summary.
+  // Stock receipt remains a purchasing/inventory event and is not charged to a vehicle visit.
+  if (jobCardId && input.cost != null && Number.isFinite(Number(input.cost)) && Number(input.cost) > 0) {
+    await tx.$executeRawUnsafe(
+      `UPDATE "workshop_job_cards"
+       SET "partsCost"=COALESCE("partsCost",0)+$2,
+           "totalCost"=COALESCE("totalCost",0)+$2,
+           "updatedAt"=NOW()
+       WHERE "id"=$1`,
+      jobCardId, Number(input.cost)
+    )
+  }
+
   if (eventType === 'TRANSFER' || eventType === 'REMOVE') {
     await tx.$executeRawUnsafe(
       `UPDATE "tire_usage_periods" SET "removedAt"=$2,"endOdometer"=$3
