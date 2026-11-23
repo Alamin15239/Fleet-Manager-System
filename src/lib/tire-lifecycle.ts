@@ -5,12 +5,12 @@ type VehicleRef = { vehicleType: 'truck' | 'trailer'; vehicleId: string }
 export async function ensureTireLifecycleTables(tx: any) {
   await ensureMaintenanceJobCardColumns(tx)
   await tx.$executeRawUnsafe(`ALTER TABLE "tires" ADD COLUMN IF NOT EXISTS "truckId" TEXT`)
-  await tx.$executeRawUnsafe(`DO $ BEGIN
+  await tx.$executeRawUnsafe(`DO $$ BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='tires_truckId_fkey' AND conrelid='"tires"'::regclass) THEN
       ALTER TABLE "tires" ADD CONSTRAINT "tires_truckId_fkey"
         FOREIGN KEY ("truckId") REFERENCES "trucks"("id") ON DELETE SET NULL ON UPDATE CASCADE;
     END IF;
-  END $`)
+  END $$`)
   await tx.$executeRawUnsafe(`ALTER TABLE "tires" ADD COLUMN IF NOT EXISTS "internalCode" TEXT`)
   await tx.$executeRawUnsafe(`ALTER TABLE "tires" ADD COLUMN IF NOT EXISTS "lifecycleStatus" TEXT NOT NULL DEFAULT 'STOCK'`)
   await tx.$executeRawUnsafe(`ALTER TABLE "tires" ADD COLUMN IF NOT EXISTS "currentPosition" TEXT`)
@@ -392,5 +392,5 @@ export async function ensureMaintenanceJobCardColumns(tx: any) {
       ALTER TABLE "trailer_maintenance_records" ADD CONSTRAINT "trailer_maintenance_records_jobCardId_fkey"
         FOREIGN KEY ("jobCardId") REFERENCES "workshop_job_cards"("id") ON DELETE SET NULL ON UPDATE CASCADE;
     END IF;
-  END $$`)
+  END $$$`)
 }
