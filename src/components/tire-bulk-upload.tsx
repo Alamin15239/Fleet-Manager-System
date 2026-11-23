@@ -119,7 +119,7 @@ export default function TireBulkUpload() {
         <div className="space-y-2"><Label>Tire size *</Label><Input value={tireSize} onChange={e => setTireSize(e.target.value)} placeholder="e.g. 295/80R22.5" /></div>
         <div className="space-y-2"><Label>Origin *</Label><Select value={origin} onValueChange={setOrigin}><SelectTrigger><SelectValue placeholder="Select tire origin" /></SelectTrigger><SelectContent><SelectItem value="CHINESE">China</SelectItem><SelectItem value="SAUDI">Saudi</SelectItem><SelectItem value="JAPANESE">Japan</SelectItem></SelectContent></Select></div>
       </div>
-      <div className="space-y-2"><Label>Excel / CSV file *</Label><Input id="tire-bulk-file" type="file" accept=".xlsx,.xls,.csv" onChange={e => setFile(e.target.files?.[0] || null)} /></div>
+      <div className="space-y-2"><Label>Excel / CSV file *</Label><Input id="tire-bulk-file" type="file" accept=".xlsx,.csv" onChange={e => setFile(e.target.files?.[0] || null)} /></div>
       {error && <Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertDescription>{error}</AlertDescription></Alert>}
       {message && <Alert><CheckCircle2 className="h-4 w-4" /><AlertDescription>{message}</AlertDescription></Alert>}
       <Button onClick={submit} disabled={busy || !file || !tireSize.trim() || !origin || loadingTrucks || trucks.length === 0}>
