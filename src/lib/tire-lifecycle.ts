@@ -392,5 +392,5 @@ export async function ensureMaintenanceJobCardColumns(tx: any) {
       ALTER TABLE "trailer_maintenance_records" ADD CONSTRAINT "trailer_maintenance_records_jobCardId_fkey"
         FOREIGN KEY ("jobCardId") REFERENCES "workshop_job_cards"("id") ON DELETE SET NULL ON UPDATE CASCADE;
     END IF;
-  END $$$`)
+  END $$`)
 }
