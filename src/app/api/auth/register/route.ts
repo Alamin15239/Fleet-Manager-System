@@ -53,13 +53,11 @@ export async function POST(request: NextRequest) {
     const { resendEmailService } = await import('@/lib/resend-email')
     const otp = resendEmailService.generateOTP()
     
-    // Store OTP for verification
-    await resendEmailService.storeOTP(user.id, otp)
-    
-    // Send OTP email
+    // Send OTP before persisting it, so failed delivery does not leave an unusable OTP or cooldown.
     let emailSent = false
     try {
-      await resendEmailService.sendOTPEmail(email, otp, name)
+      await resendEmailService.sendOTPEmail(user.email, otp, name)
+      await resendEmailService.storeOTP(user.id, otp)
       emailSent = true
     } catch (emailError) {
       console.error('Failed to send registration OTP')
