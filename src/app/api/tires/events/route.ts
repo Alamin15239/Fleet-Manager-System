@@ -32,6 +32,8 @@ export async function POST(request: NextRequest) {
     if (inspectionDueAt && !Number.isFinite(inspectionDueAt.getTime())) return NextResponse.json({ error: 'Invalid inspection due date' }, { status: 400 })
     const condition = typeof body.condition === 'string' ? body.condition.trim().toUpperCase() : null
     if (condition && !['NEW','GOOD','FAIR','POOR','UNSERVICEABLE'].includes(condition)) return NextResponse.json({ error: 'Invalid tire condition' }, { status: 400 })
+    const evidenceUrl = typeof body.evidenceUrl === 'string' ? body.evidenceUrl.trim() : ''
+    if (evidenceUrl) { try { const parsed = new URL(evidenceUrl); if (!['http:','https:'].includes(parsed.protocol) || evidenceUrl.length > 2048) throw new Error('invalid') } catch { return NextResponse.json({ error: 'Evidence URL must be a valid HTTP or HTTPS link under 2048 characters' }, { status: 400 }) } }
 
     const result = await db.$transaction(async tx => recordTireLifecycleEvent(tx, {
       tireId, eventType, eventAt, vehicle, position: typeof body.position === 'string' ? body.position.trim() : null,
@@ -41,7 +43,7 @@ export async function POST(request: NextRequest) {
       repairable: typeof body.repairable === 'boolean' ? body.repairable : null,
       cost, treadDepthMm, pressurePsi, condition, inspectionDueAt,
       damageLocation: typeof body.damageLocation === 'string' ? body.damageLocation.trim() : null,
-      evidenceUrl: typeof body.evidenceUrl === 'string' ? body.evidenceUrl.trim() : null,
+      evidenceUrl: evidenceUrl || null,
       supplierName: typeof body.supplierName === 'string' ? body.supplierName.trim() : null,
       purchaseReference: typeof body.purchaseReference === 'string' ? body.purchaseReference.trim() : null,
       purchaseCost, notes: typeof body.notes === 'string' ? body.notes.trim() : null, userId: user.id
