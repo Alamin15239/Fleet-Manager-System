@@ -35,7 +35,7 @@ export default function TireManagementPage() {
       </header>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className={`grid h-auto w-full grid-cols-2 gap-1 p-1 ${canAddTires ? 'sm:grid-cols-7' : 'sm:grid-cols-6'}`}>
+        <TabsList className={`grid h-auto w-full grid-cols-2 gap-1 p-1 ${canAddTires ? 'sm:grid-cols-7' : 'sm:grid-cols-5'}`}>
           {canAddTires && <TabsTrigger value="form" className="flex min-h-[60px] flex-col items-center gap-1 p-1.5 text-xs">
             <Plus className="h-4 w-4" />
             <span className="leading-tight"><LocalizedText>Add</LocalizedText></span>
@@ -44,7 +44,7 @@ export default function TireManagementPage() {
             <List className="h-4 w-4" />
             <span className="leading-tight"><LocalizedText>List</LocalizedText></span>
           </TabsTrigger>
-          <TabsTrigger value="bulk-upload" className="flex min-h-[60px] flex-col items-center gap-1 p-1.5 text-xs"><Upload className="h-4 w-4" /><span className="leading-tight"><LocalizedText>Bulk Upload</LocalizedText></span></TabsTrigger>
+          {canAddTires && <TabsTrigger value="bulk-upload" className="flex min-h-[60px] flex-col items-center gap-1 p-1.5 text-xs"><Upload className="h-4 w-4" /><span className="leading-tight"><LocalizedText>Bulk Upload</LocalizedText></span></TabsTrigger>}
           <TabsTrigger value="excel" className="flex min-h-[60px] flex-col items-center gap-1 p-1.5 text-xs">
             <FileText className="h-4 w-4" />
             <span className="leading-tight"><LocalizedText>Excel</LocalizedText></span>
@@ -69,7 +69,7 @@ export default function TireManagementPage() {
         <TabsContent value="inventory" className="space-y-4">
           <TireInventoryGrouped />
         </TabsContent>
-        <TabsContent value="bulk-upload" className="space-y-4"><TireBulkUpload /></TabsContent>
+        {canAddTires && <TabsContent value="bulk-upload" className="space-y-4"><TireBulkUpload /></TabsContent>}
         <TabsContent value="excel" className="space-y-4">
           <TireExcelViewer />
         </TabsContent>
