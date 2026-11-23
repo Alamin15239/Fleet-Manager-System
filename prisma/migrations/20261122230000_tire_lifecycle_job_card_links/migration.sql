@@ -1,4 +1,11 @@
 -- Durable tire lifecycle history and maintenance-to-job-card relationships.
+ALTER TABLE "tires" ADD COLUMN IF NOT EXISTS "truckId" TEXT;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'tires_truckId_fkey' AND conrelid = '"tires"'::regclass) THEN
+    ALTER TABLE "tires" ADD CONSTRAINT "tires_truckId_fkey"
+      FOREIGN KEY ("truckId") REFERENCES "trucks"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+  END IF;
+END $$;
 ALTER TABLE "tires" ADD COLUMN IF NOT EXISTS "internalCode" TEXT;
 ALTER TABLE "tires" ADD COLUMN IF NOT EXISTS "lifecycleStatus" TEXT NOT NULL DEFAULT 'STOCK';
 ALTER TABLE "tires" ADD COLUMN IF NOT EXISTS "currentPosition" TEXT;
