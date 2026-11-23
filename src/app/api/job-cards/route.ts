@@ -102,6 +102,7 @@ export async function POST(request: NextRequest) {
     const year = data.serviceDate.getFullYear()
     const prefix = `JC-${year}-`
     const result = await db.$transaction(async tx => {
+      await ensureMaintenanceJobCardColumns(tx)
       await tx.$executeRaw`LOCK TABLE "workshop_job_cards" IN EXCLUSIVE MODE`
       const vehicleWhere = data.truckId ? { truckId: data.truckId } : { trailerId: data.trailerId! }
       const openCard = await tx.workshopJobCard.findFirst({
