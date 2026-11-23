@@ -51,6 +51,9 @@ interface TireFormData {
   trailerQuantity: number
   trailerSerialNumber: string
   notes: string
+  supplierName: string
+  purchaseReference: string
+  purchaseCost: string
   createdAt: string
 }
 
@@ -70,6 +73,9 @@ export default function TireManagementForm() {
     trailerQuantity: 0,
     trailerSerialNumber: '',
     notes: '',
+    supplierName: '',
+    purchaseReference: '',
+    purchaseCost: '',
     createdAt: new Date().toISOString().slice(0, 16)
   })
 
@@ -229,7 +235,7 @@ export default function TireManagementForm() {
     setSuccess(null)
 
     try {
-      const response = await apiPost('/api/tires', formData)
+      const response = await apiPost('/api/tires', { ...formData, purchaseCost: formData.purchaseCost ? Number(formData.purchaseCost) : undefined })
 
       if (response.ok) {
         const data = await response.json()
@@ -255,6 +261,9 @@ export default function TireManagementForm() {
           trailerQuantity: 0,
           trailerSerialNumber: '',
           notes: '',
+          supplierName: '',
+          purchaseReference: '',
+          purchaseCost: '',
           createdAt: new Date().toISOString().slice(0, 16)
         })
         
@@ -700,6 +709,18 @@ export default function TireManagementForm() {
                       className="border-gray-200 focus:border-gray-400"
                     />
                     <p className="text-xs text-gray-500"><LocalizedText>When the tires were added</LocalizedText></p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="supplierName" className="font-medium text-gray-700 text-sm">Supplier</Label>
+                    <Input id="supplierName" value={formData.supplierName} onChange={(e) => setFormData({ ...formData, supplierName: e.target.value })} placeholder="Supplier / vendor name" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="purchaseReference" className="font-medium text-gray-700 text-sm">Purchase invoice / reference</Label>
+                    <Input id="purchaseReference" value={formData.purchaseReference} onChange={(e) => setFormData({ ...formData, purchaseReference: e.target.value })} placeholder="Invoice number or PO" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="purchaseCost" className="font-medium text-gray-700 text-sm">Purchase cost per tire (SAR)</Label>
+                    <Input id="purchaseCost" type="number" min="0" step="0.01" value={formData.purchaseCost} onChange={(e) => setFormData({ ...formData, purchaseCost: e.target.value })} placeholder="0.00" />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="notes" className="font-medium text-gray-700 text-sm">
