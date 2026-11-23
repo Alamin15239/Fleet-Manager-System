@@ -146,12 +146,25 @@ export async function authenticateUser(email: string, password: string, request?
 
 export async function requireAuth(request: Request): Promise<JWTPayload> {
   const authHeader = request.headers.get('authorization')
-  
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.substring(7).trim() : ''
+  const cookieHeader = request.headers.get('cookie') || ''
+  const cookieToken = cookieHeader
+    .split(';')
+    .map(part => part.trim())
+    .find(part => part.startsWith('auth-token='))
+    ?.slice('auth-token='.length)
+  let sessionToken = ''
+  if (cookieToken) {
+    try {
+      sessionToken = decodeURIComponent(cookieToken)
+    } catch {
+      throw new Error('Invalid token')
+    }
+  }
+  const token = bearerToken || sessionToken
+  if (!token) {
     throw new Error('No token provided')
   }
-
-  const token = authHeader.substring(7)
   const decoded = verifyToken(token)
   
   if (!decoded) {
