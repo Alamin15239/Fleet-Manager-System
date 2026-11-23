@@ -19,9 +19,19 @@ export async function POST(request: NextRequest) {
     const eventAt = body.eventAt ? new Date(body.eventAt) : new Date()
     const odometerKm = body.odometerKm == null ? null : Number(body.odometerKm)
     const cost = body.cost == null ? null : Number(body.cost)
+    const treadDepthMm = body.treadDepthMm == null ? null : Number(body.treadDepthMm)
+    const pressurePsi = body.pressurePsi == null ? null : Number(body.pressurePsi)
+    const purchaseCost = body.purchaseCost == null ? null : Number(body.purchaseCost)
+    const inspectionDueAt = body.inspectionDueAt ? new Date(body.inspectionDueAt) : null
     if (!Number.isFinite(eventAt.getTime())) return NextResponse.json({ error: 'Invalid event date' }, { status: 400 })
     if (odometerKm !== null && (!Number.isInteger(odometerKm) || odometerKm < 0)) return NextResponse.json({ error: 'Odometer must be a non-negative whole number' }, { status: 400 })
     if (cost !== null && (!Number.isFinite(cost) || cost < 0)) return NextResponse.json({ error: 'Cost must be a non-negative number' }, { status: 400 })
+    if (treadDepthMm !== null && (!Number.isFinite(treadDepthMm) || treadDepthMm < 0 || treadDepthMm > 100)) return NextResponse.json({ error: 'Tread depth must be between 0 and 100 mm' }, { status: 400 })
+    if (pressurePsi !== null && (!Number.isFinite(pressurePsi) || pressurePsi < 0 || pressurePsi > 300)) return NextResponse.json({ error: 'Pressure must be between 0 and 300 PSI' }, { status: 400 })
+    if (purchaseCost !== null && (!Number.isFinite(purchaseCost) || purchaseCost < 0)) return NextResponse.json({ error: 'Purchase cost must be non-negative' }, { status: 400 })
+    if (inspectionDueAt && !Number.isFinite(inspectionDueAt.getTime())) return NextResponse.json({ error: 'Invalid inspection due date' }, { status: 400 })
+    const condition = typeof body.condition === 'string' ? body.condition.trim().toUpperCase() : null
+    if (condition && !['NEW','GOOD','FAIR','POOR','UNSERVICEABLE'].includes(condition)) return NextResponse.json({ error: 'Invalid tire condition' }, { status: 400 })
 
     const result = await db.$transaction(async tx => recordTireLifecycleEvent(tx, {
       tireId, eventType, eventAt, vehicle, position: typeof body.position === 'string' ? body.position.trim() : null,
@@ -29,7 +39,12 @@ export async function POST(request: NextRequest) {
       odometerKm, reason: typeof body.reason === 'string' ? body.reason.trim() : null,
       damageType: typeof body.damageType === 'string' ? body.damageType.trim() : null,
       repairable: typeof body.repairable === 'boolean' ? body.repairable : null,
-      cost, notes: typeof body.notes === 'string' ? body.notes.trim() : null, userId: user.id
+      cost, treadDepthMm, pressurePsi, condition, inspectionDueAt,
+      damageLocation: typeof body.damageLocation === 'string' ? body.damageLocation.trim() : null,
+      evidenceUrl: typeof body.evidenceUrl === 'string' ? body.evidenceUrl.trim() : null,
+      supplierName: typeof body.supplierName === 'string' ? body.supplierName.trim() : null,
+      purchaseReference: typeof body.purchaseReference === 'string' ? body.purchaseReference.trim() : null,
+      purchaseCost, notes: typeof body.notes === 'string' ? body.notes.trim() : null, userId: user.id
     }))
     return NextResponse.json({ success: true, ...result }, { status: 201 })
   } catch (error) {
