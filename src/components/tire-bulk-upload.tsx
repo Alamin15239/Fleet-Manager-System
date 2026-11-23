@@ -61,7 +61,7 @@ export default function TireBulkUpload() {
     const date = [localDate.getFullYear(), String(localDate.getMonth() + 1).padStart(2, '0'), String(localDate.getDate()).padStart(2, '0')].join('-')
     const csv = [
       'Date,Vehicle Type,Truck #,Trailer #,Name Driver,Serial Number,OUT QTY',
-      [date, isTruck ? 'TRUCK' : 'TRAILER', isTruck ? truck.licensePlate : '', isTruck ? '' : trailer.number, (isTruck ? truck.driverName : trailer.driverName) || 'Driver Name', 'SERIAL-001', '1'].map(value => '"' + String(value).replace(/"/g, '""') + '"').join(',')
+      [date, isTruck ? 'TRUCK' : 'TRAILER', isTruck ? (truck?.licensePlate || '') : '', isTruck ? '' : (trailer?.number || ''), (isTruck ? truck?.driverName : trailer?.driverName) || 'Driver Name', 'SERIAL-001', '1'].map(value => '"' + String(value).replace(/"/g, '""') + '"').join(',')
     ].join('\r\n')
     const url = URL.createObjectURL(new Blob(['\uFEFF', csv], { type: 'text/csv;charset=utf-8' }))
     const a = document.createElement('a')
@@ -106,7 +106,7 @@ export default function TireBulkUpload() {
           <table className="w-full min-w-[540px] text-left text-xs">
             <thead><tr>{['Date','Vehicle Type','Truck #','Trailer #','Name Driver','Serial Number','OUT QTY'].map(x => <th key={x} className="border-b px-2 py-2">{x}</th>)}</tr></thead>
             <tbody><tr>
-              {[new Date().toISOString().slice(0, 10), 'TRUCK', sampleTruck?.licensePlate || (trailers.length ? 'Use Trailer # column' : 'Loading active fleet…'), '', sampleTruck?.driverName || 'Driver Name', 'SERIAL-001', '1'].map((x,i) => <td key={i} className="px-2 py-2 text-muted-foreground">{x}</td>)}
+              {[new Date().toISOString().slice(0, 10), sampleTruck ? 'TRUCK' : 'TRAILER', sampleTruck?.licensePlate || '', sampleTruck ? '' : (trailers[0]?.number || ''), sampleTruck?.driverName || trailers[0]?.driverName || 'Driver Name', 'SERIAL-001', '1'].map((x,i) => <td key={i} className="px-2 py-2 text-muted-foreground">{x}</td>)}
             </tr></tbody>
           </table>
         </div>
