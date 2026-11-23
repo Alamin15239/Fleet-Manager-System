@@ -164,9 +164,9 @@ export async function recordTireLifecycleEvent(tx: any, input: {
   cost?: number | null; treadDepthMm?: number | null; pressurePsi?: number | null;
   condition?: string | null; inspectionDueAt?: Date | null; damageLocation?: string | null;
   evidenceUrl?: string | null; supplierName?: string | null; purchaseReference?: string | null;
-  purchaseCost?: number | null; notes?: string | null; userId: string
+  purchaseCost?: number | null; notes?: string | null; userId: string; ensureTables?: boolean
 }) {
-  await ensureTireLifecycleTables(tx)
+  if (input.ensureTables !== false) await ensureTireLifecycleTables(tx)
   const tireRows = await tx.$queryRawUnsafe(
     `SELECT "id","truckId","plateNumber","trailerNumber","lifecycleStatus","currentPosition","internalCode","installedAt"
      FROM "tires" WHERE "id"=$1 FOR UPDATE`, input.tireId
