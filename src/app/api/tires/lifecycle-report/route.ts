@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
 
   try {
     await db.$transaction(async tx => ensureTireLifecycleTables(tx))
-    const [summary, inventory, damageByDriver, damageByReason, damageByVehicle, vehicleUsage, tireLife, averageLife] = await Promise.all([
+    const [summary, inventory, damageByDriver, damageByReason, damageByVehicle, vehicleUsage, tireLife, averageLife, purchaseBySupplier, inspectionDue] = await Promise.all([
       db.$queryRawUnsafe<any[]>(`SELECT
         COUNT(*) FILTER (WHERE "deletedAt" IS NULL AND "lifecycleStatus"='STOCK')::int AS "inStock",
         COUNT(*) FILTER (WHERE "deletedAt" IS NULL AND "lifecycleStatus"='INSTALLED')::int AS "installed",
@@ -59,6 +59,19 @@ export async function GET(request: NextRequest) {
         LEFT JOIN "trucks" v ON p."vehicleType"='truck' AND v."id"=p."vehicleId"
         GROUP BY t."id",t."internalCode",t."tireSize",t."manufacturer"
         ORDER BY "lifetimeKm" DESC`),
+      db.$queryRawUnsafe<any[]>(`SELECT COALESCE(NULLIF("supplierName",''),'Unspecified supplier') AS "supplierName",
+        COUNT(*)::int AS "tiresReceived",COALESCE(SUM("purchaseCost"),0)::float AS "purchaseSpend"
+        FROM "tires" WHERE "deletedAt" IS NULL
+        GROUP BY COALESCE(NULLIF("supplierName",''),'Unspecified supplier')
+        ORDER BY "purchaseSpend" DESC,"tiresReceived" DESC`),
+      db.$queryRawUnsafe<any[]>(`SELECT e."tireId",t."internalCode",t."tireSize",t."manufacturer",
+        e."condition",e."treadDepthMm",e."pressurePsi",e."inspectionDueAt",e."eventAt"
+        FROM "tire_lifecycle_events" e JOIN "tires" t ON t."id"=e."tireId"
+        WHERE e."eventType"='INSPECT' AND e."inspectionDueAt" IS NOT NULL
+          AND e."inspectionDueAt" <= NOW() + INTERVAL '30 days'
+          AND t."deletedAt" IS NULL
+          AND e."id"=(SELECT e2."id" FROM "tire_lifecycle_events" e2 WHERE e2."tireId"=e."tireId" AND e2."eventType"='INSPECT' ORDER BY e2."eventAt" DESC LIMIT 1)
+        ORDER BY e."inspectionDueAt" ASC LIMIT 200`),
       db.$queryRawUnsafe<any[]>(`SELECT "manufacturer","tireSize",COUNT(*)::int AS "tireCount",
         AVG("lifetimeDays")::float AS "averageLifeDays",AVG("lifetimeKm")::float AS "averageLifeKm"
         FROM (
@@ -73,7 +86,7 @@ export async function GET(request: NextRequest) {
     ])
     return NextResponse.json({
       summary: summary[0] || { inStock: 0, installed: 0, damaged: 0, disposed: 0, totalReceived: 0, damageEvents: 0 },
-      inventory, damageByDriver, damageByReason, damageByVehicle, vehicleUsage, tireLife, averageLife
+      inventory, damageByDriver, damageByReason, damageByVehicle, vehicleUsage, tireLife, averageLife, purchaseBySupplier, inspectionDue
     })
   } catch (error) {
     console.error('Tire lifecycle report error:', error)
