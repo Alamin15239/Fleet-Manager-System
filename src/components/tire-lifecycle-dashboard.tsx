@@ -44,6 +44,11 @@ export default function TireLifecycleDashboard() {
   const [repairable, setRepairable] = useState('unknown')
   const [reason, setReason] = useState('')
   const [cost, setCost] = useState('')
+  const [treadDepthMm, setTreadDepthMm] = useState('')
+  const [pressurePsi, setPressurePsi] = useState('')
+  const [condition, setCondition] = useState('')
+  const [inspectionDueAt, setInspectionDueAt] = useState('')
+  const [damageLocation, setDamageLocation] = useState('')
   const [notes, setNotes] = useState('')
 
   const selectedTire = useMemo(() => tires.find(t => t.id === tireId), [tires, tireId])
@@ -101,12 +106,17 @@ export default function TireLifecycleDashboard() {
         repairable: eventType === 'DAMAGE' ? (repairable === 'yes' ? true : repairable === 'no' ? false : null) : null,
         reason: reason.trim() || null,
         cost: cost ? Number(cost) : null,
+        treadDepthMm: treadDepthMm ? Number(treadDepthMm) : null,
+        pressurePsi: pressurePsi ? Number(pressurePsi) : null,
+        condition: condition || null,
+        inspectionDueAt: inspectionDueAt ? new Date(inspectionDueAt).toISOString() : null,
+        damageLocation: damageLocation.trim() || null,
         notes: notes.trim() || null
       })
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || 'Could not save tire event')
       toast.success(`${eventLabels[eventType]} saved. ${data.jobCardId ? 'Linked to the open job card.' : ''}`)
-      setPosition(''); setOdometerKm(''); setDamageType(''); setRepairable('unknown'); setReason(''); setCost(''); setNotes('')
+      setPosition(''); setOdometerKm(''); setDamageType(''); setRepairable('unknown'); setReason(''); setCost(''); setTreadDepthMm(''); setPressurePsi(''); setCondition(''); setInspectionDueAt(''); setDamageLocation(''); setNotes('')
       await load()
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to save tire event')
@@ -197,6 +207,13 @@ export default function TireLifecycleDashboard() {
               <div className="space-y-2"><Label>Repairable?</Label><Select value={repairable} onValueChange={setRepairable}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="yes">Yes</SelectItem><SelectItem value="no">No</SelectItem><SelectItem value="unknown">Not assessed</SelectItem></SelectContent></Select></div>
             </>}
             {(eventType === 'DAMAGE' || eventType === 'REPAIR') && <div className="space-y-2"><Label>{eventType === 'REPAIR' ? 'Repair cost (SAR)' : 'Damage / replacement cost (SAR)'}</Label><Input type="number" min="0" step="0.01" value={cost} onChange={e => setCost(e.target.value)} /></div>}
+            {eventType === 'INSPECT' && <>
+              <div className="space-y-2"><Label>Tread depth (mm)</Label><Input type="number" min="0" max="100" step="0.1" value={treadDepthMm} onChange={e => setTreadDepthMm(e.target.value)} placeholder="e.g. 8.5" /></div>
+              <div className="space-y-2"><Label>Pressure (PSI)</Label><Input type="number" min="0" max="300" step="0.1" value={pressurePsi} onChange={e => setPressurePsi(e.target.value)} placeholder="e.g. 105" /></div>
+              <div className="space-y-2"><Label>Condition</Label><Select value={condition} onValueChange={setCondition}><SelectTrigger><SelectValue placeholder="Select condition" /></SelectTrigger><SelectContent><SelectItem value="NEW">New</SelectItem><SelectItem value="GOOD">Good</SelectItem><SelectItem value="FAIR">Fair</SelectItem><SelectItem value="POOR">Poor</SelectItem><SelectItem value="UNSERVICEABLE">Unserviceable</SelectItem></SelectContent></Select></div>
+              <div className="space-y-2"><Label>Next inspection due</Label><Input type="date" value={inspectionDueAt} onChange={e => setInspectionDueAt(e.target.value)} /></div>
+            </>}
+            {eventType === 'DAMAGE' && <div className="space-y-2"><Label>Damage location</Label><Input value={damageLocation} onChange={e => setDamageLocation(e.target.value)} placeholder="Road, depot, workshop or GPS reference" /></div>}
             <div className="space-y-2 md:col-span-2 xl:col-span-3">
               <Label>Notes</Label><Textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} placeholder="Additional details, inspection notes or damage location" />
             </div>
