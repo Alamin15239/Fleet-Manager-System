@@ -121,6 +121,15 @@ export async function POST(request: NextRequest) {
           reportedIssue: body.description || 'Automatically linked trailer maintenance activity'
         })
         await tx.$executeRawUnsafe(`UPDATE "trailer_maintenance_records" SET "jobCardId"=$2 WHERE "id"=$1`, created.id, jobCardId)
+        await tx.$executeRawUnsafe(
+          `UPDATE "workshop_job_cards"
+           SET "partsCost"=COALESCE("partsCost",0)+$2,
+               "laborCost"=COALESCE("laborCost",0)+$3,
+               "totalCost"=COALESCE("totalCost",0)+$4,
+               "updatedAt"=NOW()
+           WHERE "id"=$1`,
+          jobCardId, created.partsCost || 0, created.laborCost || 0, created.totalCost || 0
+        )
         return { ...created, jobCardId }
       })
     } else {
@@ -154,7 +163,18 @@ export async function POST(request: NextRequest) {
           serviceType: body.serviceType || (body.isOilChange ? 'OIL CHANGE' : 'MAINTENANCE'),
           reportedIssue: body.description || 'Automatically linked maintenance activity'
         }) : null
-        if (jobCardId) await tx.$executeRawUnsafe(`UPDATE "maintenance_records" SET "jobCardId"=$2 WHERE "id"=$1`, created.id, jobCardId)
+        if (jobCardId) {
+          await tx.$executeRawUnsafe(`UPDATE "maintenance_records" SET "jobCardId"=$2 WHERE "id"=$1`, created.id, jobCardId)
+          await tx.$executeRawUnsafe(
+            `UPDATE "workshop_job_cards"
+             SET "partsCost"=COALESCE("partsCost",0)+$2,
+                 "laborCost"=COALESCE("laborCost",0)+$3,
+                 "totalCost"=COALESCE("totalCost",0)+$4,
+                 "updatedAt"=NOW()
+             WHERE "id"=$1`,
+            jobCardId, created.partsCost || 0, created.laborCost || 0, created.totalCost || 0
+          )
+        }
         if (body.isOilChange && body.oilInventoryItemId && body.truckId) {
           await reconcileOilChangeInventory(tx, {
             maintenanceId: created.id,
