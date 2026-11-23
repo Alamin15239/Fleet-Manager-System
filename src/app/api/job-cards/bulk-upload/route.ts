@@ -15,7 +15,7 @@ export async function POST(req:NextRequest){try{
  const user=await requireRolePermission(req,'maintenance','create'),form=await req.formData(),file=form.get('file'),action=String(form.get('action')||'preview')
  if(!(file instanceof File))return NextResponse.json({error:'Select an Excel workbook.'},{status:400})
  if(file.size>50*1024*1024)return NextResponse.json({error:'Workbook exceeds 50 MB.'},{status:400})
- if(!/\.xlsx?$/i.test(file.name))return NextResponse.json({error:'Upload an .xlsx workbook.'},{status:400})
+ if(!/\.xlsx$/i.test(file.name))return NextResponse.json({error:'Upload an .xlsx workbook.'},{status:400})
  const wb=new ExcelJS.Workbook();await wb.xlsx.load(Buffer.from(await file.arrayBuffer()) as any)
  const reg=wb.worksheets.find(x=>norm(x.name)==='register'),its=wb.worksheets.find(x=>norm(x.name)==='items')
  if(!reg||!its)return NextResponse.json({error:'Workbook must contain Register and Items sheets.'},{status:400})
