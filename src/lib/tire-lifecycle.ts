@@ -3,6 +3,14 @@ import { randomUUID } from 'crypto'
 type VehicleRef = { vehicleType: 'truck' | 'trailer'; vehicleId: string }
 
 export async function ensureTireLifecycleTables(tx: any) {
+  await ensureMaintenanceJobCardColumns(tx)
+  await tx.$executeRawUnsafe(`ALTER TABLE "tires" ADD COLUMN IF NOT EXISTS "truckId" TEXT`)
+  await tx.$executeRawUnsafe(`DO $ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='tires_truckId_fkey' AND conrelid='"tires"'::regclass) THEN
+      ALTER TABLE "tires" ADD CONSTRAINT "tires_truckId_fkey"
+        FOREIGN KEY ("truckId") REFERENCES "trucks"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+    END IF;
+  END $`)
   await tx.$executeRawUnsafe(`ALTER TABLE "tires" ADD COLUMN IF NOT EXISTS "internalCode" TEXT`)
   await tx.$executeRawUnsafe(`ALTER TABLE "tires" ADD COLUMN IF NOT EXISTS "lifecycleStatus" TEXT NOT NULL DEFAULT 'STOCK'`)
   await tx.$executeRawUnsafe(`ALTER TABLE "tires" ADD COLUMN IF NOT EXISTS "currentPosition" TEXT`)
@@ -110,6 +118,7 @@ export async function getOrCreateOpenJobCard(tx: any, vehicle: VehicleRef, detai
   eventAt: Date; odometerKm?: number | null; driverName?: string | null; userId: string;
   serviceType?: string; reportedIssue?: string
 }) {
+  await ensureMaintenanceJobCardColumns(tx)
   const activeVehicle = vehicle.vehicleType === 'truck'
     ? await tx.truck.findFirst({ where: { id: vehicle.vehicleId, isDeleted: false, status: { not: 'INACTIVE' } }, select: { id: true } })
     : await tx.trailer.findFirst({ where: { id: vehicle.vehicleId, isDeleted: false, status: { not: 'INACTIVE' } }, select: { id: true } })
@@ -327,8 +336,61 @@ export async function recordTireLifecycleEvent(tx: any, input: {
 
 
 export async function ensureMaintenanceJobCardColumns(tx: any) {
+  // Bootstrap the central maintenance entity before any module attempts to
+  // attach work to it. Keep this idempotent for existing production databases.
+  await tx.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "workshop_job_cards" (
+    "id" TEXT NOT NULL,
+    "jobNumber" TEXT NOT NULL,
+    "truckId" TEXT,
+    "trailerId" TEXT,
+    "serviceDate" TIMESTAMP(3) NOT NULL,
+    "odometerKm" INTEGER,
+    "serviceType" TEXT NOT NULL,
+    "priority" TEXT NOT NULL DEFAULT 'NORMAL',
+    "reportedIssue" TEXT,
+    "technicianName" TEXT,
+    "driverName" TEXT,
+    "status" TEXT NOT NULL DEFAULT 'OPEN',
+    "nextServiceOdometer" INTEGER,
+    "nextServiceDate" TIMESTAMP(3),
+    "partsCost" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "laborCost" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "totalCost" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "notes" TEXT,
+    "items" JSONB NOT NULL DEFAULT '[]',
+    "checklist" JSONB NOT NULL DEFAULT '{}',
+    "technicianSignature" TEXT,
+    "supervisorSignature" TEXT,
+    "driverSignature" TEXT,
+    "createdById" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    CONSTRAINT "workshop_job_cards_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "workshop_job_cards_jobNumber_key" UNIQUE ("jobNumber"),
+    CONSTRAINT "workshop_job_cards_truckId_fkey" FOREIGN KEY ("truckId") REFERENCES "trucks"("id") ON DELETE RESTRICT ON UPDATE CASCADE,
+    CONSTRAINT "workshop_job_cards_trailerId_fkey" FOREIGN KEY ("trailerId") REFERENCES "trailers"("id") ON DELETE RESTRICT ON UPDATE CASCADE,
+    CONSTRAINT "workshop_job_cards_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE,
+    CONSTRAINT "workshop_job_cards_vehicle_check" CHECK (num_nonnulls("truckId", "trailerId") = 1)
+  )`)
+  await tx.$executeRawUnsafe(`ALTER TABLE "workshop_job_cards" ADD COLUMN IF NOT EXISTS "partsCost" DOUBLE PRECISION NOT NULL DEFAULT 0`)
+  await tx.$executeRawUnsafe(`ALTER TABLE "workshop_job_cards" ADD COLUMN IF NOT EXISTS "laborCost" DOUBLE PRECISION NOT NULL DEFAULT 0`)
+  await tx.$executeRawUnsafe(`ALTER TABLE "workshop_job_cards" ADD COLUMN IF NOT EXISTS "totalCost" DOUBLE PRECISION NOT NULL DEFAULT 0`)
+  await tx.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "workshop_job_cards_jobNumber_key" ON "workshop_job_cards" ("jobNumber")`)
+  await tx.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "workshop_job_cards_serviceDate_idx" ON "workshop_job_cards" ("serviceDate")`)
+  await tx.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "workshop_job_cards_truckId_idx" ON "workshop_job_cards" ("truckId")`)
+  await tx.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "workshop_job_cards_trailerId_idx" ON "workshop_job_cards" ("trailerId")`)
   await tx.$executeRawUnsafe(`ALTER TABLE "maintenance_records" ADD COLUMN IF NOT EXISTS "jobCardId" TEXT`)
   await tx.$executeRawUnsafe(`ALTER TABLE "trailer_maintenance_records" ADD COLUMN IF NOT EXISTS "jobCardId" TEXT`)
   await tx.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "maintenance_records_jobCardId_idx" ON "maintenance_records" ("jobCardId")`)
   await tx.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "trailer_maintenance_records_jobCardId_idx" ON "trailer_maintenance_records" ("jobCardId")`)
+  await tx.$executeRawUnsafe(`DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='maintenance_records_jobCardId_fkey' AND conrelid='"maintenance_records"'::regclass) THEN
+      ALTER TABLE "maintenance_records" ADD CONSTRAINT "maintenance_records_jobCardId_fkey"
+        FOREIGN KEY ("jobCardId") REFERENCES "workshop_job_cards"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='trailer_maintenance_records_jobCardId_fkey' AND conrelid='"trailer_maintenance_records"'::regclass) THEN
+      ALTER TABLE "trailer_maintenance_records" ADD CONSTRAINT "trailer_maintenance_records_jobCardId_fkey"
+        FOREIGN KEY ("jobCardId") REFERENCES "workshop_job_cards"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+    END IF;
+  END $$`)
 }
