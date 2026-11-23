@@ -69,9 +69,20 @@ export async function POST(request: NextRequest) {
       }
     })
 
+    // Build the reset URL on the canonical production app domain. Keep the
+    // organization context so multi-tenant users return to the correct workspace.
+    const appBaseUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://fleetmaintenance.site').trim()
+    const resetUrl = new URL('/reset-password', appBaseUrl)
+    resetUrl.searchParams.set('token', resetToken)
+    resetUrl.searchParams.set('email', user.email)
+    if (typeof organizationSlug === 'string' && organizationSlug.trim()) {
+      resetUrl.searchParams.set('org', organizationSlug.trim())
+    }
+    const resetLink = resetUrl.toString()
+
     // Use the shared Resend service and sender configuration.
     try {
-      await resendEmailService.sendPasswordResetEmail(email, resetLink, user.name || undefined)
+      await resendEmailService.sendPasswordResetEmail(user.email, resetLink, user.name || undefined)
     } catch (emailError) {
       // Keep the anti-enumeration response, but invalidate the unusable reset token.
       await db.user.update({
