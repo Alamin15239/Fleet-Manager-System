@@ -33,6 +33,9 @@ export const createTireSchema = z.object({
   // Common fields
   driverName: z.string().optional(),
   notes: z.string().max(500).optional(),
+  supplierName: z.string().max(160).optional(),
+  purchaseReference: z.string().max(120).optional(),
+  purchaseCost: z.number().min(0).max(100000000).optional(),
   createdAt: z.string().optional().transform(val => {
     if (!val) return undefined
     // Handle datetime-local format (YYYY-MM-DDTHH:MM)
