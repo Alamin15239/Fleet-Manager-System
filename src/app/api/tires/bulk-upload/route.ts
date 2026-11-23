@@ -23,9 +23,9 @@ function parseDate(value: ExcelJS.CellValue): Date | null {
   if (!raw) return null
   let date: Date
   const iso = raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/)
-  const dmy = raw.match(/^(\d{1,2})[\\/. -](\d{1,2})[\\/. -](\d{4})$/)
+  const parts = raw.includes('/') ? raw.split('/') : raw.split(/[. -]/)
   if (iso) date = new Date(Date.UTC(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3])))
-  else if (dmy) date = new Date(Date.UTC(Number(dmy[3]), Number(dmy[2]) - 1, Number(dmy[1])))
+  else if (parts.length === 3 && parts[2].length === 4) date = new Date(Date.UTC(Number(parts[2]), Number(parts[1]) - 1, Number(parts[0])))
   else date = new Date(raw)
   return Number.isNaN(date.getTime()) ? null : date
 }
