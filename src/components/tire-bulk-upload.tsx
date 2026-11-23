@@ -50,16 +50,18 @@ export default function TireBulkUpload() {
   }, [])
 
   const downloadTemplate = () => {
-    if (!trucks.length) {
-      setError('No active trucks are available. Add or activate a truck before downloading the template.')
+    if (!trucks.length && !trailers.length) {
+      setError('No active trucks or trailers are available. Add or activate a fleet vehicle before downloading the template.')
       return
     }
     const truck = trucks[0]
+    const trailer = trailers[0]
+    const isTruck = Boolean(truck)
     const localDate = new Date()
     const date = [localDate.getFullYear(), String(localDate.getMonth() + 1).padStart(2, '0'), String(localDate.getDate()).padStart(2, '0')].join('-')
     const csv = [
       'Date,Vehicle Type,Truck #,Trailer #,Name Driver,Serial Number,OUT QTY',
-      [date, 'TRUCK', truck.licensePlate, '', truck.driverName || 'Driver Name', 'SERIAL-001', '1'].map(value => '"' + String(value).replace(/"/g, '""') + '"').join(',')
+      [date, isTruck ? 'TRUCK' : 'TRAILER', isTruck ? truck.licensePlate : '', isTruck ? '' : trailer.number, (isTruck ? truck.driverName : trailer.driverName) || 'Driver Name', 'SERIAL-001', '1'].map(value => '"' + String(value).replace(/"/g, '""') + '"').join(',')
     ].join('\r\n')
     const url = URL.createObjectURL(new Blob(['\uFEFF', csv], { type: 'text/csv;charset=utf-8' }))
     const a = document.createElement('a')
@@ -92,7 +94,6 @@ export default function TireBulkUpload() {
   }
 
   const sampleTruck = trucks[0]
-  const sampleTrailer = trailers[0]
   return <Card>
     <CardHeader>
       <CardTitle className="flex items-center gap-2"><FileSpreadsheet className="h-5 w-5" /> Bulk tire issue upload</CardTitle>
@@ -105,11 +106,11 @@ export default function TireBulkUpload() {
           <table className="w-full min-w-[540px] text-left text-xs">
             <thead><tr>{['Date','Vehicle Type','Truck #','Trailer #','Name Driver','Serial Number','OUT QTY'].map(x => <th key={x} className="border-b px-2 py-2">{x}</th>)}</tr></thead>
             <tbody><tr>
-              {[new Date().toISOString().slice(0, 10), 'TRUCK', sampleTruck?.licensePlate || 'Loading active trucks…', '', sampleTruck?.driverName || 'Driver Name', 'SERIAL-001', '1'].map((x,i) => <td key={i} className="px-2 py-2 text-muted-foreground">{x}</td>)}
+              {[new Date().toISOString().slice(0, 10), 'TRUCK', sampleTruck?.licensePlate || (trailers.length ? 'Use Trailer # column' : 'Loading active fleet…'), '', sampleTruck?.driverName || 'Driver Name', 'SERIAL-001', '1'].map((x,i) => <td key={i} className="px-2 py-2 text-muted-foreground">{x}</td>)}
             </tr></tbody>
           </table>
         </div>
-        <Button type="button" variant="outline" size="sm" className="mt-3" onClick={downloadTemplate} disabled={loadingTrucks || trucks.length === 0}>
+        <Button type="button" variant="outline" size="sm" className="mt-3" onClick={downloadTemplate} disabled={loadingTrucks || (trucks.length === 0 && trailers.length === 0)}>
           <Download className="mr-2 h-4 w-4" />Download template
         </Button>
         <div className="mt-3 text-xs text-muted-foreground">
