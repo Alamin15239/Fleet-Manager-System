@@ -29,6 +29,7 @@ export async function POST(req:NextRequest){try{
  const known=new Set(cards.map(x=>x.jobNumber));for(const key of im.keys())if(!known.has(key))errors.push('Items reference missing Register Job No. '+key)
  if(!cards.length)errors.push('No job cards found.')
  if(errors.length)return NextResponse.json({error:'Workbook validation failed.',errors:errors.slice(0,100),totalErrors:errors.length},{status:400})
+ cards.sort((a,b)=>b.serviceDate.getTime()-a.serviceDate.getTime()||b.jobNumber.localeCompare(a.jobNumber))
  const [trucks,trailers,existing]=await Promise.all([db.truck.findMany({where:{isDeleted:false},select:{id:true,licensePlate:true}}),db.trailer.findMany({where:{isDeleted:false},select:{id:true,number:true}}),db.workshopJobCard.findMany({select:{jobNumber:true,truckId:true,trailerId:true,status:true}})])
  const vehicles=new Map<string,any[]>();for(const x of trucks){const k=norm(x.licensePlate);vehicles.set(k,[...(vehicles.get(k)||[]),{id:x.id,type:'truck'}])}for(const x of trailers){const k=norm(x.number);vehicles.set(k,[...(vehicles.get(k)||[]),{id:x.id,type:'trailer'}])}
  const numbers=new Set(existing.map(x=>x.jobNumber)),open=new Set(existing.filter(x=>['OPEN','IN_PROGRESS'].includes(x.status)).flatMap(x=>[...(x.truckId?['truck:'+x.truckId]:[]),...(x.trailerId?['trailer:'+x.trailerId]:[])])),planned=new Set<string>()
