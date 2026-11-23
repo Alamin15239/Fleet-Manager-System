@@ -12,12 +12,14 @@ export async function GET(request: NextRequest) {
     // Get both truck and trailer maintenance records
     const [truckRecords, trailerRecords] = await Promise.all([
       db.maintenanceRecord.findMany({
+        where: { isDeleted: false },
         include: {
           truck: true
         },
         orderBy: { datePerformed: 'desc' }
       }),
       db.trailerMaintenanceRecord.findMany({
+        where: { isDeleted: false },
         include: {
           trailer: true
         },
