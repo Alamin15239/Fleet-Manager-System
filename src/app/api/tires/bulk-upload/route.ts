@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
     } else if (/\.xlsx?$/i.test(file.name)) {
       await workbook.xlsx.load(bytes as any)
     } else {
-      return NextResponse.json({ error: 'Use an .xlsx, .xls, or .csv file.' }, { status: 400 })
+      return NextResponse.json({ error: 'Use an .xlsx or .csv file.' }, { status: 400 })
     }
     const sheet = workbook.worksheets[0]
     if (!sheet || sheet.rowCount < 2) return NextResponse.json({ error: 'The sheet is empty.' }, { status: 400 })
