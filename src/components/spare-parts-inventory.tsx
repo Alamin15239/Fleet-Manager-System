@@ -12,14 +12,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Boxes, Plus, ArrowDownToLine, Search, RefreshCw, FileSpreadsheet, FileText, Printer } from 'lucide-react'
 
-type Item = { id:string; name:string; partNumber?:string|null; category:string; unit:string; oilGrade?:string|null; reorderLevel:number; stockQty:number }
+type Item = { id:string; name:string; partNumber?:string|null; category:string; unit:string; oilGrade?:string|null; reorderLevel:number; stockQty:number }\ntype VehicleOption = { id:string; label:string }
 type Tx = { id:string; itemId:string; itemName:string; type:string; quantity:number; unit:string; transactionDate:string; reference?:string|null; vehicleType?:string|null; vehicleId?:string|null; jobCardId?:string|null; notes?:string|null }
 const labels:Record<string,string> = { OPENING:'Opening stock', PURCHASE:'Purchase / stock in', ISSUE:'Issue to vehicle', CUSTOMER_RETURN:'Return to store', SUPPLIER_RETURN:'Return to supplier', ADJUSTMENT_IN:'Stock adjustment (+)', ADJUSTMENT_OUT:'Stock adjustment (-)' }
 const reportTitles:Record<string,string> = { stock:'Current stock report', low:'Low / reorder stock report', movement:'Stock movement ledger', consumption:'Parts issued / consumption report', oil:'Engine oil stock report' }
 
 export function SparePartsInventory() {
   const [items,setItems]=useState<Item[]>([])
-  const [transactions,setTransactions]=useState<Tx[]>([])
+  const [transactions,setTransactions]=useState<Tx[]>([])\n  const [trucks,setTrucks]=useState<VehicleOption[]>([])\n  const [trailers,setTrailers]=useState<VehicleOption[]>([])
   const [loading,setLoading]=useState(true)
   const [search,setSearch]=useState('')
   const [tab,setTab]=useState<'stock'|'history'|'reports'>('stock')
@@ -29,7 +29,16 @@ export function SparePartsInventory() {
   const [itemForm,setItemForm]=useState({name:'',partNumber:'',category:'GENERAL',unit:'pcs',oilGrade:'',reorderLevel:'0'})
   const [txForm,setTxForm]=useState({itemId:'',type:'PURCHASE',quantity:'',transactionDate:new Date().toISOString().slice(0,10),reference:'',vehicleType:'truck',vehicleId:'',jobCardId:'',unitCost:'',notes:''})
   const [saving,setSaving]=useState(false)
-  const load=useCallback(async()=>{setLoading(true);try{const r=await apiGet('/api/inventory');const d=await r.json();if(!r.ok)throw new Error(d.error||'Unable to load stock');setItems(d.items||[]);setTransactions(d.transactions||[])}catch(e){toast.error(e instanceof Error?e.message:'Unable to load stock')}finally{setLoading(false)}},[])
+  const load=useCallback(async()=>{setLoading(true);try{
+    const [r,vehicleResponse]=await Promise.all([apiGet('/api/inventory'),apiGet('/api/job-cards/options')])
+    const d=await r.json();if(!r.ok)throw new Error(d.error||'Unable to load stock')
+    setItems(d.items||[]);setTransactions(d.transactions||[])
+    if(vehicleResponse.ok){
+      const options=await vehicleResponse.json()
+      setTrucks((options.trucks||[]).map((v:any)=>({id:v.id,label:`${v.licensePlate} · ${v.year} ${v.make} ${v.model}`})))
+      setTrailers((options.trailers||[]).map((v:any)=>({id:v.id,label:`Trailer ${v.number}`})))
+    }
+  }catch(e){toast.error(e instanceof Error?e.message:'Unable to load stock')}finally{setLoading(false)}},[])
   useEffect(()=>{void load()},[load])
   useEffect(() => {
     const handleFleetDataChanged = () => { void load() }
@@ -83,7 +92,7 @@ export function SparePartsInventory() {
     popup.onload=()=>{popup.focus();popup.print()}
   }
   async function createItem(e:React.FormEvent){e.preventDefault();setSaving(true);try{const r=await apiPost('/api/inventory',{action:'createItem',...itemForm,reorderLevel:Number(itemForm.reorderLevel)});const d=await r.json();if(!r.ok)throw new Error(d.error||'Unable to add item');setItemForm({name:'',partNumber:'',category:'GENERAL',unit:'pcs',oilGrade:'',reorderLevel:'0'});toast.success('Part added');await load()}catch(e){toast.error(e instanceof Error?e.message:'Unable to add part')}finally{setSaving(false)}}
-  async function saveTransaction(e:React.FormEvent){e.preventDefault();setSaving(true);try{const r=await apiPost('/api/inventory',{...txForm,quantity:Number(txForm.quantity),unitCost:txForm.unitCost?Number(txForm.unitCost):null});const d=await r.json();if(!r.ok)throw new Error(d.error||'Unable to save transaction');setTxForm(v=>({...v,quantity:'',reference:'',vehicleId:'',jobCardId:'',unitCost:'',notes:''}));toast.success('Stock transaction recorded');await load()}catch(e){toast.error(e instanceof Error?e.message:'Unable to save transaction')}finally{setSaving(false)}}
+  async function saveTransaction(e:React.FormEvent){e.preventDefault();if(txForm.type==='ISSUE'&&!txForm.vehicleId){toast.error('Select a truck or trailer before issuing a part');return}setSaving(true);try{const r=await apiPost('/api/inventory',{...txForm,quantity:Number(txForm.quantity),unitCost:txForm.unitCost?Number(txForm.unitCost):null});const d=await r.json();if(!r.ok)throw new Error(d.error||'Unable to save transaction');setTxForm(v=>({...v,quantity:'',reference:'',vehicleId:'',jobCardId:'',unitCost:'',notes:''}));toast.success('Stock transaction recorded');await load()}catch(e){toast.error(e instanceof Error?e.message:'Unable to save transaction')}finally{setSaving(false)}}
   async function editCurrentStock(item:Item){const entered=window.prompt(`Enter the actual stock quantity for ${item.name} (${item.unit}). Current: ${item.stockQty} ${item.unit}`,String(item.stockQty));if(entered===null)return;const next=Number(entered);if(!Number.isFinite(next)||next<0){toast.error('Enter a valid stock quantity of zero or more');return}if(Math.abs(next-item.stockQty)<0.000001)return;setSaving(true);try{const r=await apiPost('/api/inventory',{action:'setCurrentStock',itemId:item.id,quantity:next});const d=await r.json();if(!r.ok)throw new Error(d.error||'Unable to update current stock');toast.success(`Current stock updated to ${next} ${item.unit}`);await load()}catch(e){toast.error(e instanceof Error?e.message:'Unable to update current stock')}finally{setSaving(false)}}
   async function editReorderLevel(item:Item){const entered=window.prompt(`Set the low-stock reorder threshold for ${item.name} (${item.unit}). Current: ${item.reorderLevel} ${item.unit}`,String(item.reorderLevel));if(entered===null)return;const next=Number(entered);if(!Number.isFinite(next)||next<0){toast.error('Enter a valid reorder level of zero or more');return}if(Math.abs(next-item.reorderLevel)<0.000001)return;setSaving(true);try{const r=await apiPost('/api/inventory',{action:'setReorderLevel',itemId:item.id,reorderLevel:next});const d=await r.json();if(!r.ok)throw new Error(d.error||'Unable to update reorder level');toast.success(`Reorder level updated to ${next} ${item.unit}`);await load()}catch(e){toast.error(e instanceof Error?e.message:'Unable to update reorder level')}finally{setSaving(false)}}
   return <div className="space-y-6">
@@ -106,7 +115,7 @@ export function SparePartsInventory() {
         <div className="space-y-1"><Label>Part *</Label><Select value={txForm.itemId} onValueChange={itemId=>setTxForm(v=>({...v,itemId}))}><SelectTrigger><SelectValue placeholder="Choose a part"/></SelectTrigger><SelectContent>{items.map(x=><SelectItem key={x.id} value={x.id}>{x.name}{x.oilGrade?' · '+x.oilGrade:''} ({x.stockQty} {x.unit})</SelectItem>)}</SelectContent></Select></div>
         <div className="space-y-1"><Label>Transaction *</Label><Select value={txForm.type} onValueChange={type=>setTxForm(v=>({...v,type}))}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{Object.entries(labels).map(([k,v])=><SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent></Select></div>
         <div className="grid grid-cols-2 gap-3"><div className="space-y-1"><Label>Quantity *</Label><Input required type="number" min="0.01" step="0.01" value={txForm.quantity} onChange={e=>setTxForm(v=>({...v,quantity:e.target.value}))}/></div><div className="space-y-1"><Label>Date *</Label><Input required type="date" value={txForm.transactionDate} onChange={e=>setTxForm(v=>({...v,transactionDate:e.target.value}))}/></div></div>
-        {txForm.type==='ISSUE'&&<><div className="space-y-1"><Label>Vehicle type</Label><Select value={txForm.vehicleType} onValueChange={vehicleType=>setTxForm(v=>({...v,vehicleType}))}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="truck">Truck</SelectItem><SelectItem value="trailer">Trailer</SelectItem></SelectContent></Select></div><div className="space-y-1"><Label>Vehicle ID</Label><Input value={txForm.vehicleId} onChange={e=>setTxForm(v=>({...v,vehicleId:e.target.value}))} placeholder="Vehicle record ID"/></div></>}
+        {txForm.type==='ISSUE'&&<><div className="space-y-1"><Label>Vehicle type *</Label><Select value={txForm.vehicleType} onValueChange={vehicleType=>setTxForm(v=>({...v,vehicleType,vehicleId:''}))}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="truck">Truck</SelectItem><SelectItem value="trailer">Trailer</SelectItem></SelectContent></Select></div><div className="space-y-1"><Label>{txForm.vehicleType==='truck'?'Truck / plate number *':'Trailer number *'}</Label><Select value={txForm.vehicleId} onValueChange={vehicleId=>setTxForm(v=>({...v,vehicleId}))}><SelectTrigger><SelectValue placeholder="Select a vehicle"/></SelectTrigger><SelectContent>{(txForm.vehicleType==='truck'?trucks:trailers).map(vehicle=><SelectItem key={vehicle.id} value={vehicle.id}>{vehicle.label}</SelectItem>)}</SelectContent></Select>{(txForm.vehicleType==='truck'?trucks:trailers).length===0&&<p className="text-xs text-amber-700">No active {txForm.vehicleType}s available.</p>}<p className="text-xs text-muted-foreground">Choose the vehicle from the list. Its internal record ID will be submitted automatically.</p></div></>}
         <div className="space-y-1"><Label>Reference / job card number</Label><Input value={txForm.reference} onChange={e=>setTxForm(v=>({...v,reference:e.target.value}))}/></div>
         <div className="space-y-1"><Label>Notes</Label><Input value={txForm.notes} onChange={e=>setTxForm(v=>({...v,notes:e.target.value}))}/></div>
         <Button disabled={saving||!txForm.itemId} className="w-full"><ArrowDownToLine className="mr-2 h-4 w-4"/>Record movement</Button>
