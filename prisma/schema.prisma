@@ -915,6 +915,9 @@ model Tire {
   installedAt DateTime?
   installationOdometer Int?
   deletedAt DateTime?
+  supplierName String?
+  purchaseReference String?
+  purchaseCost Float?
   createdBy     User?    @relation(fields: [createdById], references: [id])
   truck         Truck?   @relation(fields: [truckId], references: [id], onDelete: SetNull)
   vehicle       Vehicle? @relation(fields: [plateNumber], references: [plateNumber])
@@ -947,6 +950,15 @@ model TireLifecycleEvent {
   damageType          String?
   repairable          Boolean?
   cost                Float?
+  treadDepthMm        Float?
+  pressurePsi         Float?
+  condition           String?
+  inspectionDueAt     DateTime?
+  damageLocation      String?
+  evidenceUrl         String?
+  supplierName        String?
+  purchaseReference   String?
+  purchaseCost        Float?
   notes               String?
   jobCardId           String?
   createdById         String?
