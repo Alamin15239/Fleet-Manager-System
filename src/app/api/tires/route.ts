@@ -165,6 +165,9 @@ export async function POST(request: NextRequest) {
       trailerQuantity = 1,
       trailerSerialNumber,
       notes,
+      supplierName,
+      purchaseReference,
+      purchaseCost,
       createdAt
     } = validatedData
 
@@ -214,6 +217,9 @@ export async function POST(request: NextRequest) {
           quantity: 1,
           serialNumber: serialNumber || null,
           notes: notes || null,
+          supplierName: supplierName || null,
+          purchaseReference: purchaseReference || null,
+          purchaseCost: purchaseCost ?? null,
           createdById: user.id,
           ...(createdAt && { createdAt: new Date(createdAt) })
         })
@@ -248,6 +254,9 @@ export async function POST(request: NextRequest) {
           quantity: 1,
           serialNumber: trailerSerialNumber || null,
           notes: notes || null,
+          supplierName: supplierName || null,
+          purchaseReference: purchaseReference || null,
+          purchaseCost: purchaseCost ?? null,
           createdById: user.id,
           ...(createdAt && { createdAt: new Date(createdAt) })
         })
