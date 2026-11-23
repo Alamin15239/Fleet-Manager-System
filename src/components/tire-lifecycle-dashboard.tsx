@@ -49,6 +49,7 @@ export default function TireLifecycleDashboard() {
   const [condition, setCondition] = useState('')
   const [inspectionDueAt, setInspectionDueAt] = useState('')
   const [damageLocation, setDamageLocation] = useState('')
+  const [evidenceUrl, setEvidenceUrl] = useState('')
   const [notes, setNotes] = useState('')
 
   const selectedTire = useMemo(() => tires.find(t => t.id === tireId), [tires, tireId])
@@ -111,12 +112,13 @@ export default function TireLifecycleDashboard() {
         condition: condition || null,
         inspectionDueAt: inspectionDueAt ? new Date(inspectionDueAt).toISOString() : null,
         damageLocation: damageLocation.trim() || null,
+        evidenceUrl: evidenceUrl.trim() || null,
         notes: notes.trim() || null
       })
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || 'Could not save tire event')
       toast.success(`${eventLabels[eventType]} saved. ${data.jobCardId ? 'Linked to the open job card.' : ''}`)
-      setPosition(''); setOdometerKm(''); setDamageType(''); setRepairable('unknown'); setReason(''); setCost(''); setTreadDepthMm(''); setPressurePsi(''); setCondition(''); setInspectionDueAt(''); setDamageLocation(''); setNotes('')
+      setPosition(''); setOdometerKm(''); setDamageType(''); setRepairable('unknown'); setReason(''); setCost(''); setTreadDepthMm(''); setPressurePsi(''); setCondition(''); setInspectionDueAt(''); setDamageLocation(''); setEvidenceUrl(''); setNotes('')
       await load()
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to save tire event')
@@ -214,6 +216,7 @@ export default function TireLifecycleDashboard() {
               <div className="space-y-2"><Label>Next inspection due</Label><Input type="date" value={inspectionDueAt} onChange={e => setInspectionDueAt(e.target.value)} /></div>
             </>}
             {eventType === 'DAMAGE' && <div className="space-y-2"><Label>Damage location</Label><Input value={damageLocation} onChange={e => setDamageLocation(e.target.value)} placeholder="Road, depot, workshop or GPS reference" /></div>}
+            {eventType === 'DAMAGE' && <div className="space-y-2"><Label>Evidence URL (optional)</Label><Input type="url" value={evidenceUrl} onChange={e => setEvidenceUrl(e.target.value)} placeholder="https://… photo or report link" /></div>}
             <div className="space-y-2 md:col-span-2 xl:col-span-3">
               <Label>Notes</Label><Textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} placeholder="Additional details, inspection notes or damage location" />
             </div>
