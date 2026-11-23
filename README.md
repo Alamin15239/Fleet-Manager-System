@@ -94,6 +94,7 @@ The Prisma schema is maintained in `prisma/schema.prisma`. The production build 
 
 ## Operational notes
 
+- Browser API requests authenticate with the secure session cookie; API clients can also use bearer-token authentication.
 - Workbook edits are staged for review and validated against the applying user's current permissions. They are not silently applied.
 - Scheduled maintenance checks are periodic, not real-time or emergency alerts.
 - Document expiry email alerts depend on saved recipients, verification settings and a working Resend sender configuration.
