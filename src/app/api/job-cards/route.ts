@@ -30,8 +30,7 @@ export async function GET(request: NextRequest) {
             truck: { select: { id: true, make: true, model: true, year: true, vin: true, licensePlate: true, currentMileage: true } },
             trailer: { select: { id: true, number: true } }
           },
-          orderBy: [{ serviceDate: 'desc' }, { createdAt: 'desc' }],
-          take: 500
+          orderBy: [{ serviceDate: 'desc' }, { createdAt: 'desc' }]
         })
     const [jobCards, settings] = await Promise.all([cardsQuery, db.settings.findFirst({ select: { companyName: true, companyAddress: true, companyPhone: true, companyEmail: true } })])
     const ids = jobCards.map(card => card.id)
