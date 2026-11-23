@@ -176,7 +176,9 @@ class ResendEmailService {
   // Send email verification email using Resend
   async sendVerificationEmail(email: string, verificationToken: string, name?: string): Promise<void> {
     try {
-      const verificationLink = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/verify-email?token=${verificationToken}`
+      const verificationUrl = new URL('/verify-email', (process.env.NEXT_PUBLIC_APP_URL || 'https://fleetmaintenance.site').trim())
+      verificationUrl.searchParams.set('token', verificationToken)
+      const verificationLink = verificationUrl.toString()
 
       if (!this.config.apiKey) {
         throw new Error('Verification email service is not configured')
