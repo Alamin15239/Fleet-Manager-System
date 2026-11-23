@@ -12,14 +12,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Boxes, Plus, ArrowDownToLine, Search, RefreshCw, FileSpreadsheet, FileText, Printer } from 'lucide-react'
 
-type Item = { id:string; name:string; partNumber?:string|null; category:string; unit:string; oilGrade?:string|null; reorderLevel:number; stockQty:number }\ntype VehicleOption = { id:string; label:string }
+type Item = { id:string; name:string; partNumber?:string|null; category:string; unit:string; oilGrade?:string|null; reorderLevel:number; stockQty:number }
+type VehicleOption = { id:string; label:string }
 type Tx = { id:string; itemId:string; itemName:string; type:string; quantity:number; unit:string; transactionDate:string; reference?:string|null; vehicleType?:string|null; vehicleId?:string|null; jobCardId?:string|null; notes?:string|null }
 const labels:Record<string,string> = { OPENING:'Opening stock', PURCHASE:'Purchase / stock in', ISSUE:'Issue to vehicle', CUSTOMER_RETURN:'Return to store', SUPPLIER_RETURN:'Return to supplier', ADJUSTMENT_IN:'Stock adjustment (+)', ADJUSTMENT_OUT:'Stock adjustment (-)' }
 const reportTitles:Record<string,string> = { stock:'Current stock report', low:'Low / reorder stock report', movement:'Stock movement ledger', consumption:'Parts issued / consumption report', oil:'Engine oil stock report' }
 
 export function SparePartsInventory() {
   const [items,setItems]=useState<Item[]>([])
-  const [transactions,setTransactions]=useState<Tx[]>([])\n  const [trucks,setTrucks]=useState<VehicleOption[]>([])\n  const [trailers,setTrailers]=useState<VehicleOption[]>([])
+  const [transactions,setTransactions]=useState<Tx[]>([])
+  const [trucks,setTrucks]=useState<VehicleOption[]>([])
+  const [trailers,setTrailers]=useState<VehicleOption[]>([])
   const [loading,setLoading]=useState(true)
   const [search,setSearch]=useState('')
   const [tab,setTab]=useState<'stock'|'history'|'reports'>('stock')
