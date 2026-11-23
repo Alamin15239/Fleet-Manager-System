@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
     })
     const trailers = await db.trailer.findMany({
       where: { isDeleted: false, status: { not: 'INACTIVE' } },
-      select: { number: true, driverName: true, make: true, model: true, year: true },
+      select: { number: true, driverName: true },
       orderBy: { number: 'asc' }
     })
     return NextResponse.json({ trucks, trailers })
