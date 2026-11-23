@@ -19,7 +19,7 @@ type Tire = {
 type Vehicle = { id: string; vehicleType: 'truck' | 'trailer'; label: string; detail?: string; mileage?: number | null; driverName?: string | null }
 type Report = {
   summary?: { inStock: number; installed: number; damaged: number; disposed: number; totalReceived: number; damageEvents: number }
-  inventory?: any[]; damageByDriver?: any[]; damageByReason?: any[]; damageByVehicle?: any[]; vehicleUsage?: any[]; tireLife?: any[]; averageLife?: any[]
+  inventory?: any[]; damageByDriver?: any[]; damageByReason?: any[]; damageByVehicle?: any[]; vehicleUsage?: any[]; tireLife?: any[]; averageLife?: any[]; purchaseBySupplier?: any[]; inspectionDue?: any[]
 }
 
 const eventLabels: Record<string, string> = {
@@ -234,6 +234,24 @@ export default function TireLifecycleDashboard() {
             <table className="w-full text-sm">
               <thead><tr className="border-b text-left text-muted-foreground"><th className="py-2">Size</th><th>Brand</th><th>Status</th><th className="text-right">Count</th></tr></thead>
               <tbody>{(report?.inventory || []).map((row, i) => <tr key={i} className="border-b last:border-0"><td className="py-2">{row.tireSize}</td><td>{row.manufacturer}</td><td><Badge variant="outline">{row.lifecycleStatus}</Badge></td><td className="text-right">{formatNumber(row.tireCount)}</td></tr>)}</tbody>
+            </table>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader><CardTitle>Purchases by supplier</CardTitle></CardHeader>
+          <CardContent className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead><tr className="border-b text-left text-muted-foreground"><th className="py-2">Supplier</th><th className="text-right">Tires</th><th className="text-right">Spend (SAR)</th></tr></thead>
+              <tbody>{(report?.purchaseBySupplier || []).map((row, i) => <tr key={i} className="border-b last:border-0"><td className="py-2">{row.supplierName}</td><td className="text-right">{formatNumber(row.tiresReceived)}</td><td className="text-right">{Number(row.purchaseSpend || 0).toLocaleString(undefined,{maximumFractionDigits:2})}</td></tr>)}</tbody>
+            </table>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader><CardTitle>Inspections due within 30 days</CardTitle></CardHeader>
+          <CardContent className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead><tr className="border-b text-left text-muted-foreground"><th className="py-2">Tire</th><th>Condition</th><th className="text-right">Tread (mm)</th><th className="text-right">Pressure (PSI)</th><th>Due</th></tr></thead>
+              <tbody>{(report?.inspectionDue || []).map((row, i) => <tr key={row.tireId || i} className="border-b last:border-0"><td className="py-2">{row.internalCode || row.tireId} · {row.manufacturer} {row.tireSize}</td><td>{row.condition || '—'}</td><td className="text-right">{row.treadDepthMm ?? '—'}</td><td className="text-right">{row.pressurePsi ?? '—'}</td><td>{formatDate(row.inspectionDueAt)}</td></tr>)}</tbody>
             </table>
           </CardContent>
         </Card>
