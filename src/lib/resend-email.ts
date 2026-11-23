@@ -14,7 +14,7 @@ class ResendEmailService {
 
   constructor() {
     this.config = {
-      from: process.env.EMAIL_FROM || 'Fleet Manager <onboarding@resend.dev>',
+      from: process.env.EMAIL_FROM?.trim() || 'Fleet Manager <noreply@fleetmaintenance.site>',
       apiKey: process.env.RESEND_API_KEY || ''
     }
 
@@ -33,6 +33,20 @@ class ResendEmailService {
 
     this.resend = new Resend(this.config.apiKey)
     return this.resend
+  }
+
+  private logProviderError(context: string, error: unknown): void {
+    const providerError = error as { name?: unknown; message?: unknown; statusCode?: unknown; code?: unknown }
+    const message = typeof providerError?.message === 'string'
+      ? providerError.message.replace(/re_[A-Za-z0-9_-]+/g, '[REDACTED]')
+      : 'Unknown provider error'
+    console.error('[Resend] Email delivery rejected', {
+      context,
+      name: typeof providerError?.name === 'string' ? providerError.name : 'ProviderError',
+      message,
+      statusCode: typeof providerError?.statusCode === 'number' ? providerError.statusCode : undefined,
+      code: typeof providerError?.code === 'string' ? providerError.code : undefined
+    })
   }
 
   // Generate a secure 6-digit OTP
@@ -149,12 +163,12 @@ class ResendEmailService {
       })
 
       if (error) {
-        console.error('OTP provider rejected email delivery')
-        throw new Error('Failed to send OTP email')
+        this.logProviderError('OTP', error)
+        throw new Error('Resend rejected OTP email delivery')
       }
 
     } catch (error) {
-      console.error('OTP email delivery failed')
+      this.logProviderError('OTP request', error)
       throw new Error('OTP email delivery failed')
     }
   }
@@ -234,8 +248,8 @@ class ResendEmailService {
       })
 
       if (error) {
-        console.error('❌ Resend API error:', error)
-        throw new Error('Failed to send verification email')
+        this.logProviderError('verification', error)
+        throw new Error('Resend rejected verification email delivery')
       }
 
       console.log(`✅ Verification email sent successfully to ${email}`)
@@ -331,8 +345,8 @@ class ResendEmailService {
       })
 
       if (error) {
-        console.error('❌ Resend API error:', error)
-        throw new Error('Failed to send password reset email')
+        this.logProviderError('password reset', error)
+        throw new Error('Resend rejected password reset email delivery')
       }
 
       console.log(`✅ Password reset email sent successfully to ${email}`)
@@ -448,8 +462,8 @@ class ResendEmailService {
 
       // Generate and send OTP
       const otp = this.generateOTP()
+      await this.sendOTPEmail(user.email, otp, user.name || undefined)
       await this.storeOTP(user.id, otp)
-      await this.sendOTPEmail(email, otp, user.name || undefined)
 
       return { success: true, message: 'OTP sent successfully' }
     } catch (error) {
