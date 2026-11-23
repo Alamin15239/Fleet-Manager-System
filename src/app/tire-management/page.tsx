@@ -4,7 +4,7 @@ import { LocalizedText } from '@/components/localized-text'
 import { useEffect, useState } from 'react'
 import dynamic from 'next/dynamic'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Activity, BarChart3, FileText, List, Loader2, Plus, Settings } from 'lucide-react'
+import { Activity, BarChart3, FileText, List, Loader2, Plus, Settings, Upload } from 'lucide-react'
 import { useLanguage } from '@/contexts/language-context'
 import { usePermissions } from '@/contexts/permissions-context'
 
@@ -15,6 +15,7 @@ const TireReports = dynamic(() => import('@/components/tire-reports'), { loading
 const TireReportsSimple = dynamic(() => import('@/components/tire-reports-simple'), { loading: TabContentLoading })
 const TireLifecycleDashboard = dynamic(() => import('@/components/tire-lifecycle-dashboard'), { loading: TabContentLoading })
 const TireExcelViewer = dynamic(() => import('@/components/tire-excel-viewer'), { loading: TabContentLoading })
+const TireBulkUpload = dynamic(() => import('@/components/tire-bulk-upload'), { loading: TabContentLoading })
 
 export default function TireManagementPage() {
   const { t } = useLanguage()
@@ -34,7 +35,7 @@ export default function TireManagementPage() {
       </header>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className={`grid h-auto w-full grid-cols-2 gap-1 p-1 ${canAddTires ? 'sm:grid-cols-6' : 'sm:grid-cols-5'}`}>
+        <TabsList className={`grid h-auto w-full grid-cols-2 gap-1 p-1 ${canAddTires ? 'sm:grid-cols-7' : 'sm:grid-cols-6'}`}>
           {canAddTires && <TabsTrigger value="form" className="flex min-h-[60px] flex-col items-center gap-1 p-1.5 text-xs">
             <Plus className="h-4 w-4" />
             <span className="leading-tight"><LocalizedText>Add</LocalizedText></span>
@@ -43,6 +44,7 @@ export default function TireManagementPage() {
             <List className="h-4 w-4" />
             <span className="leading-tight"><LocalizedText>List</LocalizedText></span>
           </TabsTrigger>
+          <TabsTrigger value="bulk-upload" className="flex min-h-[60px] flex-col items-center gap-1 p-1.5 text-xs"><Upload className="h-4 w-4" /><span className="leading-tight"><LocalizedText>Bulk Upload</LocalizedText></span></TabsTrigger>
           <TabsTrigger value="excel" className="flex min-h-[60px] flex-col items-center gap-1 p-1.5 text-xs">
             <FileText className="h-4 w-4" />
             <span className="leading-tight"><LocalizedText>Excel</LocalizedText></span>
@@ -67,6 +69,7 @@ export default function TireManagementPage() {
         <TabsContent value="inventory" className="space-y-4">
           <TireInventoryGrouped />
         </TabsContent>
+        <TabsContent value="bulk-upload" className="space-y-4"><TireBulkUpload /></TabsContent>
         <TabsContent value="excel" className="space-y-4">
           <TireExcelViewer />
         </TabsContent>
