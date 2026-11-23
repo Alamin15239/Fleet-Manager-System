@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
 
   try {
     await db.$transaction(async tx => ensureTireLifecycleTables(tx))
-    const [summary, inventory, damageByDriver, damageByReason, damageByVehicle, vehicleUsage, tireLife, averageLife, purchaseBySupplier, inspectionDue] = await Promise.all([
+    const [summary, inventory, damageByDriver, damageByReason, damageByVehicle, vehicleUsage, tireLife, purchaseBySupplier, inspectionDue, averageLife] = await Promise.all([
       db.$queryRawUnsafe<any[]>(`SELECT
         COUNT(*) FILTER (WHERE "deletedAt" IS NULL AND "lifecycleStatus"='STOCK')::int AS "inStock",
         COUNT(*) FILTER (WHERE "deletedAt" IS NULL AND "lifecycleStatus"='INSTALLED')::int AS "installed",
