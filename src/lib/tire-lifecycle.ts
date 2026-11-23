@@ -174,12 +174,12 @@ export async function recordTireLifecycleEvent(tx: any, input: {
   const tire = tireRows[0]
   if (!tire) throw new Error('Tire not found')
   const eventType = input.eventType.toUpperCase()
-  const allowed = ['RECEIVE','INSTALL','REMOVE','TRANSFER','POSITION_CHANGE','DAMAGE','REPAIR','INSPECT','DISPOSE']
+  const allowed = ['RECEIVE','INSTALL','REMOVE','TRANSFER','POSITION_CHANGE','DAMAGE','REPAIR','INSPECT','DISPOSE','ISSUE']
   if (!allowed.includes(eventType)) throw new Error('Unsupported tire event type')
 
   const currentTruckId = tire.truckId || null
   const target = input.vehicle || null
-  if (['INSTALL','TRANSFER','POSITION_CHANGE'].includes(eventType) && !target) throw new Error('Select a destination vehicle')
+  if (['INSTALL','TRANSFER','POSITION_CHANGE','ISSUE'].includes(eventType) && !target) throw new Error('Select a destination vehicle')
   if (['INSTALL','TRANSFER','POSITION_CHANGE'].includes(eventType) && !input.position?.trim()) throw new Error('Select a wheel position before installation')
   if (eventType === 'RECEIVE') {
     const priorReceipt = await tx.$queryRawUnsafe(`SELECT 1 FROM "tire_lifecycle_events" WHERE "tireId"=$1 AND "eventType"='RECEIVE' LIMIT 1`, input.tireId)
@@ -231,7 +231,7 @@ export async function recordTireLifecycleEvent(tx: any, input: {
   if (operationalVehicle && !['RECEIVE'].includes(eventType)) {
     jobCardId = await getOrCreateOpenJobCard(tx, operationalVehicle, {
       eventAt: input.eventAt, odometerKm: input.odometerKm, driverName: eventDriverName, userId: input.userId,
-      serviceType: 'TIRE MAINTENANCE', reportedIssue: 'Automatically created from tire lifecycle activity'
+      serviceType: eventType === 'ISSUE' ? 'TIRE ISSUE' : 'TIRE MAINTENANCE', reportedIssue: eventType === 'ISSUE' ? 'Tire issued to vehicle from outgoing tire sheet; installation position not recorded' : 'Automatically created from tire lifecycle activity'
     })
   } else if (['REPAIR','DISPOSE','DAMAGE'].includes(eventType)) {
     const previousVehicleEvent = await tx.$queryRawUnsafe(
@@ -306,20 +306,28 @@ export async function recordTireLifecycleEvent(tx: any, input: {
     )
   }
   const nextStatus = eventType === 'INSTALL' || eventType === 'TRANSFER' ? 'INSTALLED'
+    : eventType === 'ISSUE' ? 'ASSIGNED_UNVERIFIED'
     : eventType === 'DAMAGE' ? 'DAMAGED'
     : eventType === 'DISPOSE' ? 'DISPOSED'
     : eventType === 'REMOVE' ? (tire.lifecycleStatus === 'DAMAGED' ? 'DAMAGED' : 'STOCK')
     : eventType === 'REPAIR' ? 'STOCK'
     : eventType === 'RECEIVE' ? 'STOCK' : String(tire.lifecycleStatus || 'STOCK')
-  if (eventType === 'INSTALL' || eventType === 'TRANSFER') {
+  if (eventType === 'INSTALL' || eventType === 'TRANSFER' || eventType === 'ISSUE') {
     if (target?.vehicleType === 'truck') {
       const rows = await tx.$queryRawUnsafe(`SELECT "licensePlate","driverName" FROM "trucks" WHERE "id"=$1 AND "isDeleted"=false`, target.vehicleId)
       if (!rows.length) throw new Error('Selected truck was not found')
-      await tx.$executeRawUnsafe(
-        `UPDATE "tires" SET "truckId"=$2,"plateNumber"=$3,"trailerNumber"=NULL,"currentPosition"=$4,"lifecycleStatus"='INSTALLED',
-         "installedAt"=$5,"installationOdometer"=$6,"updatedAt"=NOW() WHERE "id"=$1`,
-        input.tireId, target.vehicleId, rows[0].licensePlate, input.position || null, input.eventAt, input.odometerKm ?? null
-      )
+      if (eventType === 'ISSUE') {
+        await tx.$executeRawUnsafe(
+          `UPDATE "tires" SET "truckId"=$2,"plateNumber"=$3,"trailerNumber"=NULL,"currentPosition"=NULL,"driverName"=COALESCE($4,"driverName"),"lifecycleStatus"='ASSIGNED_UNVERIFIED',"updatedAt"=NOW() WHERE "id"=$1`,
+          input.tireId, target.vehicleId, rows[0].licensePlate, input.driverName || null
+        )
+      } else {
+        await tx.$executeRawUnsafe(
+          `UPDATE "tires" SET "truckId"=$2,"plateNumber"=$3,"trailerNumber"=NULL,"currentPosition"=$4,"lifecycleStatus"='INSTALLED',
+           "installedAt"=$5,"installationOdometer"=$6,"updatedAt"=NOW() WHERE "id"=$1`,
+          input.tireId, target.vehicleId, rows[0].licensePlate, input.position || null, input.eventAt, input.odometerKm ?? null
+        )
+      }
     } else if (target?.vehicleType === 'trailer') {
       const rows = await tx.$queryRawUnsafe(`SELECT "number","driverName" FROM "trailers" WHERE "id"=$1 AND "isDeleted"=false`, target.vehicleId)
       if (!rows.length) throw new Error('Selected trailer was not found')
