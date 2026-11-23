@@ -22,8 +22,8 @@ function parseDate(value: ExcelJS.CellValue): Date | null {
   const raw = cellText(value)
   if (!raw) return null
   let date: Date
-  const iso = raw.match(/^(\\d{4})-(\\d{1,2})-(\\d{1,2})$/)
-  const dmy = raw.match(/^(\\d{1,2})[\\/. -](\\d{1,2})[\\/. -](\\d{4})$/)
+  const iso = raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/)
+  const dmy = raw.match(/^(\d{1,2})[\\/. -](\d{1,2})[\\/. -](\d{4})$/)
   if (iso) date = new Date(Date.UTC(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3])))
   else if (dmy) date = new Date(Date.UTC(Number(dmy[3]), Number(dmy[2]) - 1, Number(dmy[1])))
   else date = new Date(raw)
@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
     const workbook = new ExcelJS.Workbook()
     if (file.name.toLowerCase().endsWith('.csv')) {
       await workbook.csv.read(Readable.from([bytes]))
-    } else if (/\\.xlsx?$/i.test(file.name)) {
+    } else if (/\.xlsx?$/i.test(file.name)) {
       await workbook.xlsx.load(bytes as any)
     } else {
       return NextResponse.json({ error: 'Use an .xlsx, .xls, or .csv file.' }, { status: 400 })
@@ -126,7 +126,7 @@ export async function POST(request: NextRequest) {
           const tire = await tx.tire.create({
             data: {
               tireSize, manufacturer: 'Unspecified', origin,
-              plateNumber: truck.licensePlate, truckId: truck.id, trailerNumber: null,
+              plateNumber: null, truckId: null, trailerNumber: null,
               driverName: row.driver, quantity: 1,
               serialNumber: row.qty === 1 ? (row.serial || null) : null,
               lifecycleStatus: 'STOCK',
