@@ -58,11 +58,13 @@ export async function ensureTireLifecycleTables(tx: any) {
   await tx.$executeRawUnsafe(`ALTER TABLE "tire_lifecycle_events" ADD COLUMN IF NOT EXISTS "supplierName" TEXT`)
   await tx.$executeRawUnsafe(`ALTER TABLE "tire_lifecycle_events" ADD COLUMN IF NOT EXISTS "purchaseReference" TEXT`)
   await tx.$executeRawUnsafe(`ALTER TABLE "tire_lifecycle_events" ADD COLUMN IF NOT EXISTS "purchaseCost" DOUBLE PRECISION`)
+  await tx.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "tire_lifecycle_events_inspectionDueAt_idx" ON "tire_lifecycle_events" ("inspectionDueAt") WHERE "eventType"='INSPECT'`)
+  await tx.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "tires_supplierName_idx" ON "tires" ("supplierName")`)
   await tx.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "tire_lifecycle_events_tireId_eventAt_idx" ON "tire_lifecycle_events" ("tireId","eventAt" DESC)`)
   await tx.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "tire_lifecycle_events_jobCardId_idx" ON "tire_lifecycle_events" ("jobCardId")`)
-  await tx.$executeRawUnsafe(`INSERT INTO "tire_lifecycle_events" ("id","tireId","eventType","eventAt","reason","notes","createdById")
+  await tx.$executeRawUnsafe(`INSERT INTO "tire_lifecycle_events" ("id","tireId","eventType","eventAt","reason","notes","supplierName","purchaseReference","purchaseCost","createdById")
     SELECT 'tireevt_receipt_' || t."id", t."id", 'RECEIVE', t."createdAt",
-      'Initial receipt; legacy purchase details were not available', t."notes", t."createdById"
+      'Initial receipt; legacy purchase details may be unavailable', t."notes", t."supplierName", t."purchaseReference", t."purchaseCost", t."createdById"
     FROM "tires" t
     WHERE NOT EXISTS (
       SELECT 1 FROM "tire_lifecycle_events" e
