@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db, findOrganizationBySlug, withOrganization } from '@/lib/db'
-import { Resend } from 'resend'
+import { resendEmailService } from '@/lib/resend-email'
 import crypto from 'crypto'
 
 export async function POST(request: NextRequest) {
@@ -69,43 +69,16 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    // Send password reset email
-    const organizationQuery = organization.slug ? `&org=${encodeURIComponent(organization.slug)}` : ''
-    const resetLink = `${process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL}/reset-password?token=${resetToken}&email=${encodeURIComponent(email)}${organizationQuery}`
-    
-    if (process.env.RESEND_API_KEY) {
-      try {
-        const resend = new Resend(process.env.RESEND_API_KEY)
-        await resend.emails.send({
-          from: process.env.EMAIL_FROM || 'Fleet Manager <noreply@yourdomain.com>',
-          to: email,
-          subject: '🔐 Reset Your Password - Fleet Manager',
-          html: `
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-              <h1 style="color: #2563eb; text-align: center;">🚛 Fleet Manager</h1>
-              <h2 style="color: #1f2937;">Reset Your Password</h2>
-              <p>Hello ${user.name || 'Admin User'},</p>
-              <p>We received a request to reset your password for your Fleet Manager account. Click the button below to create a new password.</p>
-              <div style="text-align: center; margin: 30px 0;">
-                <a href="${resetLink}" style="background: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">🔐 Reset Password</a>
-              </div>
-              <p><strong>🔗 Or copy and paste this link:</strong><br>
-              <a href="${resetLink}">${resetLink}</a></p>
-              <div style="background: #f3f4f6; padding: 15px; border-radius: 6px; margin: 20px 0;">
-                <p><strong>🔒 Security Notice:</strong></p>
-                <ul>
-                  <li>This password reset link will expire in 1 hour</li>
-                  <li>If you didn't request this, please ignore this email</li>
-                  <li>Never share your password with anyone</li>
-                </ul>
-              </div>
-              <p>If you didn't request a password reset, please ignore this email. Your password will remain unchanged.</p>
-            </div>
-          `
-        })
-      } catch (emailError) {
-        console.error('Failed to send password reset email')
-      }
+    // Use the shared Resend service and sender configuration.
+    try {
+      await resendEmailService.sendPasswordResetEmail(email, resetLink, user.name || undefined)
+    } catch (emailError) {
+      // Keep the anti-enumeration response, but invalidate the unusable reset token.
+      await db.user.update({
+        where: { id: user.id },
+        data: { resetToken: null, resetTokenExpires: null }
+      })
+      console.error('Password reset email delivery failed; reset token invalidated')
     }
 
     return NextResponse.json({
