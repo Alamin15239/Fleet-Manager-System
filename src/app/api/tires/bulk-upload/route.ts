@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import ExcelJS from 'exceljs'
 import { Readable } from 'node:stream'
+import { createHash } from 'node:crypto'
 import { db } from '@/lib/db'
 import { requireRolePermission } from '@/lib/permission-middleware'
 import { ensureTireLifecycleTables, recordTireLifecycleEvent } from '@/lib/tire-lifecycle'
@@ -99,6 +100,13 @@ export async function POST(request: NextRequest) {
       if (existingSerial?.serialNumber) return NextResponse.json({ error: 'Serial number already exists in Tire Management: ' + existingSerial.serialNumber }, { status: 409 })
     }
 
+    const importCodes = rows.flatMap(row => Array.from({ length: row.qty }, (_, index) => {
+      const fingerprint = [row.date.toISOString().slice(0, 10), row.truck, row.driver.toLowerCase(), row.serial, row.qty, row.line, tireSize, origin].join('|')
+      return 'UP-' + createHash('sha256').update(fingerprint).digest('hex').slice(0, 16).toUpperCase() + '-' + String(index + 1).padStart(3, '0')
+    }))
+    const duplicateImport = await db.tire.findFirst({ where: { internalCode: { in: importCodes }, deletedAt: null }, select: { internalCode: true } })
+    if (duplicateImport) return NextResponse.json({ error: 'This sheet appears to have already been uploaded. Duplicate import prevented.' }, { status: 409 })
+
     const numbers = [...new Set(rows.map(row => row.truck))]
     const trucks = await db.truck.findMany({
       where: { isDeleted: false, status: { not: 'INACTIVE' }, OR: numbers.flatMap(number => [{ licensePlate: number }, { licensePlate: { startsWith: number + ' ' } }]) },
@@ -117,6 +125,8 @@ export async function POST(request: NextRequest) {
       const jobCards = new Set<string>()
       for (const row of rows) {
         const truck = resolveTruck(row.truck)!
+        const fingerprint = [row.date.toISOString().slice(0, 10), row.truck, row.driver.toLowerCase(), row.serial, row.qty, row.line, tireSize, origin].join('|')
+        const codePrefix = 'UP-' + createHash('sha256').update(fingerprint).digest('hex').slice(0, 16).toUpperCase()
         await tx.vehicle.upsert({
           where: { plateNumber: truck.licensePlate },
           create: { plateNumber: truck.licensePlate, driverName: row.driver },
@@ -126,6 +136,7 @@ export async function POST(request: NextRequest) {
           const tire = await tx.tire.create({
             data: {
               tireSize, manufacturer: 'Unspecified', origin,
+              internalCode: codePrefix + '-' + String(index + 1).padStart(3, '0'),
               plateNumber: null, truckId: null, trailerNumber: null,
               driverName: row.driver, quantity: 1,
               serialNumber: row.qty === 1 ? (row.serial || null) : null,
