@@ -331,11 +331,18 @@ export async function recordTireLifecycleEvent(tx: any, input: {
     } else if (target?.vehicleType === 'trailer') {
       const rows = await tx.$queryRawUnsafe(`SELECT "number","driverName" FROM "trailers" WHERE "id"=$1 AND "isDeleted"=false`, target.vehicleId)
       if (!rows.length) throw new Error('Selected trailer was not found')
-      await tx.$executeRawUnsafe(
-        `UPDATE "tires" SET "truckId"=NULL,"plateNumber"=NULL,"trailerNumber"=$2,"currentPosition"=$3,"lifecycleStatus"='INSTALLED',
-         "installedAt"=$4,"installationOdometer"=$5,"updatedAt"=NOW() WHERE "id"=$1`,
-        input.tireId, rows[0].number, input.position || null, input.eventAt, input.odometerKm ?? null
-      )
+      if (eventType === 'ISSUE') {
+        await tx.$executeRawUnsafe(
+          `UPDATE "tires" SET "truckId"=NULL,"plateNumber"=NULL,"trailerNumber"=$2,"currentPosition"=NULL,"driverName"=COALESCE($3,"driverName"),"lifecycleStatus"='ASSIGNED_UNVERIFIED',"updatedAt"=NOW() WHERE "id"=$1`,
+          input.tireId, rows[0].number, input.driverName || null
+        )
+      } else {
+        await tx.$executeRawUnsafe(
+          `UPDATE "tires" SET "truckId"=NULL,"plateNumber"=NULL,"trailerNumber"=$2,"currentPosition"=$3,"lifecycleStatus"='INSTALLED',
+           "installedAt"=$4,"installationOdometer"=$5,"updatedAt"=NOW() WHERE "id"=$1`,
+          input.tireId, rows[0].number, input.position || null, input.eventAt, input.odometerKm ?? null
+        )
+      }
     }
   } else if (eventType === 'POSITION_CHANGE') {
     await tx.$executeRawUnsafe(
