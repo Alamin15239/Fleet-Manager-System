@@ -31,6 +31,22 @@ function parseDate(value: ExcelJS.CellValue): Date | null {
   return Number.isNaN(date.getTime()) ? null : date
 }
 const normalizeHeader = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, '')
+export async function GET(request: NextRequest) {
+  try {
+    await requireRolePermission(request, 'tire-management', 'read')
+    const trucks = await db.truck.findMany({
+      where: { isDeleted: false, status: { not: 'INACTIVE' } },
+      select: { licensePlate: true, driverName: true, make: true, model: true, year: true },
+      orderBy: { licensePlate: 'asc' }
+    })
+    return NextResponse.json({ trucks })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Could not load active trucks.'
+    const status = ['No token provided', 'Invalid token'].includes(message) ? 401 : message === 'Insufficient permissions' ? 403 : 500
+    return NextResponse.json({ error: status === 401 ? 'Authentication required' : status === 403 ? 'Access denied' : message }, { status })
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const user = await requireRolePermission(request, 'tire-management', 'create')
