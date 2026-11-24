@@ -1,138 +1,234 @@
 'use client'
-import { useEffect, useState } from 'react'
+
+import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Download, Upload, FileSpreadsheet, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react'
+import { Upload, FileSpreadsheet, CheckCircle2, AlertCircle, Loader2, Eye, ShieldCheck, RefreshCw } from 'lucide-react'
 import { toast } from '@/lib/localized-toast'
 
-type ActiveVehicle = {
-  licensePlate: string
-  driverName: string | null
-  make: string | null
-  model: string | null
-  year: number | null
+type PreviewUnit = {
+  serial: string | null
+  tireSize: string
+  manufacturer: string
+  origin: string
+  historyEntries: number
+  firstDate: string | null
+  lastDate: string | null
+  vehicles: string[]
+  status: 'READY' | 'DUPLICATE' | 'BLOCKED'
+  duplicateReason: string | null
+  warnings: string[]
+  errors: string[]
+}
+type ImportPreview = {
+  message: string
+  fileName: string
+  sheets: string[]
+  summary: {
+    sourceRows: number
+    tiresDetected: number
+    historyEntries: number
+    repeatedSerialsGrouped: number
+    exactDuplicateRowsSkipped: number
+    importableTires: number
+    existingDuplicates: number
+    blockedTires: number
+    warnings: number
+  }
+  preview: PreviewUnit[]
+  previewLimit: number
+  previewTruncated: boolean
 }
 
 export default function TireBulkUpload() {
   const [file, setFile] = useState<File | null>(null)
-  const [tireSize, setTireSize] = useState('')
-  const [origin, setOrigin] = useState('')
   const [busy, setBusy] = useState(false)
-  const [loadingTrucks, setLoadingTrucks] = useState(true)
-  const [trucks, setTrucks] = useState<ActiveVehicle[]>([])
-  const [trailers, setTrailers] = useState<Array<{ number: string; driverName: string | null }>>([])
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
+  const [preview, setPreview] = useState<ImportPreview | null>(null)
 
-  useEffect(() => {
-    let cancelled = false
-    const loadTrucks = async () => {
-      try {
-        const response = await fetch('/api/tires/bulk-upload', { credentials: 'include' })
-        const result = await response.json()
-        if (!response.ok) throw new Error(result.error || 'Could not load active trucks.')
-        if (!cancelled) {
-          setTrucks(Array.isArray(result.trucks) ? result.trucks : [])
-          setTrailers(Array.isArray(result.trailers) ? result.trailers : [])
-        }
-      } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : 'Could not load active trucks.')
-      } finally {
-        if (!cancelled) setLoadingTrucks(false)
-      }
-    }
-    loadTrucks()
-    return () => { cancelled = true }
-  }, [])
-
-  const downloadTemplate = () => {
-    if (!trucks.length && !trailers.length) {
-      setError('No active trucks or trailers are available. Add or activate a fleet vehicle before downloading the template.')
+  const sendFile = async (mode: 'preview' | 'import') => {
+    if (!file) {
+      setError('Choose an Excel or CSV file first.')
       return
     }
-    const truck = trucks[0]
-    const trailer = trailers[0]
-    const isTruck = Boolean(truck)
-    const localDate = new Date()
-    const date = [localDate.getFullYear(), String(localDate.getMonth() + 1).padStart(2, '0'), String(localDate.getDate()).padStart(2, '0')].join('-')
-    const csv = [
-      'Date,Vehicle Type,Truck #,Trailer #,Name Driver,Serial Number,OUT QTY',
-      [date, isTruck ? 'TRUCK' : 'TRAILER', isTruck ? (truck?.licensePlate || '') : '', isTruck ? '' : (trailer?.number || ''), (isTruck ? truck?.driverName : trailer?.driverName) || 'Driver Name', 'SERIAL-001', '1'].map(value => '"' + String(value).replace(/"/g, '""') + '"').join(',')
-    ].join('\r\n')
-    const url = URL.createObjectURL(new Blob(['\uFEFF', csv], { type: 'text/csv;charset=utf-8' }))
-    const a = document.createElement('a')
-    a.href = url
-    a.download = 'tire-outgoing-upload-template.csv'
-    a.click()
-    URL.revokeObjectURL(url)
-  }
-
-  const submit = async () => {
-    if (!file || !tireSize.trim() || !origin) { setError('Choose a file, tire size, and origin before uploading.'); return }
-    setBusy(true); setError(''); setMessage('')
+    setBusy(true)
+    setError('')
+    setMessage('')
     try {
       const data = new FormData()
       data.append('file', file)
-      data.append('tireSize', tireSize.trim())
-      data.append('origin', origin)
-      const response = await fetch('/api/tires/bulk-upload', { method: 'POST', credentials: 'include', body: data })
+      data.append('mode', mode)
+      const response = await fetch('/api/tires/bulk-upload', {
+        method: 'POST',
+        credentials: 'include',
+        body: data
+      })
       const result = await response.json()
-      if (!response.ok) throw new Error(result.error || 'Upload failed')
-      setMessage(result.message)
-      toast.success(result.message)
-      setFile(null)
-      const fileInput = document.getElementById('tire-bulk-file') as HTMLInputElement | null
-      if (fileInput) fileInput.value = ''
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Upload failed'
-      setError(msg); toast.error(msg)
-    } finally { setBusy(false) }
+      if (!response.ok) throw new Error(result.error || 'Tire sheet operation failed.')
+      if (mode === 'preview') {
+        setPreview(result as ImportPreview)
+        setMessage(result.message || 'Analysis complete. No records have been saved.')
+        toast.success('Sheet analyzed. Review the preview before importing.')
+      } else {
+        setMessage(result.message || 'Tire usage history imported.')
+        setPreview(null)
+        setFile(null)
+        const input = document.getElementById('tire-bulk-file') as HTMLInputElement | null
+        if (input) input.value = ''
+        toast.success(result.message || 'Tire usage history imported.')
+      }
+    } catch (cause) {
+      const msg = cause instanceof Error ? cause.message : 'Tire sheet operation failed.'
+      setError(msg)
+      toast.error(msg)
+    } finally {
+      setBusy(false)
+    }
   }
 
-  const sampleTruck = trucks[0]
+  const formatDate = (value: string | null) => value
+    ? new Date(value).toLocaleDateString()
+    : '—'
+
+  const statusLabel = (status: PreviewUnit['status']) => status === 'READY'
+    ? 'Ready'
+    : status === 'DUPLICATE' ? 'Duplicate' : 'Needs review'
+
+  const statusClass = (status: PreviewUnit['status']) => status === 'READY'
+    ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
+    : status === 'DUPLICATE'
+      ? 'bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300'
+      : 'bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300'
+
+  const clearSelection = () => {
+    setFile(null)
+    setPreview(null)
+    setMessage('')
+    setError('')
+    const input = document.getElementById('tire-bulk-file') as HTMLInputElement | null
+    if (input) input.value = ''
+  }
+
   return <Card>
     <CardHeader>
-      <CardTitle className="flex items-center gap-2"><FileSpreadsheet className="h-5 w-5" /> Bulk tire issue upload</CardTitle>
-      <p className="text-sm text-muted-foreground">Upload outgoing tire records for trucks and trailers.</p>
+      <CardTitle className="flex items-center gap-2"><FileSpreadsheet className="h-5 w-5" /> Smart tire usage-history import</CardTitle>
+      <p className="text-sm text-muted-foreground">Upload the spreadsheet as it is. The system detects the columns and tire information, checks the fleet and existing serial numbers, then shows a review preview before saving anything.</p>
     </CardHeader>
     <CardContent className="space-y-4">
       <div className="rounded-lg border bg-muted/30 p-3 text-sm">
-        <p className="mb-2 font-medium">Required columns</p>
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[540px] text-left text-xs">
-            <thead><tr>{['Date','Vehicle Type','Truck #','Trailer #','Name Driver','Serial Number','OUT QTY'].map(x => <th key={x} className="border-b px-2 py-2">{x}</th>)}</tr></thead>
-            <tbody><tr>
-              {[new Date().toISOString().slice(0, 10), sampleTruck ? 'TRUCK' : 'TRAILER', sampleTruck?.licensePlate || '', sampleTruck ? '' : (trailers[0]?.number || ''), sampleTruck?.driverName || trailers[0]?.driverName || 'Driver Name', 'SERIAL-001', '1'].map((x,i) => <td key={i} className="px-2 py-2 text-muted-foreground">{x}</td>)}
-            </tr></tbody>
-          </table>
-        </div>
-        <Button type="button" variant="outline" size="sm" className="mt-3" onClick={downloadTemplate} disabled={loadingTrucks || (trucks.length === 0 && trailers.length === 0)}>
-          <Download className="mr-2 h-4 w-4" />Download template
-        </Button>
-        <div className="mt-3 text-xs text-muted-foreground">
-          {loadingTrucks ? 'Loading active fleet numbers…' : trucks.length || trailers.length ? 'Template sample uses a real active truck. For a trailer row, enter TRAILER under Vehicle Type and its number under Trailer #.' : 'No active trucks or trailers found. Activate a fleet vehicle before uploading.'}
-        </div>
-        {(trucks.length > 0 || trailers.length > 0) && <div className="mt-2 space-y-2">
-          {trucks.length > 0 && <div><p className="mb-1 text-xs font-medium">Active trucks</p><div className="flex flex-wrap gap-2">{trucks.map(truck => <span key={truck.licensePlate} className="rounded-md border bg-background px-2 py-1 text-xs font-medium">{truck.licensePlate}</span>)}</div></div>}
-          {trailers.length > 0 && <div><p className="mb-1 text-xs font-medium">Active trailers</p><div className="flex flex-wrap gap-2">{trailers.map(trailer => <span key={trailer.number} className="rounded-md border bg-background px-2 py-1 text-xs font-medium">{trailer.number}</span>)}</div></div>}
-        </div>}
+        <p className="font-medium">No fixed tire-size or origin selection is required</p>
+        <p className="mt-1 text-xs text-muted-foreground">The importer looks for date, truck or trailer, driver, serial number, quantity, tire size, manufacturer, origin and usage-history columns across the workbook. Missing tire details are shown in the preview as Unspecified or OTHER rather than guessed.</p>
+        <p className="mt-2 text-xs text-muted-foreground">When the same serial appears on multiple dated vehicle rows, it is grouped as one physical tire with a chronological usage history. A serial already registered in Tire Management is flagged as a database duplicate and is not imported again.</p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="space-y-2"><Label>Tire size *</Label><Input value={tireSize} onChange={e => setTireSize(e.target.value)} placeholder="e.g. 295/80R22.5" /></div>
-        <div className="space-y-2"><Label>Origin *</Label><Select value={origin} onValueChange={setOrigin}><SelectTrigger><SelectValue placeholder="Select tire origin" /></SelectTrigger><SelectContent><SelectItem value="CHINESE">China</SelectItem><SelectItem value="SAUDI">Saudi</SelectItem><SelectItem value="JAPANESE">Japan</SelectItem></SelectContent></Select></div>
+      <div className="space-y-2">
+        <Label htmlFor="tire-bulk-file">Excel / CSV usage-history file</Label>
+        <Input
+          id="tire-bulk-file"
+          type="file"
+          accept=".xlsx,.csv"
+          disabled={busy}
+          onChange={event => {
+            setFile(event.target.files?.[0] || null)
+            setPreview(null)
+            setMessage('')
+            setError('')
+          }}
+        />
+        {file && <p className="text-xs text-muted-foreground">{file.name} · {(file.size / 1024).toFixed(1)} KB</p>}
       </div>
-      <div className="space-y-2"><Label>Excel / CSV file *</Label><Input id="tire-bulk-file" type="file" accept=".xlsx,.csv" onChange={e => setFile(e.target.files?.[0] || null)} /></div>
+
       {error && <Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertDescription>{error}</AlertDescription></Alert>}
       {message && <Alert><CheckCircle2 className="h-4 w-4" /><AlertDescription>{message}</AlertDescription></Alert>}
-      <Button onClick={submit} disabled={busy || !file || !tireSize.trim() || !origin || loadingTrucks || (trucks.length === 0 && trailers.length === 0)}>
-        {busy ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Uploading…</> : <><Upload className="mr-2 h-4 w-4" />Validate and upload</>}
-      </Button>
-      <p className="text-xs text-muted-foreground">Truck and trailer numbers are loaded from active fleet records. Use Vehicle Type with Truck # or Trailer #; legacy Truck # sheets remain supported. Each OUT QTY unit creates an individual tire record assigned as ASSIGNED_UNVERIFIED until its wheel position is recorded. The issue is linked to that vehicle’s existing open job card, or a new card is created only if none is open.</p>
+
+      {!preview && <Button onClick={() => sendFile('preview')} disabled={busy || !file}>
+        {busy ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Analyzing sheet…</> : <><Eye className="mr-2 h-4 w-4" />Analyze sheet and show preview</>}
+      </Button>}
+
+      {preview && <>
+        <div className="rounded-lg border p-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p className="font-medium">Import analysis</p>
+              <p className="text-xs text-muted-foreground">File: {preview.fileName}</p>
+              <p className="text-xs text-muted-foreground">Detected worksheets: {preview.sheets.join(', ')}</p>
+            </div>
+            <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium">Preview only · database unchanged</span>
+          </div>
+          <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {[
+              ['Tires detected', preview.summary.tiresDetected],
+              ['Usage entries', preview.summary.historyEntries],
+              ['Ready to import', preview.summary.importableTires],
+              ['Database duplicates', preview.summary.existingDuplicates],
+              ['Needs review', preview.summary.blockedTires],
+              ['Repeated serial groups', preview.summary.repeatedSerialsGrouped],
+              ['Duplicate rows skipped', preview.summary.exactDuplicateRowsSkipped],
+              ['Warnings', preview.summary.warnings]
+            ].map(([label, value]) => <div key={String(label)} className="rounded-md bg-muted/50 p-2">
+              <p className="text-lg font-semibold tabular-nums">{value}</p>
+              <p className="text-xs text-muted-foreground">{label}</p>
+            </div>)}
+          </div>
+          <p className="mt-3 text-xs text-muted-foreground">Source rows analyzed: {preview.summary.sourceRows}. Repeated serials across different vehicles or dates are treated as usage history, not duplicate tires.</p>
+        </div>
+
+        <div className="space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <p className="font-medium">Detected tire records</p>
+            <span className="text-xs text-muted-foreground">Showing {preview.preview.length} of {preview.summary.tiresDetected}</span>
+          </div>
+          <div className="overflow-x-auto rounded-lg border">
+            <table className="w-full min-w-[760px] text-left text-xs">
+              <thead className="bg-muted/60">
+                <tr>
+                  <th className="px-3 py-2">Serial / tire</th>
+                  <th className="px-3 py-2">Detected details</th>
+                  <th className="px-3 py-2">Usage history</th>
+                  <th className="px-3 py-2">Vehicles</th>
+                  <th className="px-3 py-2">Review status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {preview.preview.map((item, index) => <tr key={(item.serial || 'unserialised') + '-' + index} className="border-t align-top">
+                  <td className="px-3 py-3 font-medium">{item.serial || 'Serial not supplied'}</td>
+                  <td className="px-3 py-3">
+                    <div>{item.tireSize}</div>
+                    <div className="text-muted-foreground">{item.manufacturer} · {item.origin}</div>
+                  </td>
+                  <td className="px-3 py-3">
+                    <div>{item.historyEntries} entry/entries</div>
+                    <div className="text-muted-foreground">{formatDate(item.firstDate)} – {formatDate(item.lastDate)}</div>
+                    {item.warnings.slice(0, 2).map((warning, i) => <p key={i} className="mt-1 text-amber-700 dark:text-amber-300">{warning}</p>)}
+                    {item.errors.slice(0, 2).map((problem, i) => <p key={i} className="mt-1 text-red-600 dark:text-red-400">{problem}</p>)}
+                  </td>
+                  <td className="px-3 py-3">{item.vehicles.join(', ') || 'Unresolved'}</td>
+                  <td className="px-3 py-3">
+                    <span className={'inline-flex rounded-full px-2 py-1 font-medium ' + statusClass(item.status)}>{statusLabel(item.status)}</span>
+                    {item.duplicateReason && <p className="mt-1 text-muted-foreground">{item.duplicateReason}</p>}
+                  </td>
+                </tr>)}
+              </tbody>
+            </table>
+          </div>
+          {preview.previewTruncated && <p className="text-xs text-muted-foreground">Only the first {preview.previewLimit} tires are displayed here. All detected records are included in the server-side review and duplicate checks.</p>}
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          <Button onClick={() => sendFile('import')} disabled={busy || preview.summary.importableTires === 0}>
+            {busy ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Importing history…</> : <><ShieldCheck className="mr-2 h-4 w-4" />Confirm and import {preview.summary.importableTires} tire(s)</>}
+          </Button>
+          <Button type="button" variant="outline" onClick={() => sendFile('preview')} disabled={busy || !file}>
+            <RefreshCw className="mr-2 h-4 w-4" />Recheck duplicates
+          </Button>
+          <Button type="button" variant="ghost" onClick={clearSelection} disabled={busy}>Cancel</Button>
+        </div>
+        <p className="text-xs text-muted-foreground">Only records marked Ready are saved. Existing serial duplicates and rows with unresolved dates or vehicles are skipped. Each saved usage entry is linked to the vehicle’s open workshop Job Card, or a Job Card is created when no open one exists.</p>
+      </>}
     </CardContent>
   </Card>
 }
