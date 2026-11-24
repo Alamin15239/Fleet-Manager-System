@@ -365,7 +365,9 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
       const serialParts = columns.serials.map(column => read(column)).filter(Boolean)
       const serialText = serialParts.join(', ')
       const parsedSerials = parseSerials(serialText, expectedQuantity)
-      const quantity = qtyText ? parsedQty : Math.max(parsedSerials.serials.length, 1)
+      // OUT QTY is the sole source of truth for how many physical tire records exist.
+      // Serial identifiers describe those records; they must never increase the count.
+      const quantity = qtyText ? parsedQty : 0
       const size = read(columns.size) || sheetMetadata.tireSize
       const manufacturer = read(columns.manufacturer)
       const origin = read(columns.origin) || sheetMetadata.origin
@@ -382,13 +384,15 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
       if (qtyText && (!Number.isInteger(quantity) || quantity < 1 || quantity > 100)) errors.push('Quantity must be a whole number from 1 to 100.')
       if (parsedSerials.serials.length > 100) errors.push('More than 100 serial numbers were detected in one row.')
       if (parsedSerials.mixedText) warnings.push('The serial cell contains mixed text; check the extracted tire identifier in the preview.')
-      if (parsedSerials.serials.length > 1 && qtyText && Number.isInteger(quantity) && quantity !== parsedSerials.serials.length) {
-        warnings.push('Quantity and serial count differ; every detected serial will be kept and any remaining quantity will be imported without a serial.')
+      if (!qtyText) errors.push('OUT QTY is required. The importer will not assume a tire quantity.')
+      if (qtyText && (!Number.isInteger(quantity) || quantity < 1 || quantity > 100)) errors.push('OUT QTY must be a whole number from 1 to 100.')
+      if (parsedSerials.serials.length > quantity && quantity > 0) {
+        errors.push('More serial numbers were detected than OUT QTY. Correct the row so serial identifiers do not exceed the stated tire quantity.')
       }
-      if (quantity > parsedSerials.serials.length && parsedSerials.serials.length > 0) {
-        warnings.push('Only ' + parsedSerials.serials.length + ' serial number(s) were identified for ' + quantity + ' tire(s); the remaining tire record(s) will have no serial number.')
+      if (quantity > parsedSerials.serials.length && quantity > 0) {
+        warnings.push('OUT QTY is ' + quantity + ' but only ' + parsedSerials.serials.length + ' serial number(s) were identified. The remaining tire record(s) will have no serial number.')
       }
-      if (!serialText && !qtyText) warnings.push('No serial or quantity column value was found; one tire is assumed for this row.')
+      if (!serialText) warnings.push('No serial number was supplied; tire records will be created only according to OUT QTY and remain without serial identifiers.')
       if (!size) warnings.push('Tire size was not found in the row or worksheet name; the preview will use Unspecified.')
       if (!manufacturer) warnings.push('Manufacturer was not found; the preview will use Unspecified.')
       if (!origin) warnings.push('Origin was not found in the row or worksheet name; the preview will use OTHER.')
@@ -398,7 +402,7 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
       const entry: SourceEntry = {
         sheetName: sheet.name, line, eventAt: date, vehicleType, vehicleNumber, vehicleId: null,
         vehicleLabel: vehicleNumber, driver, serialText, serials: parsedSerials.serials,
-        quantity: Number.isInteger(quantity) && quantity > 0 && quantity <= 100 ? Math.max(quantity, parsedSerials.serials.length, 1) : 0,
+        quantity: Number.isInteger(quantity) && quantity > 0 && quantity <= 100 ? quantity : 0,
         tireSize: size, manufacturer, origin: normalizeOrigin(origin), history,
         odometerKm: Number.isInteger(odometerValue) && odometerValue >= 0 ? odometerValue : null,
         warnings, errors
@@ -431,7 +435,7 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
   const unitsByKey = new Map<string, ImportUnit>()
   let exactDuplicateRows = 0
   for (const source of sourceEntries) {
-    const count = source.quantity || Math.max(source.serials.length, 1)
+    const count = source.quantity
     for (let index = 0; index < count; index++) {
       const serial = source.serials[index] || null
       const key = serial
