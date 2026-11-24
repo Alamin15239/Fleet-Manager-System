@@ -210,6 +210,16 @@ export async function recordTireLifecycleEvent(tx: any, input: {
   const currentVehicle: VehicleRef | null = currentTruckId
     ? { vehicleType: 'truck', vehicleId: currentTruckId }
     : currentTrailer ? { vehicleType: 'trailer', vehicleId: currentTrailer.id } : null
+  // Never save a vehicle-mounted operation without a canonical fleet link:
+  // otherwise the tire event would be orphaned from its required Job Card.
+  const vehicleLinkedOperations = ['TRANSFER','POSITION_CHANGE','REMOVE','DAMAGE','INSPECT','DISPOSE']
+  if (tire.lifecycleStatus === 'INSTALLED' && !currentVehicle && vehicleLinkedOperations.includes(eventType)) {
+    throw new Error('This installed tire is not linked to an active truck or trailer. Correct its vehicle assignment before recording this operation.')
+  }
+  if (tire.lifecycleStatus === 'DAMAGED' && (tire.plateNumber || tire.trailerNumber) && !currentVehicle &&
+      ['REMOVE','REPAIR','DISPOSE'].includes(eventType)) {
+    throw new Error('This damaged tire has an unresolved vehicle assignment. Correct its vehicle assignment before continuing.')
+  }
   if (eventType === 'TRANSFER' && currentVehicle && target &&
       currentVehicle.vehicleType === target.vehicleType && currentVehicle.vehicleId === target.vehicleId)
     throw new Error('Use Change wheel position when moving a tire within the same vehicle')
