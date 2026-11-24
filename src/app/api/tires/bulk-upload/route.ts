@@ -81,13 +81,13 @@ function parseDate(value: ExcelJS.CellValue): Date | null {
 
 const normalizeHeader = (value: string) => value.toLowerCase().normalize('NFKD').replace(/[^a-z0-9]/g, '')
 const headerAliases: Record<string, string[]> = {
-  date: ['date', 'issuedate', 'outdate', 'transactiondate', 'eventdate', 'installationdate', 'fitmentdate', 'startdate', 'usagedate'],
+  date: ['date', 'issuedate', 'dateissued', 'dateofissue', 'issuedon', 'outdate', 'transactiondate', 'eventdate', 'installationdate', 'fitmentdate', 'mounteddate', 'startdate', 'usagedate'],
   vehicleType: ['vehicletype', 'assettype', 'type'],
   truck: ['truck', 'trucknumber', 'truckno', 'truckplate', 'truckplatenumber', 'truckregistration', 'truckregistrationnumber'],
   trailer: ['trailer', 'trailernumber', 'trailerno', 'trailerplate', 'trailerregistration'],
-  vehicle: ['vehicle', 'vehiclenumber', 'vehicleid', 'registration', 'registrationnumber', 'unitnumber', 'fleetnumber', 'trucktrailer'],
+  vehicle: ['vehicle', 'vehiclenumber', 'vehicleid', 'registration', 'registrationnumber', 'registrationno', 'regno', 'unitnumber', 'fleetnumber', 'trucktrailer', 'plate', 'plateno', 'platenumber', 'licenseplate', 'licenseplatenumber'],
   driver: ['namedriver', 'drivername', 'driver', 'operator'],
-  serial: ['serialnumber', 'serialnumbers', 'serialno', 'serialnos', 'serial', 'tireserial', 'tyreserial', 'serialhistory', 'serialandhistory'],
+  serial: ['serialnumber', 'serialnumbers', 'serialno', 'serialnos', 'serial', 'tireserial', 'tyreserial', 'tireserialnumber', 'tyreserialnumber', 'serialhistory', 'serialandhistory', 'serialnumberhistory'],
   quantity: ['outqty', 'qtyout', 'quantityout', 'qty', 'quantity', 'numberoftires', 'tireqty', 'tyreqty', 'outquantity'],
   tireSize: ['tiresize', 'tyresize', 'size', 'tirespecification', 'tyrespecification'],
   manufacturer: ['manufacturer', 'brand', 'tirebrand', 'tyrebrand', 'make'],
@@ -316,10 +316,9 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
         source.history.toLowerCase(),
         source.odometerKm == null ? '' : String(source.odometerKm)
       ].join('|')
-      if (unit.entries.some(item => item.source.sheetName + ':' + item.source.line + ':' + eventKey === source.sheetName + ':' + source.line + ':' + eventKey) ||
-          unit.entries.some(item => item.source.eventAt?.getTime() === source.eventAt?.getTime() &&
-            item.source.vehicleId === source.vehicleId && item.source.driver.toLowerCase() === source.driver.toLowerCase() &&
-            item.source.history.toLowerCase() === source.history.toLowerCase() && item.source.odometerKm === source.odometerKm)) {
+      if (unit.entries.some(item => item.source.eventAt?.getTime() === source.eventAt?.getTime() &&
+          item.source.vehicleId === source.vehicleId && item.source.driver.toLowerCase() === source.driver.toLowerCase() &&
+          item.source.history.toLowerCase() === source.history.toLowerCase() && item.source.odometerKm === source.odometerKm)) {
         exactDuplicateRows++
         unit.warnings.push('An identical usage-history row was repeated in the workbook and has been counted once.')
         continue
@@ -363,10 +362,10 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
   const existingSerialSet = new Set(existingSerials.map(item => (item.serialNumber || '').toLowerCase()))
   const existingCodeSet = new Set(existingCodes.map(item => item.internalCode).filter(Boolean))
   for (const unit of units) {
-    if (unit.serial && existingSerialSet.has(unit.serial.toLowerCase())) {
+    if (unit.status !== 'BLOCKED' && unit.serial && existingSerialSet.has(unit.serial.toLowerCase())) {
       unit.status = 'DUPLICATE'
       unit.duplicateReason = 'Serial number already exists in Tire Management.'
-    } else if (existingCodeSet.has(unit.importCode)) {
+    } else if (unit.status !== 'BLOCKED' && existingCodeSet.has(unit.importCode)) {
       unit.status = 'DUPLICATE'
       unit.duplicateReason = 'This exact row or serial was already imported.'
     }
@@ -538,7 +537,7 @@ export async function POST(request: NextRequest) {
           const vehicleKey = vehicleType + ':' + vehicleId
           let jobCardId = jobCardCache.get(vehicleKey)
           if (!jobCardId) {
-            jobCardId = await getOrCreateOpenJobCard(tx, {
+            const createdJobCardId = await getOrCreateOpenJobCard(tx, {
               vehicleType, vehicleId
             }, {
               eventAt: entry.eventAt as Date,
@@ -548,7 +547,9 @@ export async function POST(request: NextRequest) {
               serviceType: 'TIRE USAGE HISTORY',
               reportedIssue: 'Historical tire usage imported from spreadsheet'
             })
-            jobCardCache.set(vehicleKey, jobCardId)
+            if (!createdJobCardId) throw new Error('Could not create or locate a Job Card for an imported tire usage row.')
+            jobCardId = createdJobCardId
+            jobCardCache.set(vehicleKey, createdJobCardId)
           }
           jobCards.add(jobCardId)
           const notes = [
