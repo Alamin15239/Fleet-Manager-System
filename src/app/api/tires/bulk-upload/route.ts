@@ -1,19 +1,66 @@
 import { NextRequest, NextResponse } from 'next/server'
 import ExcelJS from 'exceljs'
 import { Readable } from 'node:stream'
-import { createHash } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { db } from '@/lib/db'
 import { requireRolePermission } from '@/lib/permission-middleware'
-import { ensureTireLifecycleTables, recordTireLifecycleEvent } from '@/lib/tire-lifecycle'
+import { ensureTireLifecycleTables, getOrCreateOpenJobCard } from '@/lib/tire-lifecycle'
 import { syncOneDriveWorkbookAfterChange } from '@/lib/onedrive-excel-sync'
 
 export const runtime = 'nodejs'
-type ImportRow = { date: Date; vehicleType: 'truck' | 'trailer'; vehicleNumber: string; driver: string; serial: string; qty: number; line: number }
+
+type VehicleType = 'truck' | 'trailer'
+type FleetVehicle = {
+  id: string
+  type: VehicleType
+  number: string
+  driverName: string | null
+}
+type SourceEntry = {
+  sheetName: string
+  line: number
+  eventAt: Date | null
+  vehicleType: VehicleType | null
+  vehicleNumber: string
+  vehicleId: string | null
+  vehicleLabel: string
+  driver: string
+  serialText: string
+  serials: string[]
+  quantity: number
+  tireSize: string
+  manufacturer: string
+  origin: string
+  history: string
+  odometerKm: number | null
+  warnings: string[]
+  errors: string[]
+}
+type ImportEntry = { source: SourceEntry; serial: string | null }
+type ImportUnit = {
+  key: string
+  serial: string | null
+  importCode: string
+  entries: ImportEntry[]
+  warnings: string[]
+  errors: string[]
+  tireSize: string
+  manufacturer: string
+  origin: string
+  status: 'READY' | 'DUPLICATE' | 'BLOCKED'
+  duplicateReason: string | null
+}
+
 const cellText = (value: ExcelJS.CellValue): string => {
   if (value instanceof Date) return value.toISOString().slice(0, 10)
-  if (value && typeof value === 'object' && 'text' in value) return String(value.text || '').trim()
+  if (value && typeof value === 'object') {
+    if ('text' in value) return String(value.text || '').trim()
+    if ('richText' in value && Array.isArray(value.richText)) return value.richText.map((part: any) => String(part.text || '')).join('').trim()
+    if ('result' in value) return cellText(value.result as ExcelJS.CellValue)
+  }
   return String(value ?? '').trim()
 }
+
 function parseDate(value: ExcelJS.CellValue): Date | null {
   if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value
   if (typeof value === 'number' && value > 0 && value < 100000) {
@@ -22,28 +69,351 @@ function parseDate(value: ExcelJS.CellValue): Date | null {
   }
   const raw = cellText(value)
   if (!raw) return null
-  let date: Date
   const iso = raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/)
   const parts = raw.includes('/') ? raw.split('/') : raw.split(/[. -]/)
-  if (iso) date = new Date(Date.UTC(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3])))
-  else if (parts.length === 3 && parts[2].length === 4) date = new Date(Date.UTC(Number(parts[2]), Number(parts[1]) - 1, Number(parts[0])))
-  else date = new Date(raw)
+  const date = iso
+    ? new Date(Date.UTC(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3])))
+    : parts.length === 3 && parts[2].length === 4
+      ? new Date(Date.UTC(Number(parts[2]), Number(parts[1]) - 1, Number(parts[0])))
+      : new Date(raw)
   return Number.isNaN(date.getTime()) ? null : date
 }
-const normalizeHeader = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, '')
+
+const normalizeHeader = (value: string) => value.toLowerCase().normalize('NFKD').replace(/[^a-z0-9]/g, '')
+const headerAliases: Record<string, string[]> = {
+  date: ['date', 'issuedate', 'outdate', 'transactiondate', 'eventdate', 'installationdate', 'fitmentdate', 'startdate', 'usagedate'],
+  vehicleType: ['vehicletype', 'assettype', 'type'],
+  truck: ['truck', 'trucknumber', 'truckno', 'truckplate', 'truckplatenumber', 'truckregistration', 'truckregistrationnumber'],
+  trailer: ['trailer', 'trailernumber', 'trailerno', 'trailerplate', 'trailerregistration'],
+  vehicle: ['vehicle', 'vehiclenumber', 'vehicleid', 'registration', 'registrationnumber', 'unitnumber', 'fleetnumber', 'trucktrailer'],
+  driver: ['namedriver', 'drivername', 'driver', 'operator'],
+  serial: ['serialnumber', 'serialnumbers', 'serialno', 'serialnos', 'serial', 'tireserial', 'tyreserial', 'serialhistory', 'serialandhistory'],
+  quantity: ['outqty', 'qtyout', 'quantityout', 'qty', 'quantity', 'numberoftires', 'tireqty', 'tyreqty', 'outquantity'],
+  tireSize: ['tiresize', 'tyresize', 'size', 'tirespecification', 'tyrespecification'],
+  manufacturer: ['manufacturer', 'brand', 'tirebrand', 'tyrebrand', 'make'],
+  origin: ['origin', 'countryoforigin', 'manufacturingcountry', 'madein', 'country'],
+  history: ['history', 'usagehistory', 'tirehistory', 'tyrehistory', 'usage', 'movementhistory', 'details', 'description', 'remarks', 'notes', 'comments'],
+  odometer: ['odometer', 'odometerkm', 'mileage', 'kilometers', 'kilometres', 'km']
+}
+
+function parseSerials(rawValue: string): { serials: string[]; mixedText: boolean } {
+  const raw = rawValue.trim()
+  if (!raw) return { serials: [], mixedText: false }
+  const found: string[] = []
+  const labeled = Array.from(raw.matchAll(/(?:serial(?:\s*(?:no\.?|number))?|s\/n)\s*[:#=-]?\s*([a-z0-9][a-z0-9._/-]{2,})/gi))
+  if (labeled.length > 1 || (labeled.length === 1 && /[,;|\n]/.test(raw))) {
+    for (const match of labeled) found.push(match[1].replace(/[.,;]+$/, ''))
+  }
+  if (!found.length) {
+    const parts = raw.split(/[\r\n,;|]+|\s+\/\s+/)
+    for (const part of parts) {
+      let candidate = part.trim().replace(/^(?:serial(?:\s*(?:no\.?|number))?|s\/n)\s*[:#=-]?\s*/i, '')
+      candidate = candidate.replace(/\s+(?:history|usage|installed|fitted|removed|transferred|truck|trailer|driver|vehicle|date|on)\b[\s\S]*$/i, '')
+      candidate = candidate.replace(/\s*[\[(].*$/, '').replace(/[.,;:]+$/, '').trim()
+      if (candidate.length >= 3 && /^[a-z0-9][a-z0-9._/-]*$/i.test(candidate) && /\d/.test(candidate)) {
+        found.push(candidate)
+      } else if (candidate.length >= 3 && /^[a-z0-9][a-z0-9._/-]*$/i.test(candidate) && parts.length === 1 && !/\s/.test(raw)) {
+        found.push(candidate)
+      }
+    }
+  }
+  const unique = Array.from(new Map(found.map(serial => [serial.toLowerCase(), serial])).values())
+  return { serials: unique, mixedText: unique.length === 0 && /[a-z]/i.test(raw) && /\s/.test(raw) }
+}
+
+function normalizeOrigin(raw: string): string {
+  const value = raw.trim().toLowerCase()
+  if (!value) return 'OTHER'
+  if (/china|chinese/.test(value)) return 'CHINESE'
+  if (/saudi/.test(value)) return 'SAUDI'
+  if (/japan|japanese/.test(value)) return 'JAPANESE'
+  if (/europe|european/.test(value)) return 'EUROPEAN'
+  if (/america|american|usa|united states/.test(value)) return 'AMERICAN'
+  if (/other|unknown|not known/.test(value)) return 'OTHER'
+  return raw.trim().toUpperCase().replace(/[^A-Z0-9]+/g, '_').slice(0, 40) || 'OTHER'
+}
+
+function fingerprint(value: string): string {
+  return createHash('sha256').update(value).digest('hex')
+}
+
+function makeImportCode(key: string): string {
+  return 'UP-AI-' + fingerprint(key).slice(0, 20).toUpperCase()
+}
+
+function headerMap(sheet: ExcelJS.Worksheet): { row: number; columns: Map<string, number> } | null {
+  for (let rowNo = 1; rowNo <= Math.min(sheet.rowCount, 12); rowNo++) {
+    const columns = new Map<string, number>()
+    sheet.getRow(rowNo).eachCell((cell, col) => columns.set(normalizeHeader(cellText(cell.value)), col))
+    const find = (key: string) => headerAliases[key].some(alias => columns.has(alias))
+    const hasVehicle = find('truck') || find('trailer') || find('vehicle')
+    const hasEventIdentifier = find('serial') || find('quantity') || find('driver')
+    if (find('date') && hasVehicle && hasEventIdentifier) return { row: rowNo, columns }
+  }
+  return null
+}
+
+function getColumn(columns: Map<string, number>, key: string): number | null {
+  for (const alias of headerAliases[key] || []) {
+    const value = columns.get(alias)
+    if (value) return value
+  }
+  return null
+}
+
+function vehicleMatches(type: VehicleType, number: string, fleet: FleetVehicle[]): FleetVehicle[] {
+  const normalized = number.trim().toLowerCase()
+  return fleet.filter(vehicle => vehicle.type === type &&
+    (vehicle.number.toLowerCase() === normalized || vehicle.number.toLowerCase().startsWith(normalized + ' ')))
+}
+
+async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
+  const [trucks, trailers] = await Promise.all([
+    db.truck.findMany({
+      where: { isDeleted: false, status: { not: 'INACTIVE' } },
+      select: { id: true, licensePlate: true, driverName: true }
+    }),
+    db.trailer.findMany({
+      where: { isDeleted: false, status: { not: 'INACTIVE' } },
+      select: { id: true, number: true, driverName: true }
+    })
+  ])
+  const fleet: FleetVehicle[] = [
+    ...trucks.map(item => ({ id: item.id, type: 'truck' as const, number: item.licensePlate, driverName: item.driverName })),
+    ...trailers.map(item => ({ id: item.id, type: 'trailer' as const, number: item.number, driverName: item.driverName }))
+  ]
+
+  const sourceEntries: SourceEntry[] = []
+  const sheetNames: string[] = []
+  const sheetErrors: string[] = []
+
+  for (const sheet of workbook.worksheets) {
+    const header = headerMap(sheet)
+    if (!header) continue
+    sheetNames.push(sheet.name)
+    const col = (key: string) => getColumn(header.columns, key)
+    const columns = {
+      date: col('date'), type: col('vehicleType'), truck: col('truck'), trailer: col('trailer'),
+      vehicle: col('vehicle'), driver: col('driver'), serial: col('serial'), quantity: col('quantity'),
+      size: col('tireSize'), manufacturer: col('manufacturer'), origin: col('origin'),
+      history: col('history'), odometer: col('odometer')
+    }
+
+    for (let line = header.row + 1; line <= sheet.rowCount; line++) {
+      const row = sheet.getRow(line)
+      let hasData = false
+      row.eachCell(cell => { if (cellText(cell.value)) hasData = true })
+      if (!hasData) continue
+
+      const read = (column: number | null) => column ? cellText(row.getCell(column).value) : ''
+      const dateCell = columns.date ? row.getCell(columns.date).value : null
+      const date = dateCell == null || cellText(dateCell) === '' ? null : parseDate(dateCell)
+      const truckNumber = read(columns.truck)
+      const trailerNumber = read(columns.trailer)
+      const genericNumber = read(columns.vehicle)
+      const typeText = read(columns.type).toLowerCase()
+      const vehicleNumber = truckNumber || trailerNumber || genericNumber
+      let vehicleType: VehicleType | null = truckNumber ? 'truck' : trailerNumber ? 'trailer'
+        : /trailer/.test(typeText) ? 'trailer' : /truck/.test(typeText) ? 'truck' : null
+      const driver = read(columns.driver)
+      const serialText = read(columns.serial)
+      const parsedSerials = parseSerials(serialText)
+      const qtyText = read(columns.quantity)
+      const parsedQty = qtyText ? Number(qtyText.replace(/,/g, '').match(/-?\d+(?:\.\d+)?/)?.[0]) : NaN
+      const quantity = qtyText ? parsedQty : Math.max(parsedSerials.serials.length, 1)
+      const size = read(columns.size)
+      const manufacturer = read(columns.manufacturer)
+      const origin = read(columns.origin)
+      const history = read(columns.history)
+      const odometerText = read(columns.odometer)
+      const odometerValue = odometerText ? Number(odometerText.replace(/,/g, '').match(/\d+/)?.[0]) : NaN
+      const errors: string[] = []
+      const warnings: string[] = []
+
+      if (!date) errors.push('A valid usage date was not detected.')
+      if (!vehicleNumber) errors.push('A truck or trailer number was not detected.')
+      if (truckNumber && trailerNumber) errors.push('Both truck and trailer are filled in; keep only one vehicle.')
+      if (genericNumber && !truckNumber && !trailerNumber && typeText && !vehicleType) errors.push('Vehicle Type must identify Truck or Trailer.')
+      if (qtyText && (!Number.isInteger(quantity) || quantity < 1 || quantity > 100)) errors.push('Quantity must be a whole number from 1 to 100.')
+      if (parsedSerials.serials.length > 100) errors.push('More than 100 serial numbers were detected in one row.')
+      if (parsedSerials.mixedText) warnings.push('The serial cell contains mixed text; check the extracted tire identifier in the preview.')
+      if (parsedSerials.serials.length > 1 && qtyText && Number.isInteger(quantity) && quantity !== parsedSerials.serials.length) {
+        warnings.push('Quantity and serial count differ; every detected serial will be kept and any remaining quantity will be imported without a serial.')
+      }
+      if (quantity > parsedSerials.serials.length && parsedSerials.serials.length > 0) {
+        warnings.push('Only ' + parsedSerials.serials.length + ' serial number(s) were identified for ' + quantity + ' tire(s); the remaining tire record(s) will have no serial number.')
+      }
+      if (!serialText && !qtyText) warnings.push('No serial or quantity column value was found; one tire is assumed for this row.')
+      if (!size) warnings.push('Tire size was not found; the preview will use Unspecified.')
+      if (!manufacturer) warnings.push('Manufacturer was not found; the preview will use Unspecified.')
+      if (!origin) warnings.push('Origin was not found; the preview will use OTHER.')
+      if (!driver) warnings.push('Driver was not found in the sheet; the active fleet driver will be used when available.')
+      if (odometerText && (!Number.isInteger(odometerValue) || odometerValue < 0)) warnings.push('Odometer value could not be interpreted and will be left empty.')
+
+      const entry: SourceEntry = {
+        sheetName: sheet.name, line, eventAt: date, vehicleType, vehicleNumber, vehicleId: null,
+        vehicleLabel: vehicleNumber, driver, serialText, serials: parsedSerials.serials,
+        quantity: Number.isInteger(quantity) && quantity > 0 && quantity <= 100 ? Math.max(quantity, parsedSerials.serials.length, 1) : 0,
+        tireSize: size, manufacturer, origin: normalizeOrigin(origin), history,
+        odometerKm: Number.isInteger(odometerValue) && odometerValue >= 0 ? odometerValue : null,
+        warnings, errors
+      }
+
+      if (vehicleNumber && !errors.some(value => value.startsWith('Both truck and trailer'))) {
+        let matches: FleetVehicle[] = []
+        if (vehicleType) matches = vehicleMatches(vehicleType, vehicleNumber, fleet)
+        else {
+          matches = [
+            ...vehicleMatches('truck', vehicleNumber, fleet),
+            ...vehicleMatches('trailer', vehicleNumber, fleet)
+          ]
+        }
+        if (matches.length !== 1) {
+          errors.push(matches.length ? 'Vehicle number matches more than one active fleet record.' : 'Vehicle number does not match an active truck or trailer.')
+        } else {
+          const vehicle = matches[0]
+          entry.vehicleType = vehicle.type
+          entry.vehicleId = vehicle.id
+          entry.vehicleNumber = vehicle.number
+          entry.vehicleLabel = (vehicle.type === 'truck' ? 'Truck ' : 'Trailer ') + vehicle.number
+          if (!entry.driver) entry.driver = vehicle.driverName || ''
+        }
+      }
+      if (vehicleType && !vehicleNumber) entry.errors.push('A vehicle number is required for the selected vehicle type.')
+      sourceEntries.push(entry)
+    }
+  }
+
+  if (!sheetNames.length) {
+    sheetErrors.push('No recognizable usage-history table was found. The sheet needs a date column and a truck/trailer or vehicle column, plus a serial, quantity, or driver column.')
+  }
+  if (sourceEntries.length > 5000) sheetErrors.push('The workbook contains more than 5,000 data rows. Split it into smaller files before importing.')
+  if (sheetErrors.length) throw new Error(sheetErrors.join(' '))
+
+  const unitsByKey = new Map<string, ImportUnit>()
+  let exactDuplicateRows = 0
+  for (const source of sourceEntries) {
+    const count = source.quantity || Math.max(source.serials.length, 1)
+    for (let index = 0; index < count; index++) {
+      const serial = source.serials[index] || null
+      const key = serial
+        ? 'serial:' + serial.toLowerCase()
+        : 'row:' + source.sheetName + ':' + source.line + ':' + String(index + 1)
+      let unit = unitsByKey.get(key)
+      if (!unit) {
+        unit = {
+          key, serial, importCode: makeImportCode(key), entries: [], warnings: [], errors: [],
+          tireSize: 'Unspecified', manufacturer: 'Unspecified', origin: 'OTHER',
+          status: 'READY', duplicateReason: null
+        }
+        unitsByKey.set(key, unit)
+      }
+      const eventKey = [
+        source.eventAt?.toISOString() || '',
+        source.vehicleType || '',
+        source.vehicleId || source.vehicleNumber.toLowerCase(),
+        source.driver.toLowerCase(),
+        source.history.toLowerCase(),
+        source.odometerKm == null ? '' : String(source.odometerKm)
+      ].join('|')
+      if (unit.entries.some(item => item.source.sheetName + ':' + item.source.line + ':' + eventKey === source.sheetName + ':' + source.line + ':' + eventKey) ||
+          unit.entries.some(item => item.source.eventAt?.getTime() === source.eventAt?.getTime() &&
+            item.source.vehicleId === source.vehicleId && item.source.driver.toLowerCase() === source.driver.toLowerCase() &&
+            item.source.history.toLowerCase() === source.history.toLowerCase() && item.source.odometerKm === source.odometerKm)) {
+        exactDuplicateRows++
+        unit.warnings.push('An identical usage-history row was repeated in the workbook and has been counted once.')
+        continue
+      }
+      unit.entries.push({ source, serial })
+      unit.warnings.push(...source.warnings)
+      unit.errors.push(...source.errors)
+    }
+  }
+
+  const units = Array.from(unitsByKey.values())
+  for (const unit of units) {
+    unit.entries.sort((a, b) => (a.source.eventAt?.getTime() || 0) - (b.source.eventAt?.getTime() || 0) || a.source.line - b.source.line)
+    const sizes = Array.from(new Set(unit.entries.map(item => item.source.tireSize).filter(Boolean)))
+    const manufacturers = Array.from(new Set(unit.entries.map(item => item.source.manufacturer).filter(Boolean)))
+    const origins = Array.from(new Set(unit.entries.map(item => item.source.origin).filter(value => value && value !== 'OTHER')))
+    unit.tireSize = sizes[0] || 'Unspecified'
+    unit.manufacturer = manufacturers[0] || 'Unspecified'
+    unit.origin = origins[0] || 'OTHER'
+    if (sizes.length > 1) unit.warnings.push('Different tire sizes were found for this serial; the first detected value will be used.')
+    if (manufacturers.length > 1) unit.warnings.push('Different manufacturers were found for this serial; the first detected value will be used.')
+    if (origins.length > 1) unit.warnings.push('Different origins were found for this serial; the first detected value will be used.')
+    if (unit.entries.length > 1 && unit.serial) {
+      unit.warnings.push('This serial appears in multiple rows and has been grouped into one tire with a chronological usage history.')
+    }
+    if (unit.errors.length) unit.status = 'BLOCKED'
+  }
+
+  const serials = Array.from(new Set(units.map(unit => unit.serial).filter((value): value is string => Boolean(value))))
+  const importCodes = units.map(unit => unit.importCode)
+  const [existingSerials, existingCodes] = await Promise.all([
+    serials.length ? db.tire.findMany({
+      where: { deletedAt: null, serialNumber: { in: serials, mode: 'insensitive' } },
+      select: { serialNumber: true }, take: 5000
+    }) : Promise.resolve([]),
+    importCodes.length ? db.tire.findMany({
+      where: { internalCode: { in: importCodes } },
+      select: { internalCode: true }, take: 5000
+    }) : Promise.resolve([])
+  ])
+  const existingSerialSet = new Set(existingSerials.map(item => (item.serialNumber || '').toLowerCase()))
+  const existingCodeSet = new Set(existingCodes.map(item => item.internalCode).filter(Boolean))
+  for (const unit of units) {
+    if (unit.serial && existingSerialSet.has(unit.serial.toLowerCase())) {
+      unit.status = 'DUPLICATE'
+      unit.duplicateReason = 'Serial number already exists in Tire Management.'
+    } else if (existingCodeSet.has(unit.importCode)) {
+      unit.status = 'DUPLICATE'
+      unit.duplicateReason = 'This exact row or serial was already imported.'
+    }
+  }
+
+  const preview = units.slice(0, 150).map(unit => ({
+    serial: unit.serial,
+    tireSize: unit.tireSize,
+    manufacturer: unit.manufacturer,
+    origin: unit.origin,
+    historyEntries: unit.entries.length,
+    firstDate: unit.entries[0]?.source.eventAt?.toISOString() || null,
+    lastDate: unit.entries[unit.entries.length - 1]?.source.eventAt?.toISOString() || null,
+    vehicles: Array.from(new Set(unit.entries.map(item => item.source.vehicleLabel).filter(Boolean))).slice(0, 5),
+    status: unit.status,
+    duplicateReason: unit.duplicateReason,
+    warnings: Array.from(new Set(unit.warnings)).slice(0, 4),
+    errors: Array.from(new Set(unit.errors)).slice(0, 4)
+  }))
+  const ready = units.filter(unit => unit.status === 'READY')
+  const blocked = units.filter(unit => unit.status === 'BLOCKED')
+  const duplicates = units.filter(unit => unit.status === 'DUPLICATE')
+  const warningCount = units.reduce((count, unit) => count + new Set(unit.warnings).size, 0)
+  return {
+    sheetNames, sourceRows: sourceEntries.length, exactDuplicateRows,
+    totalTires: units.length, historyEntries: units.reduce((count, unit) => count + unit.entries.length, 0),
+    repeatedSerials: units.filter(unit => Boolean(unit.serial) && unit.entries.length > 1).length,
+    importableTires: ready.length, duplicateTires: duplicates.length, blockedTires: blocked.length,
+    warningCount, preview, units, ready
+  }
+}
+
 export async function GET(request: NextRequest) {
   try {
     await requireRolePermission(request, 'tire-management', 'read')
-    const trucks = await db.truck.findMany({
-      where: { isDeleted: false, status: { not: 'INACTIVE' } },
-      select: { licensePlate: true, driverName: true, make: true, model: true, year: true },
-      orderBy: { licensePlate: 'asc' }
-    })
-    const trailers = await db.trailer.findMany({
-      where: { isDeleted: false, status: { not: 'INACTIVE' } },
-      select: { number: true, driverName: true },
-      orderBy: { number: 'asc' }
-    })
+    const [trucks, trailers] = await Promise.all([
+      db.truck.findMany({
+        where: { isDeleted: false, status: { not: 'INACTIVE' } },
+        select: { licensePlate: true, driverName: true, make: true, model: true, year: true },
+        orderBy: { licensePlate: 'asc' }
+      }),
+      db.trailer.findMany({
+        where: { isDeleted: false, status: { not: 'INACTIVE' } },
+        select: { number: true, driverName: true },
+        orderBy: { number: 'asc' }
+      })
+    ])
     return NextResponse.json({ trucks, trailers })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Could not load active trucks.'
@@ -57,174 +427,191 @@ export async function POST(request: NextRequest) {
     const user = await requireRolePermission(request, 'tire-management', 'create')
     const form = await request.formData()
     const file = form.get('file')
-    const tireSize = String(form.get('tireSize') || '').trim()
-    const origin = String(form.get('origin') || '').trim().toUpperCase()
+    const mode = String(form.get('mode') || 'preview')
     if (!(file instanceof File)) return NextResponse.json({ error: 'Select an Excel or CSV file.' }, { status: 400 })
-    if (!tireSize) return NextResponse.json({ error: 'Tire size is required.' }, { status: 400 })
-    if (!['CHINESE', 'SAUDI', 'JAPANESE'].includes(origin)) return NextResponse.json({ error: 'Select a valid tire origin.' }, { status: 400 })
     if (file.size > 10 * 1024 * 1024) return NextResponse.json({ error: 'File must be 10 MB or smaller.' }, { status: 400 })
+    if (!/\.(xlsx|csv)$/i.test(file.name)) return NextResponse.json({ error: 'Use an .xlsx or .csv file.' }, { status: 400 })
+
     const bytes = Buffer.from(await file.arrayBuffer())
     const workbook = new ExcelJS.Workbook()
     if (file.name.toLowerCase().endsWith('.csv')) {
       await workbook.csv.read(Readable.from([bytes]))
-    } else if (/\.xlsx?$/i.test(file.name)) {
-      await workbook.xlsx.load(bytes as any)
     } else {
-      return NextResponse.json({ error: 'Use an .xlsx or .csv file.' }, { status: 400 })
+      await workbook.xlsx.load(bytes as any)
     }
-    const sheet = workbook.worksheets[0]
-    if (!sheet || sheet.rowCount < 2) return NextResponse.json({ error: 'The sheet is empty.' }, { status: 400 })
+    const analysis = await analyzeWorkbook(workbook)
 
-    // Accept a merged title row such as "CHINA" above the actual column headings.
-    let headerRow = 0
-    let columns = new Map<string, number>()
-    const hasAny = (candidate: Map<string, number>, names: string[]) => names.some(name => candidate.has(name))
-    for (let rowNo = 1; rowNo <= Math.min(sheet.rowCount, 6); rowNo++) {
-      const candidate = new Map<string, number>()
-      sheet.getRow(rowNo).eachCell((cell, col) => candidate.set(normalizeHeader(cellText(cell.value)), col))
-      const hasVehicle = hasAny(candidate, ['truck', 'trucknumber', 'truckno', 'trailer', 'trailernumber', 'trailerno', 'vehiclenumber', 'vehicle'])
-      const hasRequired = ['date', 'namedriver', 'serialnumber', 'outqty'].every(key =>
-        [...candidate.keys()].some(header => key === 'namedriver' ? ['namedriver', 'drivername', 'driver'].includes(header) : key === 'serialnumber' ? ['serialnumber', 'serial'].includes(header) : key === 'outqty' ? ['outqty', 'qty', 'quantity'].includes(header) : header === key)
-      ) && hasVehicle
-      if (hasRequired) { headerRow = rowNo; columns = candidate; break }
-    }
-    if (!headerRow) return NextResponse.json({ error: 'Required columns: Date, Vehicle Type (optional for legacy sheets), Truck # or Trailer # (or Vehicle #), Name Driver, Serial Number, OUT QTY. A title row above the headers is allowed.' }, { status: 400 })
-    const find = (...names: string[]) => names.map(name => columns.get(name)).find(Boolean)
-    const dateCol = find('date'), typeCol = find('vehicletype', 'type')
-    const truckCol = find('truck', 'trucknumber', 'truckno')
-    const trailerCol = find('trailer', 'trailernumber', 'trailerno')
-    const vehicleCol = find('vehiclenumber', 'vehicle')
-    const driverCol = find('namedriver', 'drivername', 'driver'), serialCol = find('serialnumber', 'serial')
-    const qtyCol = find('outqty', 'qty', 'quantity')
-    if (!dateCol || (!truckCol && !trailerCol && !vehicleCol) || !driverCol || !serialCol || !qtyCol)
-      return NextResponse.json({ error: 'Spreadsheet columns are incomplete.' }, { status: 400 })
-
-    const rows: ImportRow[] = []
-    const errors: string[] = []
-    for (let line = headerRow + 1; line <= sheet.rowCount; line++) {
-      const row = sheet.getRow(line)
-      const dateValue = row.getCell(dateCol).value
-      const truck = truckCol ? cellText(row.getCell(truckCol).value) : ''
-      const trailer = trailerCol ? cellText(row.getCell(trailerCol).value) : ''
-      const genericVehicle = vehicleCol ? cellText(row.getCell(vehicleCol).value) : ''
-      const typeText = typeCol ? cellText(row.getCell(typeCol).value).toLowerCase() : ''
-      const driver = cellText(row.getCell(driverCol).value)
-      const serial = cellText(row.getCell(serialCol).value)
-      const qtyText = cellText(row.getCell(qtyCol).value)
-      if (![dateValue, truck, trailer, genericVehicle, typeText, driver, serial, qtyText].some(value => value !== null && value !== undefined && String(value).trim() !== '')) continue
-      let vehicleType: 'truck' | 'trailer' | null = null
-      let vehicleNumber = ''
-      if (truck && trailer) errors.push('Row ' + line + ': fill either Truck # or Trailer #, not both')
-      else if (truck) vehicleType = 'truck', vehicleNumber = truck
-      else if (trailer) vehicleType = 'trailer', vehicleNumber = trailer
-      else if (genericVehicle) {
-        vehicleNumber = genericVehicle
-        if (['truck', 'trucks'].includes(typeText)) vehicleType = 'truck'
-        else if (['trailer', 'trailers'].includes(typeText)) vehicleType = 'trailer'
-      }
-      if (!vehicleType && !genericVehicle && !truck && !trailer) errors.push('Row ' + line + ': enter a Truck # or Trailer #')
-      if (genericVehicle && !vehicleType) errors.push('Row ' + line + ': Vehicle Type must be Truck or Trailer')
-      if (!dateValue) errors.push('Row ' + line + ': date is required')
-      const date = parseDate(dateValue)
-      const qty = Number(qtyText)
-      if (dateValue && !date) errors.push('Row ' + line + ': invalid date')
-      if (!driver) errors.push('Row ' + line + ': Name Driver is required')
-      if (!Number.isInteger(qty) || qty < 1 || qty > 100) errors.push('Row ' + line + ': OUT QTY must be a whole number from 1 to 100')
-      if (date && vehicleType && vehicleNumber && driver && Number.isInteger(qty) && qty >= 1 && qty <= 100)
-        rows.push({ date, vehicleType, vehicleNumber, driver, serial, qty, line })
-    }
-    if (errors.length) return NextResponse.json({ error: errors.slice(0, 25).join('; '), totalErrors: errors.length }, { status: 400 })
-    if (!rows.length) return NextResponse.json({ error: 'No data rows found.' }, { status: 400 })
-
-    const serials = rows.filter(row => row.qty === 1 && row.serial).map(row => row.serial)
-    if (new Set(serials.map(value => value.trim().toLowerCase())).size !== serials.length) return NextResponse.json({ error: 'The sheet contains duplicate serial numbers. Correct them before uploading.' }, { status: 400 })
-    if (serials.length) {
-      const existingSerial = await db.tire.findFirst({
-        where: {
-          deletedAt: null,
-          OR: serials.map(serial => ({ serialNumber: { equals: serial.trim(), mode: 'insensitive' } }))
+    if (mode !== 'import') {
+      return NextResponse.json({
+        message: 'Analysis complete. No tire records or history have been saved.',
+        fileName: file.name,
+        sheets: analysis.sheetNames,
+        summary: {
+          sourceRows: analysis.sourceRows,
+          tiresDetected: analysis.totalTires,
+          historyEntries: analysis.historyEntries,
+          repeatedSerialsGrouped: analysis.repeatedSerials,
+          exactDuplicateRowsSkipped: analysis.exactDuplicateRows,
+          importableTires: analysis.importableTires,
+          existingDuplicates: analysis.duplicateTires,
+          blockedTires: analysis.blockedTires,
+          warnings: analysis.warningCount
         },
-        select: { serialNumber: true }
+        preview: analysis.preview,
+        previewLimit: 150,
+        previewTruncated: analysis.totalTires > 150
       })
-      if (existingSerial?.serialNumber) return NextResponse.json({ error: 'Serial number already exists in Tire Management: ' + existingSerial.serialNumber }, { status: 409 })
     }
 
-    const importCodes = rows.flatMap(row => Array.from({ length: row.qty }, (_, index) => {
-      const fingerprint = [row.date.toISOString().slice(0, 10), row.vehicleType, row.vehicleNumber, row.driver.toLowerCase(), row.serial, row.qty, row.line, tireSize, origin].join('|')
-      return 'UP-' + createHash('sha256').update(fingerprint).digest('hex').slice(0, 16).toUpperCase() + '-' + String(index + 1).padStart(3, '0')
-    }))
-    const duplicateImport = await db.tire.findFirst({ where: { internalCode: { in: importCodes }, deletedAt: null }, select: { internalCode: true } })
-    if (duplicateImport) return NextResponse.json({ error: 'This sheet appears to have already been uploaded. Duplicate import prevented.' }, { status: 409 })
-
-    const truckNumbers = [...new Set(rows.filter(row => row.vehicleType === 'truck').map(row => row.vehicleNumber))]
-    const trailerNumbers = [...new Set(rows.filter(row => row.vehicleType === 'trailer').map(row => row.vehicleNumber))]
-    const [trucks, trailers] = await Promise.all([
-      truckNumbers.length ? db.truck.findMany({ where: { isDeleted: false, status: { not: 'INACTIVE' }, OR: truckNumbers.flatMap(number => [{ licensePlate: number }, { licensePlate: { startsWith: number + ' ' } }]) }, select: { id: true, licensePlate: true } }) : Promise.resolve([]),
-      trailerNumbers.length ? db.trailer.findMany({ where: { isDeleted: false, status: { not: 'INACTIVE' }, OR: trailerNumbers.flatMap(number => [{ number }, { number: { startsWith: number + ' ' } }]) }, select: { id: true, number: true } }) : Promise.resolve([])
-    ])
-    const resolveVehicle = (type: 'truck' | 'trailer', number: string) => {
-      const matches = type === 'truck'
-        ? trucks.filter(item => item.licensePlate === number || item.licensePlate.startsWith(number + ' '))
-        : trailers.filter(item => item.number === number || item.number.startsWith(number + ' '))
-      return matches.length === 1 ? matches[0] : null
+    if (!analysis.ready.length) {
+      return NextResponse.json({ error: 'There are no importable tire records. Review the preview and fix the blocked or duplicate rows.' }, { status: 400 })
     }
-    const unresolved = [...new Set(rows.filter(row => !resolveVehicle(row.vehicleType, row.vehicleNumber)).map(row => (row.vehicleType === 'truck' ? 'Truck # ' : 'Trailer # ') + row.vehicleNumber))]
-    if (unresolved.length) return NextResponse.json({ error: 'Vehicle number must match exactly one active fleet record: ' + unresolved.join(', '), unresolvedVehicles: unresolved }, { status: 400 })
 
     const result = await db.$transaction(async tx => {
       await ensureTireLifecycleTables(tx)
-      let tireCount = 0
-      const jobCards = new Set<string>()
-      for (const row of rows) {
-        const vehicle = resolveVehicle(row.vehicleType, row.vehicleNumber)!
-        const fingerprint = [row.date.toISOString().slice(0, 10), row.vehicleType, row.vehicleNumber, row.driver.toLowerCase(), row.serial, row.qty, row.line, tireSize, origin].join('|')
-        const codePrefix = 'UP-' + createHash('sha256').update(fingerprint).digest('hex').slice(0, 16).toUpperCase()
-        if (row.vehicleType === 'truck') {
-          const truck = vehicle as { id: string; licensePlate: string }
-          await tx.vehicle.upsert({
-            where: { plateNumber: truck.licensePlate },
-            create: { plateNumber: truck.licensePlate, driverName: row.driver },
-            update: { driverName: row.driver }
-          })
-        }
-        for (let index = 0; index < row.qty; index++) {
-          const tire = await tx.tire.create({
-            data: {
-              tireSize, manufacturer: 'Unspecified', origin,
-              internalCode: codePrefix + '-' + String(index + 1).padStart(3, '0'),
-              plateNumber: null, truckId: null, trailerNumber: null,
-              driverName: row.driver, quantity: 1,
-              serialNumber: row.qty === 1 ? (row.serial || null) : null,
-              lifecycleStatus: 'STOCK',
-              createdById: user.id, createdAt: row.date,
-              notes: row.qty > 1 && row.serial
-                ? 'Outgoing sheet serial reference for OUT QTY ' + row.qty + ': ' + row.serial + '; individual serial mapping is not provided.'
-                : 'Imported from outgoing tire sheet; assigned to ' + row.vehicleType + ', wheel position not provided.'
-            },
-            select: { id: true }
-          })
-          const event = await recordTireLifecycleEvent(tx, {
-            tireId: tire.id, eventType: 'ISSUE', eventAt: row.date,
-            vehicle: { vehicleType: row.vehicleType, vehicleId: vehicle.id },
-            driverName: row.driver, reason: 'Outgoing tire issue sheet import',
-            notes: 'Source row ' + row.line + '; ' + (row.vehicleType === 'truck' ? 'Truck #: ' : 'Trailer #: ') + row.vehicleNumber + '; OUT QTY: ' + row.qty + (row.serial ? '; source serial: ' + row.serial : ''),
-            userId: user.id, ensureTables: false
-          })
-          if (event.jobCardId) jobCards.add(event.jobCardId)
-          tireCount++
-        }
+      const serials = analysis.ready.map(unit => unit.serial).filter((value): value is string => Boolean(value))
+      const codes = analysis.ready.map(unit => unit.importCode)
+      const [serialConflicts, codeConflicts] = await Promise.all([
+        serials.length ? tx.tire.findMany({
+          where: { deletedAt: null, serialNumber: { in: serials, mode: 'insensitive' } },
+          select: { serialNumber: true }, take: 5000
+        }) : Promise.resolve([]),
+        codes.length ? tx.tire.findMany({
+          where: { internalCode: { in: codes } },
+          select: { internalCode: true }, take: 5000
+        }) : Promise.resolve([])
+      ])
+      if (serialConflicts.length || codeConflicts.length) {
+        throw new Error('New duplicate records were detected after the preview. Analyze the file again before importing.')
       }
-      return { tireCount, jobCardCount: jobCards.size }
+
+      let tireCount = 0
+      let historyCount = 0
+      const jobCards = new Set<string>()
+      const jobCardCache = new Map<string, string>()
+
+      for (const unit of analysis.ready) {
+        const entries = unit.entries.filter(item => item.source.eventAt && item.source.vehicleType && item.source.vehicleId)
+        if (!entries.length) continue
+        const first = entries[0].source
+        const latest = entries[entries.length - 1].source
+        const latestType = latest.vehicleType as VehicleType
+        const latestVehicle = latest.vehicleId as string
+        const latestTruck = latestType === 'truck'
+          ? trucksFromEntry(latest.vehicleNumber, latestType, latestVehicle)
+          : null
+        const latestTrailer = latestType === 'trailer'
+          ? latest.vehicleNumber
+          : null
+        const combinedNotes = Array.from(new Set(entries.map(item => item.source.history).filter(Boolean)))
+        const warnings = Array.from(new Set(unit.warnings))
+        const tire = await tx.tire.create({
+          data: {
+            tireSize: unit.tireSize,
+            manufacturer: unit.manufacturer,
+            origin: unit.origin,
+            plateNumber: latestTruck,
+            truckId: latestType === 'truck' ? latestVehicle : null,
+            trailerNumber: latestTrailer,
+            driverName: latest.driver || null,
+            quantity: 1,
+            serialNumber: unit.serial,
+            internalCode: unit.importCode,
+            lifecycleStatus: 'ASSIGNED_UNVERIFIED',
+            createdById: user.id,
+            createdAt: first.eventAt as Date,
+            notes: [
+              'Imported from historical tire usage spreadsheet.',
+              combinedNotes.length ? 'Source history: ' + combinedNotes.join(' | ') : '',
+              warnings.length ? 'Import review: ' + warnings.join(' | ') : ''
+            ].filter(Boolean).join(' ')
+          },
+          select: { id: true }
+        })
+
+        let previousVehicle: { type: VehicleType; id: string } | null = null
+        for (let index = 0; index < entries.length; index++) {
+          const item = entries[index]
+          const entry = item.source
+          const vehicleType = entry.vehicleType as VehicleType
+          const vehicleId = entry.vehicleId as string
+          const vehicleKey = vehicleType + ':' + vehicleId
+          let jobCardId = jobCardCache.get(vehicleKey)
+          if (!jobCardId) {
+            jobCardId = await getOrCreateOpenJobCard(tx, {
+              vehicleType, vehicleId
+            }, {
+              eventAt: entry.eventAt as Date,
+              odometerKm: entry.odometerKm,
+              driverName: entry.driver || null,
+              userId: user.id,
+              serviceType: 'TIRE USAGE HISTORY',
+              reportedIssue: 'Historical tire usage imported from spreadsheet'
+            })
+            jobCardCache.set(vehicleKey, jobCardId)
+          }
+          jobCards.add(jobCardId)
+          const notes = [
+            'Imported from ' + entry.sheetName + ', row ' + entry.line + '.',
+            entry.history ? 'Source history: ' + entry.history : '',
+            entry.serialText ? 'Source serial cell: ' + entry.serialText : ''
+          ].filter(Boolean).join(' ')
+          await tx.tireLifecycleEvent.create({
+            data: {
+              id: 'tireevt_' + randomUUID(),
+              tireId: tire.id,
+              eventType: 'ISSUE',
+              eventAt: entry.eventAt as Date,
+              fromTruckId: previousVehicle?.type === 'truck' ? previousVehicle.id : null,
+              fromTrailerId: previousVehicle?.type === 'trailer' ? previousVehicle.id : null,
+              toTruckId: vehicleType === 'truck' ? vehicleId : null,
+              toTrailerId: vehicleType === 'trailer' ? vehicleId : null,
+              driverNameSnapshot: entry.driver || null,
+              odometerKm: entry.odometerKm,
+              reason: 'Historical tire usage import',
+              notes,
+              jobCardId,
+              createdById: user.id
+            }
+          })
+          const next = entries[index + 1]?.source
+          await tx.$executeRawUnsafe(
+            'INSERT INTO "tire_usage_periods" ("id","tireId","vehicleType","vehicleId","installedAt","removedAt","startOdometer","driverNameSnapshot") VALUES ($1,$2,$3,$4,$5,$6,$7,$8)',
+            'tyuse_' + randomUUID(), tire.id, vehicleType, vehicleId, entry.eventAt,
+            next?.eventAt || null, entry.odometerKm, entry.driver || null
+          )
+          previousVehicle = { type: vehicleType, id: vehicleId }
+          historyCount++
+        }
+        tireCount++
+      }
+
+      return { tireCount, historyCount, jobCardCount: jobCards.size }
     }, { timeout: 120000 })
+
     await syncOneDriveWorkbookAfterChange()
     return NextResponse.json({
-      message: 'Imported ' + rows.length + ' sheet rows for trucks and trailers, created ' + result.tireCount + ' tire records, and linked the issue activity to ' + result.jobCardCount + ' workshop job card(s).',
-      rows: rows.length, tires: result.tireCount, jobCards: result.jobCardCount
+      message: 'Imported ' + result.tireCount + ' individual tire records with ' + result.historyCount + ' historical usage entries, linked to ' + result.jobCardCount + ' workshop job card(s). Existing database duplicates and blocked records were skipped.',
+      tires: result.tireCount,
+      historyEntries: result.historyCount,
+      jobCards: result.jobCardCount,
+      skippedDuplicates: analysis.duplicateTires,
+      blockedTires: analysis.blockedTires
     }, { status: 201 })
   } catch (error) {
-    console.error('Bulk tire upload failed:', error)
+    console.error('Bulk tire usage import failed:', error)
     const message = error instanceof Error ? error.message : ''
-    const status = ['No token provided', 'Invalid token'].includes(message) ? 401 : message === 'Insufficient permissions' ? 403 : 500
-    return NextResponse.json({ error: status === 401 ? 'Authentication required' : status === 403 ? 'Access denied' : message || 'Could not import tire sheet.' }, { status })
+    const status = ['No token provided', 'Invalid token'].includes(message) ? 401
+      : message === 'Insufficient permissions' ? 403
+        : message.startsWith('New duplicate records') ? 409 : 500
+    return NextResponse.json({
+      error: status === 401 ? 'Authentication required'
+        : status === 403 ? 'Access denied'
+          : message || 'Could not analyze or import the tire usage sheet.'
+    }, { status })
   }
+}
+
+function trucksFromEntry(vehicleNumber: string, type: VehicleType, vehicleId: string): string | null {
+  return type === 'truck' ? vehicleNumber : null
 }
