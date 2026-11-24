@@ -165,7 +165,7 @@ export async function POST(request: NextRequest) {
           row.origin, row.serial.toLowerCase(), row.quantity, row.supplierName.toLowerCase(),
           row.purchaseReference.toLowerCase(), row.purchaseCost ?? '', row.notes.toLowerCase(), row.line
         ].join('|')
-        const codePrefix = 'RC-' + createHash('sha256').update(fingerprint).digest('hex').slice(0, 18).toUpperCase()
+        const codePrefix = 'TY-RC-' + createHash('sha256').update(fingerprint).digest('hex').slice(0, 18).toUpperCase()
         const codes = Array.from({ length: row.quantity }, (_, index) => codePrefix + '-' + String(index + 1).padStart(3, '0'))
         const duplicate = await tx.tire.findFirst({ where: { internalCode: { in: codes }, deletedAt: null }, select: { internalCode: true } })
         if (duplicate) throw new Error('This stock receipt sheet appears to have already been uploaded. Duplicate import prevented.')
