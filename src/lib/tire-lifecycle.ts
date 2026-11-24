@@ -92,6 +92,7 @@ export async function ensureTireLifecycleTables(tx: any) {
     "vehicleId" TEXT NOT NULL,
     "installedAt" TIMESTAMP(3) NOT NULL,
     "removedAt" TIMESTAMP(3),
+    "historicalEndUnknown" BOOLEAN NOT NULL DEFAULT FALSE,
     "startOdometer" INTEGER,
     "endOdometer" INTEGER,
     "driverNameSnapshot" TEXT,
@@ -99,19 +100,21 @@ export async function ensureTireLifecycleTables(tx: any) {
   )`)
   await tx.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "tire_usage_periods_tireId_installedAt_idx" ON "tire_usage_periods" ("tireId","installedAt")`)
   await tx.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "tire_usage_periods_vehicleType_vehicleId_idx" ON "tire_usage_periods" ("vehicleType","vehicleId")`)
-  await tx.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "tire_usage_periods_one_active_per_tire_key" ON "tire_usage_periods" ("tireId") WHERE "removedAt" IS NULL`)
+  await tx.$executeRawUnsafe(`ALTER TABLE "tire_usage_periods" ADD COLUMN IF NOT EXISTS "historicalEndUnknown" BOOLEAN NOT NULL DEFAULT FALSE`)
+  await tx.$executeRawUnsafe(`DROP INDEX IF EXISTS "tire_usage_periods_one_active_per_tire_key"`)
+  await tx.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "tire_usage_periods_one_active_per_tire_key" ON "tire_usage_periods" ("tireId") WHERE "removedAt" IS NULL AND "historicalEndUnknown"=FALSE`)
   await tx.$executeRawUnsafe(`INSERT INTO "tire_usage_periods" ("id","tireId","vehicleType","vehicleId","installedAt","driverNameSnapshot")
     SELECT 'tyuse_legacy_truck_' || t."id", t."id", 'truck', t."truckId",
       COALESCE(t."installedAt",t."createdAt"), t."driverName"
     FROM "tires" t
     WHERE t."lifecycleStatus"='INSTALLED' AND t."truckId" IS NOT NULL
-      AND NOT EXISTS (SELECT 1 FROM "tire_usage_periods" p WHERE p."tireId"=t."id" AND p."removedAt" IS NULL)`)
+      AND NOT EXISTS (SELECT 1 FROM "tire_usage_periods" p WHERE p."tireId"=t."id" AND p."removedAt" IS NULL AND p."historicalEndUnknown"=FALSE)`)
   await tx.$executeRawUnsafe(`INSERT INTO "tire_usage_periods" ("id","tireId","vehicleType","vehicleId","installedAt","driverNameSnapshot")
     SELECT 'tyuse_legacy_trailer_' || t."id", t."id", 'trailer', tr."id",
       COALESCE(t."installedAt",t."createdAt"), t."driverName"
     FROM "tires" t JOIN "trailers" tr ON tr."number"=t."trailerNumber"
     WHERE t."lifecycleStatus"='INSTALLED' AND t."truckId" IS NULL AND NULLIF(t."trailerNumber",'') IS NOT NULL
-      AND NOT EXISTS (SELECT 1 FROM "tire_usage_periods" p WHERE p."tireId"=t."id" AND p."removedAt" IS NULL)`)
+      AND NOT EXISTS (SELECT 1 FROM "tire_usage_periods" p WHERE p."tireId"=t."id" AND p."removedAt" IS NULL AND p."historicalEndUnknown"=FALSE)`)
 }
 
 export async function getOrCreateOpenJobCard(tx: any, vehicle: VehicleRef, details: {
@@ -308,7 +311,7 @@ export async function recordTireLifecycleEvent(tx: any, input: {
   if (eventType === 'TRANSFER' || eventType === 'REMOVE' || eventType === 'ISSUE') {
     await tx.$executeRawUnsafe(
       `UPDATE "tire_usage_periods" SET "removedAt"=$2,"endOdometer"=$3
-       WHERE "tireId"=$1 AND "removedAt" IS NULL`,
+       WHERE "tireId"=$1 AND "removedAt" IS NULL AND "historicalEndUnknown"=FALSE`,
       input.tireId, input.eventAt, input.odometerKm ?? null
     )
   }
