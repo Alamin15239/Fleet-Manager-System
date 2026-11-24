@@ -385,7 +385,6 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
       if (parsedSerials.serials.length > 100) errors.push('More than 100 serial numbers were detected in one row.')
       if (parsedSerials.mixedText) warnings.push('The serial cell contains mixed text; check the extracted tire identifier in the preview.')
       if (!qtyText) errors.push('OUT QTY is required. The importer will not assume a tire quantity.')
-      if (qtyText && (!Number.isInteger(quantity) || quantity < 1 || quantity > 100)) errors.push('OUT QTY must be a whole number from 1 to 100.')
       if (parsedSerials.serials.length > quantity && quantity > 0) {
         errors.push('More serial numbers were detected than OUT QTY. Correct the row so serial identifiers do not exceed the stated tire quantity.')
       }
@@ -435,7 +434,9 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
   const unitsByKey = new Map<string, ImportUnit>()
   let exactDuplicateRows = 0
   for (const source of sourceEntries) {
-    const count = source.quantity
+    // Invalid/missing OUT QTY gets one blocked preview placeholder so the row
+    // remains visible for correction. It can never be imported because its source has errors.
+    const count = source.quantity > 0 ? source.quantity : 1
     for (let index = 0; index < count; index++) {
       const serial = source.serials[index] || null
       const key = serial
