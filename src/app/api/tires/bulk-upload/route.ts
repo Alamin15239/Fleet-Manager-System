@@ -4,7 +4,7 @@ import { Readable } from 'node:stream'
 import { createHash, randomUUID } from 'node:crypto'
 import { db } from '@/lib/db'
 import { requireRolePermission } from '@/lib/permission-middleware'
-import { ensureTireLifecycleTables, getOrCreateOpenJobCard } from '@/lib/tire-lifecycle'
+import { ensureTireLifecycleTables } from '@/lib/tire-lifecycle'
 import { syncOneDriveWorkbookAfterChange } from '@/lib/onedrive-excel-sync'
 
 export const runtime = 'nodejs'
@@ -235,6 +235,64 @@ function resolveVehicle(number: string, preferredType: VehicleType | null, fleet
     ? vehicleMatches(preferredType, token, fleet)
     : [...vehicleMatches('truck', token, fleet), ...vehicleMatches('trailer', token, fleet)])
   return Array.from(new Map(expanded.map(vehicle => [vehicle.type + ':' + vehicle.id, vehicle])).values())
+}
+
+
+async function getOrCreateHistoricalJobCard(tx: any, vehicle: {
+  vehicleType: VehicleType
+  vehicleId: string
+}, details: {
+  eventAt: Date
+  odometerKm: number | null
+  driverName: string | null
+  userId: string
+}) {
+  const start = new Date(Date.UTC(details.eventAt.getUTCFullYear(), details.eventAt.getUTCMonth(), details.eventAt.getUTCDate()))
+  const end = new Date(start.getTime() + 24 * 60 * 60 * 1000)
+  const vehicleWhere = vehicle.vehicleType === 'truck'
+    ? { truckId: vehicle.vehicleId }
+    : { trailerId: vehicle.vehicleId }
+
+  // Historical spreadsheet events belong to their historical workshop visit,
+  // not to whichever job card happens to be open today.
+  await tx.$executeRawUnsafe('LOCK TABLE "workshop_job_cards" IN EXCLUSIVE MODE')
+  const existing = await tx.workshopJobCard.findFirst({
+    where: { ...vehicleWhere, serviceDate: { gte: start, lt: end } },
+    orderBy: [{ serviceDate: 'asc' }, { createdAt: 'asc' }],
+    select: { id: true }
+  })
+  if (existing) return existing.id
+
+  const year = details.eventAt.getUTCFullYear()
+  const prefix = `JC-${year}-`
+  const numbers = await tx.workshopJobCard.findMany({
+    where: { jobNumber: { startsWith: prefix } },
+    select: { jobNumber: true }
+  })
+  const highest = numbers.reduce((max: number, item: { jobNumber: string }) => {
+    const match = item.jobNumber.match(/^JC-\\d{4}-(\\d+)$/)
+    return match ? Math.max(max, Number(match[1]) || 0) : max
+  }, 0)
+  const id = `jc_${randomUUID()}`
+  await tx.workshopJobCard.create({
+    data: {
+      id,
+      jobNumber: `${prefix}${String(highest + 1).padStart(4, '0')}`,
+      ...vehicleWhere,
+      serviceDate: details.eventAt,
+      odometerKm: details.odometerKm ?? undefined,
+      serviceType: 'TIRE USAGE HISTORY',
+      priority: 'NORMAL',
+      driverName: details.driverName || undefined,
+      status: 'CLOSED',
+      reportedIssue: 'Historical tire usage imported from spreadsheet',
+      notes: 'Closed historical visit created by the tire usage-history importer.',
+      createdById: details.userId,
+      items: [],
+      checklist: {}
+    }
+  })
+  return id
 }
 
 async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
@@ -624,21 +682,21 @@ export async function POST(request: NextRequest) {
           const vehicleType = entry.vehicleType as VehicleType
           const vehicleId = entry.vehicleId as string
           const vehicleKey = vehicleType + ':' + vehicleId
-          let jobCardId = jobCardCache.get(vehicleKey)
+          const eventDateKey = (entry.eventAt as Date).toISOString().slice(0, 10)
+          const historicalCardKey = vehicleKey + ':' + eventDateKey
+          let jobCardId = jobCardCache.get(historicalCardKey)
           if (!jobCardId) {
-            const createdJobCardId = await getOrCreateOpenJobCard(tx, {
+            const createdJobCardId = await getOrCreateHistoricalJobCard(tx, {
               vehicleType, vehicleId
             }, {
               eventAt: entry.eventAt as Date,
               odometerKm: entry.odometerKm,
               driverName: entry.driver || null,
-              userId: user.id,
-              serviceType: 'TIRE USAGE HISTORY',
-              reportedIssue: 'Historical tire usage imported from spreadsheet'
+              userId: user.id
             })
-            if (!createdJobCardId) throw new Error('Could not create or locate a Job Card for an imported tire usage row.')
+            if (!createdJobCardId) throw new Error('Could not create or locate a historical Job Card for an imported tire usage row.')
             jobCardId = createdJobCardId
-            jobCardCache.set(vehicleKey, createdJobCardId)
+            jobCardCache.set(historicalCardKey, createdJobCardId)
           }
           if (!jobCardId) throw new Error('Could not resolve a Job Card for the imported tire usage row.')
           jobCards.add(jobCardId)
