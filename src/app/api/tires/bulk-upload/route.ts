@@ -15,6 +15,7 @@ type FleetVehicle = {
   type: VehicleType
   number: string
   driverName: string | null
+  active: boolean
 }
 type SourceEntry = {
   sheetName: string
@@ -185,12 +186,18 @@ function normalizeVehicleText(value: string): string {
 function vehicleMatches(type: VehicleType, number: string, fleet: FleetVehicle[]): FleetVehicle[] {
   const normalized = normalizeVehicleText(number)
   if (!normalized) return []
-  return fleet.filter(vehicle => {
+  const matches = fleet.filter(vehicle => {
     if (vehicle.type !== type) return false
     const vehicleNumber = normalizeVehicleText(vehicle.number)
     const vehicleWords = vehicle.number.toUpperCase().split(/[^A-Z0-9]+/).filter(Boolean)
+    // Historical sheets often contain only the fleet number (1234), while
+    // the registered truck plate is stored as 1234 BAA.
     return vehicleNumber === normalized || vehicleWords.includes(normalized)
   })
+  // If a current and historical record share a fleet number, prefer the
+  // current record. Otherwise retain the historical match for old usage rows.
+  const activeMatches = matches.filter(vehicle => vehicle.active)
+  return activeMatches.length ? activeMatches : matches
 }
 
 function inferSheetMetadata(sheetName: string): {
@@ -232,18 +239,18 @@ function resolveVehicle(number: string, preferredType: VehicleType | null, fleet
 
 async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
   const [trucks, trailers] = await Promise.all([
+    // Include inactive and soft-deleted records for historical matching only.
+    // This does not reactivate them or make them selectable in normal fleet UI.
     db.truck.findMany({
-      where: { isDeleted: false, status: { not: 'INACTIVE' } },
-      select: { id: true, licensePlate: true, driverName: true }
+      select: { id: true, licensePlate: true, driverName: true, status: true, isDeleted: true }
     }),
     db.trailer.findMany({
-      where: { isDeleted: false, status: { not: 'INACTIVE' } },
-      select: { id: true, number: true, driverName: true }
+      select: { id: true, number: true, driverName: true, status: true, isDeleted: true }
     })
   ])
   const fleet: FleetVehicle[] = [
-    ...trucks.map(item => ({ id: item.id, type: 'truck' as const, number: item.licensePlate, driverName: item.driverName })),
-    ...trailers.map(item => ({ id: item.id, type: 'trailer' as const, number: item.number, driverName: item.driverName }))
+    ...trucks.map(item => ({ id: item.id, type: 'truck' as const, number: item.licensePlate, driverName: item.driverName, active: !item.isDeleted && item.status !== 'INACTIVE' })),
+    ...trailers.map(item => ({ id: item.id, type: 'trailer' as const, number: item.number, driverName: item.driverName, active: !item.isDeleted && item.status !== 'INACTIVE' }))
   ]
 
   const sourceEntries: SourceEntry[] = []
@@ -342,13 +349,13 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
       if (vehicleNumber && !errors.some(value => value.startsWith('Both truck and trailer'))) {
         const matches = resolveVehicle(vehicleNumber, vehicleType, fleet)
         if (matches.length !== 1) {
-          errors.push(matches.length ? 'Vehicle reference is ambiguous. The number matches more than one active fleet record.' : 'Vehicle number does not match an active truck or trailer. Check the fleet number or add the missing fleet record.')
+          errors.push(matches.length ? 'Vehicle reference is ambiguous. The number matches more than one current or historical fleet record.' : 'Vehicle number does not match any current or retained historical truck/trailer record. If the vehicle was sold and its record was permanently deleted, keep this row for manual review.')
         } else {
           const vehicle = matches[0]
           entry.vehicleType = vehicle.type
           entry.vehicleId = vehicle.id
           entry.vehicleNumber = vehicle.number
-          entry.vehicleLabel = (vehicle.type === 'truck' ? 'Truck ' : 'Trailer ') + vehicle.number
+          entry.vehicleLabel = (vehicle.type === 'truck' ? 'Truck ' : 'Trailer ') + vehicle.number + (vehicle.active ? '' : ' (historical / inactive)')
           if (!entry.driver) entry.driver = vehicle.driverName || ''
         }
       }
