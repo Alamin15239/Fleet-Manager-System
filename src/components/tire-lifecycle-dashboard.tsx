@@ -66,11 +66,14 @@ export default function TireLifecycleDashboard() {
   const needsVehicle = eventType === 'INSTALL' || eventType === 'TRANSFER' || eventType === 'POSITION_CHANGE'
   const needsPosition = needsVehicle
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (search = '') => {
     setLoading(true)
     try {
+      const tireUrl = search.trim()
+        ? `/api/tires?limit=100&search=${encodeURIComponent(search.trim())}`
+        : '/api/tires?limit=1000'
       const [tiresRes, vehiclesRes, reportRes, eventsRes] = await Promise.all([
-        apiGet('/api/tires?limit=1000'),
+        apiGet(tireUrl),
         apiGet('/api/tires/lifecycle-vehicles'),
         apiGet('/api/tires/lifecycle-report'),
         apiGet('/api/tires/events')
@@ -83,6 +86,7 @@ export default function TireLifecycleDashboard() {
       if (!reportRes.ok) throw new Error(reportData.error || 'Could not load tire reports')
       if (!eventsRes.ok) throw new Error(eventsData.error || 'Could not load tire history')
       setTires(tiresData.tires || [])
+      setTireSearchTotal(Number(tiresData.pagination?.total || 0))
       setVehicles([...(vehiclesData.trucks || []), ...(vehiclesData.trailers || [])])
       setReport(reportData)
       setEvents(eventsData.events || [])
@@ -152,7 +156,7 @@ export default function TireLifecycleDashboard() {
       if (!response.ok) throw new Error(data.error || 'Could not save tire event')
       toast.success(`${eventLabels[eventType]} saved. ${data.jobCardId ? 'Linked to the open job card.' : ''}`)
       setPosition(''); setOdometerKm(''); setDamageType(''); setRepairable('unknown'); setReason(''); setCost(''); setTreadDepthMm(''); setPressurePsi(''); setCondition(''); setInspectionDueAt(''); setDamageLocation(''); setEvidenceUrl(''); setNotes('')
-      await load()
+      await load(tireSearch)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to save tire event')
     } finally {
@@ -171,7 +175,7 @@ export default function TireLifecycleDashboard() {
           <h2 className="text-xl font-semibold">Tire lifecycle</h2>
           <p className="text-sm text-muted-foreground">Track each tire from receipt through installation, transfer, damage, repair and disposal.</p>
         </div>
-        <Button variant="outline" size="sm" onClick={() => void load()} disabled={loading}>
+        <Button variant="outline" size="sm" onClick={() => void load(tireSearch)} disabled={loading}>
           {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}Refresh
         </Button>
       </div>
