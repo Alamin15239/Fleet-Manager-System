@@ -229,7 +229,7 @@ function resolveVehicle(number: string, preferredType: VehicleType | null, fleet
 
   // Historical rows sometimes store a truck/trailer pair in one cell (e.g. 1330-507).
   // The worksheet tire category selects which side to resolve.
-  const tokens = number.split(/[\s\-–—/|]+/).map(value => value.trim()).filter(value => value.length >= 2)
+  const tokens = number.split(/[\s,;\-–—/|]+/).map(value => value.trim()).filter(value => value.length >= 2)
   if (!tokens.length) return []
   const expanded = tokens.flatMap(token => preferredType
     ? vehicleMatches(preferredType, token, fleet)
@@ -418,9 +418,18 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
     unit.tireSize = sizes[0] || 'Unspecified'
     unit.manufacturer = manufacturers[0] || 'Unspecified'
     unit.origin = origins[0] || 'OTHER'
-    if (sizes.length > 1) unit.warnings.push('Different tire sizes were found for this serial; the first detected value will be used.')
-    if (manufacturers.length > 1) unit.warnings.push('Different manufacturers were found for this serial; the first detected value will be used.')
-    if (origins.length > 1) unit.warnings.push('Different origins were found for this serial; the first detected value will be used.')
+    if (sizes.length > 1) {
+      unit.warnings.push('Conflicting tire sizes were found for this serial. The tire is blocked until the correct size is reviewed.')
+      unit.errors.push('Conflicting tire sizes require manual review.')
+    }
+    if (manufacturers.length > 1) {
+      unit.warnings.push('Conflicting manufacturers were found for this serial. The tire is blocked until the correct manufacturer is reviewed.')
+      unit.errors.push('Conflicting manufacturers require manual review.')
+    }
+    if (origins.length > 1) {
+      unit.warnings.push('Conflicting origins were found for this serial. The tire is blocked until the correct origin is reviewed.')
+      unit.errors.push('Conflicting origins require manual review.')
+    }
     if (unit.entries.length > 1 && unit.serial) {
       unit.warnings.push('This serial appears in multiple rows and has been grouped into one tire with a chronological usage history.')
     }
