@@ -96,18 +96,35 @@ const headerAliases: Record<string, string[]> = {
   odometer: ['odometer', 'odometerkm', 'mileage', 'kilometers', 'kilometres', 'km']
 }
 
-function parseSerials(rawValue: string): { serials: string[]; mixedText: boolean } {
+function parseSerials(rawValue: string, expectedQuantity: number): { serials: string[]; mixedText: boolean } {
   const raw = rawValue.trim()
   if (!raw) return { serials: [], mixedText: false }
-  const withoutLabels = raw.replace(/\b(?:serial(?:\s*(?:no\.?|number))?|s\/n|sn)\b\s*[:#=-]?\s*/gi, '')
-  const parts = withoutLabels.split(/[\r\n,;|]+|\s+\/\s+/)
+
+  // Some worksheets append the tire size after each serial, e.g. SERIAL/315/80.
+  const withoutSize = raw
+    .replace(/\/\s*\d{3}\s*\/\s*\d{2}(?:\s*R?\s*\d{2}(?:\.\d+)?)?$/i, '')
+    .replace(/\s+\d{3}\s*\/\s*\d{2}(?:\s*R?\s*\d{2}(?:\.\d+)?)?$/i, '')
+  const withoutLabels = withoutSize.replace(/\b(?:serial(?:\s*(?:no\.?|number))?|s\/n|sn)\b\s*[:#=-]?\s*/gi, '').trim()
+
+  // Prefer clear list separators. Hyphens are treated as separators only when
+  // the detected segment count exactly matches OUT QTY.
+  let parts = withoutLabels.split(/[\r\n,;|]+/).map(value => value.trim()).filter(Boolean)
+  if (parts.length === 1 && expectedQuantity > 1) {
+    const hyphenParts = withoutLabels.split(/\s*[-–—]\s*/).map(value => value.trim()).filter(Boolean)
+    if (hyphenParts.length === expectedQuantity) parts = hyphenParts
+  }
+
   const found: string[] = []
   let mixedText = false
   for (const part of parts) {
-    let candidate = part.trim()
-    candidate = candidate.replace(/\s*[-–]\s*(?:history|usage|used|installed|fitted|removed|transferred|truck|trailer|driver|vehicle|date)\b[\s\S]*$/i, '')
-    candidate = candidate.replace(/\s+(?:history|usage|used|installed|fitted|removed|transferred|truck|trailer|driver|vehicle|date|on)\b[\s\S]*$/i, '')
-    candidate = candidate.replace(/\s*[\[(].*$/, '').replace(/[.,;:]+$/, '').trim()
+    const candidate = part.trim()
+      .replace(/^\s*(?:serial(?:\s*(?:no\.?|number))?|s\/n|sn)\s*[:#=-]?\s*/i, '')
+      .replace(/\s*[-–]\s*(?:history|usage|used|installed|fitted|removed|transferred|truck|trailer|driver|vehicle|date)\b[\s\S]*$/i, '')
+      .replace(/\s+(?:history|usage|used|installed|fitted|removed|transferred|truck|trailer|driver|vehicle|date|on)\b[\s\S]*$/i, '')
+      .replace(/\s*[\[(].*$/, '')
+      .replace(/[.,;:]+$/, '')
+      .trim()
+
     if (candidate.length >= 3 && /^[a-z0-9][a-z0-9._/-]*$/i.test(candidate) &&
         (/\d/.test(candidate) || (parts.length === 1 && !/\s/.test(raw)))) {
       found.push(candidate)
@@ -115,9 +132,11 @@ function parseSerials(rawValue: string): { serials: string[]; mixedText: boolean
       mixedText = true
     }
   }
+
   const unique = Array.from(new Map(found.map(serial => [serial.toLowerCase(), serial])).values())
   return { serials: unique, mixedText }
 }
+
 function normalizeOrigin(raw: string): string {
   const value = raw.trim().toLowerCase()
   if (!value) return 'OTHER'
@@ -159,10 +178,56 @@ function getColumn(columns: Map<string, number>, key: string): number | null {
   return null
 }
 
+function normalizeVehicleText(value: string): string {
+  return value.toUpperCase().replace(/[^A-Z0-9]/g, '')
+}
+
 function vehicleMatches(type: VehicleType, number: string, fleet: FleetVehicle[]): FleetVehicle[] {
-  const normalized = number.trim().toLowerCase()
-  return fleet.filter(vehicle => vehicle.type === type &&
-    (vehicle.number.toLowerCase() === normalized || vehicle.number.toLowerCase().startsWith(normalized + ' ')))
+  const normalized = normalizeVehicleText(number)
+  if (!normalized) return []
+  return fleet.filter(vehicle => {
+    if (vehicle.type !== type) return false
+    const vehicleNumber = normalizeVehicleText(vehicle.number)
+    const vehicleWords = vehicle.number.toUpperCase().split(/[^A-Z0-9]+/).filter(Boolean)
+    return vehicleNumber === normalized || vehicleWords.includes(normalized)
+  })
+}
+
+function inferSheetMetadata(sheetName: string): {
+  tireSize: string
+  origin: string
+  vehicleType: VehicleType | null
+} {
+  const name = sheetName.trim()
+  const lower = name.toLowerCase()
+  const origin = /china|chinese/.test(lower) ? 'CHINESE'
+    : /japan|japanese/.test(lower) ? 'JAPANESE'
+      : /saudi/.test(lower) ? 'SAUDI'
+        : /europe/.test(lower) ? 'EUROPEAN'
+          : /america|usa|united states/.test(lower) ? 'AMERICAN'
+            : 'OTHER'
+  const dimension = name.match(/(\d{3})\s*[-/]+\s*(\d{2,3})/)
+  const tireSize = dimension ? dimension[1] + '-' + dimension[2] : ''
+  const vehicleType: VehicleType | null = /385\s*[-/]+\s*65|trailer/i.test(name) ? 'trailer'
+    : /315\s*[-/]+\s*80|truck/i.test(name) ? 'truck'
+      : null
+  return { tireSize, origin, vehicleType }
+}
+
+function resolveVehicle(number: string, preferredType: VehicleType | null, fleet: FleetVehicle[]): FleetVehicle[] {
+  const direct = preferredType
+    ? vehicleMatches(preferredType, number, fleet)
+    : [...vehicleMatches('truck', number, fleet), ...vehicleMatches('trailer', number, fleet)]
+  if (direct.length) return direct
+
+  // Historical rows sometimes store a truck/trailer pair in one cell (e.g. 1330-507).
+  // The worksheet tire category selects which side to resolve.
+  const tokens = number.split(/[\s\-–—/|]+/).map(value => value.trim()).filter(value => value.length >= 2)
+  if (!tokens.length) return []
+  const expanded = tokens.flatMap(token => preferredType
+    ? vehicleMatches(preferredType, token, fleet)
+    : [...vehicleMatches('truck', token, fleet), ...vehicleMatches('trailer', token, fleet)])
+  return Array.from(new Map(expanded.map(vehicle => [vehicle.type + ':' + vehicle.id, vehicle])).values())
 }
 
 async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
@@ -192,12 +257,14 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
     const col = (key: string) => getColumn(header.columns, key)
     const columns = {
       date: col('date'), type: col('vehicleType'), truck: col('truck'), trailer: col('trailer'),
-      vehicle: col('vehicle'), driver: col('driver'), serial: col('serial'),
+      vehicle: col('vehicle'), driver: col('driver'),
       serials: Array.from(header.columns.entries()).filter(([name]) => name.includes('serial') || name === 'sn').map(([, column]) => column),
       quantity: col('quantity'),
       size: col('tireSize'), manufacturer: col('manufacturer'), origin: col('origin'),
       history: col('history'), odometer: col('odometer')
     }
+    const sheetMetadata = inferSheetMetadata(sheet.name)
+
 
     for (let line = header.row + 1; line <= sheet.rowCount; line++) {
       const row = sheet.getRow(line)
@@ -213,7 +280,7 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
       let genericNumber = read(columns.vehicle)
       const typeText = read(columns.type).toLowerCase()
       let vehicleType: VehicleType | null = truckNumber ? 'truck' : trailerNumber ? 'trailer'
-        : /trailer/.test(typeText) ? 'trailer' : /truck/.test(typeText) ? 'truck' : null
+        : /trailer/.test(typeText) ? 'trailer' : /truck/.test(typeText) ? 'truck' : sheetMetadata.vehicleType
       if (genericNumber && !vehicleType) {
         const typedNumber = genericNumber.match(/^\s*(truck|trailer)\s*[:#-]?\s*(.+)$/i)
         if (typedNumber) {
@@ -221,17 +288,22 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
           genericNumber = typedNumber[2].trim()
         }
       }
-      const vehicleNumber = truckNumber || trailerNumber || genericNumber
+      let vehicleNumber = truckNumber || trailerNumber || genericNumber
+      if (truckNumber && trailerNumber && sheetMetadata.vehicleType) {
+        vehicleType = sheetMetadata.vehicleType
+        vehicleNumber = vehicleType === 'truck' ? truckNumber : trailerNumber
+      }
       const driver = read(columns.driver)
-      const serialParts = columns.serials.map(column => read(column)).filter(Boolean)
-      const serialText = serialParts.join(', ')
-      const parsedSerials = parseSerials(serialText)
       const qtyText = read(columns.quantity)
       const parsedQty = qtyText ? Number(qtyText.replace(/,/g, '').match(/-?\d+(?:\.\d+)?/)?.[0]) : NaN
+      const expectedQuantity = qtyText && Number.isInteger(parsedQty) && parsedQty > 0 && parsedQty <= 100 ? parsedQty : 0
+      const serialParts = columns.serials.map(column => read(column)).filter(Boolean)
+      const serialText = serialParts.join(', ')
+      const parsedSerials = parseSerials(serialText, expectedQuantity)
       const quantity = qtyText ? parsedQty : Math.max(parsedSerials.serials.length, 1)
-      const size = read(columns.size)
+      const size = read(columns.size) || sheetMetadata.tireSize
       const manufacturer = read(columns.manufacturer)
-      const origin = read(columns.origin)
+      const origin = read(columns.origin) || sheetMetadata.origin
       const history = read(columns.history)
       const odometerText = read(columns.odometer)
       const odometerValue = odometerText ? Number(odometerText.replace(/,/g, '').match(/\d+/)?.[0]) : NaN
@@ -240,7 +312,7 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
 
       if (!date) errors.push('A valid usage date was not detected.')
       if (!vehicleNumber) errors.push('A truck or trailer number was not detected.')
-      if (truckNumber && trailerNumber) errors.push('Both truck and trailer are filled in; keep only one vehicle.')
+      if (truckNumber && trailerNumber && !sheetMetadata.vehicleType) errors.push('Both truck and trailer are filled in and the worksheet does not identify which vehicle owns this tire. Use a dedicated truck or trailer sheet.')
       if (genericNumber && !truckNumber && !trailerNumber && typeText && !vehicleType) errors.push('Vehicle Type must identify Truck or Trailer.')
       if (qtyText && (!Number.isInteger(quantity) || quantity < 1 || quantity > 100)) errors.push('Quantity must be a whole number from 1 to 100.')
       if (parsedSerials.serials.length > 100) errors.push('More than 100 serial numbers were detected in one row.')
@@ -252,9 +324,9 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
         warnings.push('Only ' + parsedSerials.serials.length + ' serial number(s) were identified for ' + quantity + ' tire(s); the remaining tire record(s) will have no serial number.')
       }
       if (!serialText && !qtyText) warnings.push('No serial or quantity column value was found; one tire is assumed for this row.')
-      if (!size) warnings.push('Tire size was not found; the preview will use Unspecified.')
+      if (!size) warnings.push('Tire size was not found in the row or worksheet name; the preview will use Unspecified.')
       if (!manufacturer) warnings.push('Manufacturer was not found; the preview will use Unspecified.')
-      if (!origin) warnings.push('Origin was not found; the preview will use OTHER.')
+      if (!origin) warnings.push('Origin was not found in the row or worksheet name; the preview will use OTHER.')
       if (!driver) warnings.push('Driver was not found in the sheet; the active fleet driver will be used when available.')
       if (odometerText && (!Number.isInteger(odometerValue) || odometerValue < 0)) warnings.push('Odometer value could not be interpreted and will be left empty.')
 
@@ -268,16 +340,9 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
       }
 
       if (vehicleNumber && !errors.some(value => value.startsWith('Both truck and trailer'))) {
-        let matches: FleetVehicle[] = []
-        if (vehicleType) matches = vehicleMatches(vehicleType, vehicleNumber, fleet)
-        else {
-          matches = [
-            ...vehicleMatches('truck', vehicleNumber, fleet),
-            ...vehicleMatches('trailer', vehicleNumber, fleet)
-          ]
-        }
+        const matches = resolveVehicle(vehicleNumber, vehicleType, fleet)
         if (matches.length !== 1) {
-          errors.push(matches.length ? 'Vehicle number matches more than one active fleet record.' : 'Vehicle number does not match an active truck or trailer.')
+          errors.push(matches.length ? 'Vehicle reference is ambiguous. The number matches more than one active fleet record.' : 'Vehicle number does not match an active truck or trailer. Check the fleet number or add the missing fleet record.')
         } else {
           const vehicle = matches[0]
           entry.vehicleType = vehicle.type
