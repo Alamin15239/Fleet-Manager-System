@@ -286,7 +286,7 @@ export async function POST(request: NextRequest) {
         await recordTireLifecycleEvent(tx, {
           tireId: tire.id,
           eventType: 'RECEIVE',
-          eventAt: tireData.createdAt || new Date(),
+          eventAt: tireData.createdAt instanceof Date ? tireData.createdAt : new Date(tireData.createdAt || Date.now()),
           reason: 'Manual tire stock entry',
           supplierName: supplierName || null,
           purchaseReference: purchaseReference || null,
