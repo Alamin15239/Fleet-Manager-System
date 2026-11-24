@@ -110,7 +110,7 @@ export default function TireLifecycleDashboard() {
         if (active) {
           setTires(data.tires || [])
           setTireSearchTotal(Number(data.pagination?.total || 0))
-          if (query && tireId && !(data.tires || []).some((tire: Tire) => tire.id === tireId)) setTireId('')
+
         }
       } catch (error) {
         if (active) toast.error(error instanceof Error ? error.message : 'Could not search tires')
@@ -202,7 +202,7 @@ export default function TireLifecycleDashboard() {
               <Label>Find tire by serial number / TY code</Label>
               <Input
                 value={tireSearch}
-                onChange={event => setTireSearch(event.target.value)}
+                onChange={event => { setTireSearch(event.target.value); setTireId('') }}
                 placeholder="Enter serial number, TY code, vehicle or tire size"
                 aria-label="Search tires by serial number or internal code"
               />
