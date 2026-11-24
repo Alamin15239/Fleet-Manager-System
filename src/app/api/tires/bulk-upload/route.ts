@@ -104,7 +104,7 @@ function parseSerials(rawValue: string, expectedQuantity: number): { serials: st
   const withoutSize = raw
     .replace(/\/\s*\d{3}\s*\/\s*\d{2}(?:\s*R?\s*\d{2}(?:\.\d+)?)?$/i, '')
     .replace(/\s+\d{3}\s*\/\s*\d{2}(?:\s*R?\s*\d{2}(?:\.\d+)?)?$/i, '')
-  const withoutLabels = withoutSize.replace(/\b(?:serial(?:\s*(?:no\.?|number))?|s\/n|sn)\b\s*[:#=-]?\s*/gi, '').trim()
+  const withoutLabels = withoutSize.replace(/\b(?:serial(?:\s*(?:no\.?|number))?|s\/n|sn)\b(?:\s*[:#=]\s*|\s+-\s+|\s+)/gi, '').trim()
 
   // Prefer clear list separators. Hyphens are treated as separators only when
   // the detected segment count exactly matches OUT QTY.
@@ -118,7 +118,7 @@ function parseSerials(rawValue: string, expectedQuantity: number): { serials: st
   let mixedText = false
   for (const part of parts) {
     const candidate = part.trim()
-      .replace(/^\s*(?:serial(?:\s*(?:no\.?|number))?|s\/n|sn)\s*[:#=-]?\s*/i, '')
+      .replace(/^\s*(?:serial(?:\s*(?:no\.?|number))?|s\/n|sn)\b(?:\s*[:#=]\s*|\s+-\s+|\s+)/i, '')
       .replace(/\s*[-–]\s*(?:history|usage|used|installed|fitted|removed|transferred|truck|trailer|driver|vehicle|date)\b[\s\S]*$/i, '')
       .replace(/\s+(?:history|usage|used|installed|fitted|removed|transferred|truck|trailer|driver|vehicle|date|on)\b[\s\S]*$/i, '')
       .replace(/\s*[\[(].*$/, '')
