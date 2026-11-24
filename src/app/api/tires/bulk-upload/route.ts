@@ -192,7 +192,9 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
     const col = (key: string) => getColumn(header.columns, key)
     const columns = {
       date: col('date'), type: col('vehicleType'), truck: col('truck'), trailer: col('trailer'),
-      vehicle: col('vehicle'), driver: col('driver'), serial: col('serial'), quantity: col('quantity'),
+      vehicle: col('vehicle'), driver: col('driver'), serial: col('serial'),
+      serials: Array.from(header.columns.entries()).filter(([name]) => name.includes('serial') || name === 'sn').map(([, column]) => column),
+      quantity: col('quantity'),
       size: col('tireSize'), manufacturer: col('manufacturer'), origin: col('origin'),
       history: col('history'), odometer: col('odometer')
     }
@@ -557,6 +559,7 @@ export async function POST(request: NextRequest) {
             jobCardId = createdJobCardId
             jobCardCache.set(vehicleKey, createdJobCardId)
           }
+          if (!jobCardId) throw new Error('Could not resolve a Job Card for the imported tire usage row.')
           jobCards.add(jobCardId)
           const notes = [
             'Imported from ' + entry.sheetName + ', row ' + entry.line + '.',
