@@ -160,18 +160,24 @@ export async function POST(request: NextRequest) {
       trailerNumber, 
       driverName, 
       quantity = 1,
-      serialNumber,
+      serialNumber: rawSerialNumber,
       trailerTireSize,
       trailerManufacturer,
       trailerOrigin,
       trailerQuantity = 1,
-      trailerSerialNumber,
+      trailerSerialNumber: rawTrailerSerialNumber,
       notes,
       supplierName,
       purchaseReference,
       purchaseCost,
       createdAt
     } = validatedData
+    const serialNumber = rawSerialNumber?.trim() || undefined
+    const trailerSerialNumber = rawTrailerSerialNumber?.trim() || undefined
+    const requestedSerials = [serialNumber, trailerSerialNumber].filter((value): value is string => Boolean(value))
+    if (new Set(requestedSerials.map(value => value.toLowerCase())).size !== requestedSerials.length) {
+      return NextResponse.json({ error: 'The same serial number cannot be assigned to more than one tire in this request.' }, { status: 400 })
+    }
 
     // Build or refresh the tire page's vehicle suggestion source from the tire-entry form.
     if (plateNumber) {
@@ -277,6 +283,16 @@ export async function POST(request: NextRequest) {
     // prevents a tire from being committed without its lifecycle receipt.
     const createdTires = await db.$transaction(async tx => {
       await ensureTireLifecycleTables(tx)
+      if (requestedSerials.length) {
+        const existing = await tx.tire.findFirst({
+          where: {
+            deletedAt: null,
+            OR: requestedSerials.map(serial => ({ serialNumber: { equals: serial, mode: 'insensitive' } }))
+          },
+          select: { serialNumber: true }
+        })
+        if (existing?.serialNumber) throw new Error('Serial number already exists in Tire Management: ' + existing.serialNumber)
+      }
       let count = 0
       for (const tireData of tiresData) {
         const tire = await tx.tire.create({ data: tireData, select: { id: true } })
@@ -331,6 +347,9 @@ export async function POST(request: NextRequest) {
       )
     }
     
+    if (error instanceof Error && error.message.startsWith('Serial number already exists')) {
+      return NextResponse.json({ error: error.message }, { status: 409 })
+    }
     if (error instanceof Error) {
       if (error.message === 'No token provided' || error.message === 'Invalid token' || error.message === 'User not found or inactive') {
         return NextResponse.json(

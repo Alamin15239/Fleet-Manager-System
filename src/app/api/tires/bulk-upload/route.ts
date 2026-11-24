@@ -137,9 +137,15 @@ export async function POST(request: NextRequest) {
     if (!rows.length) return NextResponse.json({ error: 'No data rows found.' }, { status: 400 })
 
     const serials = rows.filter(row => row.qty === 1 && row.serial).map(row => row.serial)
-    if (new Set(serials).size !== serials.length) return NextResponse.json({ error: 'The sheet contains duplicate serial numbers. Correct them before uploading.' }, { status: 400 })
+    if (new Set(serials.map(value => value.trim().toLowerCase())).size !== serials.length) return NextResponse.json({ error: 'The sheet contains duplicate serial numbers. Correct them before uploading.' }, { status: 400 })
     if (serials.length) {
-      const existingSerial = await db.tire.findFirst({ where: { serialNumber: { in: serials }, deletedAt: null }, select: { serialNumber: true } })
+      const existingSerial = await db.tire.findFirst({
+        where: {
+          deletedAt: null,
+          OR: serials.map(serial => ({ serialNumber: { equals: serial.trim(), mode: 'insensitive' } }))
+        },
+        select: { serialNumber: true }
+      })
       if (existingSerial?.serialNumber) return NextResponse.json({ error: 'Serial number already exists in Tire Management: ' + existingSerial.serialNumber }, { status: 409 })
     }
 

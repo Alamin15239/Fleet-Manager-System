@@ -151,7 +151,10 @@ export async function POST(request: NextRequest) {
       await ensureTireLifecycleTables(tx)
       if (serials.length) {
         const existing = await tx.tire.findFirst({
-          where: { serialNumber: { in: serials }, deletedAt: null },
+          where: {
+            deletedAt: null,
+            OR: serials.map(serial => ({ serialNumber: { equals: serial, mode: 'insensitive' } }))
+          },
           select: { serialNumber: true }
         })
         if (existing?.serialNumber) throw new Error('Serial number already exists in Tire Management: ' + existing.serialNumber)
