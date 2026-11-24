@@ -41,6 +41,8 @@ export async function GET(request: NextRequest) {
 
     if (search) {
       whereClause.OR = [
+        { serialNumber: { contains: search, mode: 'insensitive' } },
+        { internalCode: { contains: search, mode: 'insensitive' } },
         { tireSize: { contains: search, mode: 'insensitive' } },
         { manufacturer: { contains: search, mode: 'insensitive' } },
         { plateNumber: { contains: search, mode: 'insensitive' } },

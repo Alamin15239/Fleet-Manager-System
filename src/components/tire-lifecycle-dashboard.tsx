@@ -37,6 +37,7 @@ export default function TireLifecycleDashboard() {
   const [eventType, setEventType] = useState('INSTALL')
   const [tireId, setTireId] = useState('')
   const [tireSearch, setTireSearch] = useState('')
+  const [tireSearchTotal, setTireSearchTotal] = useState(0)
   const [vehicleId, setVehicleId] = useState('')
   const [position, setPosition] = useState('')
   const [driverName, setDriverName] = useState('')
@@ -93,6 +94,30 @@ export default function TireLifecycleDashboard() {
   }, [])
 
   useEffect(() => { void load() }, [load])
+
+  // Search the complete tire table instead of limiting lookups to the first 1,000 rows.
+  useEffect(() => {
+    let active = true
+    const timer = setTimeout(async () => {
+      try {
+        const query = tireSearch.trim()
+        const url = query
+          ? `/api/tires?limit=100&search=${encodeURIComponent(query)}`
+          : '/api/tires?limit=1000'
+        const response = await apiGet(url)
+        const data = await response.json()
+        if (!response.ok) throw new Error(data.error || 'Could not search tires')
+        if (active) {
+          setTires(data.tires || [])
+          setTireSearchTotal(Number(data.pagination?.total || 0))
+          if (query && tireId && !(data.tires || []).some((tire: Tire) => tire.id === tireId)) setTireId('')
+        }
+      } catch (error) {
+        if (active) toast.error(error instanceof Error ? error.message : 'Could not search tires')
+      }
+    }, 250)
+    return () => { active = false; clearTimeout(timer) }
+  }, [tireSearch])
 
   useEffect(() => {
     if (selectedVehicle?.driverName && !driverName) setDriverName(selectedVehicle.driverName)
@@ -195,7 +220,7 @@ export default function TireLifecycleDashboard() {
                 <p className="mt-1">{selectedTire.tireSize} · {selectedTire.manufacturer} · {selectedTire.lifecycleStatus || 'STOCK'}</p>
                 <p className="mt-1">Current vehicle: {selectedTire.plateNumber || (selectedTire.trailerNumber ? `Trailer ${selectedTire.trailerNumber}` : 'Stock / unassigned')} · Driver: {selectedTire.driverName || 'Not recorded'}</p>
               </div>}
-              {tireSearch.trim() && filteredTires.length > 100 && <p className="text-xs text-muted-foreground">Showing the first 100 matches. Refine the serial number to narrow the results.</p>}
+              {tireSearch.trim() && <p className="text-xs text-muted-foreground">Showing {filteredTires.length} of {tireSearchTotal.toLocaleString()} matching tires.</p>}
             </div>
             <div className="space-y-2">
               <Label>Operation</Label>

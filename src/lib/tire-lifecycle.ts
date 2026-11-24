@@ -186,6 +186,8 @@ export async function recordTireLifecycleEvent(tx: any, input: {
     if (priorReceipt.length) throw new Error('This tire has already been received')
   }
   if (eventType === 'INSTALL' && tire.lifecycleStatus !== 'STOCK') throw new Error('Only a tire in stock can be installed')
+  if (eventType === 'DAMAGE' && tire.lifecycleStatus === 'DISPOSED') throw new Error('A disposed tire cannot receive a damage report')
+  if (eventType === 'INSPECT' && tire.lifecycleStatus === 'DISPOSED') throw new Error('A disposed tire cannot be inspected')
   if (eventType === 'TRANSFER' && tire.lifecycleStatus !== 'INSTALLED') throw new Error('Only an installed tire can be transferred')
   if (eventType === 'POSITION_CHANGE' && tire.lifecycleStatus !== 'INSTALLED') throw new Error('Only an installed tire can change wheel position')
   if (eventType === 'REMOVE' && tire.lifecycleStatus !== 'INSTALLED' &&

@@ -24,6 +24,10 @@ export async function POST(request: NextRequest) {
     const purchaseCost = body.purchaseCost == null ? null : Number(body.purchaseCost)
     const inspectionDueAt = body.inspectionDueAt ? new Date(body.inspectionDueAt) : null
     if (!Number.isFinite(eventAt.getTime())) return NextResponse.json({ error: 'Invalid event date' }, { status: 400 })
+    if (typeof body.driverName === 'string' && body.driverName.trim().length > 160) return NextResponse.json({ error: 'Driver name must be 160 characters or fewer' }, { status: 400 })
+    if (typeof body.reason === 'string' && body.reason.trim().length > 2000) return NextResponse.json({ error: 'Reason must be 2,000 characters or fewer' }, { status: 400 })
+    if (typeof body.damageType === 'string' && body.damageType.trim().length > 160) return NextResponse.json({ error: 'Damage type must be 160 characters or fewer' }, { status: 400 })
+    if (typeof body.notes === 'string' && body.notes.trim().length > 4000) return NextResponse.json({ error: 'Notes must be 4,000 characters or fewer' }, { status: 400 })
     if (odometerKm !== null && (!Number.isInteger(odometerKm) || odometerKm < 0)) return NextResponse.json({ error: 'Odometer must be a non-negative whole number' }, { status: 400 })
     if (cost !== null && (!Number.isFinite(cost) || cost < 0)) return NextResponse.json({ error: 'Cost must be a non-negative number' }, { status: 400 })
     if (treadDepthMm !== null && (!Number.isFinite(treadDepthMm) || treadDepthMm < 0 || treadDepthMm > 100)) return NextResponse.json({ error: 'Tread depth must be between 0 and 100 mm' }, { status: 400 })
