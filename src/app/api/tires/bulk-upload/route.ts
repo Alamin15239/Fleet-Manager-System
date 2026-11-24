@@ -475,6 +475,7 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
   const units = Array.from(unitsByKey.values())
   for (const unit of units) {
     unit.entries.sort((a, b) => (a.source.eventAt?.getTime() || 0) - (b.source.eventAt?.getTime() || 0) || a.source.line - b.source.line)
+    if (unit.entries.length) unit.warnings.push("The final historical usage period has no recorded removal date. It will be saved with an unknown end date and will not be treated as a current installation.")
     const sizes = Array.from(new Set(unit.entries.map(item => item.source.tireSize).filter(Boolean)))
     const manufacturers = Array.from(new Set(unit.entries.map(item => item.source.manufacturer).filter(Boolean)))
     const origins = Array.from(new Set(unit.entries.map(item => item.source.origin).filter(value => value && value !== 'OTHER')))
