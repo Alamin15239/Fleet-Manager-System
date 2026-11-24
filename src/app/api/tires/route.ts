@@ -9,7 +9,7 @@ import { ZodError } from 'zod'
 import path from 'path'
 import fs from 'fs/promises'
 import { syncOneDriveWorkbookAfterChange } from '@/lib/onedrive-excel-sync'
-import { ensureTireLifecycleTables } from '@/lib/tire-lifecycle'
+import { ensureTireLifecycleTables, recordTireLifecycleEvent } from '@/lib/tire-lifecycle'
 
 // GET /api/tires - Get all tires with filtering and pagination
 export async function GET(request: NextRequest) {
@@ -215,7 +215,7 @@ export async function POST(request: NextRequest) {
           trailerNumber: null, // Truck tires don't have trailer number
           driverName: driverName || null,
           quantity: 1,
-          serialNumber: serialNumber || null,
+          serialNumber: i === 0 ? (serialNumber || null) : null,
           notes: notes || null,
           supplierName: supplierName || null,
           purchaseReference: purchaseReference || null,
@@ -252,7 +252,7 @@ export async function POST(request: NextRequest) {
           trailerNumber: trailerNumber,
           driverName: finalDriverName,
           quantity: 1,
-          serialNumber: trailerSerialNumber || null,
+          serialNumber: i === 0 ? (trailerSerialNumber || null) : null,
           notes: notes || null,
           supplierName: supplierName || null,
           purchaseReference: purchaseReference || null,
@@ -271,11 +271,34 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const createdTires = await db.tire.createMany({
-      data: tiresData
-    })
-    // Assign permanent TY-xxxxxx identifiers to newly received individual tires.
-    await db.$transaction(async tx => ensureTireLifecycleTables(tx))
+    // Persist each tire and its stock-receipt event in one transaction. This
+    // prevents a tire from being committed without its lifecycle receipt.
+    const createdTires = await db.$transaction(async tx => {
+      await ensureTireLifecycleTables(tx)
+      let count = 0
+      for (const tireData of tiresData) {
+        const tire = await tx.tire.create({ data: tireData, select: { id: true } })
+        // Assign the permanent TY identifier before writing the lifecycle event.
+        await tx.$executeRawUnsafe(
+          `UPDATE "tires" SET "internalCode"='TY-' || LPAD(nextval('"tire_internal_code_seq"')::text,6,'0') WHERE "id"=$1 AND "internalCode" IS NULL`,
+          tire.id
+        )
+        await recordTireLifecycleEvent(tx, {
+          tireId: tire.id,
+          eventType: 'RECEIVE',
+          eventAt: tireData.createdAt || new Date(),
+          reason: 'Manual tire stock entry',
+          supplierName: supplierName || null,
+          purchaseReference: purchaseReference || null,
+          purchaseCost: purchaseCost ?? null,
+          notes: notes || null,
+          userId: user.id,
+          ensureTables: false
+        })
+        count++
+      }
+      return { count }
+    }, { timeout: 120000 })
 
     await syncOneDriveWorkbookAfterChange()
     
