@@ -186,6 +186,7 @@ export async function recordTireLifecycleEvent(tx: any, input: {
     if (priorReceipt.length) throw new Error('This tire has already been received')
   }
   if (eventType === 'INSTALL' && tire.lifecycleStatus !== 'STOCK') throw new Error('Only a tire in stock can be installed')
+  if (eventType === 'ISSUE' && !['STOCK','INSTALLED'].includes(tire.lifecycleStatus)) throw new Error('Only a stock or installed tire can be issued to a vehicle')
   if (eventType === 'DAMAGE' && tire.lifecycleStatus === 'DISPOSED') throw new Error('A disposed tire cannot receive a damage report')
   if (eventType === 'INSPECT' && tire.lifecycleStatus === 'DISPOSED') throw new Error('A disposed tire cannot be inspected')
   if (eventType === 'TRANSFER' && tire.lifecycleStatus !== 'INSTALLED') throw new Error('Only an installed tire can be transferred')
@@ -292,7 +293,9 @@ export async function recordTireLifecycleEvent(tx: any, input: {
     )
   }
 
-  if (eventType === 'TRANSFER' || eventType === 'REMOVE') {
+  // ISSUE can reassign an installed tire without confirming its wheel position;
+  // close any prior mounted usage period before marking it assigned-unverified.
+  if (eventType === 'TRANSFER' || eventType === 'REMOVE' || eventType === 'ISSUE') {
     await tx.$executeRawUnsafe(
       `UPDATE "tire_usage_periods" SET "removedAt"=$2,"endOdometer"=$3
        WHERE "tireId"=$1 AND "removedAt" IS NULL`,

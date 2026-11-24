@@ -210,7 +210,7 @@ export default function TireLifecycleDashboard() {
                 <SelectTrigger><SelectValue placeholder="Select the matching tire" /></SelectTrigger>
                 <SelectContent>
                   {filteredTires.slice(0, 100).map(t => <SelectItem key={t.id} value={t.id}>
-                    {(t.serialNumber || 'No serial')} · {t.internalCode || t.id} · {t.tireSize} · {t.lifecycleStatus || 'STOCK'}
+                    {(t.serialNumber || 'No serial')} · {t.internalCode || t.id} · {t.tireSize} · {t.plateNumber || (t.trailerNumber ? `Trailer ${t.trailerNumber}` : 'Stock')} · {t.lifecycleStatus || 'STOCK'}
                   </SelectItem>)}
                   {filteredTires.length === 0 && <div className="px-3 py-2 text-sm text-muted-foreground">No matching tire found</div>}
                 </SelectContent>
