@@ -279,8 +279,9 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
       const trailerNumber = read(columns.trailer)
       let genericNumber = read(columns.vehicle)
       const typeText = read(columns.type).toLowerCase()
-      let vehicleType: VehicleType | null = truckNumber ? 'truck' : trailerNumber ? 'trailer'
-        : /trailer/.test(typeText) ? 'trailer' : /truck/.test(typeText) ? 'truck' : sheetMetadata.vehicleType
+      let vehicleType: VehicleType | null = /trailer/.test(typeText) ? 'trailer'
+        : /truck/.test(typeText) ? 'truck'
+          : sheetMetadata.vehicleType || (truckNumber && !trailerNumber ? 'truck' : trailerNumber && !truckNumber ? 'trailer' : null)
       if (genericNumber && !vehicleType) {
         const typedNumber = genericNumber.match(/^\s*(truck|trailer)\s*[:#-]?\s*(.+)$/i)
         if (typedNumber) {
@@ -289,8 +290,7 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
         }
       }
       let vehicleNumber = truckNumber || trailerNumber || genericNumber
-      if (truckNumber && trailerNumber && sheetMetadata.vehicleType) {
-        vehicleType = sheetMetadata.vehicleType
+      if (truckNumber && trailerNumber && vehicleType) {
         vehicleNumber = vehicleType === 'truck' ? truckNumber : trailerNumber
       }
       const driver = read(columns.driver)
@@ -312,7 +312,7 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
 
       if (!date) errors.push('A valid usage date was not detected.')
       if (!vehicleNumber) errors.push('A truck or trailer number was not detected.')
-      if (truckNumber && trailerNumber && !sheetMetadata.vehicleType) errors.push('Both truck and trailer are filled in and the worksheet does not identify which vehicle owns this tire. Use a dedicated truck or trailer sheet.')
+      if (truckNumber && trailerNumber && !vehicleType) errors.push('Both truck and trailer are filled in and the sheet does not identify which vehicle owns this tire. Add Vehicle Type or use a dedicated truck or trailer sheet.')
       if (genericNumber && !truckNumber && !trailerNumber && typeText && !vehicleType) errors.push('Vehicle Type must identify Truck or Trailer.')
       if (qtyText && (!Number.isInteger(quantity) || quantity < 1 || quantity > 100)) errors.push('Quantity must be a whole number from 1 to 100.')
       if (parsedSerials.serials.length > 100) errors.push('More than 100 serial numbers were detected in one row.')
