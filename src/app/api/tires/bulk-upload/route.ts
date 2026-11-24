@@ -99,28 +99,24 @@ const headerAliases: Record<string, string[]> = {
 function parseSerials(rawValue: string): { serials: string[]; mixedText: boolean } {
   const raw = rawValue.trim()
   if (!raw) return { serials: [], mixedText: false }
+  const withoutLabels = raw.replace(/(?:serial(?:\s*(?:no\.?|number))?|s\/n|sn)\s*[:#=-]\s*/gi, '')
+  const parts = withoutLabels.split(/[\r\n,;|]+|\s+\/\s+/)
   const found: string[] = []
-  const labeled = Array.from(raw.matchAll(/(?:serial(?:\s*(?:no\.?|number))?|s\/n)\s*[:#=-]?\s*([a-z0-9][a-z0-9._/-]{2,})/gi))
-  if (labeled.length > 1 || (labeled.length === 1 && /[,;|\n]/.test(raw))) {
-    for (const match of labeled) found.push(match[1].replace(/[.,;]+$/, ''))
-  }
-  if (!found.length) {
-    const parts = raw.split(/[\r\n,;|]+|\s+\/\s+/)
-    for (const part of parts) {
-      let candidate = part.trim().replace(/^(?:serial(?:\s*(?:no\.?|number))?|s\/n)\s*[:#=-]?\s*/i, '')
-      candidate = candidate.replace(/\s+(?:history|usage|installed|fitted|removed|transferred|truck|trailer|driver|vehicle|date|on)\b[\s\S]*$/i, '')
-      candidate = candidate.replace(/\s*[\[(].*$/, '').replace(/[.,;:]+$/, '').trim()
-      if (candidate.length >= 3 && /^[a-z0-9][a-z0-9._/-]*$/i.test(candidate) && /\d/.test(candidate)) {
-        found.push(candidate)
-      } else if (candidate.length >= 3 && /^[a-z0-9][a-z0-9._/-]*$/i.test(candidate) && parts.length === 1 && !/\s/.test(raw)) {
-        found.push(candidate)
-      }
+  let mixedText = false
+  for (const part of parts) {
+    let candidate = part.trim()
+    candidate = candidate.replace(/\s+(?:history|usage|used|installed|fitted|removed|transferred|truck|trailer|driver|vehicle|date|on)\b[\s\S]*$/i, '')
+    candidate = candidate.replace(/\s*[\[(].*$/, '').replace(/[.,;:]+$/, '').trim()
+    if (candidate.length >= 3 && /^[a-z0-9][a-z0-9._/-]*$/i.test(candidate) &&
+        (/\d/.test(candidate) || (parts.length === 1 && !/\s/.test(raw)))) {
+      found.push(candidate)
+    } else if (part.trim()) {
+      mixedText = true
     }
   }
   const unique = Array.from(new Map(found.map(serial => [serial.toLowerCase(), serial])).values())
-  return { serials: unique, mixedText: unique.length === 0 && /[a-z]/i.test(raw) && /\s/.test(raw) }
+  return { serials: unique, mixedText }
 }
-
 function normalizeOrigin(raw: string): string {
   const value = raw.trim().toLowerCase()
   if (!value) return 'OTHER'
