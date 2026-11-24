@@ -87,7 +87,7 @@ const headerAliases: Record<string, string[]> = {
   trailer: ['trailer', 'trailernumber', 'trailerno', 'trailerplate', 'trailerregistration'],
   vehicle: ['vehicle', 'vehiclenumber', 'vehicleid', 'registration', 'registrationnumber', 'registrationno', 'regno', 'unitnumber', 'fleetnumber', 'trucktrailer', 'plate', 'plateno', 'platenumber', 'licenseplate', 'licenseplatenumber'],
   driver: ['namedriver', 'drivername', 'driver', 'operator'],
-  serial: ['serialnumber', 'serialnumbers', 'serialno', 'serialnos', 'serial', 'tireserial', 'tyreserial', 'tireserialnumber', 'tyreserialnumber', 'serialhistory', 'serialandhistory', 'serialnumberhistory'],
+  serial: ['serialnumber', 'serialnumbers', 'serialno', 'serialnos', 'serial', 'tireserial', 'tyreserial', 'tireserialnumber', 'tyreserialnumber', 'serialhistory', 'serialandhistory', 'serialnumberhistory', 'serialnousagehistory', 'serialnumberandhistory'],
   quantity: ['outqty', 'qtyout', 'quantityout', 'qty', 'quantity', 'numberoftires', 'tireqty', 'tyreqty', 'outquantity'],
   tireSize: ['tiresize', 'tyresize', 'size', 'tirespecification', 'tyrespecification'],
   manufacturer: ['manufacturer', 'brand', 'tirebrand', 'tyrebrand', 'make'],
@@ -99,12 +99,13 @@ const headerAliases: Record<string, string[]> = {
 function parseSerials(rawValue: string): { serials: string[]; mixedText: boolean } {
   const raw = rawValue.trim()
   if (!raw) return { serials: [], mixedText: false }
-  const withoutLabels = raw.replace(/(?:serial(?:\s*(?:no\.?|number))?|s\/n|sn)\s*[:#=-]\s*/gi, '')
+  const withoutLabels = raw.replace(/\b(?:serial(?:\s*(?:no\.?|number))?|s\/n|sn)\b\s*[:#=-]?\s*/gi, '')
   const parts = withoutLabels.split(/[\r\n,;|]+|\s+\/\s+/)
   const found: string[] = []
   let mixedText = false
   for (const part of parts) {
     let candidate = part.trim()
+    candidate = candidate.replace(/\s*[-–]\s*(?:history|usage|used|installed|fitted|removed|transferred|truck|trailer|driver|vehicle|date)\b[\s\S]*$/i, '')
     candidate = candidate.replace(/\s+(?:history|usage|used|installed|fitted|removed|transferred|truck|trailer|driver|vehicle|date|on)\b[\s\S]*$/i, '')
     candidate = candidate.replace(/\s*[\[(].*$/, '').replace(/[.,;:]+$/, '').trim()
     if (candidate.length >= 3 && /^[a-z0-9][a-z0-9._/-]*$/i.test(candidate) &&
@@ -141,7 +142,8 @@ function headerMap(sheet: ExcelJS.Worksheet): { row: number; columns: Map<string
   for (let rowNo = 1; rowNo <= Math.min(sheet.rowCount, 12); rowNo++) {
     const columns = new Map<string, number>()
     sheet.getRow(rowNo).eachCell((cell, col) => columns.set(normalizeHeader(cellText(cell.value)), col))
-    const find = (key: string) => headerAliases[key].some(alias => columns.has(alias))
+    const find = (key: string) => headerAliases[key].some(alias => columns.has(alias)) ||
+      (key === 'serial' && Array.from(columns.keys()).some(name => name.includes('serial') || name === 'sn'))
     const hasVehicle = find('truck') || find('trailer') || find('vehicle')
     const hasEventIdentifier = find('serial') || find('quantity') || find('driver')
     if (find('date') && hasVehicle && hasEventIdentifier) return { row: rowNo, columns }
@@ -206,13 +208,21 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
       const date = dateCell == null || cellText(dateCell) === '' ? null : parseDate(dateCell)
       const truckNumber = read(columns.truck)
       const trailerNumber = read(columns.trailer)
-      const genericNumber = read(columns.vehicle)
+      let genericNumber = read(columns.vehicle)
       const typeText = read(columns.type).toLowerCase()
-      const vehicleNumber = truckNumber || trailerNumber || genericNumber
       let vehicleType: VehicleType | null = truckNumber ? 'truck' : trailerNumber ? 'trailer'
         : /trailer/.test(typeText) ? 'trailer' : /truck/.test(typeText) ? 'truck' : null
+      if (genericNumber && !vehicleType) {
+        const typedNumber = genericNumber.match(/^\s*(truck|trailer)\s*[:#-]?\s*(.+)$/i)
+        if (typedNumber) {
+          vehicleType = typedNumber[1].toLowerCase() as VehicleType
+          genericNumber = typedNumber[2].trim()
+        }
+      }
+      const vehicleNumber = truckNumber || trailerNumber || genericNumber
       const driver = read(columns.driver)
-      const serialText = read(columns.serial)
+      const serialParts = columns.serials.map(column => read(column)).filter(Boolean)
+      const serialText = serialParts.join(', ')
       const parsedSerials = parseSerials(serialText)
       const qtyText = read(columns.quantity)
       const parsedQty = qtyText ? Number(qtyText.replace(/,/g, '').match(/-?\d+(?:\.\d+)?/)?.[0]) : NaN
