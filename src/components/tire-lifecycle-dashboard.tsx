@@ -13,8 +13,8 @@ import { apiGet, apiPost } from '@/lib/api'
 import { toast } from '@/lib/localized-toast'
 
 type Tire = {
-  id: string; internalCode?: string | null; tireSize: string; manufacturer: string
-  lifecycleStatus?: string; plateNumber?: string | null; trailerNumber?: string | null
+  id: string; internalCode?: string | null; serialNumber?: string | null; tireSize: string; manufacturer: string
+  lifecycleStatus?: string; plateNumber?: string | null; trailerNumber?: string | null; driverName?: string | null
 }
 type Vehicle = { id: string; vehicleType: 'truck' | 'trailer'; label: string; detail?: string; mileage?: number | null; driverName?: string | null }
 type Report = {
@@ -36,6 +36,7 @@ export default function TireLifecycleDashboard() {
   const [saving, setSaving] = useState(false)
   const [eventType, setEventType] = useState('INSTALL')
   const [tireId, setTireId] = useState('')
+  const [tireSearch, setTireSearch] = useState('')
   const [vehicleId, setVehicleId] = useState('')
   const [position, setPosition] = useState('')
   const [driverName, setDriverName] = useState('')
@@ -53,6 +54,13 @@ export default function TireLifecycleDashboard() {
   const [notes, setNotes] = useState('')
 
   const selectedTire = useMemo(() => tires.find(t => t.id === tireId), [tires, tireId])
+  const filteredTires = useMemo(() => {
+    const query = tireSearch.trim().toLowerCase()
+    const available = tires.filter(t => t.lifecycleStatus !== 'DISPOSED')
+    if (!query) return available
+    return available.filter(t => [t.serialNumber, t.internalCode, t.tireSize, t.manufacturer, t.plateNumber, t.trailerNumber, t.driverName, t.lifecycleStatus]
+      .some(value => String(value || '').toLowerCase().includes(query)))
+  }, [tires, tireSearch])
   const selectedVehicle = useMemo(() => vehicles.find(v => v.id === vehicleId), [vehicles, vehicleId])
   const needsVehicle = eventType === 'INSTALL' || eventType === 'TRANSFER' || eventType === 'POSITION_CHANGE'
   const needsPosition = needsVehicle
@@ -166,16 +174,28 @@ export default function TireLifecycleDashboard() {
         <CardContent>
           <form onSubmit={submit} className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             <div className="space-y-2">
-              <Label>Tire / internal ID</Label>
+              <Label>Find tire by serial number / TY code</Label>
+              <Input
+                value={tireSearch}
+                onChange={event => setTireSearch(event.target.value)}
+                placeholder="Enter serial number, TY code, vehicle or tire size"
+                aria-label="Search tires by serial number or internal code"
+              />
               <Select value={tireId} onValueChange={setTireId}>
-                <SelectTrigger><SelectValue placeholder="Select a tire" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="Select the matching tire" /></SelectTrigger>
                 <SelectContent>
-                  {tires.filter(t => t.lifecycleStatus !== 'DISPOSED').map(t => <SelectItem key={t.id} value={t.id}>
-                    {(t.internalCode || t.id)} · {t.tireSize} · {t.manufacturer} · {t.lifecycleStatus || 'STOCK'}
+                  {filteredTires.slice(0, 100).map(t => <SelectItem key={t.id} value={t.id}>
+                    {(t.serialNumber || 'No serial')} · {t.internalCode || t.id} · {t.tireSize} · {t.lifecycleStatus || 'STOCK'}
                   </SelectItem>)}
+                  {filteredTires.length === 0 && <div className="px-3 py-2 text-sm text-muted-foreground">No matching tire found</div>}
                 </SelectContent>
               </Select>
-              {selectedTire && <p className="text-xs text-muted-foreground">{selectedTire.plateNumber || selectedTire.trailerNumber || 'Not assigned'} · {selectedTire.lifecycleStatus || 'STOCK'}</p>}
+              {selectedTire && <div className="rounded-md border bg-muted/30 p-3 text-xs">
+                <p className="font-medium">{selectedTire.serialNumber || 'Serial number not recorded'} · {selectedTire.internalCode || selectedTire.id}</p>
+                <p className="mt-1">{selectedTire.tireSize} · {selectedTire.manufacturer} · {selectedTire.lifecycleStatus || 'STOCK'}</p>
+                <p className="mt-1">Current vehicle: {selectedTire.plateNumber || (selectedTire.trailerNumber ? `Trailer ${selectedTire.trailerNumber}` : 'Stock / unassigned')} · Driver: {selectedTire.driverName || 'Not recorded'}</p>
+              </div>}
+              {tireSearch.trim() && filteredTires.length > 100 && <p className="text-xs text-muted-foreground">Showing the first 100 matches. Refine the serial number to narrow the results.</p>}
             </div>
             <div className="space-y-2">
               <Label>Operation</Label>
