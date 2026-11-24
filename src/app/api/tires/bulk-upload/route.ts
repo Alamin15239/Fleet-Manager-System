@@ -730,9 +730,9 @@ export async function POST(request: NextRequest) {
           })
           const next = entries[index + 1]?.source
           await tx.$executeRawUnsafe(
-            'INSERT INTO "tire_usage_periods" ("id","tireId","vehicleType","vehicleId","installedAt","removedAt","startOdometer","driverNameSnapshot") VALUES ($1,$2,$3,$4,$5,$6,$7,$8)',
+            'INSERT INTO "tire_usage_periods" ("id","tireId","vehicleType","vehicleId","installedAt","removedAt","historicalEndUnknown","startOdometer","driverNameSnapshot") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)',
             'tyuse_' + randomUUID(), tire.id, vehicleType, vehicleId, entry.eventAt,
-            next?.eventAt || null, entry.odometerKm, entry.driver || null
+            next?.eventAt || null, !next, entry.odometerKm, entry.driver || null
           )
           previousVehicle = { type: vehicleType, id: vehicleId }
           historyCount++
