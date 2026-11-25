@@ -13,6 +13,62 @@ export async function POST(request: NextRequest) {
       await ensureTireLifecycleTables(tx)
       let linked = 0
       let skipped = 0
+      let consolidated = 0
+      let removedCards = 0
+
+      // Consolidate legacy RECOVERED-* holding cards: move every linked
+      // activity onto the workbook register card (JC-...) for the same
+      // vehicle whose service date is nearest, then delete the emptied
+      // holding card. This is what makes the register show real linked work.
+      const recoveredCards = await tx.$queryRawUnsafe<any[]>(`
+        SELECT "id","jobNumber","truckId","trailerId","serviceDate","partsCost","laborCost","totalCost"
+        FROM "workshop_job_cards"
+        WHERE "jobNumber" LIKE 'RECOVERED-%' AND "status" IN ('OPEN','IN_PROGRESS')
+          AND ("truckId" IS NOT NULL OR "trailerId" IS NOT NULL)
+        ORDER BY "serviceDate" ASC
+      `)
+      for (const card of recoveredCards) {
+        try {
+          const vehicleClause = card.truckId ? `"truckId"=$2` : `"trailerId"=$2`
+          const vehicleId = card.truckId || card.trailerId
+          const targets = await tx.$queryRawUnsafe<any[]>(`
+            SELECT "id","serviceDate" FROM "workshop_job_cards"
+            WHERE ${vehicleClause} AND "creationSource"='WORKBOOK' AND "status" IN ('OPEN','IN_PROGRESS')
+              AND "serviceDate" BETWEEN $3 AND $4
+          `, card.id, vehicleId, new Date(new Date(card.serviceDate).getTime() - 3 * 86400000), new Date(new Date(card.serviceDate).getTime() + 3 * 86400000))
+          if (!targets.length) { skipped++; continue }
+          const target = targets
+            .map((t: any) => ({ id: t.id, dist: Math.abs(new Date(t.serviceDate).getTime() - new Date(card.serviceDate).getTime()) }))
+            .sort((a, b) => a.dist - b.dist)[0]
+          await tx.$executeRawUnsafe(`UPDATE "maintenance_records" SET "jobCardId"=$2 WHERE "jobCardId"=$1`, card.id, target.id)
+          await tx.$executeRawUnsafe(`UPDATE "trailer_maintenance_records" SET "jobCardId"=$2 WHERE "jobCardId"=$1`, card.id, target.id)
+          await tx.$executeRawUnsafe(`UPDATE "inventory_transactions" SET "jobCardId"=$2 WHERE "jobCardId"=$1`, card.id, target.id)
+          await tx.$executeRawUnsafe(`UPDATE "tire_lifecycle_events" SET "jobCardId"=$2 WHERE "jobCardId"=$1`, card.id, target.id)
+          const remaining = await tx.$queryRawUnsafe<any[]>(`
+            SELECT
+              (SELECT COUNT(*) FROM "maintenance_records" WHERE "jobCardId"=$1) +
+              (SELECT COUNT(*) FROM "trailer_maintenance_records" WHERE "jobCardId"=$1) +
+              (SELECT COUNT(*) FROM "inventory_transactions" WHERE "jobCardId"=$1) +
+              (SELECT COUNT(*) FROM "tire_lifecycle_events" WHERE "jobCardId"=$1) AS n
+          `, card.id)
+          if (Number(remaining[0]?.n || 0) === 0) {
+            await tx.$executeRawUnsafe(`
+              UPDATE "workshop_job_cards" SET
+                "partsCost"=COALESCE("partsCost",0)+$2,
+                "laborCost"=COALESCE("laborCost",0)+$3,
+                "totalCost"=COALESCE("totalCost",0)+$4,
+                "updatedAt"=NOW()
+              WHERE "id"=$1
+            `, target.id, Number(card.partsCost || 0), Number(card.laborCost || 0), Number(card.totalCost || 0))
+            await tx.$executeRawUnsafe(`DELETE FROM "workshop_job_cards" WHERE "id"=$1`, card.id)
+            removedCards++
+          }
+          consolidated++
+        } catch (consolidationError) {
+          console.error('RECOVERED card consolidation failed:', card.jobNumber, consolidationError)
+          skipped++
+        }
+      }
 
       const maintenance = await tx.$queryRawUnsafe<any[]>(`
         SELECT "id","truckId","datePerformed","currentMileage","driverName","serviceType","description","partsCost","laborCost","totalCost"
@@ -331,7 +387,7 @@ export async function POST(request: NextRequest) {
           }
         } catch { skipped++ }
       }
-      return { linked, skipped }
+      return { linked, skipped, consolidated, removedCards }
     }, { timeout: 120000 })
     return NextResponse.json({ success: true, ...result })
   } catch (error) {
