@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import ExcelJS from 'exceljs'
 import { Readable } from 'node:stream'
-import { createHash, randomUUID } from 'node:crypto'
+import { randomUUID } from 'node:crypto'
 import { db } from '@/lib/db'
 import { requireRolePermission } from '@/lib/permission-middleware'
 import { ensureTireLifecycleTables } from '@/lib/tire-lifecycle'
@@ -10,13 +10,7 @@ import { syncOneDriveWorkbookAfterChange } from '@/lib/onedrive-excel-sync'
 export const runtime = 'nodejs'
 
 type VehicleType = 'truck' | 'trailer'
-type FleetVehicle = {
-  id: string
-  type: VehicleType
-  number: string
-  driverName: string | null
-  active: boolean
-}
+
 type SourceEntry = {
   sheetName: string
   line: number
@@ -147,13 +141,6 @@ function normalizeOrigin(raw: string): string {
   return raw.trim().toUpperCase().replace(/[^A-Z0-9]+/g, '_').slice(0, 40) || 'OTHER'
 }
 
-function fingerprint(value: string): string {
-  return createHash('sha256').update(value).digest('hex')
-}
-
-function makeImportCode(key: string): string {
-  return 'UP-AI-' + fingerprint(key).slice(0, 20).toUpperCase()
-}
 
 function headerMap(sheet: ExcelJS.Worksheet): { row: number; columns: Map<string, number> } | null {
   for (let rowNo = 1; rowNo <= Math.min(sheet.rowCount, 12); rowNo++) {
@@ -176,26 +163,6 @@ function getColumn(columns: Map<string, number>, key: string): number | null {
   return null
 }
 
-function normalizeVehicleText(value: string): string {
-  return value.toUpperCase().replace(/[^A-Z0-9]/g, '')
-}
-
-function vehicleMatches(type: VehicleType, number: string, fleet: FleetVehicle[]): FleetVehicle[] {
-  const normalized = normalizeVehicleText(number)
-  if (!normalized) return []
-  const matches = fleet.filter(vehicle => {
-    if (vehicle.type !== type) return false
-    const vehicleNumber = normalizeVehicleText(vehicle.number)
-    const vehicleWords = vehicle.number.toUpperCase().split(/[^A-Z0-9]+/).filter(Boolean)
-    // Historical sheets often contain only the fleet number (1234), while
-    // the registered truck plate is stored as 1234 BAA.
-    return vehicleNumber === normalized || vehicleWords.includes(normalized)
-  })
-  // If a current and historical record share a fleet number, prefer the
-  // current record. Otherwise retain the historical match for old usage rows.
-  const activeMatches = matches.filter(vehicle => vehicle.active)
-  return activeMatches.length ? activeMatches : matches
-}
 
 function inferSheetMetadata(sheetName: string): {
   tireSize: string
@@ -218,46 +185,10 @@ function inferSheetMetadata(sheetName: string): {
   return { tireSize, origin, vehicleType }
 }
 
-function resolveVehicle(number: string, preferredType: VehicleType | null, fleet: FleetVehicle[]): FleetVehicle[] {
-  const direct = preferredType
-    ? vehicleMatches(preferredType, number, fleet)
-    : [...vehicleMatches('truck', number, fleet), ...vehicleMatches('trailer', number, fleet)]
-  if (direct.length) return direct
 
-  // Some source sheets put a trailer number in a column labelled Truck #,
-  // or vice versa. If the preferred table has no match, check the opposite
-  // table and let the caller report the source-vs-fleet type discrepancy.
-  if (preferredType) {
-    const opposite = vehicleMatches(preferredType === 'truck' ? 'trailer' : 'truck', number, fleet)
-    if (opposite.length) return opposite
-  }
-
-  // Historical rows sometimes store a truck/trailer pair in one cell.
-  const tokens = number.split(/[\s,;\-–—/|]+/).map(value => value.trim()).filter(value => value.length >= 2)
-  if (!tokens.length) return []
-  const expanded = tokens.flatMap(token => preferredType
-    ? [...vehicleMatches(preferredType, token, fleet), ...vehicleMatches(preferredType === 'truck' ? 'trailer' : 'truck', token, fleet)]
-    : [...vehicleMatches('truck', token, fleet), ...vehicleMatches('trailer', token, fleet)])
-  return Array.from(new Map(expanded.map(vehicle => [vehicle.type + ':' + vehicle.id, vehicle])).values())
-}
 
 async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
-  const [trucks, trailers] = await Promise.all([
-    // Include inactive and soft-deleted records for historical matching only.
-    // This does not reactivate them or make them selectable in normal fleet UI.
-    db.truck.findMany({
-      select: { id: true, licensePlate: true, driverName: true, status: true, isDeleted: true }
-    }),
-    db.trailer.findMany({
-      select: { id: true, number: true, driverName: true, status: true, isDeleted: true }
-    })
-  ])
-  const fleet: FleetVehicle[] = [
-    ...trucks.map(item => ({ id: item.id, type: 'truck' as const, number: item.licensePlate, driverName: item.driverName, active: !item.isDeleted && item.status !== 'INACTIVE' })),
-    ...trailers.map(item => ({ id: item.id, type: 'trailer' as const, number: item.number, driverName: item.driverName, active: !item.isDeleted && item.status !== 'INACTIVE' }))
-  ]
-
-  const sourceEntries: SourceEntry[] = []
+  const sourceEntries: SourceEntry[] = []  const sourceEntries: SourceEntry[] = []
   const sheetNames: string[] = []
   const sheetErrors: string[] = []
 
@@ -324,8 +255,8 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
         }
       }
       let vehicleNumber = truckNumber || trailerNumber || genericNumber
-      if (truckNumber && trailerNumber && vehicleType) {
-        vehicleNumber = vehicleType === 'truck' ? truckNumber : trailerNumber
+      if (truckNumber && trailerNumber) {
+        vehicleNumber = vehicleType ? (vehicleType === 'truck' ? truckNumber : trailerNumber) : `${truckNumber} / ${trailerNumber}`
       }
       const driver = read(columns.driver)
       const qtyText = read(columns.quantity)
@@ -390,29 +321,13 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
       const entry: SourceEntry = {
         sheetName: sheet.name, line, eventAt: date, vehicleType, vehicleNumber, vehicleId: null,
         vehicleLabel: vehicleNumber, driver, serialText, serials: parsedSerials.serials,
-        quantity: plausibleDate && Number.isInteger(quantity) && quantity > 0 && quantity <= 100 ? quantity : 0,
+        quantity: Number.isInteger(quantity) && quantity > 0 && quantity <= 100 ? quantity : 0,
         tireSize: size, manufacturer, origin: normalizeOrigin(origin), history,
         odometerKm: Number.isInteger(odometerValue) && odometerValue >= 0 ? odometerValue : null,
         warnings, errors
       }
 
-      if (vehicleNumber && !errors.some(value => value.startsWith('Both truck and trailer'))) {
-        const matches = resolveVehicle(vehicleNumber, vehicleType, fleet)
-        if (matches.length !== 1) {
-          errors.push(matches.length ? 'Vehicle reference is ambiguous. The number matches more than one current or historical fleet record.' : 'Vehicle number does not match any current or retained historical truck/trailer record. If the vehicle was sold and its record was permanently deleted, keep this row for manual review.')
-        } else {
-          const vehicle = matches[0]
-          if (vehicleType && vehicle.type !== vehicleType) {
-            warnings.push('Source column identifies this as a ' + vehicleType + ', but fleet records identify ' + vehicle.number + ' as a ' + vehicle.type + '. Matched the existing fleet record.')
-          }
-          entry.vehicleType = vehicle.type
-          entry.vehicleId = vehicle.id
-          entry.vehicleNumber = vehicle.number
-          entry.vehicleLabel = (vehicle.type === 'truck' ? 'Truck ' : 'Trailer ') + vehicle.number + (vehicle.active ? '' : ' (historical / inactive)')
-          if (!entry.driver) entry.driver = vehicle.driverName || ''
-        }
-      }
-      if (vehicleType && !vehicleNumber) entry.errors.push('A vehicle number is required for the selected vehicle type.')
+      if (vehicleType && !vehicleNumber)      if (vehicleType && !vehicleNumber) entry.errors.push('A vehicle number is required for the selected vehicle type.')
       sourceEntries.push(entry)
     }
   }
@@ -423,111 +338,47 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
   if (sourceEntries.length > 5000) sheetErrors.push('The workbook contains more than 5,000 data rows. Split it into smaller files before importing.')
   if (sheetErrors.length) throw new Error(sheetErrors.join(' '))
 
-  const unitsByKey = new Map<string, ImportUnit>()
   const exactDuplicateRows = 0
-
-  // OUT QTY controls usage occurrences. Rows without a valid quantity remain
-  // review-only rows; they must never inflate the physical tire count.
+  const units: ImportUnit[] = []
   for (const source of sourceEntries) {
     if (source.quantity <= 0) continue
-
     for (let index = 0; index < source.quantity; index++) {
       const serial = source.serials[index] || null
-      // A known serial identifies one physical tire across the entire workbook.
-      // Unnumbered units cannot be matched safely, so each quantity slot remains
-      // a separate candidate tied to its source row.
-      const key = serial
-        ? 'serial:' + serial.toLowerCase()
-        : 'row:' + source.sheetName + ':' + source.line + ':' + String(index + 1)
-      let unit = unitsByKey.get(key)
-      if (!unit) {
-        unit = {
-          key, serial, importCode: makeImportCode(key), entries: [], warnings: [], errors: [],
-          tireSize: 'Unspecified', manufacturer: 'Unspecified', origin: 'OTHER',
-          status: 'READY', duplicateReason: null
-        }
-        unitsByKey.set(key, unit)
-      }
-
-      // Preserve every source OUT QTY occurrence, including identical-looking
-      // rows. The workbook is the historical source of truth; do not silently
-      // discard usage history. Repeated serials still remain one physical tire.
-      unit.entries.push({ source, serial })
-      unit.warnings.push(...source.warnings)
-      unit.errors.push(...source.errors)
+      const key = 'source:' + source.sheetName + ':' + source.line + ':' + String(index + 1)
+      units.push({
+        key, serial,
+        importCode: 'UP-XLS-' + randomUUID().toUpperCase(),
+        entries: [{ source, serial }],
+        warnings: [...source.warnings],
+        errors: [],
+        tireSize: source.tireSize || 'Unspecified',
+        manufacturer: source.manufacturer || 'Unspecified',
+        origin: source.origin || 'OTHER',
+        status: 'READY',
+        duplicateReason: null
+      })
     }
   }
-
-  const units = Array.from(unitsByKey.values())
-  const sourceQuantityTotal = sourceEntries.reduce((sum, source) => sum + (source.quantity > 0 ? source.quantity : 0), 0)
+  const sourceQuantityTotal = sourceEntries.reduce((sum, source) => sum + Math.max(0, source.quantity), 0)
   const serialOccurrenceCounts = new Map<string, number>()
   for (const source of sourceEntries) {
-    if (source.quantity <= 0) continue
     for (const serial of source.serials.slice(0, source.quantity)) {
-      const serialKey = serial.toLowerCase()
-      serialOccurrenceCounts.set(serialKey, (serialOccurrenceCounts.get(serialKey) || 0) + 1)
+      const key = serial.toLowerCase()
+      serialOccurrenceCounts.set(key, (serialOccurrenceCounts.get(key) || 0) + 1)
     }
   }
   const serialUsageOccurrences = Array.from(serialOccurrenceCounts.values()).reduce((sum, count) => sum + count, 0)
   const uniqueSerialTires = serialOccurrenceCounts.size
-  const unnumberedQuantitySlots = sourceEntries.reduce((sum, source) =>
-    sum + Math.max(0, (source.quantity > 0 ? source.quantity : 0) - Math.min(source.serials.length, source.quantity > 0 ? source.quantity : 0)), 0)
-  const unnumberedTireCandidates = units.filter(unit => !unit.serial).length
+  const unnumberedQuantitySlots = units.filter(unit => !unit.serial).length
+  const unnumberedTireCandidates = unnumberedQuantitySlots
   const repeatedSerialUsageOccurrences = Math.max(0, serialUsageOccurrences - uniqueSerialTires)
   const repeatedSerialGroups = Array.from(serialOccurrenceCounts.values()).filter(count => count > 1).length
   const unquantifiedRows = sourceEntries.filter(source => source.quantity <= 0).length
-
-  for (const unit of units) {
-    unit.entries.sort((a, b) => (a.source.eventAt?.getTime() || 0) - (b.source.eventAt?.getTime() || 0) || a.source.line - b.source.line)
-    if (unit.entries.length) unit.warnings.push("The final historical usage period has no recorded removal date. It will be saved with an unknown end date and will not be treated as a current installation.")
-    const sizes = Array.from(new Set(unit.entries.map(item => item.source.tireSize).filter(Boolean)))
-    const manufacturers = Array.from(new Set(unit.entries.map(item => item.source.manufacturer).filter(Boolean)))
-    const origins = Array.from(new Set(unit.entries.map(item => item.source.origin).filter(value => value && value !== 'OTHER')))
-    unit.tireSize = sizes[0] || 'Unspecified'
-    unit.manufacturer = manufacturers[0] || 'Unspecified'
-    unit.origin = origins[0] || 'OTHER'
-    if (sizes.length > 1) {
-      unit.tireSize = 'Unspecified'
-      unit.warnings.push('Conflicting tire sizes were found for this serial. The tire is blocked until the correct size is reviewed.')
-      unit.errors.push('Conflicting tire sizes require manual review.')
-    }
-    if (manufacturers.length > 1) {
-      unit.manufacturer = 'Unspecified'
-      unit.warnings.push('Conflicting manufacturers were found for this serial. The tire is blocked until the correct manufacturer is reviewed.')
-      unit.errors.push('Conflicting manufacturers require manual review.')
-    }
-    if (origins.length > 1) {
-      unit.origin = 'OTHER'
-      unit.warnings.push('Conflicting origins were found for this serial. The tire is blocked until the correct origin is reviewed.')
-      unit.errors.push('Conflicting origins require manual review.')
-    }
-    if (unit.errors.length) unit.status = 'BLOCKED'
-  }
-
-  const serials = Array.from(new Set(units.map(unit => unit.serial).filter((value): value is string => Boolean(value))))
-  const importCodes = units.map(unit => unit.importCode)
-  const [existingSerials, existingCodes] = await Promise.all([
-    serials.length ? db.tire.findMany({
-      where: { deletedAt: null, serialNumber: { in: serials, mode: 'insensitive' } },
-      select: { serialNumber: true }, take: 5000
-    }) : Promise.resolve([]),
-    importCodes.length ? db.tire.findMany({
-      where: { internalCode: { in: importCodes } },
-      select: { internalCode: true }, take: 5000
-    }) : Promise.resolve([])
-  ])
-  const existingSerialSet = new Set(existingSerials.map(item => (item.serialNumber || '').toLowerCase()))
-  const existingCodeSet = new Set(existingCodes.map(item => item.internalCode).filter(Boolean))
-  for (const unit of units) {
-    if (unit.status !== 'BLOCKED' && unit.serial && existingSerialSet.has(unit.serial.toLowerCase())) {
-      unit.status = 'DUPLICATE'
-      unit.duplicateReason = 'Serial number already exists in Tire Management.'
-    } else if (unit.status !== 'BLOCKED' && existingCodeSet.has(unit.importCode)) {
-      unit.status = 'DUPLICATE'
-      unit.duplicateReason = 'This exact row or serial was already imported.'
-    }
-  }
-
+  const warningCount = units.reduce((count, unit) => count + new Set(unit.warnings).size, 0)
+  const ready = units
+  const duplicates: ImportUnit[] = []
+  const blocked: ImportUnit[] = []
+  const reconcilable = units
   const preview = units.slice(0, 150).map(unit => ({
     serial: unit.serial,
     tireSize: unit.tireSize,
@@ -645,194 +496,63 @@ export async function POST(request: NextRequest) {
 
     const result = await db.$transaction(async tx => {
       await ensureTireLifecycleTables(tx)
-      const serials = analysis.ready.map(unit => unit.serial).filter((value): value is string => Boolean(value))
-      const codes = analysis.ready.map(unit => unit.importCode)
-      const [serialConflicts, codeConflicts] = await Promise.all([
-        serials.length ? tx.tire.findMany({
-          where: { deletedAt: null, serialNumber: { in: serials, mode: 'insensitive' } },
-          select: { serialNumber: true }, take: 5000
-        }) : Promise.resolve([]),
-        codes.length ? tx.tire.findMany({
-          where: { internalCode: { in: codes } },
-          select: { internalCode: true }, take: 5000
-        }) : Promise.resolve([])
-      ])
-      if (serialConflicts.length || codeConflicts.length) {
-        throw new Error('New duplicate records were detected after the preview. Analyze the file again before importing.')
-      }
-
       let tireCount = 0
       let historyCount = 0
-      // Tire.plateNumber is a legacy relation to the separate vehicles table.
-      // Fleet imports resolve against trucks/trailers, so only populate this
-      // optional legacy FK when that exact plate is registered there.
-      const registeredVehiclePlates = new Set(
-        (await tx.vehicle.findMany({ select: { plateNumber: true } })).map((vehicle: { plateNumber: string }) => vehicle.plateNumber)
-      )
-
       for (const unit of analysis.units) {
-        // Do not create tires, job cards, or lifecycle events for unresolved or
-        // conflicting groups. They remain in the review report for correction.
-        if (unit.status === 'BLOCKED') continue
-        const sourceEntries = unit.entries.map(item => item.source)
-        const datedEntries = unit.entries.filter(item => item.source.eventAt)
-        if (!datedEntries.length) continue
-
-        let tire = await tx.tire.findFirst({
-          where: { internalCode: unit.importCode },
+        const source = unit.entries[0]?.source
+        if (!source) continue
+        const sourceReference = [
+          source.vehicleType ? source.vehicleType.toUpperCase() : 'VEHICLE TYPE NOT SPECIFIED',
+          source.vehicleNumber || 'VEHICLE NUMBER NOT SUPPLIED'
+        ].join(': ')
+        const notes = [
+          'Imported directly from workbook; no fleet or existing-tire matching performed.',
+          'Source worksheet: ' + source.sheetName + ', row ' + source.line + '.',
+          'Source vehicle: ' + sourceReference,
+          source.serialText ? 'Source serial cell: ' + source.serialText : 'No serial supplied in source.',
+          source.history ? 'Source history: ' + source.history : '',
+          source.warnings.length ? 'Source notes: ' + source.warnings.join(' | ') : ''
+        ].filter(Boolean).join(' ')
+        const tire = await tx.tire.create({
+          data: {
+            tireSize: source.tireSize || 'Unspecified',
+            manufacturer: source.manufacturer || 'Unspecified',
+            origin: source.origin || 'OTHER',
+            plateNumber: null,
+            truckId: null,
+            trailerNumber: source.vehicleType === 'trailer' ? source.vehicleNumber || null : null,
+            driverName: source.driver || null,
+            quantity: 1,
+            serialNumber: unit.serial,
+            internalCode: unit.importCode,
+            lifecycleStatus: 'ASSIGNED_UNVERIFIED',
+            createdById: user.id,
+            createdAt: source.eventAt || undefined,
+            notes
+          },
           select: { id: true }
         })
-        // A small number of tires may pre-date this import and therefore have
-        // a serial number but no generated importCode. Match only an unambiguous
-        // serial identity; never choose arbitrarily when duplicates exist.
-        if (!tire && unit.serial) {
-          const serialMatches = await tx.tire.findMany({
-            where: { deletedAt: null, serialNumber: { equals: unit.serial, mode: 'insensitive' } },
-            select: { id: true },
-            take: 2
-          })
-          if (serialMatches.length === 1) tire = serialMatches[0]
-        }
-        if (!tire && unit.status === 'READY') {
-          const resolvedEntries = datedEntries.filter(item => item.source.vehicleType && item.source.vehicleId)
-          const latestResolved = resolvedEntries[resolvedEntries.length - 1]?.source || null
-          const latestTruck = latestResolved?.vehicleType === 'truck' ? latestResolved.vehicleNumber : null
-          const latestTrailer = latestResolved?.vehicleType === 'trailer' ? latestResolved.vehicleNumber : null
-          const first = datedEntries[0].source
-          const combinedNotes = Array.from(new Set(sourceEntries.map(source => source.history).filter(Boolean)))
-          const warnings = Array.from(new Set([...unit.warnings, ...unit.errors]))
-          const unresolvedSourceRows = sourceEntries.filter(source => !source.vehicleType || !source.vehicleId).map(source =>
-            `${source.sheetName} row ${source.line}: date=${source.eventAt?.toISOString() || 'missing'}, vehicle=${source.vehicleType || 'unresolved'} ${source.vehicleNumber || 'missing'}, driver=${source.driver || 'unspecified'}, serial=${source.serialText || source.serials.join(', ') || 'unspecified'}, qty=${source.quantity}, history=${source.history || 'none'}`
-          )
-          const created = await tx.tire.create({
+        tireCount++
+        if (source.eventAt) {
+          await tx.tireLifecycleEvent.create({
             data: {
-              tireSize: unit.tireSize,
-              manufacturer: unit.manufacturer,
-              origin: unit.origin,
-              plateNumber: latestTruck && registeredVehiclePlates.has(latestTruck) ? latestTruck : null,
-              truckId: latestResolved?.vehicleType === 'truck' ? latestResolved.vehicleId : null,
-              trailerNumber: latestTrailer,
-              driverName: latestResolved?.driver || first.driver || null,
-              quantity: 1,
-              serialNumber: unit.serial,
-              internalCode: unit.importCode,
-              lifecycleStatus: 'ASSIGNED_UNVERIFIED',
-              createdById: user.id,
-              createdAt: first.eventAt || undefined,
-              notes: [
-                'Imported from tire usage workbook; not a stock receipt.',
-                combinedNotes.length ? 'Source history: ' + combinedNotes.join(' | ') : '',
-                unresolvedSourceRows.length ? 'Unresolved source rows: ' + unresolvedSourceRows.join(' || ') : '',
-                warnings.length ? 'Import review required: ' + warnings.join(' | ') : ''
-              ].filter(Boolean).join(' ')
-            },
-            select: { id: true }
-          })
-          tire = created
-          tireCount++
-        }
-        if (!tire) continue
-
-        const existingEvents = await tx.tireLifecycleEvent.findMany({
-          where: { tireId: tire.id, eventType: 'ISSUE', reason: { in: ['Historical tire usage import', 'Tire usage workbook import'] } },
-          select: { notes: true }
-        })
-        const existingBySource = new Map<string, number>()
-        for (const event of existingEvents) {
-          const match = String(event.notes || '').match(/^Imported from (.*?), row (\d+)\./)
-          if (!match) continue
-          const key = match[1] + ':' + match[2]
-          existingBySource.set(key, (existingBySource.get(key) || 0) + 1)
-        }
-        const desiredBySource = new Map<string, ImportEntry[]>()
-        for (const item of datedEntries) {
-          const key = item.source.sheetName + ':' + item.source.line
-          const list = desiredBySource.get(key) || []
-          list.push(item)
-          desiredBySource.set(key, list)
-        }
-
-        const chronologicalEntries = [...datedEntries].sort((a, b) =>
-          (a.source.eventAt as Date).getTime() - (b.source.eventAt as Date).getTime()
-        )
-        const latestEntry = chronologicalEntries[chronologicalEntries.length - 1]?.source
-        if (latestEntry?.vehicleType === 'truck' && latestEntry.vehicleId) {
-          await tx.tire.update({
-            where: { id: tire.id },
-            data: {
-              truckId: latestEntry.vehicleId,
-              plateNumber: registeredVehiclePlates.has(latestEntry.vehicleNumber) ? latestEntry.vehicleNumber : null,
-              trailerNumber: null,
-              driverName: latestEntry.driver || undefined,
-              lifecycleStatus: 'ASSIGNED_UNVERIFIED'
+              id: 'tireevt_' + randomUUID(),
+              tireId: tire.id,
+              eventType: 'ISSUE',
+              eventAt: source.eventAt,
+              fromTruckId: null,
+              fromTrailerId: null,
+              toTruckId: null,
+              toTrailerId: null,
+              driverNameSnapshot: source.driver || null,
+              odometerKm: source.odometerKm,
+              reason: 'Tire usage workbook import',
+              notes,
+              jobCardId: null,
+              createdById: user.id
             }
           })
-        } else if (latestEntry?.vehicleType === 'trailer' && latestEntry.vehicleId) {
-          await tx.tire.update({
-            where: { id: tire.id },
-            data: {
-              truckId: null,
-              plateNumber: null,
-              trailerNumber: latestEntry.vehicleNumber,
-              driverName: latestEntry.driver || undefined,
-              lifecycleStatus: 'ASSIGNED_UNVERIFIED'
-            }
-          })
-        } else {
-          await tx.tire.update({
-            where: { id: tire.id },
-            data: {
-              truckId: null,
-              plateNumber: null,
-              trailerNumber: null,
-              lifecycleStatus: 'ASSIGNED_UNVERIFIED'
-            }
-          })
-        }
-
-        let previousVehicle: { type: VehicleType; id: string } | null = null
-        for (const [sourceKey, sourceItems] of desiredBySource) {
-          const alreadyLinked = existingBySource.get(sourceKey) || 0
-          for (let index = alreadyLinked; index < sourceItems.length; index++) {
-            const entry = sourceItems[index].source
-            const vehicleType = entry.vehicleType
-            const vehicleId = entry.vehicleId
-            const jobCardId = null
-            const notes = [
-              'Imported from ' + entry.sheetName + ', row ' + entry.line + '.',
-              entry.history ? 'Source history: ' + entry.history : '',
-              entry.serialText ? 'Source serial cell: ' + entry.serialText : '',
-              !vehicleId ? 'Original vehicle number: ' + (entry.vehicleNumber || 'not supplied') + '; vehicle link unresolved.' : ''
-            ].filter(Boolean).join(' ')
-            await tx.tireLifecycleEvent.create({
-              data: {
-                id: 'tireevt_' + randomUUID(),
-                tireId: tire.id,
-                eventType: 'ISSUE',
-                eventAt: entry.eventAt as Date,
-                fromTruckId: previousVehicle?.type === 'truck' ? previousVehicle.id : null,
-                fromTrailerId: previousVehicle?.type === 'trailer' ? previousVehicle.id : null,
-                toTruckId: vehicleType === 'truck' ? vehicleId : null,
-                toTrailerId: vehicleType === 'trailer' ? vehicleId : null,
-                driverNameSnapshot: entry.driver || null,
-                odometerKm: entry.odometerKm,
-                reason: 'Tire usage workbook import',
-                notes,
-                jobCardId,
-                createdById: user.id
-              }
-            })
-            if (vehicleType && vehicleId) {
-              const next = sourceItems[index + 1]?.source
-              await tx.$executeRawUnsafe(
-                'INSERT INTO "tire_usage_periods" ("id","tireId","vehicleType","vehicleId","installedAt","removedAt","historicalEndUnknown","startOdometer","driverNameSnapshot") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)',
-                'tyuse_' + randomUUID(), tire.id, vehicleType, vehicleId, entry.eventAt,
-                next?.eventAt || null, !next, entry.odometerKm, entry.driver || null
-              )
-              previousVehicle = { type: vehicleType, id: vehicleId }
-            }
-            historyCount++
-          }
+          historyCount++
         }
       }
       return { tireCount, historyCount }
@@ -840,13 +560,13 @@ export async function POST(request: NextRequest) {
 
     await syncOneDriveWorkbookAfterChange()
     return NextResponse.json({
-      message: 'Processed ' + result.tireCount + ' new individual tire records and ' + result.historyCount + ' eligible tire usage entries in Tire Management. No Workshop Job Cards were created or linked. ' + analysis.blockedTires + ' tire group(s) with ' + analysis.blockedUsageEntries + ' usage entr(y/ies) were held for review and not imported. No stock receipt events are created.',
+      message: 'Imported ' + result.tireCount + ' tire records directly from the workbook and saved ' + result.historyCount + ' dated usage-history entries. Source vehicle references were preserved as text; no fleet matching, duplicate matching, or Workshop Job Card linking was performed. No stock receipt events are created.',
       tires: result.tireCount,
       historyEntries: result.historyCount,
-      skippedDuplicates: analysis.duplicateTires,
-      blockedTires: analysis.blockedTires,
-      reviewRequiredTires: analysis.blockedTires,
-      unlinkedSourceRows: analysis.blockedUsageEntries
+      skippedDuplicates: 0,
+      blockedTires: 0,
+      reviewRequiredTires: 0,
+      unlinkedSourceRows: 0
     }, { status: 201 })
   } catch (error) {
     console.error('Bulk tire usage import failed:', error)
