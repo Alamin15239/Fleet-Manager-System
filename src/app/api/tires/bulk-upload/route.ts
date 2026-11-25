@@ -395,7 +395,12 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
       const plausibleVehicle = Boolean(vehicleText && !/^(new|opening balance|total|balance)$/i.test(vehicleText) && !looksLikeDate)
       const hasUsageContext = plausibleDate && plausibleVehicle &&
         Boolean(driver || parsedSerials.serials.length || history)
-      if (!expectedQuantity && !hasUsageContext) continue
+      const hasReviewContext = (plausibleDate && plausibleVehicle) ||
+        (plausibleVehicle && Boolean(driver || parsedSerials.serials.length || history))
+      // A numeric OUT QTY copied into blank-date rows is commonly a carried-down
+      // balance/formula artifact, not an issue transaction. Only dated rows
+      // contribute to the source OUT QTY total and create importable tire units.
+      if (!hasReviewContext) continue
 
       // OUT QTY is the sole source of truth for how many physical tire records exist.
       // Serial identifiers describe those records; they must never increase the count.
@@ -412,6 +417,7 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
       if (!vehicleNumber) errors.push('A truck or trailer number was not detected.')
       if (truckNumber && trailerNumber && !vehicleType) errors.push('Both truck and trailer are filled in and the sheet does not identify which vehicle owns this tire. Add Vehicle Type or use a dedicated truck or trailer sheet.')
       if (genericNumber && !truckNumber && !trailerNumber && typeText && !vehicleType) errors.push('Vehicle Type must identify Truck or Trailer.')
+      if (qtyText && !plausibleDate) errors.push('A valid usage date is required before OUT QTY can be counted.')
       if (qtyText && (!Number.isInteger(quantity) || quantity < 1 || quantity > 100)) errors.push('Quantity must be a whole number from 1 to 100.')
       if (parsedSerials.serials.length > 100) errors.push('More than 100 serial numbers were detected in one row.')
       if (parsedSerials.mixedText) warnings.push('The serial cell contains mixed text; check the extracted tire identifier in the preview.')
@@ -432,7 +438,7 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
       const entry: SourceEntry = {
         sheetName: sheet.name, line, eventAt: date, vehicleType, vehicleNumber, vehicleId: null,
         vehicleLabel: vehicleNumber, driver, serialText, serials: parsedSerials.serials,
-        quantity: Number.isInteger(quantity) && quantity > 0 && quantity <= 100 ? quantity : 0,
+        quantity: plausibleDate && Number.isInteger(quantity) && quantity > 0 && quantity <= 100 ? quantity : 0,
         tireSize: size, manufacturer, origin: normalizeOrigin(origin), history,
         odometerKm: Number.isInteger(odometerValue) && odometerValue >= 0 ? odometerValue : null,
         warnings, errors
