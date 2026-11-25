@@ -349,11 +349,12 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
       if (normalizeHeader(read(columns.date)) === 'date' &&
           normalizeHeader(read(columns.quantity)) === 'outqty') continue
       const rowVehicleLabel = read(columns.truck) || read(columns.trailer) || read(columns.vehicle)
-      const otherUsageValues = [
-        columns.date, columns.type, columns.driver, ...columns.serials,
-        columns.quantity, columns.history, columns.odometer
-      ].filter((column): column is number => column !== null).map(read)
-      if (/^opening balance$/i.test(rowVehicleLabel) && !otherUsageValues.some(Boolean)) continue
+      // Opening Balance starts a separate stock/balance block, not more usage
+      // history. Ignore the marker and every row after it on this worksheet.
+      // Some sheets put quantities (for example 1, 2, 9) in OUT QTY below this
+      // marker; counting those values inflated the historical issue total.
+      if (/^opening balance$/i.test(rowVehicleLabel) &&
+          !read(columns.date) && !read(columns.quantity)) break
 
       const dateCell = columns.date ? row.getCell(columns.date).value : null
       const date = dateCell == null || cellText(dateCell) === '' ? null : parseDate(dateCell)
@@ -469,9 +470,10 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
     const count = source.quantity > 0 ? source.quantity : 1
     for (let index = 0; index < count; index++) {
       const serial = source.serials[index] || null
-      const key = serial
-        ? 'serial:' + serial.toLowerCase()
-        : 'row:' + source.sheetName + ':' + source.line + ':' + String(index + 1)
+      // OUT QTY defines physical tire units. Never collapse separate
+      // quantity slots because a serial is repeated or reused in the source.
+      // Serial values remain identifiers for review, not row/unit dedup keys.
+      const key = 'row:' + source.sheetName + ':' + source.line + ':' + String(index + 1)
       let unit = unitsByKey.get(key)
       if (!unit) {
         unit = {
@@ -535,8 +537,8 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
       unit.warnings.push('Conflicting origins were found for this serial. The tire is blocked until the correct origin is reviewed.')
       unit.errors.push('Conflicting origins require manual review.')
     }
-    if (unit.entries.length > 1 && unit.serial) {
-      unit.warnings.push('This serial appears in multiple rows and has been grouped into one tire with a chronological usage history.')
+    if (unit.serial && repeatedSerialUsageOccurrences > 0) {
+      unit.warnings.push('A serial value is repeated in the source workbook. Each OUT QTY unit remains a separate tire record; review serial identity before merging histories.')
     }
     if (unit.errors.length) unit.status = 'BLOCKED'
   }
