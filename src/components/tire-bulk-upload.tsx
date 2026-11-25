@@ -254,15 +254,15 @@ export default function TireBulkUpload() {
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <Button onClick={() => sendFile('import')} disabled={busy || preview.summary.importableTires === 0}>
-            {busy ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Importing history…</> : <><ShieldCheck className="mr-2 h-4 w-4" />Import {preview.summary.importableUsageEntries} usage entries across {preview.summary.importableTires} tire(s)</>}
+          <Button onClick={() => sendFile('import')} disabled={busy || preview.summary.importableUsageEntries === 0}>
+            {busy ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Processing tire history…</> : <><ShieldCheck className="mr-2 h-4 w-4" />{preview.summary.importableTires > 0 ? `Import ${preview.summary.importableUsageEntries} usage entries across ${preview.summary.importableTires} new tire(s)` : `Reconcile ${preview.summary.importableUsageEntries} existing usage entries`}</>}
           </Button>
           <Button type="button" variant="outline" onClick={() => sendFile('preview')} disabled={busy || !file}>
             <RefreshCw className="mr-2 h-4 w-4" />Recheck duplicates
           </Button>
           <Button type="button" variant="ghost" onClick={clearSelection} disabled={busy}>Cancel</Button>
         </div>
-        <p className="text-xs text-muted-foreground">Only records marked Ready are saved. Existing serial duplicates and rows with unresolved dates or vehicles are skipped. Each saved usage entry is linked to the vehicle’s open workshop Job Card, or a Job Card is created when no open one exists.</p>
+        <p className="text-xs text-muted-foreground">Existing imported tires are matched and their missing usage entries are reconciled without creating duplicate tire records. Every dated usage entry is linked to the vehicle’s open Workshop Job Card, or an automatic unassigned Job Card is created when the vehicle cannot be matched. This workbook does not create stock receipts.</p>
       </>}
     </CardContent>
   </Card>
