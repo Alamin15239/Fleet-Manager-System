@@ -212,8 +212,8 @@ function inferSheetMetadata(sheetName: string): {
             : 'OTHER'
   const dimension = name.match(/(\d{3})\s*[-/]+\s*(\d{2,3})/)
   const tireSize = dimension ? dimension[1] + '-' + dimension[2] : ''
-  const vehicleType: VehicleType | null = /385\s*[-/]\s*65|trailer/i.test(name) ? 'trailer'
-    : /315\s*[-/]\s*80|truck/i.test(name) ? 'truck'
+  const vehicleType: VehicleType | null = /385\s*[-/]+\s*65|trailer/i.test(name) ? 'trailer'
+    : /315\s*[-/]+\s*80|truck/i.test(name) ? 'truck'
       : null
   return { tireSize, origin, vehicleType }
 }
@@ -447,6 +447,7 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
       if (!origin) warnings.push('Origin was not found in the row or worksheet name; the preview will use OTHER.')
       if (!driver) warnings.push('Driver was not found in the sheet; the active fleet driver will be used when available.')
       if (odometerText && (!Number.isInteger(odometerValue) || odometerValue < 0)) warnings.push('Odometer value could not be interpreted and will be left empty.')
+
       const entry: SourceEntry = {
         sheetName: sheet.name, line, eventAt: date, vehicleType, vehicleNumber, vehicleId: null,
         vehicleLabel: vehicleNumber, driver, serialText, serials: parsedSerials.serials,
