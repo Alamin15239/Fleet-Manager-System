@@ -69,8 +69,14 @@ export default function TireBulkUpload() {
       const data = new FormData()
       data.append('file', file)
       data.append('mode', mode)
+      // The app stores its JWT in localStorage. This upload previously sent
+      // only cookies, which fails for OTP sessions because the OTP login route
+      // returns a token but does not set the auth-token cookie.
+      const token = localStorage.getItem('authToken')
+      const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {}
       const response = await fetch('/api/tires/bulk-upload', {
         method: 'POST',
+        headers,
         credentials: 'include',
         body: data
       })
