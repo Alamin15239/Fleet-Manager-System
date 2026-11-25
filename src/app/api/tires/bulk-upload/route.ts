@@ -397,7 +397,7 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
     sheetNames, sourceRows: sourceEntries.length, exactDuplicateRows,
     sourceQuantityTotal, serialUsageOccurrences, uniqueSerialTires, repeatedSerialUsageOccurrences,
     unnumberedQuantitySlots, unnumberedTireCandidates, unquantifiedRows,
-    totalTires: units.length, historyEntries: units.reduce((count, unit) => count + unit.entries.length, 0),
+    totalTires: units.length, historyEntries: units.reduce((count, unit) => count + unit.entries.filter(item => item.source.eventAt).length, 0),
     repeatedSerials: repeatedSerialGroups,
     importableTires: ready.length, duplicateTires: duplicates.length, blockedTires: blocked.length,
     importableUsageEntries: reconcilable.reduce((count, unit) => count + unit.entries.filter(item => item.source.eventAt).length, 0),
