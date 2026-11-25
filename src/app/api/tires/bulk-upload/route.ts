@@ -551,14 +551,17 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
     unit.manufacturer = manufacturers[0] || 'Unspecified'
     unit.origin = origins[0] || 'OTHER'
     if (sizes.length > 1) {
+      unit.tireSize = 'Unspecified'
       unit.warnings.push('Conflicting tire sizes were found for this serial. The tire is blocked until the correct size is reviewed.')
       unit.errors.push('Conflicting tire sizes require manual review.')
     }
     if (manufacturers.length > 1) {
+      unit.manufacturer = 'Unspecified'
       unit.warnings.push('Conflicting manufacturers were found for this serial. The tire is blocked until the correct manufacturer is reviewed.')
       unit.errors.push('Conflicting manufacturers require manual review.')
     }
     if (origins.length > 1) {
+      unit.origin = 'OTHER'
       unit.warnings.push('Conflicting origins were found for this serial. The tire is blocked until the correct origin is reviewed.')
       unit.errors.push('Conflicting origins require manual review.')
     }
@@ -603,7 +606,10 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
     warnings: Array.from(new Set(unit.warnings)).slice(0, 4),
     errors: Array.from(new Set(unit.errors)).slice(0, 4)
   }))
-  const ready = units.filter(unit => unit.status === 'READY')
+  // All non-duplicate candidates can be imported. Review flags remain attached
+  // to the tire; unresolved vehicle rows are retained as source notes rather
+  // than being assigned to a guessed truck or trailer.
+  const ready = units.filter(unit => unit.status !== 'DUPLICATE')
   const blocked = units.filter(unit => unit.status === 'BLOCKED')
   const duplicates = units.filter(unit => unit.status === 'DUPLICATE')
   const warningCount = units.reduce((count, unit) => count + new Set(unit.warnings).size, 0)
@@ -690,7 +696,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (!analysis.ready.length) {
-      return NextResponse.json({ error: 'There are no importable tire records. Review the preview and fix the blocked or duplicate rows.' }, { status: 400 })
+      return NextResponse.json({ error: 'There are no non-duplicate tire candidates to import.' }, { status: 400 })
     }
 
     const result = await db.$transaction(async tx => {
@@ -717,10 +723,11 @@ export async function POST(request: NextRequest) {
       const jobCardCache = new Map<string, string>()
 
       for (const unit of analysis.ready) {
+        const sourceEntries = unit.entries.map(item => item.source)
         const entries = unit.entries.filter(item => item.source.eventAt && item.source.vehicleType && item.source.vehicleId)
-        if (!entries.length) continue
-        const first = entries[0].source
-        const latest = entries[entries.length - 1].source
+        const first = entries[0]?.source || sourceEntries[0]
+        if (!first) continue
+        const latest = entries[entries.length - 1]?.source || first
         const latestType = latest.vehicleType as VehicleType
         const latestVehicle = latest.vehicleId as string
         const latestTruck = latestType === 'truck'
@@ -729,27 +736,31 @@ export async function POST(request: NextRequest) {
         const latestTrailer = latestType === 'trailer'
           ? latest.vehicleNumber
           : null
-        const combinedNotes = Array.from(new Set(entries.map(item => item.source.history).filter(Boolean)))
-        const warnings = Array.from(new Set(unit.warnings))
+        const combinedNotes = Array.from(new Set(sourceEntries.map(source => source.history).filter(Boolean)))
+        const warnings = Array.from(new Set([...unit.warnings, ...unit.errors]))
+        const unresolvedSourceRows = sourceEntries.filter(source => !source.eventAt || !source.vehicleType || !source.vehicleId).map(source =>
+          `${source.sheetName} row ${source.line}: date=${source.eventAt?.toISOString() || 'missing'}, vehicle=${source.vehicleType || 'unresolved'} ${source.vehicleNumber || 'missing'}, driver=${source.driver || 'unspecified'}, serial=${source.serialText || source.serials.join(', ') || 'unspecified'}, qty=${source.quantity}, history=${source.history || 'none'}`
+        )
         const tire = await tx.tire.create({
           data: {
             tireSize: unit.tireSize,
             manufacturer: unit.manufacturer,
             origin: unit.origin,
-            plateNumber: latestTruck,
-            truckId: latestType === 'truck' ? latestVehicle : null,
-            trailerNumber: latestTrailer,
+            plateNumber: entries.length ? latestTruck : null,
+            truckId: entries.length && latestType === 'truck' ? latestVehicle : null,
+            trailerNumber: entries.length ? latestTrailer : null,
             driverName: latest.driver || null,
             quantity: 1,
             serialNumber: unit.serial,
             internalCode: unit.importCode,
-            lifecycleStatus: 'ASSIGNED_UNVERIFIED',
+            lifecycleStatus: entries.length ? 'ASSIGNED_UNVERIFIED' : 'STOCK',
             createdById: user.id,
-            createdAt: first.eventAt as Date,
+            ...(first.eventAt ? { createdAt: first.eventAt } : {}),
             notes: [
               'Imported from historical tire usage spreadsheet.',
               combinedNotes.length ? 'Source history: ' + combinedNotes.join(' | ') : '',
-              warnings.length ? 'Import review: ' + warnings.join(' | ') : ''
+              unresolvedSourceRows.length ? 'Unlinked source rows (manual vehicle review required): ' + unresolvedSourceRows.join(' || ') : '',
+              warnings.length ? 'Import review required: ' + warnings.join(' | ') : ''
             ].filter(Boolean).join(' ')
           },
           select: { id: true }
@@ -825,7 +836,9 @@ export async function POST(request: NextRequest) {
       historyEntries: result.historyCount,
       jobCards: result.jobCardCount,
       skippedDuplicates: analysis.duplicateTires,
-      blockedTires: analysis.blockedTires
+      blockedTires: analysis.blockedTires,
+      reviewRequiredTires: analysis.blockedTires,
+      unlinkedSourceRows: analysis.units.reduce((count, unit) => count + unit.entries.filter(item => !item.source.eventAt || !item.source.vehicleType || !item.source.vehicleId).length, 0)
     }, { status: 201 })
   } catch (error) {
     console.error('Bulk tire usage import failed:', error)
