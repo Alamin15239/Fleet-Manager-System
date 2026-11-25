@@ -333,11 +333,28 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
 
     for (let line = header.row + 1; line <= sheet.rowCount; line++) {
       const row = sheet.getRow(line)
-      let hasData = false
-      row.eachCell(cell => { if (cellText(cell.value)) hasData = true })
-      if (!hasData) continue
-
       const read = (column: number | null) => column ? cellText(row.getCell(column).value) : ''
+
+      // Only inspect columns that describe a tire usage record. Some source
+      // workbooks contain broken formula-only balance columns (#REF!) copied
+      // down hundreds of otherwise empty rows; those are not transactions.
+      const sourceColumns = Array.from(new Set([
+        columns.date, columns.type, columns.truck, columns.trailer, columns.vehicle,
+        columns.driver, ...columns.serials, columns.quantity, columns.size,
+        columns.manufacturer, columns.origin, columns.history, columns.odometer
+      ].filter((column): column is number => column !== null)))
+      if (!sourceColumns.some(column => read(column))) continue
+
+      // Ignore repeated in-sheet header rows and opening-balance labels.
+      if (normalizeHeader(read(columns.date)) === 'date' &&
+          normalizeHeader(read(columns.quantity)) === 'outqty') continue
+      const rowVehicleLabel = read(columns.truck) || read(columns.trailer) || read(columns.vehicle)
+      const otherUsageValues = [
+        columns.date, columns.type, columns.driver, ...columns.serials,
+        columns.quantity, columns.history, columns.odometer
+      ].filter((column): column is number => column !== null).map(read)
+      if (/^opening balance$/i.test(rowVehicleLabel) && !otherUsageValues.some(Boolean)) continue
+
       const dateCell = columns.date ? row.getCell(columns.date).value : null
       const date = dateCell == null || cellText(dateCell) === '' ? null : parseDate(dateCell)
       const truckNumber = read(columns.truck)
