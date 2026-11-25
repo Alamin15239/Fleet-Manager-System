@@ -35,6 +35,102 @@ export async function POST(request: NextRequest) {
         } catch { skipped++ }
       }
 
+      // Oil workbook rows without truckId were skipped by the original
+      // reconciliation query. Resolve their preserved plate against all trucks
+      // (including inactive historical trucks); otherwise create an unassigned
+      // OIL card that retains the original vehicle number.
+      const unlinkedOil = await tx.$queryRawUnsafe<any[]>(`
+        SELECT "id","truckId","vehiclePlateNumber","datePerformed","currentMileage","driverName",
+               "serviceType","description","partsCost","laborCost","totalCost"
+        FROM "maintenance_records"
+        WHERE "jobCardId" IS NULL AND "isDeleted"=false
+          AND ("isOilChange"=true OR lower(COALESCE("serviceType",'')) LIKE '%oil%')
+        ORDER BY "datePerformed" ASC,"id" ASC
+      `)
+      for (const row of unlinkedOil) {
+        try {
+          let vehicleId = row.truckId || null
+          if (!vehicleId && row.vehiclePlateNumber && !['MISSING','FORKLIFT'].includes(String(row.vehiclePlateNumber).trim().toUpperCase())) {
+            const matches = await tx.$queryRawUnsafe<any[]>(`
+              SELECT "id" FROM "trucks"
+              WHERE regexp_replace(upper("licensePlate"),'[^A-Z0-9]','','g') =
+                    regexp_replace(upper($1),'[^A-Z0-9]','','g')
+              ORDER BY "isDeleted" ASC
+              LIMIT 2
+            `, String(row.vehiclePlateNumber))
+            if (matches.length === 1) vehicleId = matches[0].id
+          } else if (!vehicleId && row.vehiclePlateNumber) {
+            // "Forklift" may be a real registered fleet identifier; verify it
+            // by exact normalized match instead of treating it as a truck by assumption.
+            const matches = await tx.$queryRawUnsafe<any[]>(`
+              SELECT "id" FROM "trucks"
+              WHERE regexp_replace(upper("licensePlate"),'[^A-Z0-9]','','g') =
+                    regexp_replace(upper($1),'[^A-Z0-9]','','g')
+              ORDER BY "isDeleted" ASC
+              LIMIT 2
+            `, String(row.vehiclePlateNumber))
+            if (matches.length === 1) vehicleId = matches[0].id
+          }
+
+          let jobCardId: string
+          if (vehicleId) {
+            jobCardId = await getOrCreateOpenJobCard(tx, { vehicleType: 'truck', vehicleId }, {
+              eventAt: row.datePerformed, odometerKm: row.currentMileage, driverName: row.driverName,
+              userId: user.id, creationSource: 'OIL', serviceType: 'OIL CHANGE',
+              reportedIssue: row.description || 'Linked from existing oil-change record',
+              allowInactive: true
+            })
+          } else {
+            const marker = `[OIL-RECONCILE:${row.id}]`
+            await tx.$executeRawUnsafe('LOCK TABLE "workshop_job_cards" IN EXCLUSIVE MODE')
+            const existing = await tx.workshopJobCard.findFirst({
+              where: { truckId: null, trailerId: null, notes: { contains: marker } },
+              select: { id: true }
+            })
+            if (existing) jobCardId = existing.id
+            else {
+              const year = new Date(row.datePerformed).getFullYear()
+              const prefix = `JC-${year}-`
+              const numbers = await tx.workshopJobCard.findMany({
+                where: { jobNumber: { startsWith: prefix } }, select: { jobNumber: true }
+              })
+              const highest = numbers.reduce((max: number, item: { jobNumber: string }) => {
+                const match = item.jobNumber.match(/^JC-\\d{4}-(\\d+)$/)
+                return match ? Math.max(max, Number(match[1]) || 0) : max
+              }, 0)
+              let sequence = highest + 1
+              let jobNumber = `${prefix}${String(sequence).padStart(4, '0')}`
+              while (await tx.workshopJobCard.findUnique({ where: { jobNumber }, select: { id: true } })) {
+                sequence++
+                jobNumber = `${prefix}${String(sequence).padStart(4, '0')}`
+              }
+              jobCardId = `jc_${randomUUID()}`
+              await tx.workshopJobCard.create({
+                data: {
+                  id: jobCardId, jobNumber, serviceDate: row.datePerformed,
+                  serviceType: 'OIL CHANGE', creationSource: 'OIL',
+                  priority: 'NORMAL', status: 'OPEN', driverName: row.driverName || undefined,
+                  reportedIssue: row.description || 'Historical oil change; vehicle could not be matched',
+                  notes: `${marker} Original workbook vehicle number: ${row.vehiclePlateNumber || 'not supplied'}. Vehicle assignment pending review.`,
+                  createdById: user.id, items: [], checklist: {}
+                }
+              })
+            }
+          }
+          const attached = await tx.$queryRawUnsafe<any[]>(
+            'UPDATE "maintenance_records" SET "jobCardId"=$2 WHERE "id"=$1 AND "jobCardId" IS NULL RETURNING "id"',
+            row.id, jobCardId
+          )
+          if (attached.length) {
+            await tx.$executeRawUnsafe(
+              'UPDATE "workshop_job_cards" SET "partsCost"=COALESCE("partsCost",0)+$2,"laborCost"=COALESCE("laborCost",0)+$3,"totalCost"=COALESCE("totalCost",0)+$4,"updatedAt"=NOW() WHERE "id"=$1',
+              jobCardId, row.partsCost || 0, row.laborCost || 0, row.totalCost || 0
+            )
+            linked++
+          }
+        } catch { skipped++ }
+      }
+
       const trailerMaintenance = await tx.$queryRawUnsafe<any[]>(`
         SELECT "id","trailerId","datePerformed","driverName","serviceType","description","partsCost","laborCost","totalCost"
         FROM "trailer_maintenance_records"
