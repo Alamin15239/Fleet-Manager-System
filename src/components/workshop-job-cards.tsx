@@ -106,7 +106,7 @@ export default function WorkshopJobCards() {
 
   const vehicleLabel = (card: JobCard) => card.truck
     ? `${card.truck.licensePlate} · ${card.truck.year} ${card.truck.make} ${card.truck.model}`
-    : `Trailer ${card.trailer?.number || ''}`
+    : card.trailer ? `Trailer ${card.trailer.number}` : `Unassigned · ${card.notes?.match(/Original workbook vehicle number: ([^.]+)/)?.[1] || 'vehicle review required'}`
 
   const startNew = () => { setEditingId(null); setForm(blankForm()); setOpen(true) }
   const startEdit = (card: JobCard) => {
