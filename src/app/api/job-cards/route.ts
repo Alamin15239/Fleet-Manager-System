@@ -76,13 +76,30 @@ export async function GET(request: NextRequest) {
       list.push({ ...activity, activityType: 'PART' })
       activitiesByCard.set(activity.jobCardId, list)
     }
+    const activityRows = await db.$queryRawUnsafe<any[]>(`
+      SELECT
+        (SELECT COUNT(*) FROM "maintenance_records" WHERE "isDeleted"=false AND "isOilChange"=true)::int AS "oilTotal",
+        (SELECT COUNT(*) FROM "maintenance_records" m JOIN "workshop_job_cards" j ON j."id"=m."jobCardId" WHERE m."isDeleted"=false AND m."isOilChange"=true)::int AS "oilLinked",
+        (SELECT COUNT(*) FROM "maintenance_records" m WHERE m."isDeleted"=false AND m."isOilChange"=true AND NOT EXISTS (SELECT 1 FROM "workshop_job_cards" j WHERE j."id"=m."jobCardId"))::int AS "oilUnlinked",
+        (SELECT COUNT(*) FROM "tire_lifecycle_events" WHERE "eventType"<>'RECEIVE')::int AS "tireTotal",
+        (SELECT COUNT(*) FROM "tire_lifecycle_events" e JOIN "workshop_job_cards" j ON j."id"=e."jobCardId" WHERE e."eventType"<>'RECEIVE')::int AS "tireLinked",
+        (SELECT COUNT(*) FROM "tire_lifecycle_events" e WHERE e."eventType"<>'RECEIVE' AND NOT EXISTS (SELECT 1 FROM "workshop_job_cards" j WHERE j."id"=e."jobCardId"))::int AS "tireUnlinked",
+        (SELECT COUNT(*) FROM "inventory_transactions" WHERE "type"='ISSUE')::int AS "partsTotal",
+        (SELECT COUNT(*) FROM "inventory_transactions" x JOIN "workshop_job_cards" j ON j."id"=x."jobCardId" WHERE x."type"='ISSUE')::int AS "partsLinked",
+        (SELECT COUNT(*) FROM "inventory_transactions" x WHERE x."type"='ISSUE' AND NOT EXISTS (SELECT 1 FROM "workshop_job_cards" j WHERE j."id"=x."jobCardId"))::int AS "partsUnlinked"
+    `)
+    const activity = activityRows[0] || {}
+    const oil = { total: Number(activity.oilTotal || 0), linked: Number(activity.oilLinked || 0), unlinked: Number(activity.oilUnlinked || 0) }
+    const tires = { total: Number(activity.tireTotal || 0), linked: Number(activity.tireLinked || 0), unlinked: Number(activity.tireUnlinked || 0) }
+    const spareParts = { total: Number(activity.partsTotal || 0), linked: Number(activity.partsLinked || 0), unlinked: Number(activity.partsUnlinked || 0) }
+    const activitySummary = { oil, tires, spareParts, total: oil.total + tires.total + spareParts.total, unlinked: oil.unlinked + tires.unlinked + spareParts.unlinked }
     const jobCardsWithActivities = jobCards.map(card => ({
       ...card,
       linkedActivities: (activitiesByCard.get(card.id) || []).sort((a, b) =>
         new Date(b.datePerformed || b.eventAt).getTime() - new Date(a.datePerformed || a.eventAt).getTime()
       )
     }))
-    return NextResponse.json({ jobCards: jobCardsWithActivities, company: settings })
+    return NextResponse.json({ jobCards: jobCardsWithActivities, company: settings, activitySummary })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to fetch job cards'
     return NextResponse.json({ error: message }, { status: message.includes('token') ? 401 : message === 'Insufficient permissions' ? 403 : 500 })
