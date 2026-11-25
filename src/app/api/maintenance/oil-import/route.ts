@@ -55,8 +55,12 @@ function parseFile(buffer: Buffer) {
     const plate = rawPlate || 'Missing'
     const quantityMatch = oilText.replace(/,/g,'.').match(/^\s*(\d+(?:\.\d+)?)/)
     const quantity = quantityMatch ? Number(quantityMatch[0]) : null
-    const keyData = [date || '', plateKey(plate), mileage ?? '', driver.toLowerCase(), oilText.toLowerCase()]
-    const importKey = 'oil-upload-v1:' + createHash('sha256').update(JSON.stringify(keyData)).digest('hex')
+    // Stable row identity: the same date + plate always maps to the same
+    // record, so re-uploading an updated workbook REPLACES the previously
+    // imported details instead of being rejected as a duplicate. Details that
+    // may change between uploads (oil text, mileage, driver) are deliberately
+    // excluded from the key.
+    const importKey = 'oil-upload-v2:' + createHash('sha256').update(`${date || ''}|${plateKey(plate)}`).digest('hex')
     return { rowNumber: i + 2, date, driver: driver || null, mileage, make: make || null, plate, plateKey: plateKey(plate),
       oilText, quantity: quantity !== null && Number.isFinite(quantity) ? quantity : null, importKey, sourceData: { rowNumber: i + 2, original: r } }
   })
@@ -87,24 +91,70 @@ export async function POST(req: NextRequest) {
       const matchStatus = r.plateKey === 'MISSING' ? 'Missing' : matches.length === 1 ? 'Matched' : matches.length > 1 ? 'Ambiguous' : 'Unmatched'
       return { ...r, truckId: matches.length === 1 ? matches[0].id : null, matchStatus }
     })
-    const keys = rows.map(r => r.importKey)
-    const existing = keys.length ? await db.maintenanceRecord.findMany({ where: { sourceImportKey: { in: keys } }, select: { sourceImportKey: true } }) : []
-    const known = new Set(existing.map(r => r.sourceImportKey))
-    const fresh = rows.filter(r => !known.has(r.importKey))
-    const duplicates = rows.length - fresh.length
+    // Re-upload = replace. Rows are matched to previously imported records by
+    // a stable identity (date + plate). Matched rows UPDATE the existing
+    // record with the new workbook details; rows absent from the file (for
+    // plates present in the file) are removed. Legacy v1 keys (hash of the
+    // full row, so any edited detail looked "new") are migrated via
+    // datePerformed + vehiclePlateNumber.
+    const rowKeySet = new Set(rows.map(r => r.importKey))
+    const filePlates = new Set(rows.map(r => r.plateKey).filter(p => p && p !== 'MISSING'))
+    const existing = await db.maintenanceRecord.findMany({
+      where: { OR: [{ sourceImportKey: { in: [...rowKeySet] } }, { sourceImportKey: { startsWith: 'oil-upload-v1:' } }, { sourceImportKey: { startsWith: 'oil-upload-v2:' } }] },
+      select: { id: true, sourceImportKey: true, truckId: true, jobCardId: true, vehiclePlateNumber: true, datePerformed: true }
+    })
+    type MatchedRecord = (typeof existing)[number]
+    const matched = new Map<string, MatchedRecord>()
+    const staleRecords: MatchedRecord[] = []
+    for (const rec of existing) {
+      let key: string | null = null
+      if (rec.sourceImportKey && rowKeySet.has(rec.sourceImportKey)) key = rec.sourceImportKey
+      else if (rec.sourceImportKey?.startsWith('oil-upload-v1:') && rec.datePerformed) {
+        const identity = `${rec.datePerformed.toISOString().slice(0, 10)}|${plateKey(rec.vehiclePlateNumber)}`
+        const candidate = 'oil-upload-v2:' + createHash('sha256').update(identity).digest('hex')
+        if (rowKeySet.has(candidate) && !matched.has(candidate)) key = candidate
+      }
+      if (key) matched.set(key, rec)
+      else if (filePlates.has(plateKey(rec.vehiclePlateNumber))) staleRecords.push(rec)
+    }
+    // Collapse repeated rows sharing one identity (same date + plate): the
+    // last occurrence carries the newest details.
+    const rowsByKey = new Map<string, typeof rows[number]>()
+    for (const row of rows) rowsByKey.set(row.importKey, row)
+    const freshRows = rows.filter(r => !matched.has(r.importKey))
+    const updateRows = [...matched.entries()].map(([key, rec]) => ({ row: rowsByKey.get(key)!, rec })).filter(x => x.row)
+    const staleIds = staleRecords.map(rec => rec.id)
 
     if (mode === 'preview') return NextResponse.json({
-      total: parsed.length, valid: fresh.length, matched: rows.filter(r => r.matchStatus === 'Matched').length,
+      total: parsed.length, valid: freshRows.length + updateRows.length, matched: rows.filter(r => r.matchStatus === 'Matched').length,
       unmatched: rows.filter(r => ['Unmatched','Ambiguous'].includes(r.matchStatus)).length,
-      missing: rows.filter(r => r.matchStatus === 'Missing').length, duplicates, invalid: parsed.length - valid.length,
+      missing: rows.filter(r => r.matchStatus === 'Missing').length,
+      existing: updateRows.length, removed: staleIds.length, duplicates: 0, invalid: parsed.length - valid.length,
       rows: rows.slice(0,50).map(r => ({ rowNumber: r.rowNumber, date: r.date, plate: r.plate, matchStatus: r.matchStatus, oilText: r.oilText }))
     })
-    if (!fresh.length) return NextResponse.json({ imported: 0, duplicates, invalid: parsed.length - valid.length })
 
     const result = await db.$transaction(async tx => {
       await ensureMaintenanceJobCardColumns(tx)
+      // 1) Remove rows that were previously imported from this same workbook
+      // but are no longer present in the uploaded file (scoped to plates that
+      // appear in the file, so partial uploads never wipe other trucks).
+      let removed = 0
+      for (const rec of staleRecords) {
+        await tx.maintenanceRecord.delete({ where: { id: rec.id } })
+        removed++
+      }
+      // Unassigned oil job cards carry a per-row marker; drop the ones whose
+      // record was removed so the workshop board is not left with orphans.
+      for (const rec of staleRecords) {
+        if (!rec.sourceImportKey || rec.truckId) continue
+        const marker = `[OIL-IMPORT:${rec.sourceImportKey}]`
+        const card = await tx.workshopJobCard.findFirst({ where: { truckId: null, trailerId: null, notes: { contains: marker } }, select: { id: true } })
+        if (card && !(await tx.maintenanceRecord.findFirst({ where: { jobCardId: card.id }, select: { id: true } }))) {
+          await tx.workshopJobCard.delete({ where: { id: card.id } })
+        }
+      }
       const inserted = await tx.maintenanceRecord.createMany({
-        data: fresh.map(r => ({
+        data: freshRows.map(r => ({
           truckId: r.truckId, vehiclePlateNumber: r.plate, sourceData: JSON.parse(JSON.stringify(r.sourceData)), sourceImportKey: r.importKey,
           serviceType: 'Oil Change', description: r.oilText || 'Historical oil change (oil details not provided)',
           datePerformed: new Date(`${r.date}T00:00:00.000Z`), partsCost: 0, laborCost: 0, totalCost: 0,
@@ -114,11 +164,40 @@ export async function POST(req: NextRequest) {
         skipDuplicates: true
       })
 
+      // 2) Matched rows are replaced in place with the new workbook details.
+      for (const { row, rec } of updateRows) {
+        const truckChanged = (rec.truckId || null) !== (row.truckId || null)
+        await tx.maintenanceRecord.update({
+          where: { id: rec.id },
+          data: {
+            truckId: row.truckId,
+            vehiclePlateNumber: row.plate,
+            sourceData: JSON.parse(JSON.stringify(row.sourceData)),
+            sourceImportKey: row.importKey,
+            description: row.oilText || 'Historical oil change (oil details not provided)',
+            datePerformed: new Date(`${row.date}T00:00:00.000Z`),
+            oilQuantityLiters: row.quantity,
+            currentMileage: row.mileage,
+            driverName: row.driver
+          }
+        })
+        // Vehicle resolution changed: move the record onto the matching open
+        // job card so the workshop board stays in sync.
+        if (truckChanged && row.truckId) {
+          const jobCardId = await getOrCreateOpenJobCard(tx, { vehicleType: 'truck', vehicleId: row.truckId }, {
+            eventAt: new Date(`${row.date}T00:00:00.000Z`), odometerKm: row.mileage, driverName: row.driver,
+            userId: user.id, creationSource: 'OIL', serviceType: 'OIL CHANGE',
+            reportedIssue: row.oilText || 'Oil change imported from workbook'
+          })
+          await tx.maintenanceRecord.update({ where: { id: rec.id }, data: { jobCardId } })
+        }
+      }
+
       const importedRecords = await tx.maintenanceRecord.findMany({
-        where: { sourceImportKey: { in: fresh.map(r => r.importKey) } },
+        where: { sourceImportKey: { in: freshRows.map(r => r.importKey) } },
         select: { id: true, sourceImportKey: true, truckId: true, vehiclePlateNumber: true, datePerformed: true, driverName: true, currentMileage: true }
       })
-      const freshByKey = new Map(fresh.map(row => [row.importKey, row]))
+      const freshByKey = new Map(freshRows.map(row => [row.importKey, row]))
       const unassignedCards = new Map<string, string>()
       for (const record of importedRecords) {
         if (!record.sourceImportKey) continue
@@ -172,9 +251,9 @@ export async function POST(req: NextRequest) {
 
       // Keep the canonical truck odometer and last-oil-change fields aligned
       // with imported history, but never move either value backwards.
-      const truckIds = [...new Set(fresh.map(row => row.truckId).filter((id): id is string => Boolean(id)))]
+      const truckIds = [...new Set([...freshRows, ...updateRows.map(x => x.row)].map(row => row.truckId).filter((id): id is string => Boolean(id)))]
       for (const truckId of truckIds) {
-        const truckRows = fresh.filter(row => row.truckId === truckId)
+        const truckRows = [...freshRows, ...updateRows.map(x => x.row)].filter(row => row.truckId === truckId)
         const mileages = truckRows.map(row => row.mileage).filter((value): value is number => value !== null)
         const maxMileage = mileages.length ? Math.max(...mileages) : null
         const latestDate = new Date(`${truckRows.reduce((latest, row) => row.date && row.date > latest ? row.date : latest, '1900-01-01')}T00:00:00.000Z`)
@@ -187,10 +266,11 @@ export async function POST(req: NextRequest) {
           truckId, maxMileage, latestDate
         )
       }
-      return inserted
+      return { inserted, removed }
     })
     try { await syncOneDriveWorkbookAfterChange() } catch (e) { console.warn('Oil import OneDrive sync failed', e) }
-    return NextResponse.json({ imported: result.count, duplicates: duplicates + fresh.length - result.count,
+    return NextResponse.json({ imported: result.inserted.count, replaced: updateRows.length, removed: result.removed,
+      duplicates: 0,
       invalid: parsed.length - valid.length, unmatched: rows.filter(r => ['Unmatched','Ambiguous'].includes(r.matchStatus)).length,
       missing: rows.filter(r => r.matchStatus === 'Missing').length })
   } catch (error) {
