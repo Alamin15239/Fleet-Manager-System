@@ -606,9 +606,13 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
   // All non-duplicate candidates can be imported. Review flags remain attached
   // to the tire; unresolved vehicle rows are retained as source notes rather
   // than being assigned to a guessed truck or trailer.
-  const ready = units.filter(unit => unit.status !== 'DUPLICATE')
-  const blocked = units.filter(unit => unit.status === 'BLOCKED')
+  // Only clean units can create new tire records. Database duplicates may still
+  // reconcile missing history against their existing tire; blocked units must
+  // never be counted as importable or silently skipped during commit.
+  const ready = units.filter(unit => unit.status === 'READY')
   const duplicates = units.filter(unit => unit.status === 'DUPLICATE')
+  const blocked = units.filter(unit => unit.status === 'BLOCKED')
+  const reconcilable = units.filter(unit => unit.status === 'READY' || unit.status === 'DUPLICATE')
   const warningCount = units.reduce((count, unit) => count + new Set(unit.warnings).size, 0)
   return {
     sheetNames, sourceRows: sourceEntries.length, exactDuplicateRows,
@@ -617,7 +621,9 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
     totalTires: units.length, historyEntries: units.reduce((count, unit) => count + unit.entries.length, 0),
     repeatedSerials: repeatedSerialGroups,
     importableTires: ready.length, duplicateTires: duplicates.length, blockedTires: blocked.length,
-    warningCount, preview, units, ready
+    importableUsageEntries: reconcilable.reduce((count, unit) => count + unit.entries.filter(item => item.source.eventAt).length, 0),
+    blockedUsageEntries: blocked.reduce((count, unit) => count + unit.entries.filter(item => item.source.eventAt).length, 0),
+    warningCount, preview, units, ready, reconcilable
   }
 }
 
@@ -682,7 +688,8 @@ export async function POST(request: NextRequest) {
           repeatedSerialsGrouped: analysis.repeatedSerials,
           exactDuplicateRowsSkipped: analysis.exactDuplicateRows,
           importableTires: analysis.importableTires,
-          importableUsageEntries: analysis.units.reduce((count, unit) => count + unit.entries.filter(item => item.source.eventAt).length, 0),
+          importableUsageEntries: analysis.importableUsageEntries,
+          blockedUsageEntries: analysis.blockedUsageEntries,
           existingDuplicates: analysis.duplicateTires,
           blockedTires: analysis.blockedTires,
           warnings: analysis.warningCount
@@ -727,6 +734,9 @@ export async function POST(request: NextRequest) {
       )
 
       for (const unit of analysis.units) {
+        // Do not create tires, job cards, or lifecycle events for unresolved or
+        // conflicting groups. They remain in the review report for correction.
+        if (unit.status === 'BLOCKED') continue
         const sourceEntries = unit.entries.map(item => item.source)
         const datedEntries = unit.entries.filter(item => item.source.eventAt)
         if (!datedEntries.length) continue
@@ -920,14 +930,14 @@ export async function POST(request: NextRequest) {
 
     await syncOneDriveWorkbookAfterChange()
     return NextResponse.json({
-      message: 'Processed ' + result.tireCount + ' new individual tire records and reconciled ' + result.historyCount + ' tire usage entries across ' + result.jobCardCount + ' Workshop Job Card(s). No stock receipt events are created. Unmatched vehicle numbers are preserved on automatically created unassigned Job Cards.',
+      message: 'Processed ' + result.tireCount + ' new individual tire records and reconciled ' + result.historyCount + ' eligible tire usage entries across ' + result.jobCardCount + ' Workshop Job Card(s). ' + analysis.blockedTires + ' tire group(s) with ' + analysis.blockedUsageEntries + ' usage entr(y/ies) were held for review and not imported. No stock receipt events are created.',
       tires: result.tireCount,
       historyEntries: result.historyCount,
       jobCards: result.jobCardCount,
       skippedDuplicates: analysis.duplicateTires,
       blockedTires: analysis.blockedTires,
       reviewRequiredTires: analysis.blockedTires,
-      unlinkedSourceRows: 0
+      unlinkedSourceRows: analysis.blockedUsageEntries
     }, { status: 201 })
   } catch (error) {
     console.error('Bulk tire usage import failed:', error)
