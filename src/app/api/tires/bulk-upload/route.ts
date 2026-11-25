@@ -536,18 +536,6 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
   const unquantifiedRows = sourceEntries.filter(source => source.quantity <= 0).length
 
   for (const unit of units) {
-    if (unit.serial) {
-      const serialKey = unit.serial.toLowerCase()
-      serialOccurrenceCounts.set(serialKey, (serialOccurrenceCounts.get(serialKey) || 0) + 1)
-    }
-  }
-  const uniqueSerialTires = serialOccurrenceCounts.size
-  const unnumberedTireCandidates = units.filter(unit =>
-    !unit.serial && unit.entries.some(item => item.source.quantity > 0)).length
-  const repeatedSerialUsageOccurrences = Math.max(0, serialUsageOccurrences - uniqueSerialTires)
-  const repeatedSerialGroups = Array.from(serialOccurrenceCounts.values()).filter(count => count > 1).length
-
-  for (const unit of units) {
     unit.entries.sort((a, b) => (a.source.eventAt?.getTime() || 0) - (b.source.eventAt?.getTime() || 0) || a.source.line - b.source.line)
     if (unit.entries.length) unit.warnings.push("The final historical usage period has no recorded removal date. It will be saved with an unknown end date and will not be treated as a current installation.")
     const sizes = Array.from(new Set(unit.entries.map(item => item.source.tireSize).filter(Boolean)))
