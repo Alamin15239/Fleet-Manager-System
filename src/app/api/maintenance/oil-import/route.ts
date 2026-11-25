@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createHash, randomUUID } from 'crypto'
+import { createHash } from 'crypto'
 import * as XLSX from 'xlsx'
 import { db } from '@/lib/db'
 import { requireRolePermission } from '@/lib/permission-middleware'
 import { syncOneDriveWorkbookAfterChange } from '@/lib/onedrive-excel-sync'
-import { ensureMaintenanceJobCardColumns, getOrCreateOpenJobCard } from '@/lib/tire-lifecycle'
 
 export const runtime = 'nodejs'
 const MAX_BYTES = 10 * 1024 * 1024
@@ -134,7 +133,6 @@ export async function POST(req: NextRequest) {
     })
 
     const result = await db.$transaction(async tx => {
-      await ensureMaintenanceJobCardColumns(tx)
       // 1) Remove rows that were previously imported from this same workbook
       // but are no longer present in the uploaded file (scoped to plates that
       // appear in the file, so partial uploads never wipe other trucks).
@@ -142,16 +140,6 @@ export async function POST(req: NextRequest) {
       for (const rec of staleRecords) {
         await tx.maintenanceRecord.delete({ where: { id: rec.id } })
         removed++
-      }
-      // Unassigned oil job cards carry a per-row marker; drop the ones whose
-      // record was removed so the workshop board is not left with orphans.
-      for (const rec of staleRecords) {
-        if (!rec.sourceImportKey || rec.truckId) continue
-        const marker = `[OIL-IMPORT:${rec.sourceImportKey}]`
-        const card = await tx.workshopJobCard.findFirst({ where: { truckId: null, trailerId: null, notes: { contains: marker } }, select: { id: true } })
-        if (card && !(await tx.maintenanceRecord.findFirst({ where: { jobCardId: card.id }, select: { id: true } }))) {
-          await tx.workshopJobCard.delete({ where: { id: card.id } })
-        }
       }
       const inserted = await tx.maintenanceRecord.createMany({
         data: freshRows.map(r => ({
@@ -171,6 +159,7 @@ export async function POST(req: NextRequest) {
           where: { id: rec.id },
           data: {
             truckId: row.truckId,
+            jobCardId: null,
             vehiclePlateNumber: row.plate,
             sourceData: JSON.parse(JSON.stringify(row.sourceData)),
             sourceImportKey: row.importKey,
@@ -181,79 +170,7 @@ export async function POST(req: NextRequest) {
             driverName: row.driver
           }
         })
-        // Keep Oil Changes as its own record while guaranteeing a valid Job Card
-        // relationship after every workbook re-upload.
-        if (truckChanged || !rec.jobCardId || row.truckId) {
-          const linkedCard = rec.jobCardId && !truckChanged
-            ? await tx.workshopJobCard.findUnique({ where: { id: rec.jobCardId }, select: { id: true } })
-            : null
-          if (!linkedCard && row.truckId) {
-            const jobCardId = await getOrCreateOpenJobCard(tx, { vehicleType: 'truck', vehicleId: row.truckId }, {
-              eventAt: new Date(`${row.date}T00:00:00.000Z`), odometerKm: row.mileage, driverName: row.driver,
-              userId: user.id, creationSource: 'OIL', serviceType: 'OIL CHANGE',
-              reportedIssue: row.oilText || 'Oil change imported from workbook'
-            })
-            await tx.maintenanceRecord.update({ where: { id: rec.id }, data: { jobCardId } })
-          } else if (!linkedCard && !row.truckId) {
-            await tx.maintenanceRecord.update({ where: { id: rec.id }, data: { jobCardId: null } })
-          }
-        }
-      }
 
-      const importedRecords = await tx.maintenanceRecord.findMany({
-        where: { sourceImportKey: { in: freshRows.map(r => r.importKey) } },
-        select: { id: true, sourceImportKey: true, truckId: true, vehiclePlateNumber: true, datePerformed: true, driverName: true, currentMileage: true }
-      })
-      const freshByKey = new Map(freshRows.map(row => [row.importKey, row]))
-      const unassignedCards = new Map<string, string>()
-      for (const record of importedRecords) {
-        if (!record.sourceImportKey) continue
-        const source = freshByKey.get(record.sourceImportKey)
-        if (!source) continue
-        let jobCardId: string
-        if (record.truckId) {
-          jobCardId = await getOrCreateOpenJobCard(tx, { vehicleType: 'truck', vehicleId: record.truckId }, {
-            eventAt: record.datePerformed, odometerKm: record.currentMileage, driverName: record.driverName,
-            userId: user.id, creationSource: 'OIL', serviceType: 'OIL CHANGE',
-            reportedIssue: source.oilText || 'Oil change imported from workbook'
-          })
-        } else {
-          const marker = `[OIL-IMPORT:${record.sourceImportKey}]`
-          const cached = unassignedCards.get(marker)
-          if (cached) jobCardId = cached
-          else {
-            await tx.$executeRawUnsafe('LOCK TABLE "workshop_job_cards" IN EXCLUSIVE MODE')
-            const existing = await tx.workshopJobCard.findFirst({ where: { truckId: null, trailerId: null, notes: { contains: marker } }, select: { id: true } })
-            if (existing) jobCardId = existing.id
-            else {
-              const year = record.datePerformed.getFullYear()
-              const prefix = `JC-${year}-`
-              const numbers = await tx.workshopJobCard.findMany({ where: { jobNumber: { startsWith: prefix } }, select: { jobNumber: true } })
-              const highest = numbers.reduce((max: number, item: { jobNumber: string }) => {
-                const found = item.jobNumber.match(/^JC-\d{4}-(\d+)$/)
-                return found ? Math.max(max, Number(found[1]) || 0) : max
-              }, 0)
-              let sequence = highest + 1
-              let jobNumber = `${prefix}${String(sequence).padStart(4, '0')}`
-              while (await tx.workshopJobCard.findUnique({ where: { jobNumber }, select: { id: true } })) {
-                sequence++
-                jobNumber = `${prefix}${String(sequence).padStart(4, '0')}`
-              }
-              jobCardId = `jc_${randomUUID()}`
-              await tx.workshopJobCard.create({
-                data: {
-                  id: jobCardId, jobNumber, serviceDate: record.datePerformed, serviceType: 'OIL CHANGE',
-                  creationSource: 'OIL', priority: 'NORMAL', status: 'OPEN', driverName: record.driverName || undefined,
-                  reportedIssue: source.oilText || 'Oil change imported; vehicle could not be matched',
-                  notes: `${marker} Original workbook vehicle number: ${record.vehiclePlateNumber || 'not supplied'}. Vehicle assignment pending review.`,
-                  createdById: user.id, items: [], checklist: {}
-                }
-              })
-            }
-            unassignedCards.set(marker, jobCardId)
-          }
-        }
-        await tx.$executeRawUnsafe('UPDATE "maintenance_records" SET "jobCardId"=$2 WHERE "id"=$1 AND "jobCardId" IS NULL', record.id, jobCardId)
       }
 
       // Keep the canonical truck odometer and last-oil-change fields aligned
