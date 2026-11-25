@@ -57,6 +57,15 @@ export async function ensureTireLifecycleTables(tx: any) {
     "createdById" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`)
+  await tx.$executeRawUnsafe(`DO $ BEGIN
+    IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname='tire_lifecycle_events_tireId_fkey' AND conrelid='"tire_lifecycle_events"'::regclass AND confdeltype <> 'c') THEN
+      ALTER TABLE "tire_lifecycle_events" DROP CONSTRAINT "tire_lifecycle_events_tireId_fkey";
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='tire_lifecycle_events_tireId_fkey' AND conrelid='"tire_lifecycle_events"'::regclass) THEN
+      ALTER TABLE "tire_lifecycle_events" ADD CONSTRAINT "tire_lifecycle_events_tireId_fkey"
+        FOREIGN KEY ("tireId") REFERENCES "tires"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+    END IF;
+  END $`)
   await tx.$executeRawUnsafe(`ALTER TABLE "tire_lifecycle_events" ADD COLUMN IF NOT EXISTS "treadDepthMm" DOUBLE PRECISION`)
   await tx.$executeRawUnsafe(`ALTER TABLE "tire_lifecycle_events" ADD COLUMN IF NOT EXISTS "pressurePsi" DOUBLE PRECISION`)
   await tx.$executeRawUnsafe(`ALTER TABLE "tire_lifecycle_events" ADD COLUMN IF NOT EXISTS "condition" TEXT`)
@@ -98,6 +107,15 @@ export async function ensureTireLifecycleTables(tx: any) {
     "driverNameSnapshot" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`)
+  await tx.$executeRawUnsafe(`DO $ BEGIN
+    IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname='tire_usage_periods_tireId_fkey' AND conrelid='"tire_usage_periods"'::regclass AND confdeltype <> 'c') THEN
+      ALTER TABLE "tire_usage_periods" DROP CONSTRAINT "tire_usage_periods_tireId_fkey";
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='tire_usage_periods_tireId_fkey' AND conrelid='"tire_usage_periods"'::regclass) THEN
+      ALTER TABLE "tire_usage_periods" ADD CONSTRAINT "tire_usage_periods_tireId_fkey"
+        FOREIGN KEY ("tireId") REFERENCES "tires"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+    END IF;
+  END $`)
   await tx.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "tire_usage_periods_tireId_installedAt_idx" ON "tire_usage_periods" ("tireId","installedAt")`)
   await tx.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "tire_usage_periods_vehicleType_vehicleId_idx" ON "tire_usage_periods" ("vehicleType","vehicleId")`)
   await tx.$executeRawUnsafe(`ALTER TABLE "tire_usage_periods" ADD COLUMN IF NOT EXISTS "historicalEndUnknown" BOOLEAN NOT NULL DEFAULT FALSE`)
