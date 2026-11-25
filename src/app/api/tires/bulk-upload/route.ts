@@ -271,8 +271,7 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
       // Source rows are retained even when date, vehicle, or quantity is missing.
       // OUT QTY creates that many individual tire records; extra serial identifiers
       // are also retained rather than discarded when they exceed OUT QTY.
-      // Keep every source row with any source data; missing dates, vehicle refs,
-      // or quantities are retained as source data rather than rejected.
+      // Every non-empty source row is retained; no fleet or database lookup is used.
 
       // Preserve both OUT QTY slots and any additional serial identifiers from the source row.
       const quantity = qtyText ? parsedQty : 0
@@ -302,7 +301,7 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
       if (!size) warnings.push('Tire size was not found in the row or worksheet name; the preview will use Unspecified.')
       if (!manufacturer) warnings.push('Manufacturer was not found; the preview will use Unspecified.')
       if (!origin) warnings.push('Origin was not found in the row or worksheet name; the preview will use OTHER.')
-      if (!driver) warnings.push('Driver was not found in the sheet; the active fleet driver will be used when available.')
+      if (!driver) warnings.push('Driver was not supplied in the sheet; the driver field will remain blank.')
       if (odometerText && (!Number.isInteger(odometerValue) || odometerValue < 0)) warnings.push('Odometer value could not be interpreted and will be left empty.')
 
       const entry: SourceEntry = {
@@ -534,8 +533,4 @@ export async function POST(request: NextRequest) {
           : message || 'Could not analyze or import the tire usage sheet.'
     }, { status })
   }
-}
-
-function trucksFromEntry(vehicleNumber: string, type: VehicleType, vehicleId: string): string | null {
-  return type === 'truck' ? vehicleNumber : null
 }
