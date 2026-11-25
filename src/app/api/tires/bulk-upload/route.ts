@@ -363,9 +363,14 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
       const trailerNumber = read(columns.trailer)
       let genericNumber = read(columns.vehicle)
       const typeText = read(columns.type).toLowerCase()
+      // Explicit source columns are authoritative. Tire size is not a reliable
+      // vehicle-type signal: this workbook has 385-65 tires recorded against
+      // trucks, so sheet-name inference must only be a fallback.
       let vehicleType: VehicleType | null = /trailer/.test(typeText) ? 'trailer'
         : /truck/.test(typeText) ? 'truck'
-          : sheetMetadata.vehicleType || (truckNumber && !trailerNumber ? 'truck' : trailerNumber && !truckNumber ? 'trailer' : null)
+          : truckNumber && !trailerNumber ? 'truck'
+            : trailerNumber && !truckNumber ? 'trailer'
+              : sheetMetadata.vehicleType
       if (genericNumber && !vehicleType) {
         const typedNumber = genericNumber.match(/^\s*(truck|trailer)\s*[:#-]?\s*(.+)$/i)
         if (typedNumber) {
