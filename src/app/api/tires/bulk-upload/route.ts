@@ -471,16 +471,20 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
 
   const unitsByKey = new Map<string, ImportUnit>()
   let exactDuplicateRows = 0
+
+  // OUT QTY controls usage occurrences. Rows without a valid quantity remain
+  // review-only rows; they must never inflate the physical tire count.
   for (const source of sourceEntries) {
-    // Invalid/missing OUT QTY gets one blocked preview placeholder so the row
-    // remains visible for correction. It can never be imported because its source has errors.
-    const count = source.quantity > 0 ? source.quantity : 1
-    for (let index = 0; index < count; index++) {
+    if (source.quantity <= 0) continue
+
+    for (let index = 0; index < source.quantity; index++) {
       const serial = source.serials[index] || null
-      // OUT QTY defines physical tire units. Never collapse separate
-      // quantity slots because a serial is repeated or reused in the source.
-      // Serial values remain identifiers for review, not row/unit dedup keys.
-      const key = 'row:' + source.sheetName + ':' + source.line + ':' + String(index + 1)
+      // A known serial identifies one physical tire across the entire workbook.
+      // Unnumbered units cannot be matched safely, so each quantity slot remains
+      // a separate candidate tied to its source row.
+      const key = serial
+        ? 'serial:' + serial.toLowerCase()
+        : 'row:' + source.sheetName + ':' + source.line + ':' + String(index + 1)
       let unit = unitsByKey.get(key)
       if (!unit) {
         unit = {
@@ -490,21 +494,22 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
         }
         unitsByKey.set(key, unit)
       }
-      const eventKey = [
-        source.eventAt?.toISOString() || '',
-        source.vehicleType || '',
-        source.vehicleId || source.vehicleNumber.toLowerCase(),
-        source.driver.toLowerCase(),
-        source.history.toLowerCase(),
-        source.odometerKm == null ? '' : String(source.odometerKm)
-      ].join('|')
-      if (unit.entries.some(item => item.source.eventAt?.getTime() === source.eventAt?.getTime() &&
-          item.source.vehicleId === source.vehicleId && item.source.driver.toLowerCase() === source.driver.toLowerCase() &&
-          item.source.history.toLowerCase() === source.history.toLowerCase() && item.source.odometerKm === source.odometerKm)) {
+
+      const duplicateEvent = unit.entries.some(item =>
+        item.source.eventAt?.getTime() === source.eventAt?.getTime() &&
+        item.source.vehicleType === source.vehicleType &&
+        item.source.vehicleId === source.vehicleId &&
+        item.source.vehicleNumber.toLowerCase() === source.vehicleNumber.toLowerCase() &&
+        item.source.driver.toLowerCase() === source.driver.toLowerCase() &&
+        item.source.history.toLowerCase() === source.history.toLowerCase() &&
+        item.source.odometerKm === source.odometerKm
+      )
+      if (duplicateEvent) {
         exactDuplicateRows++
-        unit.warnings.push('An identical usage-history row was repeated in the workbook and has been counted once.')
+        unit.warnings.push('An identical serial usage event was repeated in the workbook and has been counted once.')
         continue
       }
+
       unit.entries.push({ source, serial })
       unit.warnings.push(...source.warnings)
       unit.errors.push(...source.errors)
@@ -513,12 +518,23 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
 
   const units = Array.from(unitsByKey.values())
   const sourceQuantityTotal = sourceEntries.reduce((sum, source) => sum + (source.quantity > 0 ? source.quantity : 0), 0)
-  const serialUsageOccurrences = sourceEntries.reduce((sum, source) =>
-    sum + Math.min(source.serials.length, source.quantity > 0 ? source.quantity : 0), 0)
+  const serialOccurrenceCounts = new Map<string, number>()
+  for (const source of sourceEntries) {
+    if (source.quantity <= 0) continue
+    for (const serial of source.serials.slice(0, source.quantity)) {
+      const serialKey = serial.toLowerCase()
+      serialOccurrenceCounts.set(serialKey, (serialOccurrenceCounts.get(serialKey) || 0) + 1)
+    }
+  }
+  const serialUsageOccurrences = Array.from(serialOccurrenceCounts.values()).reduce((sum, count) => sum + count, 0)
+  const uniqueSerialTires = serialOccurrenceCounts.size
   const unnumberedQuantitySlots = sourceEntries.reduce((sum, source) =>
     sum + Math.max(0, (source.quantity > 0 ? source.quantity : 0) - Math.min(source.serials.length, source.quantity > 0 ? source.quantity : 0)), 0)
+  const unnumberedTireCandidates = units.filter(unit => !unit.serial).length
+  const repeatedSerialUsageOccurrences = Math.max(0, serialUsageOccurrences - uniqueSerialTires)
+  const repeatedSerialGroups = Array.from(serialOccurrenceCounts.values()).filter(count => count > 1).length
   const unquantifiedRows = sourceEntries.filter(source => source.quantity <= 0).length
-  const serialOccurrenceCounts = new Map<string, number>()
+
   for (const unit of units) {
     if (unit.serial) {
       const serialKey = unit.serial.toLowerCase()
