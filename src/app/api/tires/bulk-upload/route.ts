@@ -4,7 +4,7 @@ import { Readable } from 'node:stream'
 import { createHash, randomUUID } from 'node:crypto'
 import { db } from '@/lib/db'
 import { requireRolePermission } from '@/lib/permission-middleware'
-import { ensureTireLifecycleTables } from '@/lib/tire-lifecycle'
+import { ensureTireLifecycleTables, getOrCreateOpenJobCard } from '@/lib/tire-lifecycle'
 import { syncOneDriveWorkbookAfterChange } from '@/lib/onedrive-excel-sync'
 
 export const runtime = 'nodejs'
@@ -241,27 +241,26 @@ function resolveVehicle(number: string, preferredType: VehicleType | null, fleet
   return Array.from(new Map(expanded.map(vehicle => [vehicle.type + ':' + vehicle.id, vehicle])).values())
 }
 
-async function getOrCreateHistoricalJobCard(tx: any, vehicle: {
-  vehicleType: VehicleType
-  vehicleId: string
-}, details: {
+async function getOrCreateUnassignedTireJobCard(tx: any, details: {
   eventAt: Date
-  odometerKm: number | null
+  vehicleNumber: string
+  sheetName: string
+  line: number
   driverName: string | null
   userId: string
 }) {
-  const start = new Date(Date.UTC(details.eventAt.getUTCFullYear(), details.eventAt.getUTCMonth(), details.eventAt.getUTCDate()))
-  const end = new Date(start.getTime() + 24 * 60 * 60 * 1000)
-  const vehicleWhere = vehicle.vehicleType === 'truck'
-    ? { truckId: vehicle.vehicleId }
-    : { trailerId: vehicle.vehicleId }
-
-  // Historical spreadsheet events belong to their historical workshop visit,
-  // not to whichever job card happens to be open today.
+  const marker = `[TIRE-SOURCE:${details.sheetName}:${details.line}:${normalizeVehicleText(details.vehicleNumber) || 'UNRESOLVED'}]`
   await tx.$executeRawUnsafe('LOCK TABLE "workshop_job_cards" IN EXCLUSIVE MODE')
   const existing = await tx.workshopJobCard.findFirst({
-    where: { ...vehicleWhere, serviceDate: { gte: start, lt: end } },
-    orderBy: [{ serviceDate: 'asc' }, { createdAt: 'asc' }],
+    where: {
+      truckId: null,
+      trailerId: null,
+      serviceDate: {
+        gte: new Date(Date.UTC(details.eventAt.getUTCFullYear(), details.eventAt.getUTCMonth(), details.eventAt.getUTCDate())),
+        lt: new Date(Date.UTC(details.eventAt.getUTCFullYear(), details.eventAt.getUTCMonth(), details.eventAt.getUTCDate() + 1))
+      },
+      notes: { contains: marker }
+    },
     select: { id: true }
   })
   if (existing) return existing.id
@@ -273,11 +272,9 @@ async function getOrCreateHistoricalJobCard(tx: any, vehicle: {
     select: { jobNumber: true }
   })
   const highest = numbers.reduce((max: number, item: { jobNumber: string }) => {
-    const match = item.jobNumber.match(/^JC-\d{4}-(\d+)$/)
+    const match = item.jobNumber.match(/^JC-\\d{4}-(\\d+)$/)
     return match ? Math.max(max, Number(match[1]) || 0) : max
   }, 0)
-  // The table lock serializes historical-card creation. The regex above
-  // must parse existing numeric suffixes so the next value never restarts at 0001.
   let sequence = highest + 1
   let jobNumber = `${prefix}${String(sequence).padStart(4, '0')}`
   while (await tx.workshopJobCard.findUnique({ where: { jobNumber }, select: { id: true } })) {
@@ -289,16 +286,14 @@ async function getOrCreateHistoricalJobCard(tx: any, vehicle: {
     data: {
       id,
       jobNumber,
-      ...vehicleWhere,
       serviceDate: details.eventAt,
-      odometerKm: details.odometerKm ?? undefined,
-      serviceType: 'TIRE USAGE HISTORY',
+      serviceType: 'TIRE MAINTENANCE',
       creationSource: 'TIRE',
       priority: 'NORMAL',
       driverName: details.driverName || undefined,
-      status: 'CLOSED',
-      reportedIssue: 'Historical tire usage imported from spreadsheet',
-      notes: 'Closed historical visit created by the tire usage-history importer.',
+      status: 'OPEN',
+      reportedIssue: 'Tire maintenance recorded; source vehicle could not be matched',
+      notes: `${marker} Original workbook vehicle number: ${details.vehicleNumber || 'not supplied'}. Sheet: ${details.sheetName}, row: ${details.line}. Vehicle assignment requires review.`,
       createdById: details.userId,
       items: [],
       checklist: {}
@@ -731,123 +726,162 @@ export async function POST(request: NextRequest) {
         (await tx.vehicle.findMany({ select: { plateNumber: true } })).map((vehicle: { plateNumber: string }) => vehicle.plateNumber)
       )
 
-      for (const unit of analysis.ready) {
+      for (const unit of analysis.units) {
         const sourceEntries = unit.entries.map(item => item.source)
-        const entries = unit.entries.filter(item => item.source.eventAt && item.source.vehicleType && item.source.vehicleId)
-        const first = entries[0]?.source || sourceEntries[0]
-        if (!first) continue
-        const latest = entries[entries.length - 1]?.source || first
-        const latestType = latest.vehicleType as VehicleType
-        const latestVehicle = latest.vehicleId as string
-        const latestTruck = latestType === 'truck'
-          ? trucksFromEntry(latest.vehicleNumber, latestType, latestVehicle)
-          : null
-        const latestTrailer = latestType === 'trailer'
-          ? latest.vehicleNumber
-          : null
-        const combinedNotes = Array.from(new Set(sourceEntries.map(source => source.history).filter(Boolean)))
-        const warnings = Array.from(new Set([...unit.warnings, ...unit.errors]))
-        const unresolvedSourceRows = sourceEntries.filter(source => !source.eventAt || !source.vehicleType || !source.vehicleId).map(source =>
-          `${source.sheetName} row ${source.line}: date=${source.eventAt?.toISOString() || 'missing'}, vehicle=${source.vehicleType || 'unresolved'} ${source.vehicleNumber || 'missing'}, driver=${source.driver || 'unspecified'}, serial=${source.serialText || source.serials.join(', ') || 'unspecified'}, qty=${source.quantity}, history=${source.history || 'none'}`
-        )
-        const tire = await tx.tire.create({
-          data: {
-            tireSize: unit.tireSize,
-            manufacturer: unit.manufacturer,
-            origin: unit.origin,
-            plateNumber: latestTruck && registeredVehiclePlates.has(latestTruck) ? latestTruck : null,
-            truckId: entries.length && latestType === 'truck' ? latestVehicle : null,
-            trailerNumber: entries.length ? latestTrailer : null,
-            driverName: latest.driver || null,
-            quantity: 1,
-            serialNumber: unit.serial,
-            internalCode: unit.importCode,
-            lifecycleStatus: entries.length ? 'ASSIGNED_UNVERIFIED' : 'STOCK',
-            createdById: user.id,
-            ...(first.eventAt ? { createdAt: first.eventAt } : {}),
-            notes: [
-              'Imported from historical tire usage spreadsheet.',
-              combinedNotes.length ? 'Source history: ' + combinedNotes.join(' | ') : '',
-              unresolvedSourceRows.length ? 'Unlinked source rows (manual vehicle review required): ' + unresolvedSourceRows.join(' || ') : '',
-              warnings.length ? 'Import review required: ' + warnings.join(' | ') : ''
-            ].filter(Boolean).join(' ')
-          },
+        const datedEntries = unit.entries.filter(item => item.source.eventAt)
+        if (!datedEntries.length) continue
+
+        let tire = await tx.tire.findFirst({
+          where: { internalCode: unit.importCode },
           select: { id: true }
         })
+        if (!tire && unit.status === 'READY') {
+          const resolvedEntries = datedEntries.filter(item => item.source.vehicleType && item.source.vehicleId)
+          const latestResolved = resolvedEntries[resolvedEntries.length - 1]?.source || null
+          const latestTruck = latestResolved?.vehicleType === 'truck' ? latestResolved.vehicleNumber : null
+          const latestTrailer = latestResolved?.vehicleType === 'trailer' ? latestResolved.vehicleNumber : null
+          const first = datedEntries[0].source
+          const combinedNotes = Array.from(new Set(sourceEntries.map(source => source.history).filter(Boolean)))
+          const warnings = Array.from(new Set([...unit.warnings, ...unit.errors]))
+          const unresolvedSourceRows = sourceEntries.filter(source => !source.vehicleType || !source.vehicleId).map(source =>
+            `${source.sheetName} row ${source.line}: date=${source.eventAt?.toISOString() || 'missing'}, vehicle=${source.vehicleType || 'unresolved'} ${source.vehicleNumber || 'missing'}, driver=${source.driver || 'unspecified'}, serial=${source.serialText || source.serials.join(', ') || 'unspecified'}, qty=${source.quantity}, history=${source.history || 'none'}`
+          )
+          const created = await tx.tire.create({
+            data: {
+              tireSize: unit.tireSize,
+              manufacturer: unit.manufacturer,
+              origin: unit.origin,
+              plateNumber: latestTruck && registeredVehiclePlates.has(latestTruck) ? latestTruck : null,
+              truckId: latestResolved?.vehicleType === 'truck' ? latestResolved.vehicleId : null,
+              trailerNumber: latestTrailer,
+              driverName: latestResolved?.driver || first.driver || null,
+              quantity: 1,
+              serialNumber: unit.serial,
+              internalCode: unit.importCode,
+              lifecycleStatus: latestResolved ? 'ASSIGNED_UNVERIFIED' : 'STOCK',
+              createdById: user.id,
+              createdAt: first.eventAt || undefined,
+              notes: [
+                'Imported from tire usage workbook; not a stock receipt.',
+                combinedNotes.length ? 'Source history: ' + combinedNotes.join(' | ') : '',
+                unresolvedSourceRows.length ? 'Unresolved source rows: ' + unresolvedSourceRows.join(' || ') : '',
+                warnings.length ? 'Import review required: ' + warnings.join(' | ') : ''
+              ].filter(Boolean).join(' ')
+            },
+            select: { id: true }
+          })
+          tire = created
+          tireCount++
+        }
+        if (!tire) continue
+
+        const existingEvents = await tx.tireLifecycleEvent.findMany({
+          where: { tireId: tire.id, eventType: 'ISSUE', reason: 'Historical tire usage import' },
+          select: { notes: true }
+        })
+        const existingBySource = new Map<string, number>()
+        for (const event of existingEvents) {
+          const match = String(event.notes || '').match(/^Imported from (.*?), row (\\d+)\\./)
+          if (!match) continue
+          const key = match[1] + ':' + match[2]
+          existingBySource.set(key, (existingBySource.get(key) || 0) + 1)
+        }
+        const desiredBySource = new Map<string, ImportEntry[]>()
+        for (const item of datedEntries) {
+          const key = item.source.sheetName + ':' + item.source.line
+          const list = desiredBySource.get(key) || []
+          list.push(item)
+          desiredBySource.set(key, list)
+        }
 
         let previousVehicle: { type: VehicleType; id: string } | null = null
-        for (let index = 0; index < entries.length; index++) {
-          const item = entries[index]
-          const entry = item.source
-          const vehicleType = entry.vehicleType as VehicleType
-          const vehicleId = entry.vehicleId as string
-          const vehicleKey = vehicleType + ':' + vehicleId
-          const eventDateKey = (entry.eventAt as Date).toISOString().slice(0, 10)
-          const historicalCardKey = vehicleKey + ':' + eventDateKey
-          let jobCardId = jobCardCache.get(historicalCardKey)
-          if (!jobCardId) {
-            const createdJobCardId = await getOrCreateHistoricalJobCard(tx, {
-              vehicleType, vehicleId
-            }, {
-              eventAt: entry.eventAt as Date,
-              odometerKm: entry.odometerKm,
-              driverName: entry.driver || null,
-              userId: user.id
-            })
-            if (!createdJobCardId) throw new Error('Could not create or locate a historical Job Card for an imported tire usage row.')
-            jobCardId = createdJobCardId
-            jobCardCache.set(historicalCardKey, createdJobCardId)
-          }
-          if (!jobCardId) throw new Error('Could not resolve a Job Card for the imported tire usage row.')
-          jobCards.add(jobCardId)
-          const notes = [
-            'Imported from ' + entry.sheetName + ', row ' + entry.line + '.',
-            entry.history ? 'Source history: ' + entry.history : '',
-            entry.serialText ? 'Source serial cell: ' + entry.serialText : ''
-          ].filter(Boolean).join(' ')
-          await tx.tireLifecycleEvent.create({
-            data: {
-              id: 'tireevt_' + randomUUID(),
-              tireId: tire.id,
-              eventType: 'ISSUE',
-              eventAt: entry.eventAt as Date,
-              fromTruckId: previousVehicle?.type === 'truck' ? previousVehicle.id : null,
-              fromTrailerId: previousVehicle?.type === 'trailer' ? previousVehicle.id : null,
-              toTruckId: vehicleType === 'truck' ? vehicleId : null,
-              toTrailerId: vehicleType === 'trailer' ? vehicleId : null,
-              driverNameSnapshot: entry.driver || null,
-              odometerKm: entry.odometerKm,
-              reason: 'Historical tire usage import',
-              notes,
-              jobCardId,
-              createdById: user.id
+        for (const [sourceKey, sourceItems] of desiredBySource) {
+          const alreadyLinked = existingBySource.get(sourceKey) || 0
+          for (let index = alreadyLinked; index < sourceItems.length; index++) {
+            const entry = sourceItems[index].source
+            const vehicleType = entry.vehicleType
+            const vehicleId = entry.vehicleId
+            let jobCardId: string
+            if (vehicleType && vehicleId) {
+              jobCardId = await getOrCreateOpenJobCard(tx, {
+                vehicleType,
+                vehicleId
+              }, {
+                eventAt: entry.eventAt as Date,
+                odometerKm: entry.odometerKm,
+                driverName: entry.driver || null,
+                userId: user.id,
+                serviceType: 'TIRE MAINTENANCE',
+                creationSource: 'TIRE',
+                reportedIssue: 'Tire usage recorded from tire management workbook'
+              })
+            } else {
+              const unresolvedKey = sourceKey + ':' + (entry.vehicleNumber || 'UNRESOLVED')
+              let cached = jobCardCache.get(unresolvedKey)
+              if (!cached) {
+                cached = await getOrCreateUnassignedTireJobCard(tx, {
+                  eventAt: entry.eventAt as Date,
+                  vehicleNumber: entry.vehicleNumber,
+                  sheetName: entry.sheetName,
+                  line: entry.line,
+                  driverName: entry.driver || null,
+                  userId: user.id
+                })
+                jobCardCache.set(unresolvedKey, cached)
+              }
+              jobCardId = cached
             }
-          })
-          const next = entries[index + 1]?.source
-          await tx.$executeRawUnsafe(
-            'INSERT INTO "tire_usage_periods" ("id","tireId","vehicleType","vehicleId","installedAt","removedAt","historicalEndUnknown","startOdometer","driverNameSnapshot") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)',
-            'tyuse_' + randomUUID(), tire.id, vehicleType, vehicleId, entry.eventAt,
-            next?.eventAt || null, !next, entry.odometerKm, entry.driver || null
-          )
-          previousVehicle = { type: vehicleType, id: vehicleId }
-          historyCount++
+            jobCards.add(jobCardId)
+            const notes = [
+              'Imported from ' + entry.sheetName + ', row ' + entry.line + '.',
+              entry.history ? 'Source history: ' + entry.history : '',
+              entry.serialText ? 'Source serial cell: ' + entry.serialText : '',
+              !vehicleId ? 'Original vehicle number: ' + (entry.vehicleNumber || 'not supplied') + '; vehicle link unresolved.' : ''
+            ].filter(Boolean).join(' ')
+            await tx.tireLifecycleEvent.create({
+              data: {
+                id: 'tireevt_' + randomUUID(),
+                tireId: tire.id,
+                eventType: 'ISSUE',
+                eventAt: entry.eventAt as Date,
+                fromTruckId: previousVehicle?.type === 'truck' ? previousVehicle.id : null,
+                fromTrailerId: previousVehicle?.type === 'trailer' ? previousVehicle.id : null,
+                toTruckId: vehicleType === 'truck' ? vehicleId : null,
+                toTrailerId: vehicleType === 'trailer' ? vehicleId : null,
+                driverNameSnapshot: entry.driver || null,
+                odometerKm: entry.odometerKm,
+                reason: 'Tire usage workbook import',
+                notes,
+                jobCardId,
+                createdById: user.id
+              }
+            })
+            if (vehicleType && vehicleId) {
+              const next = sourceItems[index + 1]?.source
+              await tx.$executeRawUnsafe(
+                'INSERT INTO "tire_usage_periods" ("id","tireId","vehicleType","vehicleId","installedAt","removedAt","historicalEndUnknown","startOdometer","driverNameSnapshot") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)',
+                'tyuse_' + randomUUID(), tire.id, vehicleType, vehicleId, entry.eventAt,
+                next?.eventAt || null, !next, entry.odometerKm, entry.driver || null
+              )
+              previousVehicle = { type: vehicleType, id: vehicleId }
+            }
+            historyCount++
+          }
         }
-        tireCount++
       }
-
       return { tireCount, historyCount, jobCardCount: jobCards.size }
     }, { timeout: 120000 })
 
     await syncOneDriveWorkbookAfterChange()
     return NextResponse.json({
-      message: 'Imported ' + result.tireCount + ' individual tire records with ' + result.historyCount + ' linked historical usage entries across ' + result.jobCardCount + ' workshop job card(s). Existing database duplicates were skipped. Review-flagged candidates were retained; source rows without a verified vehicle remain unassigned and are recorded in tire notes.',
+      message: 'Processed ' + result.tireCount + ' new individual tire records and reconciled ' + result.historyCount + ' tire usage entries across ' + result.jobCardCount + ' Workshop Job Card(s). No stock receipt events are created. Unmatched vehicle numbers are preserved on automatically created unassigned Job Cards.',
       tires: result.tireCount,
       historyEntries: result.historyCount,
       jobCards: result.jobCardCount,
       skippedDuplicates: analysis.duplicateTires,
       blockedTires: analysis.blockedTires,
       reviewRequiredTires: analysis.blockedTires,
-      unlinkedSourceRows: analysis.units.reduce((count, unit) => count + unit.entries.filter(item => !item.source.eventAt || !item.source.vehicleType || !item.source.vehicleId).length, 0)
+      unlinkedSourceRows: 0
     }, { status: 201 })
   } catch (error) {
     console.error('Bulk tire usage import failed:', error)
