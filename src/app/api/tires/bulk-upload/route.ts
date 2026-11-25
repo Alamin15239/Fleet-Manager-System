@@ -872,7 +872,11 @@ export async function POST(request: NextRequest) {
                 userId: user.id,
                 serviceType: 'TIRE MAINTENANCE',
                 creationSource: 'TIRE',
-                reportedIssue: 'Tire usage recorded from tire management workbook'
+                reportedIssue: 'Tire usage recorded from tire management workbook',
+                // Historical workbook rows may legitimately reference vehicles
+                // that are now inactive or soft-deleted. Preserve their history
+                // without reactivating the fleet record.
+                allowInactive: true
               })
             } else {
               const unresolvedKey = sourceKey + ':' + (entry.vehicleNumber || 'UNRESOLVED')
