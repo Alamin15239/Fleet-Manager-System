@@ -131,13 +131,13 @@ export default function TireBulkUpload() {
   return <Card>
     <CardHeader>
       <CardTitle className="flex items-center gap-2"><FileSpreadsheet className="h-5 w-5" /> Smart tire usage-history import</CardTitle>
-      <p className="text-sm text-muted-foreground">Upload the spreadsheet as it is. The system detects the columns and tire information, checks the fleet and existing serial numbers, then shows a review preview before saving anything.</p>
+      <p className="text-sm text-muted-foreground">Upload the spreadsheet as it is. The importer preserves each source row and OUT QTY occurrence without matching vehicle records or existing tire serials.</p>
     </CardHeader>
     <CardContent className="space-y-4">
       <div className="rounded-lg border bg-muted/30 p-3 text-sm">
         <p className="font-medium">No fixed tire-size or origin selection is required</p>
-        <p className="mt-1 text-xs text-muted-foreground">The importer looks for date, truck or trailer, driver, serial number, quantity, tire size, manufacturer, origin and usage-history columns across the workbook. Missing tire details are shown in the preview as Unspecified or OTHER rather than guessed.</p>
-        <p className="mt-2 text-xs text-muted-foreground">When the same serial appears on multiple dated vehicle rows, it is grouped as one physical tire with a chronological usage history. A serial already registered in Tire Management is flagged as a database duplicate and is not imported again.</p>
+        <p className="mt-1 text-xs text-muted-foreground">The importer reads date, truck or trailer reference, driver, serial number, quantity, tire size, manufacturer, origin and usage history directly from each worksheet. Missing values remain missing; source vehicle references are retained as text.</p>
+        <p className="mt-2 text-xs text-muted-foreground">Repeated serials on separate source rows are imported as separate source occurrences. No database serial lookup, fleet lookup, deduplication, or automatic vehicle assignment is performed.</p>
       </div>
 
       <div className="space-y-2">
@@ -178,13 +178,10 @@ export default function TireBulkUpload() {
             {[
               ['Tires detected', preview.summary.tiresDetected],
               ['Usage entries', preview.summary.historyEntries],
-              ['Unique tires to import', preview.summary.importableTires],
+              ['Tire records from sheet', preview.summary.importableTires],
               ['Usage entries to import', preview.summary.importableUsageEntries],
-              ['Database duplicates', preview.summary.existingDuplicates],
-              ['Needs review', preview.summary.blockedTires],
-              ['Usage entries held for review', preview.summary.blockedUsageEntries],
-              ['Repeated serial groups', preview.summary.repeatedSerialsGrouped],
-              ['Duplicate rows skipped', preview.summary.exactDuplicateRowsSkipped],
+              ['Repeated serial groups (kept separate)', preview.summary.repeatedSerialsGrouped],
+              ['Rows without valid OUT QTY', preview.summary.unquantifiedRows],
               ['Warnings', preview.summary.warnings]
             ].map(([label, value]) => <div key={String(label)} className="rounded-md bg-muted/50 p-2">
               <p className="text-lg font-semibold tabular-nums">{value}</p>
@@ -194,7 +191,7 @@ export default function TireBulkUpload() {
           <div className="mt-4 rounded-md border p-3">
             <p className="text-sm font-semibold">Quantity reconciliation</p>
             <p className="mt-1 text-xs text-muted-foreground">
-              OUT QTY is the total number of tire-usage units recorded in the source. Repeated serial numbers represent the same physical tire and are grouped into one tire record. Unnumbered units cannot be reliably matched across separate rows.
+              OUT QTY is the total number of tire-usage units recorded in the source. Every OUT QTY slot is retained as a separate tire record. Repeated serials on different rows are not merged or matched. Rows without a valid OUT QTY are retained as source rows with quantity recorded as unknown (zero).
             </p>
             <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
               {[
@@ -211,7 +208,7 @@ export default function TireBulkUpload() {
               </div>)}
             </div>
           </div>
-          <p className="mt-3 text-xs text-muted-foreground">Source rows analyzed: {preview.summary.sourceRows}. Repeated serials across different vehicles or dates are treated as usage history, not duplicate tires. No database records are changed during analysis.</p>
+          <p className="mt-3 text-xs text-muted-foreground">Source rows analyzed: {preview.summary.sourceRows}. Each workbook row and quantity slot is counted independently. No database records are changed during analysis.</p>
         </div>
 
         <div className="space-y-2">
@@ -252,7 +249,7 @@ export default function TireBulkUpload() {
               </tbody>
             </table>
           </div>
-          {preview.previewTruncated && <p className="text-xs text-muted-foreground">Only the first {preview.previewLimit} tires are displayed here. All detected records are included in the server-side review and duplicate checks.</p>}
+          {preview.previewTruncated && <p className="text-xs text-muted-foreground">Only the first {preview.previewLimit} tire records are displayed here. All detected source records are included in the import.</p>}
         </div>
 
         <div className="flex flex-wrap gap-2">
@@ -260,11 +257,11 @@ export default function TireBulkUpload() {
             {busy ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Processing tire history…</> : <><ShieldCheck className="mr-2 h-4 w-4" />{preview.summary.importableTires > 0 ? `Import ${preview.summary.importableUsageEntries} usage entries across ${preview.summary.importableTires} new tire(s)` : `Reconcile ${preview.summary.importableUsageEntries} existing usage entries`}</>}
           </Button>
           <Button type="button" variant="outline" onClick={() => sendFile('preview')} disabled={busy || !file}>
-            <RefreshCw className="mr-2 h-4 w-4" />Recheck duplicates
+            <RefreshCw className="mr-2 h-4 w-4" />Re-analyze sheet
           </Button>
           <Button type="button" variant="ghost" onClick={clearSelection} disabled={busy}>Cancel</Button>
         </div>
-        <p className="text-xs text-muted-foreground">Only Ready tire groups and eligible history for existing serials are imported. Groups marked Needs review are held back completely until their vehicle, serial, size, or origin conflicts are corrected; they will not create partial tire records or Job Cards. Existing serials are reconciled without creating duplicate tire records. Eligible dated usage entries are linked to the vehicle’s open Workshop Job Card. This workbook does not create stock receipts.</p>
+        <p className="text-xs text-muted-foreground">Every detected source tire record is imported without fleet matching, existing-serial matching, grouping, or review-based blocking. Original vehicle references and source row details are saved as text when no database relation is available. Dated rows create tire usage-history events; rows without dates remain as tire source records. Tire imports never create or link Workshop Job Cards. This workbook does not create stock receipts.</p>
       </>}
     </CardContent>
   </Card>
