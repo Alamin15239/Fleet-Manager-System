@@ -267,15 +267,10 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
       const history = read(columns.history)
       const parsedSerials = parseSerials(serialText, expectedQuantity)
 
-      // Keep a row with missing/invalid OUT QTY only when it still has enough
-      // credible usage context to be reviewed. This excludes notes, opening
-      // balance fragments, copied dates/numbers, and broken formula debris.
       const plausibleDate = Boolean(date && date.getUTCFullYear() >= 2000 && date.getUTCFullYear() <= 2100)
-        (plausibleVehicle && Boolean(driver || parsedSerials.serials.length || history)))) ||
-        (plausibleVehicle && Boolean(driver || parsedSerials.serials.length || history))
-      // A numeric OUT QTY copied into blank-date rows is commonly a carried-down
-      // balance/formula artifact, not an issue transaction. Only dated rows
-      // contribute to the source OUT QTY total and create importable tire units.
+      // Source rows are retained even when date, vehicle, or quantity is missing.
+      // OUT QTY creates that many individual tire records; extra serial identifiers
+      // are also retained rather than discarded when they exceed OUT QTY.
       // Keep every source row with any source data; missing dates, vehicle refs,
       // or quantities are retained as source data rather than rejected.
 
