@@ -831,7 +831,7 @@ export async function POST(request: NextRequest) {
 
     await syncOneDriveWorkbookAfterChange()
     return NextResponse.json({
-      message: 'Imported ' + result.tireCount + ' individual tire records with ' + result.historyCount + ' historical usage entries, linked to ' + result.jobCardCount + ' workshop job card(s). Existing database duplicates and blocked records were skipped.',
+      message: 'Imported ' + result.tireCount + ' individual tire records with ' + result.historyCount + ' linked historical usage entries across ' + result.jobCardCount + ' workshop job card(s). Existing database duplicates were skipped. Review-flagged candidates were retained; source rows without a verified vehicle remain unassigned and are recorded in tire notes.',
       tires: result.tireCount,
       historyEntries: result.historyCount,
       jobCards: result.jobCardCount,
