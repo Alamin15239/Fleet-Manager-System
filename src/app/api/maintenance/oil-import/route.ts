@@ -181,15 +181,22 @@ export async function POST(req: NextRequest) {
             driverName: row.driver
           }
         })
-        // Vehicle resolution changed: move the record onto the matching open
-        // job card so the workshop board stays in sync.
-        if (truckChanged && row.truckId) {
-          const jobCardId = await getOrCreateOpenJobCard(tx, { vehicleType: 'truck', vehicleId: row.truckId }, {
-            eventAt: new Date(`${row.date}T00:00:00.000Z`), odometerKm: row.mileage, driverName: row.driver,
-            userId: user.id, creationSource: 'OIL', serviceType: 'OIL CHANGE',
-            reportedIssue: row.oilText || 'Oil change imported from workbook'
-          })
-          await tx.maintenanceRecord.update({ where: { id: rec.id }, data: { jobCardId } })
+        // Keep Oil Changes as its own record while guaranteeing a valid Job Card
+        // relationship after every workbook re-upload.
+        if (truckChanged || !rec.jobCardId || row.truckId) {
+          const linkedCard = rec.jobCardId && !truckChanged
+            ? await tx.workshopJobCard.findUnique({ where: { id: rec.jobCardId }, select: { id: true } })
+            : null
+          if (!linkedCard && row.truckId) {
+            const jobCardId = await getOrCreateOpenJobCard(tx, { vehicleType: 'truck', vehicleId: row.truckId }, {
+              eventAt: new Date(`${row.date}T00:00:00.000Z`), odometerKm: row.mileage, driverName: row.driver,
+              userId: user.id, creationSource: 'OIL', serviceType: 'OIL CHANGE',
+              reportedIssue: row.oilText || 'Oil change imported from workbook'
+            })
+            await tx.maintenanceRecord.update({ where: { id: rec.id }, data: { jobCardId } })
+          } else if (!linkedCard && !row.truckId) {
+            await tx.maintenanceRecord.update({ where: { id: rec.id }, data: { jobCardId: null } })
+          }
         }
       }
 
