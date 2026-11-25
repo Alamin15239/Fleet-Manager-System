@@ -227,7 +227,7 @@ export default function OilChangesPage() {
       const response = await apiFetch('/api/maintenance/oil-import', { method: 'POST', body: form })
       const result = await response.json()
       if (!response.ok) throw new Error(result.error || 'Import failed')
-      toast.success(`Imported ${result.imported} records. ${result.duplicates} duplicates and ${result.invalid} invalid rows skipped.`)
+      toast.success(`Imported ${result.imported} new records, replaced ${result.replaced || 0} existing records, removed ${result.removed || 0} outdated rows. ${result.invalid} invalid rows skipped.`)
       setImportFile(null)
       setImportPreview(null)
       await fetchOilChanges()
@@ -702,12 +702,13 @@ export default function OilChangesPage() {
             </Button>
           </div>
           {importPreview && <div className="space-y-3 rounded-lg border p-4">
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-6">
               <div><p className="text-xs text-muted-foreground">Rows found</p><p className="text-xl font-semibold">{importPreview.total}</p></div>
               <div><p className="text-xs text-muted-foreground">Plate matched</p><p className="text-xl font-semibold text-green-600">{importPreview.matched}</p></div>
               <div><p className="text-xs text-muted-foreground">Unmatched</p><p className="text-xl font-semibold">{importPreview.unmatched}</p></div>
               <div><p className="text-xs text-muted-foreground">Blank → Missing</p><p className="text-xl font-semibold">{importPreview.missing}</p></div>
-              <div><p className="text-xs text-muted-foreground">Duplicates / invalid</p><p className="text-xl font-semibold">{importPreview.duplicates} / {importPreview.invalid}</p></div>
+              <div><p className="text-xs text-muted-foreground">Replaces existing</p><p className="text-xl font-semibold text-blue-600">{(importPreview as any).existing || 0}</p></div>
+              <div><p className="text-xs text-muted-foreground">Invalid rows</p><p className="text-xl font-semibold">{importPreview.invalid}</p></div>
             </div>
             {importPreview.unmatched > 0 && <p className="flex items-center gap-2 text-sm text-amber-700"><AlertCircle className="h-4 w-4" /> Unmatched plates are kept as text and imported without a truck link.</p>}
             {importPreview.invalid > 0 && <p className="text-sm text-amber-700">{importPreview.invalid} rows with invalid or missing dates will be skipped.</p>}
@@ -718,7 +719,7 @@ export default function OilChangesPage() {
               </Table>
             </div>
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-xs text-muted-foreground">Preview shows up to 50 rows. Existing imports are detected and skipped.</p>
+              <p className="text-xs text-muted-foreground">Preview shows up to 50 rows. Re-uploading the same file replaces the previously imported records with the details in this file.</p>
               <Button type="button" onClick={handleImportCommit} disabled={importBusy || !canCreate('maintenance') || importPreview.valid === 0}>
                 <Upload className="mr-2 h-4 w-4" /> {importBusy ? 'Importing…' : `Import ${importPreview.valid} valid rows`}
               </Button>
