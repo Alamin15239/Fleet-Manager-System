@@ -132,7 +132,7 @@ export async function POST(request: NextRequest) {
         } else {
           jobCardId = await getOrCreateOpenJobCard(tx, { vehicleType, vehicleId }, {
             eventAt: transactionDate, driverName: vehicle.driverName, userId: user.id,
-            serviceType: 'SPARE PARTS', reportedIssue: 'Automatically created from spare-parts issue'
+            creationSource: 'SPARE_PARTS', serviceType: 'SPARE PARTS', reportedIssue: 'Automatically created from spare-parts issue'
           })
         }
       } else if (type === 'ISSUE' && jobCardId) {
