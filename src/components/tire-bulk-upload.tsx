@@ -29,8 +29,15 @@ type ImportPreview = {
   sheets: string[]
   summary: {
     sourceRows: number
+    sourceQuantityTotal: number
     tiresDetected: number
     historyEntries: number
+    serialUsageOccurrences: number
+    uniqueSerialTires: number
+    repeatedSerialUsageOccurrences: number
+    unnumberedQuantitySlots: number
+    unnumberedTireCandidates: number
+    unquantifiedRows: number
     repeatedSerialsGrouped: number
     exactDuplicateRowsSkipped: number
     importableTires: number
@@ -174,7 +181,27 @@ export default function TireBulkUpload() {
               <p className="text-xs text-muted-foreground">{label}</p>
             </div>)}
           </div>
-          <p className="mt-3 text-xs text-muted-foreground">Source rows analyzed: {preview.summary.sourceRows}. Repeated serials across different vehicles or dates are treated as usage history, not duplicate tires.</p>
+          <div className="mt-4 rounded-md border p-3">
+            <p className="text-sm font-semibold">Quantity reconciliation</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              OUT QTY is the total number of tire-usage units recorded in the source. Repeated serial numbers represent the same physical tire and are grouped into one tire record. Unnumbered units cannot be reliably matched across separate rows.
+            </p>
+            <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {[
+                ['Source OUT QTY total', preview.summary.sourceQuantityTotal],
+                ['Serial usage occurrences', preview.summary.serialUsageOccurrences],
+                ['Unique serial tires', preview.summary.uniqueSerialTires],
+                ['Repeated serial appearances grouped', preview.summary.repeatedSerialUsageOccurrences],
+                ['Unnumbered quantity slots', preview.summary.unnumberedQuantitySlots],
+                ['Unnumbered tire candidates', preview.summary.unnumberedTireCandidates],
+                ['Rows without valid OUT QTY', preview.summary.unquantifiedRows]
+              ].map(([label, value]) => <div key={String(label)} className="rounded-md bg-muted/50 p-2">
+                <p className="text-base font-semibold tabular-nums">{value}</p>
+                <p className="text-xs text-muted-foreground">{label}</p>
+              </div>)}
+            </div>
+          </div>
+          <p className="mt-3 text-xs text-muted-foreground">Source rows analyzed: {preview.summary.sourceRows}. Repeated serials across different vehicles or dates are treated as usage history, not duplicate tires. No database records are changed during analysis.</p>
         </div>
 
         <div className="space-y-2">
