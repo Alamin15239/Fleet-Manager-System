@@ -682,7 +682,7 @@ export async function POST(request: NextRequest) {
           repeatedSerialsGrouped: analysis.repeatedSerials,
           exactDuplicateRowsSkipped: analysis.exactDuplicateRows,
           importableTires: analysis.importableTires,
-          importableUsageEntries: analysis.ready.reduce((count, unit) => count + unit.entries.length, 0),
+          importableUsageEntries: analysis.units.reduce((count, unit) => count + unit.entries.filter(item => item.source.eventAt).length, 0),
           existingDuplicates: analysis.duplicateTires,
           blockedTires: analysis.blockedTires,
           warnings: analysis.warningCount
