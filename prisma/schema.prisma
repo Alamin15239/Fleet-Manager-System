@@ -963,7 +963,7 @@ model TireLifecycleEvent {
   jobCardId           String?
   createdById         String?
   createdAt           DateTime @default(now())
-  tire                Tire     @relation(fields: [tireId], references: [id], onDelete: Restrict)
+  tire                Tire     @relation(fields: [tireId], references: [id], onDelete: Cascade)
   jobCard             WorkshopJobCard? @relation(fields: [jobCardId], references: [id], onDelete: SetNull)
 
   @@index([tireId, eventAt])
@@ -983,7 +983,7 @@ model TireUsagePeriod {
   endOdometer        Int?
   driverNameSnapshot String?
   createdAt          DateTime @default(now())
-  tire               Tire     @relation(fields: [tireId], references: [id], onDelete: Restrict)
+  tire               Tire     @relation(fields: [tireId], references: [id], onDelete: Cascade)
 
   @@index([tireId, installedAt])
   @@index([vehicleType, vehicleId])
