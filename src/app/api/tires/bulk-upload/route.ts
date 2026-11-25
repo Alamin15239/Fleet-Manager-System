@@ -395,7 +395,8 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
       const plausibleVehicle = Boolean(vehicleText && !/^(new|opening balance|total|balance)$/i.test(vehicleText) && !looksLikeDate)
       const hasUsageContext = plausibleDate && plausibleVehicle &&
         Boolean(driver || parsedSerials.serials.length || history)
-      const hasReviewContext = (plausibleDate && plausibleVehicle) ||
+      const hasReviewContext = (plausibleDate && (expectedQuantity > 0 ||
+        (plausibleVehicle && Boolean(driver || parsedSerials.serials.length || history)))) ||
         (plausibleVehicle && Boolean(driver || parsedSerials.serials.length || history))
       // A numeric OUT QTY copied into blank-date rows is commonly a carried-down
       // balance/formula artifact, not an issue transaction. Only dated rows
