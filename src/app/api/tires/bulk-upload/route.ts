@@ -15,7 +15,9 @@ type SourceEntry = {
   sheetName: string
   line: number
   eventAt: Date | null
+  dateText: string
   vehicleType: VehicleType | null
+  vehicleTypeText: string
   vehicleNumber: string
   vehicleId: string | null
   vehicleLabel: string
@@ -23,12 +25,15 @@ type SourceEntry = {
   serialText: string
   serials: string[]
   quantity: number
+  quantityText: string
   tireSize: string
+  tireSizeText: string
   manufacturer: string
   origin: string
   originText: string
   history: string
   odometerKm: number | null
+  odometerText: string
   warnings: string[]
   errors: string[]
 }
@@ -266,6 +271,15 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
       const serialText = serialParts.join(', ')
       const history = read(columns.history)
       const parsedSerials = parseSerials(serialText, expectedQuantity)
+      const quantityIsValid = Number.isInteger(parsedQty) && parsedQty > 0 && parsedQty <= 100
+      const hasSourceContext = Boolean(
+        cellText(dateCell as ExcelJS.CellValue) || truckNumber || trailerNumber || genericNumber ||
+        driver || serialText || history || read(columns.size) || read(columns.manufacturer) ||
+        read(columns.origin) || read(columns.odometer)
+      )
+      // Ignore formula debris such as a lone #REF! in OUT QTY, but keep a
+      // quantity-only row when the quantity itself is valid.
+      if (!hasSourceContext && !quantityIsValid) continue
 
       const plausibleDate = Boolean(date && date.getUTCFullYear() >= 2000 && date.getUTCFullYear() <= 2100)
       // Source rows are retained even when date, vehicle, or quantity is missing.
@@ -305,11 +319,11 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
       if (odometerText && (!Number.isInteger(odometerValue) || odometerValue < 0)) warnings.push('Odometer value could not be interpreted and will be left empty.')
 
       const entry: SourceEntry = {
-        sheetName: sheet.name, line, eventAt: date, vehicleType, vehicleNumber, vehicleId: null,
+        sheetName: sheet.name, line, eventAt: date, dateText: cellText(dateCell as ExcelJS.CellValue), vehicleType, vehicleTypeText: typeText, vehicleNumber, vehicleId: null,
         vehicleLabel: vehicleNumber, driver, serialText, serials: parsedSerials.serials,
         quantity: Number.isInteger(quantity) && quantity > 0 && quantity <= 100 ? quantity : 0,
-        tireSize: size, manufacturer, origin: normalizeOrigin(origin), originText: origin, history,
-        odometerKm: Number.isInteger(odometerValue) && odometerValue >= 0 ? odometerValue : null,
+        quantityText: qtyText, tireSize: size, tireSizeText: read(columns.size), manufacturer, origin: normalizeOrigin(origin), originText: origin, history,
+        odometerKm: Number.isInteger(odometerValue) && odometerValue >= 0 ? odometerValue : null, odometerText,
         warnings, errors: []
       }
 
@@ -461,8 +475,9 @@ export async function POST(request: NextRequest) {
           'Imported directly from workbook; no fleet or existing-tire matching performed.',
           'Source worksheet: ' + source.sheetName + ', row ' + source.line + '.',
           'Source vehicle: ' + sourceReference,
+          'Source date cell: ' + (source.dateText || 'not supplied') + '; source OUT QTY cell: ' + (source.quantityText || 'not supplied') + '; source vehicle type cell: ' + (source.vehicleTypeText || 'not supplied') + '; source odometer cell: ' + (source.odometerText || 'not supplied') + '.',
           source.serialText ? 'Source serial cell: ' + source.serialText : 'No serial supplied in source.',
-          'Source tire size: ' + (source.tireSize || 'not supplied') + '; manufacturer: ' + (source.manufacturer || 'not supplied') + '; origin: ' + (source.originText || 'not supplied') + '.',
+          'Source tire size cell: ' + (source.tireSizeText || 'not supplied') + '; imported tire size: ' + (source.tireSize || 'Unspecified') + '; manufacturer: ' + (source.manufacturer || 'not supplied') + '; origin: ' + (source.originText || 'not supplied') + '.',
           source.history ? 'Source history: ' + source.history : '',
           source.warnings.length ? 'Source notes: ' + source.warnings.join(' | ') : ''
         ].filter(Boolean).join(' ')
