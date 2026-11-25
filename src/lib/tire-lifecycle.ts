@@ -10,7 +10,7 @@ export async function ensureTireLifecycleTables(tx: any) {
       ALTER TABLE "tires" ADD CONSTRAINT "tires_truckId_fkey"
         FOREIGN KEY ("truckId") REFERENCES "trucks"("id") ON DELETE SET NULL ON UPDATE CASCADE;
     END IF;
-  END $$$`)
+  END $$`)
   await tx.$executeRawUnsafe(`ALTER TABLE "tires" ADD COLUMN IF NOT EXISTS "internalCode" TEXT`)
   await tx.$executeRawUnsafe(`ALTER TABLE "tires" ADD COLUMN IF NOT EXISTS "lifecycleStatus" TEXT NOT NULL DEFAULT 'STOCK'`)
   await tx.$executeRawUnsafe(`ALTER TABLE "tires" ADD COLUMN IF NOT EXISTS "currentPosition" TEXT`)
@@ -65,7 +65,7 @@ export async function ensureTireLifecycleTables(tx: any) {
       ALTER TABLE "tire_lifecycle_events" ADD CONSTRAINT "tire_lifecycle_events_tireId_fkey"
         FOREIGN KEY ("tireId") REFERENCES "tires"("id") ON DELETE CASCADE ON UPDATE CASCADE;
     END IF;
-  END $$$`)
+  END $$`)
   await tx.$executeRawUnsafe(`ALTER TABLE "tire_lifecycle_events" ADD COLUMN IF NOT EXISTS "treadDepthMm" DOUBLE PRECISION`)
   await tx.$executeRawUnsafe(`ALTER TABLE "tire_lifecycle_events" ADD COLUMN IF NOT EXISTS "pressurePsi" DOUBLE PRECISION`)
   await tx.$executeRawUnsafe(`ALTER TABLE "tire_lifecycle_events" ADD COLUMN IF NOT EXISTS "condition" TEXT`)
@@ -107,7 +107,7 @@ export async function ensureTireLifecycleTables(tx: any) {
       ALTER TABLE "tire_usage_periods" ADD CONSTRAINT "tire_usage_periods_tireId_fkey"
         FOREIGN KEY ("tireId") REFERENCES "tires"("id") ON DELETE CASCADE ON UPDATE CASCADE;
     END IF;
-  END $$$`)
+  END $$`)
   await tx.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "tire_usage_periods_tireId_installedAt_idx" ON "tire_usage_periods" ("tireId","installedAt")`)
   await tx.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "tire_usage_periods_vehicleType_vehicleId_idx" ON "tire_usage_periods" ("vehicleType","vehicleId")`)
   await tx.$executeRawUnsafe(`ALTER TABLE "tire_usage_periods" ADD COLUMN IF NOT EXISTS "historicalEndUnknown" BOOLEAN NOT NULL DEFAULT FALSE`)
@@ -461,5 +461,5 @@ export async function ensureMaintenanceJobCardColumns(tx: any) {
       ALTER TABLE "trailer_maintenance_records" ADD CONSTRAINT "trailer_maintenance_records_jobCardId_fkey"
         FOREIGN KEY ("jobCardId") REFERENCES "workshop_job_cards"("id") ON DELETE SET NULL ON UPDATE CASCADE;
     END IF;
-  END $$$`)
+  END $$`)
 }
