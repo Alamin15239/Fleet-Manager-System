@@ -735,6 +735,17 @@ export async function POST(request: NextRequest) {
           where: { internalCode: unit.importCode },
           select: { id: true }
         })
+        // A small number of tires may pre-date this import and therefore have
+        // a serial number but no generated importCode. Match only an unambiguous
+        // serial identity; never choose arbitrarily when duplicates exist.
+        if (!tire && unit.serial) {
+          const serialMatches = await tx.tire.findMany({
+            where: { deletedAt: null, serialNumber: { equals: unit.serial, mode: 'insensitive' } },
+            select: { id: true },
+            take: 2
+          })
+          if (serialMatches.length === 1) tire = serialMatches[0]
+        }
         if (!tire && unit.status === 'READY') {
           const resolvedEntries = datedEntries.filter(item => item.source.vehicleType && item.source.vehicleId)
           const latestResolved = resolvedEntries[resolvedEntries.length - 1]?.source || null
