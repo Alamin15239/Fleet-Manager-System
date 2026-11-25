@@ -148,7 +148,7 @@ export async function getOrCreateOpenJobCard(tx: any, vehicle: VehicleRef, detai
   await tx.$executeRawUnsafe(`LOCK TABLE "workshop_job_cards" IN EXCLUSIVE MODE`)
   const vehicleWhere = vehicle.vehicleType === 'truck' ? { truckId: vehicle.vehicleId } : { trailerId: vehicle.vehicleId }
   const existing = await tx.workshopJobCard.findFirst({
-    where: { ...vehicleWhere, status: { in: ['OPEN', 'IN_PROGRESS'] } },
+    where: { ...vehicleWhere, status: { in: ['OPEN', 'IN_PROGRESS'] }, creationSource: { not: 'WORKBOOK' } },
     orderBy: [{ serviceDate: 'desc' }, { createdAt: 'desc' }],
     select: { id: true }
   })
@@ -276,7 +276,7 @@ export async function recordTireLifecycleEvent(tx: any, input: {
     const previous = previousVehicleEvent[0]
     if (previous?.jobCardId) {
       const openCard = await tx.workshopJobCard.findFirst({
-        where: { id: previous.jobCardId, status: { in: ['OPEN','IN_PROGRESS'] } },
+        where: { id: previous.jobCardId, status: { in: ['OPEN','IN_PROGRESS'] }, creationSource: { not: 'WORKBOOK' } },
         select: { id: true }
       })
       if (openCard) jobCardId = openCard.id
