@@ -19,6 +19,7 @@ type SourceEntry = {
   vehicleType: VehicleType | null
   vehicleTypeText: string
   vehicleNumber: string
+  vehicleText: string
   vehicleId: string | null
   vehicleLabel: string
   driver: string
@@ -259,6 +260,9 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
           genericNumber = typedNumber[2].trim()
         }
       }
+      const vehicleText = truckNumber && trailerNumber
+        ? 'Truck: ' + truckNumber + '; Trailer: ' + trailerNumber
+        : truckNumber || trailerNumber || genericNumber
       let vehicleNumber = truckNumber || trailerNumber || genericNumber
       if (truckNumber && trailerNumber) {
         vehicleNumber = vehicleType ? (vehicleType === 'truck' ? truckNumber : trailerNumber) : `${truckNumber} / ${trailerNumber}`
@@ -319,8 +323,8 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
       if (odometerText && (!Number.isInteger(odometerValue) || odometerValue < 0)) warnings.push('Odometer value could not be interpreted and will be left empty.')
 
       const entry: SourceEntry = {
-        sheetName: sheet.name, line, eventAt: date, dateText: cellText(dateCell as ExcelJS.CellValue), vehicleType, vehicleTypeText: typeText, vehicleNumber, vehicleId: null,
-        vehicleLabel: vehicleNumber, driver, serialText, serials: parsedSerials.serials,
+        sheetName: sheet.name, line, eventAt: date, dateText: cellText(dateCell as ExcelJS.CellValue), vehicleType, vehicleTypeText: typeText, vehicleNumber, vehicleText, vehicleId: null,
+        vehicleLabel: vehicleText, driver, serialText, serials: parsedSerials.serials,
         quantity: Number.isInteger(quantity) && quantity > 0 && quantity <= 100 ? quantity : 0,
         quantityText: qtyText, tireSize: size, tireSizeText: read(columns.size), manufacturer, origin: normalizeOrigin(origin), originText: origin, history,
         odometerKm: Number.isInteger(odometerValue) && odometerValue >= 0 ? odometerValue : null, odometerText,
@@ -474,7 +478,7 @@ export async function POST(request: NextRequest) {
         const notes = [
           'Imported directly from workbook; no fleet or existing-tire matching performed.',
           'Source worksheet: ' + source.sheetName + ', row ' + source.line + '.',
-          'Source vehicle: ' + sourceReference,
+          'Source vehicle columns: ' + (source.vehicleText || sourceReference) + '.',
           'Source date cell: ' + (source.dateText || 'not supplied') + '; source OUT QTY cell: ' + (source.quantityText || 'not supplied') + '; source vehicle type cell: ' + (source.vehicleTypeText || 'not supplied') + '; source odometer cell: ' + (source.odometerText || 'not supplied') + '.',
           source.serialText ? 'Source serial cell: ' + source.serialText : 'No serial supplied in source.',
           'Source tire size cell: ' + (source.tireSizeText || 'not supplied') + '; imported tire size: ' + (source.tireSize || 'Unspecified') + '; manufacturer: ' + (source.manufacturer || 'not supplied') + '; origin: ' + (source.originText || 'not supplied') + '.',
@@ -528,8 +532,8 @@ export async function POST(request: NextRequest) {
               data: {
                 id: 'tyuse_' + randomUUID(),
                 tireId: tire.id,
-                vehicleType: source.vehicleType || 'unknown',
-                vehicleId: source.vehicleNumber,
+                vehicleType: source.vehicleText.includes('; Trailer:') ? 'source' : source.vehicleType || 'unknown',
+                vehicleId: source.vehicleText || source.vehicleNumber,
                 installedAt: source.eventAt,
                 removedAt: null,
                 historicalEndUnknown: true,
