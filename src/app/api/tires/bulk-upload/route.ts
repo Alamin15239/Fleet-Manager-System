@@ -568,9 +568,6 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
       unit.warnings.push('Conflicting origins were found for this serial. The tire is blocked until the correct origin is reviewed.')
       unit.errors.push('Conflicting origins require manual review.')
     }
-    if (unit.serial && (serialOccurrenceCounts.get(unit.serial.toLowerCase()) || 0) > 1) {
-      unit.warnings.push('A serial value is repeated in the source workbook. Each OUT QTY unit remains a separate tire record; review serial identity before merging histories.')
-    }
     if (unit.errors.length) unit.status = 'BLOCKED'
   }
 
