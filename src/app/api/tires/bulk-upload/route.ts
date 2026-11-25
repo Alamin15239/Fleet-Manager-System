@@ -387,8 +387,10 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
       // credible usage context to be reviewed. This excludes notes, opening
       // balance fragments, copied dates/numbers, and broken formula debris.
       const plausibleDate = Boolean(date && date.getUTCFullYear() >= 2000 && date.getUTCFullYear() <= 2100)
-      const plausibleVehicle = Boolean(vehicleNumber && !/^(new|opening balance|total|balance)$/i.test(vehicleNumber.trim()) &&
-        !parseDate(vehicleNumber as ExcelJS.CellValue))
+      const vehicleText = vehicleNumber.trim()
+      const looksLikeDate = /^\d{1,2}[/-]\d{1,2}[/-]\d{2,4}$/.test(vehicleText) ||
+        /^\d{4}-\d{1,2}-\d{1,2}$/.test(vehicleText)
+      const plausibleVehicle = Boolean(vehicleText && !/^(new|opening balance|total|balance)$/i.test(vehicleText) && !looksLikeDate)
       const hasUsageContext = plausibleDate && plausibleVehicle &&
         Boolean(driver || parsedSerials.serials.length || history)
       if (!expectedQuantity && !hasUsageContext) continue
