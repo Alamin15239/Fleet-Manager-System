@@ -171,25 +171,16 @@ export async function DELETE(
       )
     }
 
-    if (existingTire.lifecycleStatus === 'DISPOSED') {
-      return NextResponse.json({ error: 'This tire has already been disposed' }, { status: 409 })
-    }
-    if (existingTire.lifecycleStatus === 'INSTALLED' || existingTire.truckId || existingTire.trailerNumber) {
-      return NextResponse.json({ error: 'Remove the tire from its vehicle before disposing it' }, { status: 409 })
-    }
+    // Permanent deletion is intentional: lifecycle events and usage periods
+    // are dependent records and are removed by their ON DELETE CASCADE FKs.
     await db.$transaction(async tx => {
-      await recordTireLifecycleEvent(tx, {
-        tireId: id, eventType: 'DISPOSE', eventAt: new Date(),
-        reason: 'Removed from inventory', notes: 'Soft-disposed from the tire inventory screen',
-        userId: authResult.user.id
-      })
-      await tx.$executeRawUnsafe(`UPDATE "tires" SET "deletedAt"=NOW() WHERE "id"=$1`, id)
+      await tx.tire.delete({ where: { id } })
     })
 
     await syncOneDriveWorkbookAfterChange()
 
-    return NextResponse.json({ 
-      message: 'Tire disposed successfully; history retained' 
+    return NextResponse.json({
+      message: 'Tire and its linked lifecycle and usage history were permanently deleted'
     })
   } catch (error) {
     console.error('Error deleting tire:', error)
