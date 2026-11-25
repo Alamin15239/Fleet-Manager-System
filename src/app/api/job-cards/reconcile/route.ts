@@ -95,7 +95,7 @@ export async function POST(request: NextRequest) {
                 where: { jobNumber: { startsWith: prefix } }, select: { jobNumber: true }
               })
               const highest = numbers.reduce((max: number, item: { jobNumber: string }) => {
-                const match = item.jobNumber.match(/^JC-\\d{4}-(\\d+)$/)
+                const match = item.jobNumber.match(/^JC-\d{4}-(\d+)$/)
                 return match ? Math.max(max, Number(match[1]) || 0) : max
               }, 0)
               let sequence = highest + 1
