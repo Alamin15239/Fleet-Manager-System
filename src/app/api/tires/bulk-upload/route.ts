@@ -4,7 +4,7 @@ import { Readable } from 'node:stream'
 import { createHash, randomUUID } from 'node:crypto'
 import { db } from '@/lib/db'
 import { requireRolePermission } from '@/lib/permission-middleware'
-import { ensureTireLifecycleTables, getOrCreateOpenJobCard } from '@/lib/tire-lifecycle'
+import { ensureTireLifecycleTables } from '@/lib/tire-lifecycle'
 import { syncOneDriveWorkbookAfterChange } from '@/lib/onedrive-excel-sync'
 
 export const runtime = 'nodejs'
@@ -239,67 +239,6 @@ function resolveVehicle(number: string, preferredType: VehicleType | null, fleet
     ? [...vehicleMatches(preferredType, token, fleet), ...vehicleMatches(preferredType === 'truck' ? 'trailer' : 'truck', token, fleet)]
     : [...vehicleMatches('truck', token, fleet), ...vehicleMatches('trailer', token, fleet)])
   return Array.from(new Map(expanded.map(vehicle => [vehicle.type + ':' + vehicle.id, vehicle])).values())
-}
-
-async function getOrCreateUnassignedTireJobCard(tx: any, details: {
-  eventAt: Date
-  vehicleNumber: string
-  sheetName: string
-  line: number
-  driverName: string | null
-  userId: string
-}) {
-  const marker = `[TIRE-SOURCE:${details.sheetName}:${details.line}:${normalizeVehicleText(details.vehicleNumber) || 'UNRESOLVED'}]`
-  await tx.$executeRawUnsafe('LOCK TABLE "workshop_job_cards" IN EXCLUSIVE MODE')
-  const existing = await tx.workshopJobCard.findFirst({
-    where: {
-      truckId: null,
-      trailerId: null,
-      serviceDate: {
-        gte: new Date(Date.UTC(details.eventAt.getUTCFullYear(), details.eventAt.getUTCMonth(), details.eventAt.getUTCDate())),
-        lt: new Date(Date.UTC(details.eventAt.getUTCFullYear(), details.eventAt.getUTCMonth(), details.eventAt.getUTCDate() + 1))
-      },
-      notes: { contains: marker }
-    },
-    select: { id: true }
-  })
-  if (existing) return existing.id
-
-  const year = details.eventAt.getUTCFullYear()
-  const prefix = `JC-${year}-`
-  const numbers = await tx.workshopJobCard.findMany({
-    where: { jobNumber: { startsWith: prefix } },
-    select: { jobNumber: true }
-  })
-  const highest = numbers.reduce((max: number, item: { jobNumber: string }) => {
-    const match = item.jobNumber.match(/^JC-\d{4}-(\d+)$/)
-    return match ? Math.max(max, Number(match[1]) || 0) : max
-  }, 0)
-  let sequence = highest + 1
-  let jobNumber = `${prefix}${String(sequence).padStart(4, '0')}`
-  while (await tx.workshopJobCard.findUnique({ where: { jobNumber }, select: { id: true } })) {
-    sequence++
-    jobNumber = `${prefix}${String(sequence).padStart(4, '0')}`
-  }
-  const id = `jc_${randomUUID()}`
-  await tx.workshopJobCard.create({
-    data: {
-      id,
-      jobNumber,
-      serviceDate: details.eventAt,
-      serviceType: 'TIRE MAINTENANCE',
-      creationSource: 'TIRE',
-      priority: 'NORMAL',
-      driverName: details.driverName || undefined,
-      status: 'OPEN',
-      reportedIssue: 'Tire maintenance recorded; source vehicle could not be matched',
-      notes: `${marker} Original workbook vehicle number: ${details.vehicleNumber || 'not supplied'}. Sheet: ${details.sheetName}, row: ${details.line}. Vehicle assignment requires review.`,
-      createdById: details.userId,
-      items: [],
-      checklist: {}
-    }
-  })
-  return id
 }
 
 async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
@@ -724,8 +663,6 @@ export async function POST(request: NextRequest) {
 
       let tireCount = 0
       let historyCount = 0
-      const jobCards = new Set<string>()
-      const jobCardCache = new Map<string, string>()
       // Tire.plateNumber is a legacy relation to the separate vehicles table.
       // Fleet imports resolve against trucks/trailers, so only populate this
       // optional legacy FK when that exact plate is registered there.
@@ -860,38 +797,7 @@ export async function POST(request: NextRequest) {
             const entry = sourceItems[index].source
             const vehicleType = entry.vehicleType
             const vehicleId = entry.vehicleId
-            let jobCardId: string
-            if (vehicleType && vehicleId) {
-              jobCardId = await getOrCreateOpenJobCard(tx, {
-                vehicleType,
-                vehicleId
-              }, {
-                eventAt: entry.eventAt as Date,
-                odometerKm: entry.odometerKm,
-                driverName: entry.driver || null,
-                userId: user.id,
-                serviceType: 'TIRE MAINTENANCE',
-                creationSource: 'TIRE',
-                reportedIssue: 'Tire usage recorded from tire management workbook',
-                // Historical workbook rows may legitimately reference vehicles
-                // that are now inactive or soft-deleted. Preserve their history
-                // without reactivating the fleet record.
-                allowInactive: true
-              })
-            } else {
-              const unresolvedKey = sourceKey + ':' + (entry.vehicleNumber || 'UNRESOLVED')
-              const cached = jobCardCache.get(unresolvedKey) || await getOrCreateUnassignedTireJobCard(tx, {
-                eventAt: entry.eventAt as Date,
-                vehicleNumber: entry.vehicleNumber,
-                sheetName: entry.sheetName,
-                line: entry.line,
-                driverName: entry.driver || null,
-                userId: user.id
-              })
-              jobCardCache.set(unresolvedKey, cached)
-              jobCardId = cached
-            }
-            jobCards.add(jobCardId)
+            const jobCardId = null
             const notes = [
               'Imported from ' + entry.sheetName + ', row ' + entry.line + '.',
               entry.history ? 'Source history: ' + entry.history : '',
@@ -929,15 +835,14 @@ export async function POST(request: NextRequest) {
           }
         }
       }
-      return { tireCount, historyCount, jobCardCount: jobCards.size }
+      return { tireCount, historyCount }
     }, { timeout: 120000 })
 
     await syncOneDriveWorkbookAfterChange()
     return NextResponse.json({
-      message: 'Processed ' + result.tireCount + ' new individual tire records and reconciled ' + result.historyCount + ' eligible tire usage entries across ' + result.jobCardCount + ' Workshop Job Card(s). ' + analysis.blockedTires + ' tire group(s) with ' + analysis.blockedUsageEntries + ' usage entr(y/ies) were held for review and not imported. No stock receipt events are created.',
+      message: 'Processed ' + result.tireCount + ' new individual tire records and ' + result.historyCount + ' eligible tire usage entries in Tire Management. No Workshop Job Cards were created or linked. ' + analysis.blockedTires + ' tire group(s) with ' + analysis.blockedUsageEntries + ' usage entr(y/ies) were held for review and not imported. No stock receipt events are created.',
       tires: result.tireCount,
       historyEntries: result.historyCount,
-      jobCards: result.jobCardCount,
       skippedDuplicates: analysis.duplicateTires,
       blockedTires: analysis.blockedTires,
       reviewRequiredTires: analysis.blockedTires,
