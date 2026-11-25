@@ -13,6 +13,7 @@ export async function GET(request: NextRequest) {
       db.$queryRawUnsafe<any[]>(`SELECT
         COUNT(*) FILTER (WHERE "deletedAt" IS NULL AND "lifecycleStatus"='STOCK')::int AS "inStock",
         COUNT(*) FILTER (WHERE "deletedAt" IS NULL AND "lifecycleStatus"='INSTALLED')::int AS "installed",
+        COUNT(*) FILTER (WHERE "deletedAt" IS NULL AND "lifecycleStatus"='ASSIGNED_UNVERIFIED')::int AS "assignedUnverified",
         COUNT(*) FILTER (WHERE "deletedAt" IS NULL AND "lifecycleStatus"='DAMAGED')::int AS "damaged",
         COUNT(*) FILTER (WHERE "lifecycleStatus"='DISPOSED')::int AS "disposed",
         (SELECT COUNT(*)::int FROM "tire_lifecycle_events" WHERE "eventType"='RECEIVE') AS "totalReceived",
@@ -85,7 +86,7 @@ export async function GET(request: NextRequest) {
         ) life GROUP BY "manufacturer","tireSize" ORDER BY "averageLifeKm" DESC`)
     ])
     return NextResponse.json({
-      summary: summary[0] || { inStock: 0, installed: 0, damaged: 0, disposed: 0, totalReceived: 0, damageEvents: 0 },
+      summary: summary[0] || { inStock: 0, installed: 0, assignedUnverified: 0, damaged: 0, disposed: 0, totalReceived: 0, damageEvents: 0 },
       inventory, damageByDriver, damageByReason, damageByVehicle, vehicleUsage, tireLife, averageLife, purchaseBySupplier, inspectionDue
     })
   } catch (error) {
