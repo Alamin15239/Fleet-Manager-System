@@ -693,8 +693,8 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    if (!analysis.ready.length) {
-      return NextResponse.json({ error: 'There are no non-duplicate tire candidates to import.' }, { status: 400 })
+    if (!analysis.units.length) {
+      return NextResponse.json({ error: 'There are no valid tire usage entries to import or reconcile.' }, { status: 400 })
     }
 
     const result = await db.$transaction(async tx => {
