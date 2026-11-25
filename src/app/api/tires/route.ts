@@ -47,7 +47,10 @@ export async function GET(request: NextRequest) {
         { manufacturer: { contains: search, mode: 'insensitive' } },
         { plateNumber: { contains: search, mode: 'insensitive' } },
         { trailerNumber: { contains: search, mode: 'insensitive' } },
-        { driverName: { contains: search, mode: 'insensitive' } }
+        { driverName: { contains: search, mode: 'insensitive' } },
+        // Workbook imports link trucks through the relation, so the plate can
+        // only be matched through truck.licensePlate for those rows.
+        { truck: { licensePlate: { contains: search, mode: 'insensitive' } } }
       ]
     }
 
@@ -60,7 +63,10 @@ export async function GET(request: NextRequest) {
     }
 
     if (plateNumber) {
-      whereClause.plateNumber = { contains: plateNumber, mode: 'insensitive' }
+      whereClause.OR = [
+        { plateNumber: { contains: plateNumber, mode: 'insensitive' } },
+        { truck: { licensePlate: { contains: plateNumber, mode: 'insensitive' } } }
+      ]
     }
 
     if (driverName) {

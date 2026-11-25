@@ -52,14 +52,31 @@ export async function GET(request: NextRequest) {
       orderBy: { _sum: { quantity: 'desc' } }
     })
 
-    // Get tires by vehicle (plate number)
-    const tiresByVehicle = await db.tire.groupBy({
-      by: ['plateNumber'],
-      where: { ...activeTires, plateNumber: { not: null }, trailerNumber: null },
-      _sum: { quantity: true },
-      _count: { id: true },
-      orderBy: { _sum: { quantity: 'desc' }
-    }})
+    // Get tires by vehicle (plate number). Workbook imports store the truck
+    // link in the truckId relation while the legacy plateNumber column only
+    // holds plates registered in the old vehicles table. Merge both sources
+    // so every truck-assigned tire is counted exactly once.
+    const vehicleTireRows = await db.tire.findMany({
+      where: { ...activeTires, trailerNumber: null, OR: [{ plateNumber: { not: null } }, { truckId: { not: null } }] },
+      select: { plateNumber: true, truckId: true, quantity: true }
+    })
+    const truckIds = Array.from(new Set(vehicleTireRows.map(row => row.truckId).filter((value): value is string => Boolean(value))))
+    const truckPlateById = new Map(
+      (await db.truck.findMany({ where: { id: { in: truckIds } }, select: { id: true, licensePlate: true } }))
+        .map(truck => [truck.id, truck.licensePlate])
+    )
+    const vehicleAgg = new Map<string, { count: number; quantity: number }>()
+    for (const row of vehicleTireRows) {
+      const plate = row.plateNumber || (row.truckId ? truckPlateById.get(row.truckId) : null)
+      if (!plate) continue
+      const agg = vehicleAgg.get(plate) || { count: 0, quantity: 0 }
+      agg.count += 1
+      agg.quantity += row.quantity
+      vehicleAgg.set(plate, agg)
+    }
+    const tiresByVehicle = Array.from(vehicleAgg.entries())
+      .map(([plate, agg]) => ({ plateNumber: plate, _count: { id: agg.count }, _sum: { quantity: agg.quantity } }))
+      .sort((a, b) => b._sum.quantity - a._sum.quantity)
 
     const tiresByTrailer = await db.tire.groupBy({
       by: ['trailerNumber'],
@@ -158,7 +175,7 @@ export async function GET(request: NextRequest) {
 
     // Get truck vs trailer tire distribution
     const truckTiresResult = await db.tire.aggregate({
-      where: { ...activeTires, trailerNumber: null, plateNumber: { not: null } },
+      where: { ...activeTires, trailerNumber: null, OR: [{ plateNumber: { not: null } }, { truckId: { not: null } }] },
       _sum: { quantity: true }
     })
     const truckTires = truckTiresResult._sum.quantity || 0
@@ -185,12 +202,9 @@ export async function GET(request: NextRequest) {
     })
     const oldTires = oldTiresResult._sum.quantity || 0
 
-    const [truckPlates, trailerNumbers] = await Promise.all([
-      db.tire.findMany({ where: { ...activeTires, plateNumber: { not: null } }, select: { plateNumber: true }, distinct: ['plateNumber'] }),
-      db.tire.findMany({ where: { ...activeTires, trailerNumber: { not: null } }, select: { trailerNumber: true }, distinct: ['trailerNumber'] })
-    ])
+    const trailerNumbers = await db.tire.findMany({ where: { ...activeTires, trailerNumber: { not: null } }, select: { trailerNumber: true }, distinct: ['trailerNumber'] })
     const totalVehicles = new Set([
-      ...truckPlates.map(item => item.plateNumber).filter((value): value is string => Boolean(value)),
+      ...Array.from(vehicleAgg.keys()),
       ...trailerNumbers.map(item => item.trailerNumber).filter((value): value is string => Boolean(value))
     ]).size
 
