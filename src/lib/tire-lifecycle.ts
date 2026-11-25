@@ -137,7 +137,7 @@ export async function ensureTireLifecycleTables(tx: any) {
 
 export async function getOrCreateOpenJobCard(tx: any, vehicle: VehicleRef, details: {
   eventAt: Date; odometerKm?: number | null; driverName?: string | null; userId: string;
-  serviceType?: string; reportedIssue?: string
+  serviceType?: string; reportedIssue?: string; creationSource?: "TIRE" | "SPARE_PARTS" | "OIL" | "MANUAL"
 }) {
   await ensureMaintenanceJobCardColumns(tx)
   const activeVehicle = vehicle.vehicleType === 'truck'
@@ -169,7 +169,7 @@ export async function getOrCreateOpenJobCard(tx: any, vehicle: VehicleRef, detai
       id, jobNumber: `${prefix}${String(highest + 1).padStart(4, '0')}`,
       ...(vehicle.vehicleType === 'truck' ? { truckId: vehicle.vehicleId } : { trailerId: vehicle.vehicleId }),
       serviceDate: details.eventAt, odometerKm: details.odometerKm ?? undefined,
-      serviceType: details.serviceType || 'TIRE MAINTENANCE', priority: 'NORMAL',
+      serviceType: details.serviceType || 'TIRE MAINTENANCE', creationSource: details.creationSource || 'UNKNOWN', priority: 'NORMAL',
       driverName: details.driverName || undefined, status: 'OPEN',
       reportedIssue: details.reportedIssue || 'Automatically created from maintenance activity',
       createdById: details.userId, items: [], checklist: {}
@@ -265,7 +265,7 @@ export async function recordTireLifecycleEvent(tx: any, input: {
   if (operationalVehicle && !['RECEIVE'].includes(eventType)) {
     jobCardId = await getOrCreateOpenJobCard(tx, operationalVehicle, {
       eventAt: input.eventAt, odometerKm: input.odometerKm, driverName: eventDriverName, userId: input.userId,
-      serviceType: eventType === 'ISSUE' ? 'TIRE ISSUE' : 'TIRE MAINTENANCE', reportedIssue: eventType === 'ISSUE' ? 'Tire issued to vehicle from outgoing tire sheet; installation position not recorded' : 'Automatically created from tire lifecycle activity'
+      serviceType: eventType === 'ISSUE' ? 'TIRE ISSUE' : 'TIRE MAINTENANCE', creationSource: 'TIRE', reportedIssue: eventType === 'ISSUE' ? 'Tire issued to vehicle from outgoing tire sheet; installation position not recorded' : 'Automatically created from tire lifecycle activity'
     })
   } else if (['REPAIR','DISPOSE','DAMAGE'].includes(eventType)) {
     const previousVehicleEvent = await tx.$queryRawUnsafe(
@@ -284,7 +284,7 @@ export async function recordTireLifecycleEvent(tx: any, input: {
     if (!jobCardId && previous?.fromTruckId) {
       jobCardId = await getOrCreateOpenJobCard(tx, { vehicleType: 'truck', vehicleId: previous.fromTruckId }, {
         eventAt: input.eventAt, odometerKm: input.odometerKm, driverName: eventDriverName, userId: input.userId,
-        serviceType: 'TIRE MAINTENANCE', reportedIssue: 'Automatically created for tire repair or disposal'
+        serviceType: 'TIRE MAINTENANCE', creationSource: 'TIRE', reportedIssue: 'Automatically created for tire repair or disposal'
       })
     } else if (!jobCardId && previous?.fromTrailerId) {
       jobCardId = await getOrCreateOpenJobCard(tx, { vehicleType: 'trailer', vehicleId: previous.fromTrailerId }, {
@@ -436,6 +436,7 @@ export async function ensureMaintenanceJobCardColumns(tx: any) {
     CONSTRAINT "workshop_job_cards_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE,
     CONSTRAINT "workshop_job_cards_vehicle_check" CHECK (num_nonnulls("truckId", "trailerId") = 1)
   )`)
+  await tx.$executeRawUnsafe(`ALTER TABLE "workshop_job_cards" ADD COLUMN IF NOT EXISTS "creationSource" TEXT NOT NULL DEFAULT 'UNKNOWN'`)
   await tx.$executeRawUnsafe(`ALTER TABLE "workshop_job_cards" ADD COLUMN IF NOT EXISTS "partsCost" DOUBLE PRECISION NOT NULL DEFAULT 0`)
   await tx.$executeRawUnsafe(`ALTER TABLE "workshop_job_cards" ADD COLUMN IF NOT EXISTS "laborCost" DOUBLE PRECISION NOT NULL DEFAULT 0`)
   await tx.$executeRawUnsafe(`ALTER TABLE "workshop_job_cards" ADD COLUMN IF NOT EXISTS "totalCost" DOUBLE PRECISION NOT NULL DEFAULT 0`)
