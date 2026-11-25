@@ -224,16 +224,22 @@ function resolveVehicle(number: string, preferredType: VehicleType | null, fleet
     : [...vehicleMatches('truck', number, fleet), ...vehicleMatches('trailer', number, fleet)]
   if (direct.length) return direct
 
-  // Historical rows sometimes store a truck/trailer pair in one cell (e.g. 1330-507).
-  // The worksheet tire category selects which side to resolve.
-  const tokens = number.split(/[\s,;\-–—/|]+/).map(value => value.trim()).filter(value => value.length >= 2)
+  // Some source sheets put a trailer number in a column labelled Truck #,
+  // or vice versa. If the preferred table has no match, check the opposite
+  // table and let the caller report the source-vs-fleet type discrepancy.
+  if (preferredType) {
+    const opposite = vehicleMatches(preferredType === 'truck' ? 'trailer' : 'truck', number, fleet)
+    if (opposite.length) return opposite
+  }
+
+  // Historical rows sometimes store a truck/trailer pair in one cell.
+  const tokens = number.split(/[\\s,;\\-–—/|]+/).map(value => value.trim()).filter(value => value.length >= 2)
   if (!tokens.length) return []
   const expanded = tokens.flatMap(token => preferredType
-    ? vehicleMatches(preferredType, token, fleet)
+    ? [...vehicleMatches(preferredType, token, fleet), ...vehicleMatches(preferredType === 'truck' ? 'trailer' : 'truck', token, fleet)]
     : [...vehicleMatches('truck', token, fleet), ...vehicleMatches('trailer', token, fleet)])
   return Array.from(new Map(expanded.map(vehicle => [vehicle.type + ':' + vehicle.id, vehicle])).values())
 }
-
 
 async function getOrCreateHistoricalJobCard(tx: any, vehicle: {
   vehicleType: VehicleType
@@ -462,6 +468,9 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
           errors.push(matches.length ? 'Vehicle reference is ambiguous. The number matches more than one current or historical fleet record.' : 'Vehicle number does not match any current or retained historical truck/trailer record. If the vehicle was sold and its record was permanently deleted, keep this row for manual review.')
         } else {
           const vehicle = matches[0]
+          if (vehicleType && vehicle.type !== vehicleType) {
+            warnings.push('Source column identifies this as a ' + vehicleType + ', but fleet records identify ' + vehicle.number + ' as a ' + vehicle.type + '. Matched the existing fleet record.')
+          }
           entry.vehicleType = vehicle.type
           entry.vehicleId = vehicle.id
           entry.vehicleNumber = vehicle.number
