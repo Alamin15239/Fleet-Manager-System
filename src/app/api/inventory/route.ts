@@ -125,8 +125,8 @@ export async function POST(request: NextRequest) {
         if (jobCardId) {
           await tx.$executeRaw`LOCK TABLE "workshop_job_cards" IN EXCLUSIVE MODE`
           const where = vehicleType === 'truck'
-            ? { id: jobCardId, truckId: vehicleId, status: { in: ['OPEN', 'IN_PROGRESS'] } }
-            : { id: jobCardId, trailerId: vehicleId, status: { in: ['OPEN', 'IN_PROGRESS'] } }
+            ? { id: jobCardId, truckId: vehicleId, status: { in: ['OPEN', 'IN_PROGRESS'] }, creationSource: { not: 'WORKBOOK' } }
+            : { id: jobCardId, trailerId: vehicleId, status: { in: ['OPEN', 'IN_PROGRESS'] }, creationSource: { not: 'WORKBOOK' } }
           const linkedCard = await tx.workshopJobCard.findFirst({ where, select: { id: true } })
           if (!linkedCard) throw new Error('Selected job card does not belong to this vehicle')
         } else {
@@ -139,7 +139,7 @@ export async function POST(request: NextRequest) {
         await tx.$executeRaw`LOCK TABLE "workshop_job_cards" IN EXCLUSIVE MODE`
         if (vehicleId && !['truck','trailer'].includes(normalizedVehicleType)) throw new Error('Select a valid vehicle type for this job-card issue')
         const linkedCard = await tx.workshopJobCard.findFirst({
-          where: { id: jobCardId, status: { in: ['OPEN', 'IN_PROGRESS'] } },
+          where: { id: jobCardId, status: { in: ['OPEN', 'IN_PROGRESS'] }, creationSource: { not: 'WORKBOOK' } },
           select: { id: true, truckId: true, trailerId: true }
         })
         if (!linkedCard) throw new Error('Selected job card is not open')
