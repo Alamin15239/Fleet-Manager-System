@@ -510,7 +510,8 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
     sum + Math.max(0, (source.quantity > 0 ? source.quantity : 0) - Math.min(source.serials.length, source.quantity > 0 ? source.quantity : 0)), 0)
   const unquantifiedRows = sourceEntries.filter(source => source.quantity <= 0).length
   const uniqueSerialTires = units.filter(unit => Boolean(unit.serial)).length
-  const unnumberedTireCandidates = units.filter(unit => !unit.serial).length
+  const unnumberedTireCandidates = units.filter(unit =>
+    !unit.serial && unit.entries.some(item => item.source.quantity > 0)).length
   const repeatedSerialUsageOccurrences = Math.max(0, serialUsageOccurrences - uniqueSerialTires)
 
   for (const unit of units) {
