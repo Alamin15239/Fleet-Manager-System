@@ -41,6 +41,7 @@ type ImportPreview = {
     repeatedSerialsGrouped: number
     exactDuplicateRowsSkipped: number
     importableTires: number
+    importableUsageEntries: number
     existingDuplicates: number
     blockedTires: number
     warnings: number
@@ -176,7 +177,8 @@ export default function TireBulkUpload() {
             {[
               ['Tires detected', preview.summary.tiresDetected],
               ['Usage entries', preview.summary.historyEntries],
-              ['Ready to import', preview.summary.importableTires],
+              ['Unique tires to import', preview.summary.importableTires],
+              ['Usage entries to import', preview.summary.importableUsageEntries],
               ['Database duplicates', preview.summary.existingDuplicates],
               ['Needs review', preview.summary.blockedTires],
               ['Repeated serial groups', preview.summary.repeatedSerialsGrouped],
@@ -253,7 +255,7 @@ export default function TireBulkUpload() {
 
         <div className="flex flex-wrap gap-2">
           <Button onClick={() => sendFile('import')} disabled={busy || preview.summary.importableTires === 0}>
-            {busy ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Importing history…</> : <><ShieldCheck className="mr-2 h-4 w-4" />Confirm and import {preview.summary.importableTires} tire(s)</>}
+            {busy ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Importing history…</> : <><ShieldCheck className="mr-2 h-4 w-4" />Import {preview.summary.importableUsageEntries} usage entries across {preview.summary.importableTires} tire(s)</>}
           </Button>
           <Button type="button" variant="outline" onClick={() => sendFile('preview')} disabled={busy || !file}>
             <RefreshCw className="mr-2 h-4 w-4" />Recheck duplicates
