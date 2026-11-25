@@ -521,6 +521,23 @@ export async function POST(request: NextRequest) {
             }
           })
           historyCount++
+          if (source.vehicleNumber) {
+            // TireUsagePeriod stores the original workbook vehicle reference as
+            // text; it does not require a truck/trailer database match.
+            await tx.tireUsagePeriod.create({
+              data: {
+                id: 'tyuse_' + randomUUID(),
+                tireId: tire.id,
+                vehicleType: source.vehicleType || 'unknown',
+                vehicleId: source.vehicleNumber,
+                installedAt: source.eventAt,
+                removedAt: null,
+                historicalEndUnknown: true,
+                startOdometer: source.odometerKm,
+                driverNameSnapshot: source.driver || null
+              }
+            })
+          }
         }
       }
       return { tireCount, historyCount }
