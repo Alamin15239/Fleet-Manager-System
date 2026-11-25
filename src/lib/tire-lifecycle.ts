@@ -129,12 +129,13 @@ export async function ensureTireLifecycleTables(tx: any) {
 
 export async function getOrCreateOpenJobCard(tx: any, vehicle: VehicleRef, details: {
   eventAt: Date; odometerKm?: number | null; driverName?: string | null; userId: string;
-  serviceType?: string; reportedIssue?: string; creationSource?: "TIRE" | "SPARE_PARTS" | "OIL" | "MANUAL" | "UNKNOWN"
+  serviceType?: string; reportedIssue?: string; creationSource?: "TIRE" | "SPARE_PARTS" | "OIL" | "MANUAL" | "UNKNOWN";
+  allowInactive?: boolean
 }) {
   await ensureMaintenanceJobCardColumns(tx)
   const activeVehicle = vehicle.vehicleType === 'truck'
-    ? await tx.truck.findFirst({ where: { id: vehicle.vehicleId, isDeleted: false, status: { not: 'INACTIVE' } }, select: { id: true } })
-    : await tx.trailer.findFirst({ where: { id: vehicle.vehicleId, isDeleted: false, status: { not: 'INACTIVE' } }, select: { id: true } })
+    ? await tx.truck.findFirst({ where: details.allowInactive ? { id: vehicle.vehicleId } : { id: vehicle.vehicleId, isDeleted: false, status: { not: 'INACTIVE' } }, select: { id: true } })
+    : await tx.trailer.findFirst({ where: details.allowInactive ? { id: vehicle.vehicleId } : { id: vehicle.vehicleId, isDeleted: false, status: { not: 'INACTIVE' } }, select: { id: true } })
   if (!activeVehicle) throw new Error('Selected vehicle was not found or inactive')
   // Serialize card creation to prevent concurrent writes from opening duplicate cards.
   await tx.$executeRawUnsafe(`LOCK TABLE "workshop_job_cards" IN EXCLUSIVE MODE`)
