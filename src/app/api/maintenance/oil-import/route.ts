@@ -274,7 +274,7 @@ export async function POST(req: NextRequest) {
         )
       }
       return { inserted, removed }
-    })
+    }, { timeout: 120000, maxWait: 15000 })
     try { await syncOneDriveWorkbookAfterChange() } catch (e) { console.warn('Oil import OneDrive sync failed', e) }
     return NextResponse.json({ imported: result.inserted.count, replaced: updateRows.length, removed: result.removed,
       duplicates: 0,
