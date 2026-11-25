@@ -382,6 +382,17 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
       const serialParts = columns.serials.map(column => read(column)).filter(Boolean)
       const serialText = serialParts.join(', ')
       const parsedSerials = parseSerials(serialText, expectedQuantity)
+
+      // Keep a row with missing/invalid OUT QTY only when it still has enough
+      // credible usage context to be reviewed. This excludes notes, opening
+      // balance fragments, copied dates/numbers, and broken formula debris.
+      const plausibleDate = Boolean(date && date.getUTCFullYear() >= 2000 && date.getUTCFullYear() <= 2100)
+      const plausibleVehicle = Boolean(vehicleNumber && !/^(new|opening balance|total|balance)$/i.test(vehicleNumber.trim()) &&
+        !parseDate(vehicleNumber as ExcelJS.CellValue))
+      const hasUsageContext = plausibleDate && plausibleVehicle &&
+        Boolean(driver || parsedSerials.serials.length || history)
+      if (!expectedQuantity && !hasUsageContext) continue
+
       // OUT QTY is the sole source of truth for how many physical tire records exist.
       // Serial identifiers describe those records; they must never increase the count.
       const quantity = qtyText ? parsedQty : 0
@@ -490,6 +501,16 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
   }
 
   const units = Array.from(unitsByKey.values())
+  const sourceQuantityTotal = sourceEntries.reduce((sum, source) => sum + (source.quantity > 0 ? source.quantity : 0), 0)
+  const serialUsageOccurrences = sourceEntries.reduce((sum, source) =>
+    sum + Math.min(source.serials.length, source.quantity > 0 ? source.quantity : 0), 0)
+  const unnumberedQuantitySlots = sourceEntries.reduce((sum, source) =>
+    sum + Math.max(0, (source.quantity > 0 ? source.quantity : 0) - Math.min(source.serials.length, source.quantity > 0 ? source.quantity : 0)), 0)
+  const unquantifiedRows = sourceEntries.filter(source => source.quantity <= 0).length
+  const uniqueSerialTires = units.filter(unit => Boolean(unit.serial)).length
+  const unnumberedTireCandidates = units.filter(unit => !unit.serial).length
+  const repeatedSerialUsageOccurrences = Math.max(0, serialUsageOccurrences - uniqueSerialTires)
+
   for (const unit of units) {
     unit.entries.sort((a, b) => (a.source.eventAt?.getTime() || 0) - (b.source.eventAt?.getTime() || 0) || a.source.line - b.source.line)
     if (unit.entries.length) unit.warnings.push("The final historical usage period has no recorded removal date. It will be saved with an unknown end date and will not be treated as a current installation.")
@@ -561,6 +582,8 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
   const warningCount = units.reduce((count, unit) => count + new Set(unit.warnings).size, 0)
   return {
     sheetNames, sourceRows: sourceEntries.length, exactDuplicateRows,
+    sourceQuantityTotal, serialUsageOccurrences, uniqueSerialTires, repeatedSerialUsageOccurrences,
+    unnumberedQuantitySlots, unnumberedTireCandidates, unquantifiedRows,
     totalTires: units.length, historyEntries: units.reduce((count, unit) => count + unit.entries.length, 0),
     repeatedSerials: units.filter(unit => Boolean(unit.serial) && unit.entries.length > 1).length,
     importableTires: ready.length, duplicateTires: duplicates.length, blockedTires: blocked.length,
@@ -617,8 +640,15 @@ export async function POST(request: NextRequest) {
         sheets: analysis.sheetNames,
         summary: {
           sourceRows: analysis.sourceRows,
+          sourceQuantityTotal: analysis.sourceQuantityTotal,
           tiresDetected: analysis.totalTires,
           historyEntries: analysis.historyEntries,
+          serialUsageOccurrences: analysis.serialUsageOccurrences,
+          uniqueSerialTires: analysis.uniqueSerialTires,
+          repeatedSerialUsageOccurrences: analysis.repeatedSerialUsageOccurrences,
+          unnumberedQuantitySlots: analysis.unnumberedQuantitySlots,
+          unnumberedTireCandidates: analysis.unnumberedTireCandidates,
+          unquantifiedRows: analysis.unquantifiedRows,
           repeatedSerialsGrouped: analysis.repeatedSerials,
           exactDuplicateRowsSkipped: analysis.exactDuplicateRows,
           importableTires: analysis.importableTires,
