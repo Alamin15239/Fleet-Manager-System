@@ -776,7 +776,7 @@ export async function POST(request: NextRequest) {
         if (!tire) continue
 
         const existingEvents = await tx.tireLifecycleEvent.findMany({
-          where: { tireId: tire.id, eventType: 'ISSUE', reason: 'Historical tire usage import' },
+          where: { tireId: tire.id, eventType: 'ISSUE', reason: { in: ['Historical tire usage import', 'Tire usage workbook import'] } },
           select: { notes: true }
         })
         const existingBySource = new Map<string, number>()
