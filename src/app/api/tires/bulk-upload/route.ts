@@ -855,18 +855,15 @@ export async function POST(request: NextRequest) {
               })
             } else {
               const unresolvedKey = sourceKey + ':' + (entry.vehicleNumber || 'UNRESOLVED')
-              let cached = jobCardCache.get(unresolvedKey)
-              if (!cached) {
-                cached = await getOrCreateUnassignedTireJobCard(tx, {
-                  eventAt: entry.eventAt as Date,
-                  vehicleNumber: entry.vehicleNumber,
-                  sheetName: entry.sheetName,
-                  line: entry.line,
-                  driverName: entry.driver || null,
-                  userId: user.id
-                })
-                jobCardCache.set(unresolvedKey, cached)
-              }
+              const cached = jobCardCache.get(unresolvedKey) || await getOrCreateUnassignedTireJobCard(tx, {
+                eventAt: entry.eventAt as Date,
+                vehicleNumber: entry.vehicleNumber,
+                sheetName: entry.sheetName,
+                line: entry.line,
+                driverName: entry.driver || null,
+                userId: user.id
+              })
+              jobCardCache.set(unresolvedKey, cached)
               jobCardId = cached
             }
             jobCards.add(jobCardId)
