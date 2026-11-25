@@ -758,7 +758,7 @@ export async function POST(request: NextRequest) {
               quantity: 1,
               serialNumber: unit.serial,
               internalCode: unit.importCode,
-              lifecycleStatus: latestResolved ? 'ASSIGNED_UNVERIFIED' : 'STOCK',
+              lifecycleStatus: 'ASSIGNED_UNVERIFIED',
               createdById: user.id,
               createdAt: first.eventAt || undefined,
               notes: [
@@ -792,6 +792,44 @@ export async function POST(request: NextRequest) {
           const list = desiredBySource.get(key) || []
           list.push(item)
           desiredBySource.set(key, list)
+        }
+
+        const chronologicalEntries = [...datedEntries].sort((a, b) =>
+          (a.source.eventAt as Date).getTime() - (b.source.eventAt as Date).getTime()
+        )
+        const latestEntry = chronologicalEntries[chronologicalEntries.length - 1]?.source
+        if (latestEntry?.vehicleType === 'truck' && latestEntry.vehicleId) {
+          await tx.tire.update({
+            where: { id: tire.id },
+            data: {
+              truckId: latestEntry.vehicleId,
+              plateNumber: registeredVehiclePlates.has(latestEntry.vehicleNumber) ? latestEntry.vehicleNumber : null,
+              trailerNumber: null,
+              driverName: latestEntry.driver || undefined,
+              lifecycleStatus: 'ASSIGNED_UNVERIFIED'
+            }
+          })
+        } else if (latestEntry?.vehicleType === 'trailer' && latestEntry.vehicleId) {
+          await tx.tire.update({
+            where: { id: tire.id },
+            data: {
+              truckId: null,
+              plateNumber: null,
+              trailerNumber: latestEntry.vehicleNumber,
+              driverName: latestEntry.driver || undefined,
+              lifecycleStatus: 'ASSIGNED_UNVERIFIED'
+            }
+          })
+        } else {
+          await tx.tire.update({
+            where: { id: tire.id },
+            data: {
+              truckId: null,
+              plateNumber: null,
+              trailerNumber: null,
+              lifecycleStatus: 'ASSIGNED_UNVERIFIED'
+            }
+          })
         }
 
         let previousVehicle: { type: VehicleType; id: string } | null = null
