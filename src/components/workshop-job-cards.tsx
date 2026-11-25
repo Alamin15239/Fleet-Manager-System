@@ -64,6 +64,7 @@ export default function WorkshopJobCards() {
   const [downloadingId, setDownloadingId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
+  const [statusFilter, setStatusFilter] = useState('ALL')
   const [pdfPreviewOpen, setPdfPreviewOpen] = useState(false)
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null)
   const [pdfPreviewTitle, setPdfPreviewTitle] = useState('Job card')
@@ -187,7 +188,7 @@ export default function WorkshopJobCards() {
   const updateItem = (index: number, key: keyof LineItem, value: string | number) => setForm(current => ({ ...current, items: current.items.map((item, i) => i === index ? { ...item, [key]: value } : item) }))
   const statusLabel = (status: string) => (status === 'CLOSED' ? 'COMPLETED' : status).replace(/_/g, ' ')
   const normalizedSearch = searchQuery.trim().toLocaleLowerCase()
-  const filteredCards = normalizedSearch ? cards.filter(card => {
+  const searchedCards = normalizedSearch ? cards.filter(card => {
     const linkedWork = (card.linkedActivities || []).map((activity: any) =>
       [activity.activityType, activity.eventType, activity.description, activity.serviceType].filter(Boolean).join(' ')
     ).join(' ')
@@ -198,6 +199,7 @@ export default function WorkshopJobCards() {
     ].filter(Boolean).join(' ').toLocaleLowerCase()
     return searchable.includes(normalizedSearch)
   }) : cards
+  const filteredCards = statusFilter === 'ALL' ? searchedCards : searchedCards.filter(card => statusFilter === 'COMPLETED' ? ['COMPLETED', 'CLOSED'].includes(card.status) : card.status === statusFilter)
   const creationSummary = { manual: cards.filter(card => card.creationSource === 'MANUAL').length, tire: cards.filter(card => card.creationSource === 'TIRE').length, spareParts: cards.filter(card => card.creationSource === 'SPARE_PARTS').length, oil: cards.filter(card => card.creationSource === 'OIL').length, workbook: cards.filter(card => card.creationSource === 'WORKBOOK').length, unknown: cards.filter(card => !card.creationSource || card.creationSource === 'UNKNOWN').length }
   const summary = { total: cards.length, open: cards.filter(card => card.status === 'OPEN').length, inProgress: cards.filter(card => card.status === 'IN_PROGRESS').length, completed: cards.filter(card => ['COMPLETED', 'CLOSED'].includes(card.status)).length, cancelled: cards.filter(card => card.status === 'CANCELLED').length, other: cards.filter(card => !['OPEN', 'IN_PROGRESS', 'COMPLETED', 'CLOSED', 'CANCELLED'].includes(card.status)).length }
 
@@ -207,21 +209,77 @@ export default function WorkshopJobCards() {
     return () => window.removeEventListener('fleet:data-changed', handleFleetDataChanged)
   }, [])
 
-  return <div className="space-y-5">
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between"><div><h2 className="text-xl font-semibold"><LocalizedText>Workshop Job Cards</LocalizedText></h2><p className="text-sm text-muted-foreground"><LocalizedText>Create, track, and print the bilingual workshop form.</LocalizedText></p></div><div className="flex flex-wrap gap-2">{canUpdate('maintenance') && <Button variant="outline" onClick={checkAndSync} disabled={syncing}>{syncing ? <><Loader2 className="mr-2 h-4 w-4 animate-spin"/>Checking…</> : <><Search className="mr-2 h-4 w-4"/>Check & Sync</>}</Button>}{canCreate('maintenance') && <Button onClick={startNew}><Plus className="mr-2 h-4 w-4"/>New Job Card</Button>}</div></div>
-    <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">{[['Total Job Cards', summary.total], ['Open', summary.open], ['In Progress', summary.inProgress], ['Completed', summary.completed], ['Cancelled', summary.cancelled], ['Other Status', summary.other]].map(([label, value]) => <Card key={label}><CardContent className="p-4"><p className="text-xs text-muted-foreground">{label}</p><p className="mt-1 text-2xl font-semibold">{value}</p></CardContent></Card>)}</div>
-    <Card><CardHeader><CardTitle>Job Cards Created By Source</CardTitle><CardDescription>Counts increase only when a new job card is created. Activities added to an existing card do not increase these totals.</CardDescription></CardHeader><CardContent className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">{[['Manual Job Cards', creationSummary.manual], ['Tire Management', creationSummary.tire], ['Spare Parts', creationSummary.spareParts], ['Oil Changes', creationSummary.oil], ['Workbook Import', creationSummary.workbook], ['Unknown / Historical', creationSummary.unknown]].map(([label, value]) => <div key={label} className="rounded-lg border p-3"><p className="text-xs text-muted-foreground">{label}</p><p className="mt-1 text-2xl font-semibold">{value}</p></div>)}</CardContent></Card>
-     <Card><CardHeader><CardTitle>Linked Maintenance Activities</CardTitle><CardDescription>Activity totals are separate from Job Card totals. Multiple activities can belong to one Job Card.</CardDescription></CardHeader><CardContent className="grid grid-cols-2 gap-3 sm:grid-cols-4">{[['Oil changes', activitySummary.oil.total, activitySummary.oil.linked, activitySummary.oil.unlinked], ['Tire activities', activitySummary.tires.total, activitySummary.tires.linked, activitySummary.tires.unlinked], ['Spare-parts issues', activitySummary.spareParts.total, activitySummary.spareParts.linked, activitySummary.spareParts.unlinked]].map(([label, total, linked, unlinked]) => <div key={label} className="rounded-lg border p-3"><p className="text-xs text-muted-foreground">{label}</p><p className="mt-1 text-2xl font-semibold">{total}</p><p className="text-xs text-muted-foreground">{linked} linked · {unlinked} need review</p></div>)}<div className="rounded-lg border p-3"><p className="text-xs text-muted-foreground">All activities</p><p className="mt-1 text-2xl font-semibold">{activitySummary.total}</p><p className="text-xs text-muted-foreground">{activitySummary.unlinked} need review</p></div></CardContent></Card>
-    <Card><CardHeader><CardTitle><LocalizedText>Job Card Register</LocalizedText></CardTitle><CardDescription>{cards.length} saved job cards</CardDescription></CardHeader><CardContent>
-       <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-         <div className="relative w-full sm:max-w-md">
-           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-           <Input value={searchQuery} onChange={event => setSearchQuery(event.target.value)} placeholder="Search job no., vehicle, service, driver, technician…" aria-label="Search job cards" className="pl-9" />
-         </div>
-         {normalizedSearch && <p className="text-xs text-muted-foreground">{filteredCards.length} of {cards.length} job cards</p>}
-       </div>
-       {loading ? <p className="py-8 text-center text-muted-foreground"><LocalizedText>Loading job cards…</LocalizedText></p> : cards.length === 0 ? <div className="py-10 text-center"><FileText className="mx-auto mb-3 h-10 w-10 text-muted-foreground"/><p className="font-medium"><LocalizedText>No job cards yet</LocalizedText></p><p className="text-sm text-muted-foreground"><LocalizedText>Create the first workshop job card when a vehicle arrives for service.</LocalizedText></p></div> : filteredCards.length === 0 ? <div className="py-10 text-center"><Search className="mx-auto mb-3 h-9 w-9 text-muted-foreground"/><p className="font-medium"><LocalizedText>No matching job cards</LocalizedText></p><p className="text-sm text-muted-foreground"><LocalizedText>Try another job number, vehicle, service, driver, or technician.</LocalizedText></p></div> : <div className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead><LocalizedText>Job No.</LocalizedText></TableHead><TableHead><LocalizedText>Date</LocalizedText></TableHead><TableHead><LocalizedText>Vehicle</LocalizedText></TableHead><TableHead><LocalizedText>Service</LocalizedText></TableHead><TableHead><LocalizedText>Technician</LocalizedText></TableHead><TableHead><LocalizedText>Linked work</LocalizedText></TableHead><TableHead><LocalizedText>Status</LocalizedText></TableHead><TableHead><LocalizedText>Actions</LocalizedText></TableHead></TableRow></TableHeader><TableBody>{filteredCards.map(card => <TableRow key={card.id}><TableCell className="font-medium">{card.jobNumber}</TableCell><TableCell>{dateText(card.serviceDate)}</TableCell><TableCell>{vehicleLabel(card)}</TableCell><TableCell>{card.serviceType}</TableCell><TableCell>{card.technicianName || '—'}</TableCell><TableCell className="max-w-[260px]"><div className="flex flex-wrap gap-1">{(card.linkedActivities || []).slice(0,4).map((activity: any, index: number) => <Badge key={activity.id || index} variant="outline">{activity.activityType === 'TIRE' ? `Tire ${activity.eventType}` : activity.activityType === 'PART' ? `Part ${activity.eventType}: ${activity.description}` : activity.serviceType || activity.activityType}</Badge>)}{(card.linkedActivities || []).length > 4 && <Badge variant="secondary">+{card.linkedActivities.length - 4}</Badge>}{!(card.linkedActivities || []).length && '—'}</div></TableCell><TableCell><Badge variant={card.status === 'COMPLETED' ? 'default' : 'secondary'}>{statusLabel(card.status)}</Badge></TableCell><TableCell><div className="flex gap-1"><Button size="sm" variant="ghost" title="View PDF in browser" aria-label={`View PDF for ${card.jobNumber}`} onClick={() => viewCardPdf(card)}><Eye className="h-4 w-4"/></Button><Button size="sm" variant="ghost" title="Preview and print job card" aria-label={`Preview and print job card ${card.jobNumber}`} onClick={() => viewCardPdf(card)}><Printer className="h-4 w-4"/></Button><Button size="sm" variant="ghost" title="Download PDF" aria-label={`Download PDF for ${card.jobNumber}`} disabled={downloadingId === card.id} onClick={() => downloadCard(card)}><Download className="h-4 w-4"/></Button><Button size="sm" variant="ghost" hidden={!canUpdate('maintenance')} title="Edit job card" aria-label={`Edit job card ${card.jobNumber}`} onClick={() => startEdit(card)}><Pencil className="h-4 w-4"/></Button></div></TableCell></TableRow>)}</TableBody></Table></div>}
-    </CardContent></Card>
+  return <div className="space-y-6">
+    <section className="relative overflow-hidden rounded-2xl border bg-gradient-to-br from-primary/10 via-background to-background p-5 sm:p-7">
+      <div className="pointer-events-none absolute -right-12 -top-16 h-48 w-48 rounded-full bg-primary/10 blur-3xl" />
+      <div className="relative flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="max-w-2xl">
+          <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-primary"><FileText className="h-4 w-4"/> Workshop operations</div>
+          <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Job Card Control Center</h2>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">One maintenance visit, one central job card. Oil changes, tire work and spare-parts issues stay in their own workspaces and link back here automatically.</p>
+          <div className="mt-3 flex flex-wrap gap-2 text-xs">
+            <Badge variant="outline" className="bg-background/70">Live register</Badge>
+            <Badge variant="outline" className="bg-background/70">Linked maintenance history</Badge>
+            <Badge variant="outline" className="bg-background/70">Bilingual A4 report</Badge>
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={() => void load()} disabled={loading}><Loader2 className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`}/>Refresh</Button>
+          {canUpdate('maintenance') && <Button variant="outline" onClick={checkAndSync} disabled={syncing}>{syncing ? <><Loader2 className="mr-2 h-4 w-4 animate-spin"/>Checking…</> : <><Search className="mr-2 h-4 w-4"/>Check & Sync</>}</Button>}
+          {canCreate('maintenance') && <Button onClick={startNew} className="shadow-sm"><Plus className="mr-2 h-4 w-4"/>New Job Card</Button>}
+        </div>
+      </div>
+    </section>
+
+    <section className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+      {[
+        {label:'All job cards',value:summary.total,detail:'Total register',tone:'border-l-primary'},
+        {label:'Open',value:summary.open,detail:'Awaiting work',tone:'border-l-sky-500'},
+        {label:'In progress',value:summary.inProgress,detail:'Workshop active',tone:'border-l-amber-500'},
+        {label:'Completed',value:summary.completed,detail:'Closed / completed',tone:'border-l-emerald-500'},
+        {label:'Cancelled',value:summary.cancelled,detail:'Cancelled records',tone:'border-l-muted-foreground'},
+        {label:'Other status',value:summary.other,detail:'Needs classification',tone:'border-l-violet-500'}
+      ].map(item => <Card key={item.label} className={`border-l-4 ${item.tone} shadow-sm`}><CardContent className="p-4"><p className="text-xs font-medium text-muted-foreground">{item.label}</p><p className="mt-1 text-3xl font-bold tabular-nums">{item.value}</p><p className="mt-1 text-[11px] text-muted-foreground">{item.detail}</p></CardContent></Card>)}
+    </section>
+
+    <Card className="shadow-sm">
+      <CardHeader className="pb-3"><div className="flex flex-wrap items-start justify-between gap-2"><div><CardTitle className="text-base">Job Cards Created By Source</CardTitle><CardDescription className="mt-1">Counts show which workflow originally created each card. Reusing an open card does not increase the count.</CardDescription></div><Badge variant="secondary">{summary.total} total cards</Badge></div></CardHeader>
+      <CardContent className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
+        {[
+          {label:'Manual',value:creationSummary.manual,sub:'Created here',icon:'✍️'},
+          {label:'Tire Management',value:creationSummary.tire,sub:'Tire workflow',icon:'◉'},
+          {label:'Spare Parts',value:creationSummary.spareParts,sub:'Parts issue',icon:'⚙'},
+          {label:'Oil Changes',value:creationSummary.oil,sub:'Oil workflow',icon:'◌'},
+          {label:'Workbook import',value:creationSummary.workbook,sub:'Imported records',icon:'▤'},
+          {label:'Unknown / historical',value:creationSummary.unknown,sub:'Source not recorded',icon:'?'}
+        ].map(item => <div key={item.label} className="rounded-xl border bg-muted/20 p-3"><div className="flex items-center justify-between gap-2"><span className="text-xs font-medium text-muted-foreground">{item.label}</span><span className="text-sm opacity-70">{item.icon}</span></div><p className="mt-2 text-2xl font-bold tabular-nums">{item.value}</p><p className="text-[11px] text-muted-foreground">{item.sub}</p></div>)}
+      </CardContent>
+    </Card>
+
+    <Card className="shadow-sm">
+      <CardHeader className="pb-3"><div><CardTitle className="text-base">Linked Maintenance Activity</CardTitle><CardDescription className="mt-1">Activity records remain managed in their dedicated pages. This view shows their connection to job cards.</CardDescription></div></CardHeader>
+      <CardContent className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {[
+          {label:'Oil changes',total:activitySummary.oil.total,linked:activitySummary.oil.linked,unlinked:activitySummary.oil.unlinked},
+          {label:'Tire events',total:activitySummary.tires.total,linked:activitySummary.tires.linked,unlinked:activitySummary.tires.unlinked},
+          {label:'Spare-parts issues',total:activitySummary.spareParts.total,linked:activitySummary.spareParts.linked,unlinked:activitySummary.spareParts.unlinked},
+          {label:'All activities',total:activitySummary.total,linked:activitySummary.total-activitySummary.unlinked,unlinked:activitySummary.unlinked}
+        ].map(item => <div key={item.label} className="rounded-xl border p-3"><div className="flex items-center justify-between gap-2"><p className="text-sm font-medium">{item.label}</p><Badge variant={item.unlinked ? 'destructive' : 'secondary'}>{item.unlinked ? `${item.unlinked} to review` : 'All linked'}</Badge></div><p className="mt-2 text-2xl font-bold tabular-nums">{item.total}</p><div className="mt-2 flex items-center justify-between text-[11px] text-muted-foreground"><span>{item.linked} linked</span><span>{item.unlinked} unlinked</span></div><div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-primary" style={{width:`${item.total ? Math.min(100,item.linked/item.total*100) : 0}%`}}/></div></div>)}
+      </CardContent>
+    </Card>
+
+    <Card className="overflow-hidden shadow-sm">
+      <CardHeader className="border-b bg-muted/20 pb-4"><div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"><div><CardTitle className="text-base">Workshop Job Card Register</CardTitle><CardDescription className="mt-1">{filteredCards.length} shown · {cards.length} saved job cards</CardDescription></div><div className="relative w-full lg:max-w-sm"><Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"/><Input value={searchQuery} onChange={event => setSearchQuery(event.target.value)} placeholder="Search job no., plate, service, driver…" aria-label="Search job cards" className="bg-background pl-9"/></div></div>
+        <div className="flex flex-wrap gap-2 pt-3">
+          {[
+            ['ALL','All',summary.total],['OPEN','Open',summary.open],['IN_PROGRESS','In progress',summary.inProgress],['COMPLETED','Completed',summary.completed],['CANCELLED','Cancelled',summary.cancelled]
+          ].map(([value,label,count]) => <Button key={value} type="button" size="sm" variant={statusFilter===value?'default':'outline'} onClick={()=>setStatusFilter(String(value))} className="h-8 rounded-full">{label}<span className="ml-2 rounded-full bg-background/20 px-1.5 py-0.5 text-[10px]">{count}</span></Button>)}
+        </div>
+      </CardHeader>
+      <CardContent className="p-0">
+        {loading ? <div className="flex items-center justify-center gap-2 py-14 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin"/>Loading job cards…</div> : cards.length===0 ? <div className="py-14 text-center"><FileText className="mx-auto mb-3 h-10 w-10 text-muted-foreground"/><p className="font-semibold">No job cards yet</p><p className="mt-1 text-sm text-muted-foreground">Create a job card when a vehicle arrives for workshop service.</p></div> : filteredCards.length===0 ? <div className="py-14 text-center"><Search className="mx-auto mb-3 h-9 w-9 text-muted-foreground"/><p className="font-semibold">No matching job cards</p><p className="mt-1 text-sm text-muted-foreground">Change the search or status filter and try again.</p></div> : <div className="overflow-x-auto"><Table><TableHeader><TableRow className="bg-muted/30"><TableHead className="whitespace-nowrap">Job number</TableHead><TableHead className="whitespace-nowrap">Service date</TableHead><TableHead>Vehicle</TableHead><TableHead>Work type</TableHead><TableHead>Technician / Driver</TableHead><TableHead>Linked work</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader><TableBody>{filteredCards.map(card => <TableRow key={card.id} className="group"><TableCell><div className="font-semibold text-primary">{card.jobNumber}</div><div className="mt-1 text-[11px] text-muted-foreground">{card.priority || 'NORMAL'} priority</div></TableCell><TableCell className="whitespace-nowrap text-sm">{dateText(card.serviceDate)}</TableCell><TableCell className="min-w-[180px]"><div className="font-medium">{vehicleLabel(card)}</div><div className="mt-1 text-xs text-muted-foreground">{card.odometerKm ? `${Number(card.odometerKm).toLocaleString()} km` : 'Odometer not recorded'}</div></TableCell><TableCell className="min-w-[140px]"><div className="font-medium">{card.serviceType || 'General service'}</div><div className="mt-1 text-xs text-muted-foreground">{card.reportedIssue || 'No complaint recorded'}</div></TableCell><TableCell className="min-w-[130px]"><div>{card.technicianName || 'Technician pending'}</div><div className="mt-1 text-xs text-muted-foreground">{card.driverName || 'Driver not recorded'}</div></TableCell><TableCell className="min-w-[190px]"><div className="flex max-w-[260px] flex-wrap gap-1">{(card.linkedActivities||[]).slice(0,3).map((activity:any,index:number)=><Badge key={activity.id||index} variant="outline" className="max-w-full truncate text-[10px]">{activity.activityType==='TIRE'? 'Tire':activity.activityType==='PART'?'Spare part':activity.serviceType||activity.activityType}</Badge>)}{(card.linkedActivities||[]).length>3&&<Badge variant="secondary">+{card.linkedActivities.length-3}</Badge>}{!(card.linkedActivities||[]).length&&<span className="text-xs text-muted-foreground">No linked activity</span>}</div></TableCell><TableCell><Badge variant={['COMPLETED','CLOSED'].includes(card.status)?'default':card.status==='CANCELLED'?'destructive':'secondary'}>{statusLabel(card.status)}</Badge></TableCell><TableCell><div className="flex justify-end gap-0.5"><Button size="icon" variant="ghost" title="View / print PDF" aria-label={`View PDF for ${card.jobNumber}`} onClick={()=>viewCardPdf(card)}><Eye className="h-4 w-4"/></Button><Button size="icon" variant="ghost" title="Download PDF" aria-label={`Download PDF for ${card.jobNumber}`} disabled={downloadingId===card.id} onClick={()=>downloadCard(card)}><Download className="h-4 w-4"/></Button><Button size="icon" variant="ghost" hidden={!canUpdate('maintenance')} title="Edit job card" aria-label={`Edit job card ${card.jobNumber}`} onClick={()=>startEdit(card)}><Pencil className="h-4 w-4"/></Button></div></TableCell></TableRow>)}</TableBody></Table></div>}
+      </CardContent>
+    </Card>
 
     <Dialog open={open} onOpenChange={setOpen}><DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-4xl"><DialogHeader><DialogTitle>{editingId ? 'Edit Workshop Job Card' : 'New Workshop Job Card'}</DialogTitle><DialogDescription><LocalizedText>Bilingual A4 form · بيانات أمر الشغل</LocalizedText></DialogDescription></DialogHeader>
       <form onSubmit={save} className="space-y-5">
