@@ -100,7 +100,7 @@ export async function POST(req: NextRequest) {
     const filePlates = new Set(rows.map(r => r.plateKey).filter(p => p && p !== 'MISSING'))
     const existing = await db.maintenanceRecord.findMany({
       where: { OR: [{ sourceImportKey: { in: [...rowKeySet] } }, { sourceImportKey: { startsWith: 'oil-upload-v1:' } }, { sourceImportKey: { startsWith: 'oil-upload-v2:' } }] },
-      select: { id: true, sourceImportKey: true, truckId: true, jobCardId: true, vehiclePlateNumber: true, datePerformed: true }
+      select: { id: true, sourceImportKey: true, truckId: true, vehiclePlateNumber: true, datePerformed: true }
     })
     type MatchedRecord = (typeof existing)[number]
     const matched = new Map<string, MatchedRecord>()
@@ -154,7 +154,6 @@ export async function POST(req: NextRequest) {
 
       // 2) Matched rows are replaced in place with the new workbook details.
       for (const { row, rec } of updateRows) {
-        const truckChanged = (rec.truckId || null) !== (row.truckId || null)
         await tx.maintenanceRecord.update({
           where: { id: rec.id },
           data: {
