@@ -180,6 +180,7 @@ export default function WorkshopJobCards() {
     ].filter(Boolean).join(' ').toLocaleLowerCase()
     return searchable.includes(normalizedSearch)
   }) : cards
+  const creationSummary = { manual: cards.filter(card => card.creationSource === 'MANUAL').length, tire: cards.filter(card => card.creationSource === 'TIRE').length, spareParts: cards.filter(card => card.creationSource === 'SPARE_PARTS').length, oil: cards.filter(card => card.creationSource === 'OIL').length, unknown: cards.filter(card => !card.creationSource || card.creationSource === 'UNKNOWN').length }
   const summary = { total: cards.length, open: cards.filter(card => card.status === 'OPEN').length, inProgress: cards.filter(card => card.status === 'IN_PROGRESS').length, completed: cards.filter(card => card.status === 'COMPLETED').length }
 
   useEffect(() => {
@@ -191,6 +192,7 @@ export default function WorkshopJobCards() {
   return <div className="space-y-5">
     <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between"><div><h2 className="text-xl font-semibold"><LocalizedText>Workshop Job Cards</LocalizedText></h2><p className="text-sm text-muted-foreground"><LocalizedText>Create, track, and print the bilingual workshop form.</LocalizedText></p></div>{canCreate('maintenance') && <Button onClick={startNew}><Plus className="mr-2 h-4 w-4"/>New Job Card</Button>}</div>
     <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">{[['Total Job Cards', summary.total], ['Open', summary.open], ['In Progress', summary.inProgress], ['Completed', summary.completed]].map(([label, value]) => <Card key={label}><CardContent className="p-4"><p className="text-xs text-muted-foreground">{label}</p><p className="mt-1 text-2xl font-semibold">{value}</p></CardContent></Card>)}</div>
+    <Card><CardHeader><CardTitle>Job Cards Created By Source</CardTitle><CardDescription>Counts increase only when a new job card is created. Activities added to an existing card do not increase these totals.</CardDescription></CardHeader><CardContent className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">{[['Manual Job Cards', creationSummary.manual], ['Tire Management', creationSummary.tire], ['Spare Parts', creationSummary.spareParts], ['Oil Changes', creationSummary.oil], ['Unknown / Historical', creationSummary.unknown]].map(([label, value]) => <div key={label} className="rounded-lg border p-3"><p className="text-xs text-muted-foreground">{label}</p><p className="mt-1 text-2xl font-semibold">{value}</p></div>)}</CardContent></Card>
     <Card><CardHeader><CardTitle><LocalizedText>Job Card Register</LocalizedText></CardTitle><CardDescription>{cards.length} saved job cards</CardDescription></CardHeader><CardContent>
        <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
          <div className="relative w-full sm:max-w-md">
