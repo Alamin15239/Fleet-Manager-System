@@ -3,7 +3,7 @@ import { db } from '@/lib/db'
 import { requireRolePermission } from '@/lib/permission-middleware'
 import { syncOneDriveWorkbookAfterChange } from '@/lib/onedrive-excel-sync'
 import { reconcileOilChangeInventory } from '@/lib/job-card-inventory'
-import { ensureMaintenanceJobCardColumns, getOrCreateOpenJobCard } from '@/lib/tire-lifecycle'
+import { ensureMaintenanceJobCardColumns } from '@/lib/tire-lifecycle'
 
 export async function GET(request: NextRequest) {
   try {
@@ -115,23 +115,7 @@ export async function POST(request: NextRequest) {
             status: body.status || 'COMPLETED'
           }
         })
-        const jobCardId = await getOrCreateOpenJobCard(tx, { vehicleType: 'trailer', vehicleId: body.truckId }, {
-          eventAt: new Date(body.datePerformed), driverName: body.driverName || null, userId: user.id,
-          serviceType: body.serviceType || 'TRAILER MAINTENANCE',
-          creationSource: body.isOilChange === true || /oil/i.test(String(body.serviceType || '')) ? 'OIL' : 'UNKNOWN',
-          reportedIssue: body.description || 'Automatically linked trailer maintenance activity'
-        })
-        await tx.$executeRawUnsafe(`UPDATE "trailer_maintenance_records" SET "jobCardId"=$2 WHERE "id"=$1`, created.id, jobCardId)
-        await tx.$executeRawUnsafe(
-          `UPDATE "workshop_job_cards"
-           SET "partsCost"=COALESCE("partsCost",0)+$2,
-               "laborCost"=COALESCE("laborCost",0)+$3,
-               "totalCost"=COALESCE("totalCost",0)+$4,
-               "updatedAt"=NOW()
-           WHERE "id"=$1`,
-          jobCardId, created.partsCost || 0, created.laborCost || 0, created.totalCost || 0
-        )
-        return { ...created, jobCardId }
+        return created
       })
     } else {
       // Create truck maintenance record
@@ -158,25 +142,6 @@ export async function POST(request: NextRequest) {
       record = await db.$transaction(async tx => {
         await ensureMaintenanceJobCardColumns(tx)
         const created = await tx.maintenanceRecord.create({ data })
-        const jobCardId = body.truckId ? await getOrCreateOpenJobCard(tx, { vehicleType: 'truck', vehicleId: body.truckId }, {
-          eventAt: new Date(body.datePerformed), odometerKm: Number.isInteger(Number(body.currentMileage)) ? Number(body.currentMileage) : null,
-          driverName: body.driverName || null, userId: user.id,
-          serviceType: body.serviceType || (body.isOilChange ? 'OIL CHANGE' : 'MAINTENANCE'),
-          creationSource: body.isOilChange === true || /oil/i.test(String(body.serviceType || '')) ? 'OIL' : 'UNKNOWN',
-          reportedIssue: body.description || 'Automatically linked maintenance activity'
-        }) : null
-        if (jobCardId) {
-          await tx.$executeRawUnsafe(`UPDATE "maintenance_records" SET "jobCardId"=$2 WHERE "id"=$1`, created.id, jobCardId)
-          await tx.$executeRawUnsafe(
-            `UPDATE "workshop_job_cards"
-             SET "partsCost"=COALESCE("partsCost",0)+$2,
-                 "laborCost"=COALESCE("laborCost",0)+$3,
-                 "totalCost"=COALESCE("totalCost",0)+$4,
-                 "updatedAt"=NOW()
-             WHERE "id"=$1`,
-            jobCardId, created.partsCost || 0, created.laborCost || 0, created.totalCost || 0
-          )
-        }
         if (body.isOilChange && body.oilInventoryItemId && body.truckId) {
           await reconcileOilChangeInventory(tx, {
             maintenanceId: created.id,
@@ -185,7 +150,7 @@ export async function POST(request: NextRequest) {
             transactionDate: new Date(body.datePerformed),
             vehicleId: body.truckId,
             userId: user.id,
-            jobCardId
+            jobCardId: null
           })
         }
         if (body.truckId) {
@@ -201,7 +166,7 @@ export async function POST(request: NextRequest) {
             body.truckId, mileage, isOilChange, new Date(body.datePerformed)
           )
         }
-        return { ...created, jobCardId }
+        return created
       })
     }
 
