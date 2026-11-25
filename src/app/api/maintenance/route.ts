@@ -118,6 +118,7 @@ export async function POST(request: NextRequest) {
         const jobCardId = await getOrCreateOpenJobCard(tx, { vehicleType: 'trailer', vehicleId: body.truckId }, {
           eventAt: new Date(body.datePerformed), driverName: body.driverName || null, userId: user.id,
           serviceType: body.serviceType || 'TRAILER MAINTENANCE',
+          creationSource: body.isOilChange === true || /oil/i.test(String(body.serviceType || '')) ? 'OIL' : 'UNKNOWN',
           reportedIssue: body.description || 'Automatically linked trailer maintenance activity'
         })
         await tx.$executeRawUnsafe(`UPDATE "trailer_maintenance_records" SET "jobCardId"=$2 WHERE "id"=$1`, created.id, jobCardId)
@@ -161,6 +162,7 @@ export async function POST(request: NextRequest) {
           eventAt: new Date(body.datePerformed), odometerKm: Number.isInteger(Number(body.currentMileage)) ? Number(body.currentMileage) : null,
           driverName: body.driverName || null, userId: user.id,
           serviceType: body.serviceType || (body.isOilChange ? 'OIL CHANGE' : 'MAINTENANCE'),
+          creationSource: body.isOilChange === true || /oil/i.test(String(body.serviceType || '')) ? 'OIL' : 'UNKNOWN',
           reportedIssue: body.description || 'Automatically linked maintenance activity'
         }) : null
         if (jobCardId) {
