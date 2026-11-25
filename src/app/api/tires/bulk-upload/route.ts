@@ -119,7 +119,7 @@ function parseSerials(rawValue: string, expectedQuantity: number): { serials: st
     let candidate = token.replace(/^[._]+|[._]+$/g, '')
     // Source notes frequently append "end" directly to the serial.
     candidate = candidate.replace(/end\d*$/i, '')
-    if (candidate.length < 6 || !/\d/.test(candidate)) continue
+    if (candidate.length < 6 || (candidate.match(/\d/g) || []).length < 2) continue
     // Ignore compact calendar dates, not numeric tire serials.
     if (/^(?:19|20)\d{6}$/.test(candidate)) continue
     found.push(candidate)
