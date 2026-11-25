@@ -51,6 +51,7 @@ const dateText = (value?: string | Date | null) => value ? new Date(value).toLoc
 export default function WorkshopJobCards() {
   const { canCreate, canUpdate } = usePermissions()
   const [cards, setCards] = useState<JobCard[]>([])
+  const [activitySummary, setActivitySummary] = useState({ oil: { total: 0, linked: 0, unlinked: 0 }, tires: { total: 0, linked: 0, unlinked: 0 }, spareParts: { total: 0, linked: 0, unlinked: 0 }, total: 0, unlinked: 0 })
   const [company, setCompany] = useState<Company | null>(null)
   const [trucks, setTrucks] = useState<Vehicle[]>([])
   const [trailers, setTrailers] = useState<Vehicle[]>([])
@@ -78,6 +79,7 @@ export default function WorkshopJobCards() {
       if (!cardsResponse.ok || !optionsResponse.ok) throw new Error('Unable to load workshop job cards')
       const [cardsData, options, inventory] = await Promise.all([cardsResponse.json(), optionsResponse.json(), inventoryResponse.ok ? inventoryResponse.json() : Promise.resolve({ items: [] })])
       setCards(cardsData.jobCards || [])
+      setActivitySummary(cardsData.activitySummary || { oil: { total: 0, linked: 0, unlinked: 0 }, tires: { total: 0, linked: 0, unlinked: 0 }, spareParts: { total: 0, linked: 0, unlinked: 0 }, total: 0, unlinked: 0 })
       setCompany(cardsData.company || null)
       setInventoryItems(inventory.items || [])
       setTrucks((options.trucks || []).map((truck: any) => ({ id: truck.id, label: `${truck.licensePlate} · ${truck.year} ${truck.make} ${truck.model}`, driverName: truck.driverName, mileage: truck.currentMileage })))
@@ -183,7 +185,7 @@ export default function WorkshopJobCards() {
 
   const addItem = () => setForm(current => ({ ...current, items: [...current.items, { type: 'PART', description: '', quantity: 1, remarks: '' }] }))
   const updateItem = (index: number, key: keyof LineItem, value: string | number) => setForm(current => ({ ...current, items: current.items.map((item, i) => i === index ? { ...item, [key]: value } : item) }))
-  const statusLabel = (status: string) => status.replace(/_/g, ' ')
+  const statusLabel = (status: string) => (status === 'CLOSED' ? 'COMPLETED' : status).replace(/_/g, ' ')
   const normalizedSearch = searchQuery.trim().toLocaleLowerCase()
   const filteredCards = normalizedSearch ? cards.filter(card => {
     const linkedWork = (card.linkedActivities || []).map((activity: any) =>
@@ -197,7 +199,7 @@ export default function WorkshopJobCards() {
     return searchable.includes(normalizedSearch)
   }) : cards
   const creationSummary = { manual: cards.filter(card => card.creationSource === 'MANUAL').length, tire: cards.filter(card => card.creationSource === 'TIRE').length, spareParts: cards.filter(card => card.creationSource === 'SPARE_PARTS').length, oil: cards.filter(card => card.creationSource === 'OIL').length, workbook: cards.filter(card => card.creationSource === 'WORKBOOK').length, unknown: cards.filter(card => !card.creationSource || card.creationSource === 'UNKNOWN').length }
-  const summary = { total: cards.length, open: cards.filter(card => card.status === 'OPEN').length, inProgress: cards.filter(card => card.status === 'IN_PROGRESS').length, completed: cards.filter(card => card.status === 'COMPLETED').length, cancelled: cards.filter(card => card.status === 'CANCELLED').length, other: cards.filter(card => !['OPEN', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'].includes(card.status)).length }
+  const summary = { total: cards.length, open: cards.filter(card => card.status === 'OPEN').length, inProgress: cards.filter(card => card.status === 'IN_PROGRESS').length, completed: cards.filter(card => ['COMPLETED', 'CLOSED'].includes(card.status)).length, cancelled: cards.filter(card => card.status === 'CANCELLED').length, other: cards.filter(card => !['OPEN', 'IN_PROGRESS', 'COMPLETED', 'CLOSED', 'CANCELLED'].includes(card.status)).length }
 
   useEffect(() => {
     const handleFleetDataChanged = () => { void load() }
@@ -209,6 +211,7 @@ export default function WorkshopJobCards() {
     <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between"><div><h2 className="text-xl font-semibold"><LocalizedText>Workshop Job Cards</LocalizedText></h2><p className="text-sm text-muted-foreground"><LocalizedText>Create, track, and print the bilingual workshop form.</LocalizedText></p></div><div className="flex flex-wrap gap-2">{canUpdate('maintenance') && <Button variant="outline" onClick={checkAndSync} disabled={syncing}>{syncing ? <><Loader2 className="mr-2 h-4 w-4 animate-spin"/>Checking…</> : <><Search className="mr-2 h-4 w-4"/>Check & Sync</>}</Button>}{canCreate('maintenance') && <Button onClick={startNew}><Plus className="mr-2 h-4 w-4"/>New Job Card</Button>}</div></div>
     <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">{[['Total Job Cards', summary.total], ['Open', summary.open], ['In Progress', summary.inProgress], ['Completed', summary.completed], ['Cancelled', summary.cancelled], ['Other Status', summary.other]].map(([label, value]) => <Card key={label}><CardContent className="p-4"><p className="text-xs text-muted-foreground">{label}</p><p className="mt-1 text-2xl font-semibold">{value}</p></CardContent></Card>)}</div>
     <Card><CardHeader><CardTitle>Job Cards Created By Source</CardTitle><CardDescription>Counts increase only when a new job card is created. Activities added to an existing card do not increase these totals.</CardDescription></CardHeader><CardContent className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">{[['Manual Job Cards', creationSummary.manual], ['Tire Management', creationSummary.tire], ['Spare Parts', creationSummary.spareParts], ['Oil Changes', creationSummary.oil], ['Workbook Import', creationSummary.workbook], ['Unknown / Historical', creationSummary.unknown]].map(([label, value]) => <div key={label} className="rounded-lg border p-3"><p className="text-xs text-muted-foreground">{label}</p><p className="mt-1 text-2xl font-semibold">{value}</p></div>)}</CardContent></Card>
+     <Card><CardHeader><CardTitle>Linked Maintenance Activities</CardTitle><CardDescription>Activity totals are separate from Job Card totals. Multiple activities can belong to one Job Card.</CardDescription></CardHeader><CardContent className="grid grid-cols-2 gap-3 sm:grid-cols-4">{[['Oil changes', activitySummary.oil.total, activitySummary.oil.linked, activitySummary.oil.unlinked], ['Tire activities', activitySummary.tires.total, activitySummary.tires.linked, activitySummary.tires.unlinked], ['Spare-parts issues', activitySummary.spareParts.total, activitySummary.spareParts.linked, activitySummary.spareParts.unlinked]].map(([label, total, linked, unlinked]) => <div key={label} className="rounded-lg border p-3"><p className="text-xs text-muted-foreground">{label}</p><p className="mt-1 text-2xl font-semibold">{total}</p><p className="text-xs text-muted-foreground">{linked} linked · {unlinked} need review</p></div>)}<div className="rounded-lg border p-3"><p className="text-xs text-muted-foreground">All activities</p><p className="mt-1 text-2xl font-semibold">{activitySummary.total}</p><p className="text-xs text-muted-foreground">{activitySummary.unlinked} need review</p></div></CardContent></Card>
     <Card><CardHeader><CardTitle><LocalizedText>Job Card Register</LocalizedText></CardTitle><CardDescription>{cards.length} saved job cards</CardDescription></CardHeader><CardContent>
        <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
          <div className="relative w-full sm:max-w-md">
