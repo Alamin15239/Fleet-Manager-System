@@ -140,12 +140,32 @@ export async function getOrCreateOpenJobCard(tx: any, vehicle: VehicleRef, detai
   // Serialize card creation to prevent concurrent writes from opening duplicate cards.
   await tx.$executeRawUnsafe(`LOCK TABLE "workshop_job_cards" IN EXCLUSIVE MODE`)
   const vehicleWhere = vehicle.vehicleType === 'truck' ? { truckId: vehicle.vehicleId } : { trailerId: vehicle.vehicleId }
-  const existing = await tx.workshopJobCard.findFirst({
-    where: { ...vehicleWhere, status: { in: ['OPEN', 'IN_PROGRESS'] }, creationSource: { not: 'WORKBOOK' } },
+  // Candidates exclude legacy RECOVERED-* holding cards so they stop absorbing
+  // every new activity for the vehicle.
+  const candidates: Array<{ id: string; serviceDate: Date | string; creationSource: string | null }> = await tx.workshopJobCard.findMany({
+    where: { ...vehicleWhere, status: { in: ['OPEN', 'IN_PROGRESS'] }, jobNumber: { not: { startsWith: 'RECOVERED-' } } },
     orderBy: [{ serviceDate: 'desc' }, { createdAt: 'desc' }],
-    select: { id: true }
+    select: { id: true, serviceDate: true, creationSource: true }
   })
-  if (existing) return existing.id
+  const DAY_MS = 86_400_000
+  const eventTime = new Date(details.eventAt).getTime()
+  const dateDistance = (card: { serviceDate: Date | string }) =>
+    Math.abs(new Date(card.serviceDate).getTime() - eventTime)
+  // 1) A workbook register card whose service date is within 3 days of the
+  //    activity wins, nearest date first: this is the JC-... card the activity
+  //    belongs to on the printed register.
+  const workbookNear = candidates
+    .filter(card => card.creationSource === 'WORKBOOK' && dateDistance(card) <= 3 * DAY_MS)
+    .sort((a, b) => dateDistance(a) - dateDistance(b))[0]
+  if (workbookNear) return workbookNear.id
+  // 2) Any other open non-workbook card (auto-created by tire/oil/parts
+  //    activity) collects further activities for the vehicle.
+  const openNonWorkbook = candidates.find(card => card.creationSource !== 'WORKBOOK')
+  if (openNonWorkbook) return openNonWorkbook.id
+  // 3) Fall back to any open workbook card so activities still land on the
+  //    register card instead of a brand-new duplicate card.
+  const openWorkbookAny = candidates.find(card => card.creationSource === 'WORKBOOK')
+  if (openWorkbookAny) return openWorkbookAny.id
 
   const year = details.eventAt.getFullYear()
   const prefix = `JC-${year}-`
