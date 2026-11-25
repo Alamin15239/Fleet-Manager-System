@@ -270,14 +270,22 @@ async function getOrCreateHistoricalJobCard(tx: any, vehicle: {
     select: { jobNumber: true }
   })
   const highest = numbers.reduce((max: number, item: { jobNumber: string }) => {
-    const match = item.jobNumber.match(/^JC-\\d{4}-(\\d+)$/)
+    const match = item.jobNumber.match(/^JC-\d{4}-(\d+)$/)
     return match ? Math.max(max, Number(match[1]) || 0) : max
   }, 0)
+  // The table lock serializes historical-card creation. The regex above
+  // must parse existing numeric suffixes so the next value never restarts at 0001.
+  let sequence = highest + 1
+  let jobNumber = `${prefix}${String(sequence).padStart(4, '0')}`
+  while (await tx.workshopJobCard.findUnique({ where: { jobNumber }, select: { id: true } })) {
+    sequence++
+    jobNumber = `${prefix}${String(sequence).padStart(4, '0')}`
+  }
   const id = `jc_${randomUUID()}`
   await tx.workshopJobCard.create({
     data: {
       id,
-      jobNumber: `${prefix}${String(highest + 1).padStart(4, '0')}`,
+      jobNumber,
       ...vehicleWhere,
       serviceDate: details.eventAt,
       odometerKm: details.odometerKm ?? undefined,
