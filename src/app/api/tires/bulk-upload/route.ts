@@ -212,8 +212,8 @@ function inferSheetMetadata(sheetName: string): {
             : 'OTHER'
   const dimension = name.match(/(\d{3})\s*[-/]+\s*(\d{2,3})/)
   const tireSize = dimension ? dimension[1] + '-' + dimension[2] : ''
-  const vehicleType: VehicleType | null = /385\s*[-/]+\s*65|trailer/i.test(name) ? 'trailer'
-    : /315\s*[-/]+\s*80|truck/i.test(name) ? 'truck'
+  const vehicleType: VehicleType | null = /385\s*[-/]\s*65|trailer/i.test(name) ? 'trailer'
+    : /315\s*[-/]\s*80|truck/i.test(name) ? 'truck'
       : null
   return { tireSize, origin, vehicleType }
 }
@@ -233,7 +233,7 @@ function resolveVehicle(number: string, preferredType: VehicleType | null, fleet
   }
 
   // Historical rows sometimes store a truck/trailer pair in one cell.
-  const tokens = number.split(/[\\s,;\\-–—/|]+/).map(value => value.trim()).filter(value => value.length >= 2)
+  const tokens = number.split(/[\s,;\-–—/|]+/).map(value => value.trim()).filter(value => value.length >= 2)
   if (!tokens.length) return []
   const expanded = tokens.flatMap(token => preferredType
     ? [...vehicleMatches(preferredType, token, fleet), ...vehicleMatches(preferredType === 'truck' ? 'trailer' : 'truck', token, fleet)]
@@ -272,7 +272,7 @@ async function getOrCreateUnassignedTireJobCard(tx: any, details: {
     select: { jobNumber: true }
   })
   const highest = numbers.reduce((max: number, item: { jobNumber: string }) => {
-    const match = item.jobNumber.match(/^JC-\\d{4}-(\\d+)$/)
+    const match = item.jobNumber.match(/^JC-\d{4}-(\d+)$/)
     return match ? Math.max(max, Number(match[1]) || 0) : max
   }, 0)
   let sequence = highest + 1
@@ -447,7 +447,6 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
       if (!origin) warnings.push('Origin was not found in the row or worksheet name; the preview will use OTHER.')
       if (!driver) warnings.push('Driver was not found in the sheet; the active fleet driver will be used when available.')
       if (odometerText && (!Number.isInteger(odometerValue) || odometerValue < 0)) warnings.push('Odometer value could not be interpreted and will be left empty.')
-
       const entry: SourceEntry = {
         sheetName: sheet.name, line, eventAt: date, vehicleType, vehicleNumber, vehicleId: null,
         vehicleLabel: vehicleNumber, driver, serialText, serials: parsedSerials.serials,
@@ -792,7 +791,7 @@ export async function POST(request: NextRequest) {
         })
         const existingBySource = new Map<string, number>()
         for (const event of existingEvents) {
-          const match = String(event.notes || '').match(/^Imported from (.*?), row (\\d+)\\./)
+          const match = String(event.notes || '').match(/^Imported from (.*?), row (\d+)\./)
           if (!match) continue
           const key = match[1] + ':' + match[2]
           existingBySource.set(key, (existingBySource.get(key) || 0) + 1)
