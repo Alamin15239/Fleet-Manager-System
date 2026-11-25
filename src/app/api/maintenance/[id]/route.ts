@@ -254,6 +254,41 @@ export async function PUT(
           }
         }
         })
+        // Keep the linked job-card cost totals in sync when this record is
+        // edited: subtract the amounts previously posted and add the current
+        // ones, so totals never drift or double count after edits or vehicle moves.
+        const previousJobCardId = existingRecord.jobCardId || null
+        const previousParts = Number(existingRecord.partsCost || 0)
+        const previousLabor = Number(existingRecord.laborCost || 0)
+        const previousTotal = Number(existingRecord.totalCost || 0)
+        if (previousJobCardId && previousJobCardId !== jobCardId) {
+          await tx.$executeRawUnsafe(
+            `UPDATE "workshop_job_cards"
+             SET "partsCost"=GREATEST(COALESCE("partsCost",0)-$2,0),
+                 "laborCost"=GREATEST(COALESCE("laborCost",0)-$3,0),
+                 "totalCost"=GREATEST(COALESCE("totalCost",0)-$4,0),
+                 "updatedAt"=NOW()
+             WHERE "id"=$1`,
+            previousJobCardId, previousParts, previousLabor, previousTotal
+          )
+        }
+        if (jobCardId) {
+          const sameCard = jobCardId === previousJobCardId
+          const deltaParts = sameCard ? partsCost - previousParts : partsCost
+          const deltaLabor = sameCard ? laborCost - previousLabor : laborCost
+          const deltaTotal = sameCard ? totalCost - previousTotal : totalCost
+          if (deltaParts || deltaLabor || deltaTotal) {
+            await tx.$executeRawUnsafe(
+              `UPDATE "workshop_job_cards"
+               SET "partsCost"=COALESCE("partsCost",0)+$2,
+                   "laborCost"=COALESCE("laborCost",0)+$3,
+                   "totalCost"=COALESCE("totalCost",0)+$4,
+                   "updatedAt"=NOW()
+               WHERE "id"=$1`,
+              jobCardId, deltaParts, deltaLabor, deltaTotal
+            )
+          }
+        }
         const nowOilChange = body.isOilChange !== undefined ? body.isOilChange : existingRecord.isOilChange
         const wasOilService = Boolean(existingRecord.isOilChange || String(existingRecord.serviceType || '').toLowerCase().includes('oil'))
         const isOilService = Boolean(nowOilChange || String(body.serviceType ?? existingRecord.serviceType).toLowerCase().includes('oil'))
@@ -294,6 +329,39 @@ export async function PUT(
             userId: user.id, serviceType: body.serviceType || existingRecord.serviceType || 'TRAILER MAINTENANCE',
             reportedIssue: body.description || existingRecord.description || 'Updated trailer maintenance activity'
           })
+        }
+        // Keep the linked job-card cost totals in sync on trailer edits too.
+        const previousTrailerJobCardId = existingRecord.jobCardId || null
+        const previousTrailerParts = Number(existingRecord.partsCost || 0)
+        const previousTrailerLabor = Number(existingRecord.laborCost || 0)
+        const previousTrailerTotal = Number(existingRecord.totalCost || 0)
+        if (previousTrailerJobCardId && previousTrailerJobCardId !== jobCardId) {
+          await tx.$executeRawUnsafe(
+            `UPDATE "workshop_job_cards"
+             SET "partsCost"=GREATEST(COALESCE("partsCost",0)-$2,0),
+                 "laborCost"=GREATEST(COALESCE("laborCost",0)-$3,0),
+                 "totalCost"=GREATEST(COALESCE("totalCost",0)-$4,0),
+                 "updatedAt"=NOW()
+             WHERE "id"=$1`,
+            previousTrailerJobCardId, previousTrailerParts, previousTrailerLabor, previousTrailerTotal
+          )
+        }
+        if (jobCardId) {
+          const sameCard = jobCardId === previousTrailerJobCardId
+          const deltaParts = sameCard ? partsCost - previousTrailerParts : partsCost
+          const deltaLabor = sameCard ? laborCost - previousTrailerLabor : laborCost
+          const deltaTotal = sameCard ? totalCost - previousTrailerTotal : totalCost
+          if (deltaParts || deltaLabor || deltaTotal) {
+            await tx.$executeRawUnsafe(
+              `UPDATE "workshop_job_cards"
+               SET "partsCost"=COALESCE("partsCost",0)+$2,
+                   "laborCost"=COALESCE("laborCost",0)+$3,
+                   "totalCost"=COALESCE("totalCost",0)+$4,
+                   "updatedAt"=NOW()
+               WHERE "id"=$1`,
+              jobCardId, deltaParts, deltaLabor, deltaTotal
+            )
+          }
         }
         return tx.trailerMaintenanceRecord.update({
         where: { id: id },
@@ -422,6 +490,19 @@ export async function DELETE(
             jobCardId: null
           })
         }
+        // Remove this record's contribution from its job-card totals so
+        // deleted oil changes and services stop counting on the job card.
+        if (record.jobCardId) {
+          await tx.$executeRawUnsafe(
+            `UPDATE "workshop_job_cards"
+             SET "partsCost"=GREATEST(COALESCE("partsCost",0)-$2,0),
+                 "laborCost"=GREATEST(COALESCE("laborCost",0)-$3,0),
+                 "totalCost"=GREATEST(COALESCE("totalCost",0)-$4,0),
+                 "updatedAt"=NOW()
+             WHERE "id"=$1`,
+            record.jobCardId, Number(record.partsCost || 0), Number(record.laborCost || 0), Number(record.totalCost || 0)
+          )
+        }
         await tx.maintenanceRecord.update({
           where: { id: id },
           data: {
@@ -432,13 +513,27 @@ export async function DELETE(
         })
       })
     } else {
-      await db.trailerMaintenanceRecord.update({
-        where: { id: id },
-        data: {
-          isDeleted: true,
-          deletedAt: new Date(),
-          deletedBy: 'system'
+      await db.$transaction(async tx => {
+        // Trailer deletions must also release their job-card cost totals.
+        if (record.jobCardId) {
+          await tx.$executeRawUnsafe(
+            `UPDATE "workshop_job_cards"
+             SET "partsCost"=GREATEST(COALESCE("partsCost",0)-$2,0),
+                 "laborCost"=GREATEST(COALESCE("laborCost",0)-$3,0),
+                 "totalCost"=GREATEST(COALESCE("totalCost",0)-$4,0),
+                 "updatedAt"=NOW()
+             WHERE "id"=$1`,
+            record.jobCardId, Number(record.partsCost || 0), Number(record.laborCost || 0), Number(record.totalCost || 0)
+          )
         }
+        await tx.trailerMaintenanceRecord.update({
+          where: { id: id },
+          data: {
+            isDeleted: true,
+            deletedAt: new Date(),
+            deletedBy: 'system'
+          }
+        })
       })
     }
 
