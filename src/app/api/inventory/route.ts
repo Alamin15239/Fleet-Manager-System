@@ -150,7 +150,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ transaction: created[0] }, { status: 201 })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unable to save inventory transaction'
-    const status = message === 'Insufficient stock for this transaction' ? 409 : message === 'Inventory item not found' || message === 'Selected vehicle not found or inactive' ? 404 : message === 'Selected job card does not belong to this vehicle' || message === 'Selected job card is not open' || message === 'Select a valid vehicle type for this job-card issue' ? 400 : message === 'Selected job card not found' ? 404 : message === 'Insufficient permissions' ? 403 : 500
+    const status = message === 'Insufficient stock for this transaction' ? 409 : message === 'Inventory item not found' || message === 'Selected vehicle not found or inactive' ? 404 : message === 'Selected job card does not belong to this vehicle' || message === 'Selected job card is not open' || message === 'Select a valid vehicle type for this job-card issue' || message === 'Select a valid truck or trailer for this issue' ? 400 : message === 'Selected job card not found' ? 404 : message === 'Insufficient permissions' ? 403 : 500
     return NextResponse.json({ error: message }, { status })
   }
 }
