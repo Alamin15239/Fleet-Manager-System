@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
       let skipped = 0
 
       const maintenance = await tx.$queryRawUnsafe<any[]>(`
-        SELECT "id","truckId","datePerformed","currentMileage","driverName","serviceType","description"
+        SELECT "id","truckId","datePerformed","currentMileage","driverName","serviceType","description","partsCost","laborCost","totalCost"
         FROM "maintenance_records"
         WHERE "jobCardId" IS NULL AND "isDeleted"=false AND "truckId" IS NOT NULL
         ORDER BY "datePerformed" ASC
@@ -26,13 +26,16 @@ export async function POST(request: NextRequest) {
             userId: user.id, serviceType: row.serviceType || 'MAINTENANCE', creationSource: /oil/i.test(String(row.serviceType || '')) ? 'OIL' : 'UNKNOWN',
             reportedIssue: row.description || 'Linked from existing maintenance record'
           })
-          await tx.$executeRawUnsafe('UPDATE "maintenance_records" SET "jobCardId"=$2 WHERE "id"=$1 AND "jobCardId" IS NULL', row.id, jobCardId)
-          linked++
+          const attached = await tx.$queryRawUnsafe<any[]>('UPDATE "maintenance_records" SET "jobCardId"=$2 WHERE "id"=$1 AND "jobCardId" IS NULL RETURNING "id"', row.id, jobCardId)
+          if (attached.length) {
+            await tx.$executeRawUnsafe('UPDATE "workshop_job_cards" SET "partsCost"=COALESCE("partsCost",0)+$2,"laborCost"=COALESCE("laborCost",0)+$3,"totalCost"=COALESCE("totalCost",0)+$4,"updatedAt"=NOW() WHERE "id"=$1', jobCardId, row.partsCost || 0, row.laborCost || 0, row.totalCost || 0)
+            linked++
+          }
         } catch { skipped++ }
       }
 
       const trailerMaintenance = await tx.$queryRawUnsafe<any[]>(`
-        SELECT "id","trailerId","datePerformed","driverName","serviceType","description"
+        SELECT "id","trailerId","datePerformed","driverName","serviceType","description","partsCost","laborCost","totalCost"
         FROM "trailer_maintenance_records"
         WHERE "jobCardId" IS NULL AND "isDeleted"=false AND "trailerId" IS NOT NULL
         ORDER BY "datePerformed" ASC
@@ -45,13 +48,16 @@ export async function POST(request: NextRequest) {
             creationSource: /oil/i.test(String(row.serviceType || '')) ? 'OIL' : 'UNKNOWN',
             reportedIssue: row.description || 'Linked from existing trailer maintenance record'
           })
-          await tx.$executeRawUnsafe('UPDATE "trailer_maintenance_records" SET "jobCardId"=$2 WHERE "id"=$1 AND "jobCardId" IS NULL', row.id, jobCardId)
-          linked++
+          const attached = await tx.$queryRawUnsafe<any[]>('UPDATE "trailer_maintenance_records" SET "jobCardId"=$2 WHERE "id"=$1 AND "jobCardId" IS NULL RETURNING "id"', row.id, jobCardId)
+          if (attached.length) {
+            await tx.$executeRawUnsafe('UPDATE "workshop_job_cards" SET "partsCost"=COALESCE("partsCost",0)+$2,"laborCost"=COALESCE("laborCost",0)+$3,"totalCost"=COALESCE("totalCost",0)+$4,"updatedAt"=NOW() WHERE "id"=$1', jobCardId, row.partsCost || 0, row.laborCost || 0, row.totalCost || 0)
+            linked++
+          }
         } catch { skipped++ }
       }
 
       const issues = await tx.$queryRawUnsafe<any[]>(`
-        SELECT "id","vehicleType","vehicleId","transactionDate","notes"
+        SELECT "id","vehicleType","vehicleId","transactionDate","notes","quantity","unitCost"
         FROM "inventory_transactions"
         WHERE "type"='ISSUE' AND "jobCardId" IS NULL
           AND "vehicleType" IN ('truck','trailer') AND "vehicleId" IS NOT NULL
@@ -64,13 +70,17 @@ export async function POST(request: NextRequest) {
             eventAt: row.transactionDate, userId: user.id, creationSource: 'SPARE_PARTS',
             serviceType: 'SPARE PARTS', reportedIssue: row.notes || 'Linked from existing spare-parts issue'
           })
-          await tx.$executeRawUnsafe('UPDATE "inventory_transactions" SET "jobCardId"=$2 WHERE "id"=$1 AND "jobCardId" IS NULL', row.id, jobCardId)
-          linked++
+          const attached = await tx.$queryRawUnsafe<any[]>('UPDATE "inventory_transactions" SET "jobCardId"=$2 WHERE "id"=$1 AND "jobCardId" IS NULL RETURNING "id"', row.id, jobCardId)
+          if (attached.length) {
+            const cost = Number(row.quantity || 0) * Number(row.unitCost || 0)
+            await tx.$executeRawUnsafe('UPDATE "workshop_job_cards" SET "partsCost"=COALESCE("partsCost",0)+$2,"totalCost"=COALESCE("totalCost",0)+$2,"updatedAt"=NOW() WHERE "id"=$1', jobCardId, cost)
+            linked++
+          }
         } catch { skipped++ }
       }
 
       const tireEvents = await tx.$queryRawUnsafe<any[]>(`
-        SELECT "id","eventType","eventAt","fromTruckId","fromTrailerId","toTruckId","toTrailerId","driverNameSnapshot","odometerKm","reason"
+        SELECT "id","eventType","eventAt","fromTruckId","fromTrailerId","toTruckId","toTrailerId","driverNameSnapshot","odometerKm","reason","cost"
         FROM "tire_lifecycle_events"
         WHERE "jobCardId" IS NULL AND "eventType"<>'RECEIVE'
         ORDER BY "eventAt" ASC
@@ -88,8 +98,12 @@ export async function POST(request: NextRequest) {
             userId: user.id, creationSource: 'TIRE', serviceType: 'TIRE MAINTENANCE',
             reportedIssue: row.reason || `Linked from existing tire ${row.eventType} event`
           })
-          await tx.$executeRawUnsafe('UPDATE "tire_lifecycle_events" SET "jobCardId"=$2 WHERE "id"=$1 AND "jobCardId" IS NULL', row.id, jobCardId)
-          linked++
+          const attached = await tx.$queryRawUnsafe<any[]>('UPDATE "tire_lifecycle_events" SET "jobCardId"=$2 WHERE "id"=$1 AND "jobCardId" IS NULL RETURNING "id"', row.id, jobCardId)
+          if (attached.length) {
+            const cost = Number(row.cost || 0)
+            if (cost > 0) await tx.$executeRawUnsafe('UPDATE "workshop_job_cards" SET "partsCost"=COALESCE("partsCost",0)+$2,"totalCost"=COALESCE("totalCost",0)+$2,"updatedAt"=NOW() WHERE "id"=$1', jobCardId, cost)
+            linked++
+          }
         } catch { skipped++ }
       }
       return { linked, skipped }
