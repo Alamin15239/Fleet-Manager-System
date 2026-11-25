@@ -186,7 +186,7 @@ export async function DELETE(
     console.error('Error deleting tire:', error)
     
     return NextResponse.json(
-      { error: 'Failed to dispose tire' },
+      { error: 'Failed to permanently delete tire' },
       { status: 500 }
     )
   }
