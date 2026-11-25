@@ -325,6 +325,7 @@ model WorkshopJobCard {
   serviceDate          DateTime
   odometerKm           Int?
   serviceType          String
+  creationSource       String   @default("UNKNOWN")
   priority             String   @default("NORMAL")
   reportedIssue        String?
   technicianName       String?
