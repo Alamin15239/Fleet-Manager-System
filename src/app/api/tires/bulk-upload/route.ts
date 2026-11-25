@@ -511,10 +511,18 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
   const unnumberedQuantitySlots = sourceEntries.reduce((sum, source) =>
     sum + Math.max(0, (source.quantity > 0 ? source.quantity : 0) - Math.min(source.serials.length, source.quantity > 0 ? source.quantity : 0)), 0)
   const unquantifiedRows = sourceEntries.filter(source => source.quantity <= 0).length
-  const uniqueSerialTires = units.filter(unit => Boolean(unit.serial)).length
+  const serialOccurrenceCounts = new Map<string, number>()
+  for (const unit of units) {
+    if (unit.serial) {
+      const serialKey = unit.serial.toLowerCase()
+      serialOccurrenceCounts.set(serialKey, (serialOccurrenceCounts.get(serialKey) || 0) + 1)
+    }
+  }
+  const uniqueSerialTires = serialOccurrenceCounts.size
   const unnumberedTireCandidates = units.filter(unit =>
     !unit.serial && unit.entries.some(item => item.source.quantity > 0)).length
   const repeatedSerialUsageOccurrences = Math.max(0, serialUsageOccurrences - uniqueSerialTires)
+  const repeatedSerialGroups = Array.from(serialOccurrenceCounts.values()).filter(count => count > 1).length
 
   for (const unit of units) {
     unit.entries.sort((a, b) => (a.source.eventAt?.getTime() || 0) - (b.source.eventAt?.getTime() || 0) || a.source.line - b.source.line)
@@ -537,7 +545,7 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
       unit.warnings.push('Conflicting origins were found for this serial. The tire is blocked until the correct origin is reviewed.')
       unit.errors.push('Conflicting origins require manual review.')
     }
-    if (unit.serial && repeatedSerialUsageOccurrences > 0) {
+    if (unit.serial && (serialOccurrenceCounts.get(unit.serial.toLowerCase()) || 0) > 1) {
       unit.warnings.push('A serial value is repeated in the source workbook. Each OUT QTY unit remains a separate tire record; review serial identity before merging histories.')
     }
     if (unit.errors.length) unit.status = 'BLOCKED'
@@ -590,7 +598,7 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
     sourceQuantityTotal, serialUsageOccurrences, uniqueSerialTires, repeatedSerialUsageOccurrences,
     unnumberedQuantitySlots, unnumberedTireCandidates, unquantifiedRows,
     totalTires: units.length, historyEntries: units.reduce((count, unit) => count + unit.entries.length, 0),
-    repeatedSerials: units.filter(unit => Boolean(unit.serial) && unit.entries.length > 1).length,
+    repeatedSerials: repeatedSerialGroups,
     importableTires: ready.length, duplicateTires: duplicates.length, blockedTires: blocked.length,
     warningCount, preview, units, ready
   }
