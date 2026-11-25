@@ -26,6 +26,7 @@ type SourceEntry = {
   tireSize: string
   manufacturer: string
   origin: string
+  originText: string
   history: string
   odometerKm: number | null
   warnings: string[]
@@ -119,14 +120,13 @@ function parseSerials(rawValue: string, expectedQuantity: number): { serials: st
     found.push(candidate)
   }
 
-  const unique = Array.from(new Map(found.map(serial => [serial.toLowerCase(), serial])).values())
   const residue = cleaned.replace(/[A-Z0-9]+(?:[._][A-Z0-9]+)*/gi, ' ').replace(/[^a-z]/gi, ' ').trim()
   const mixedText = Boolean(residue)
   // Quantity is deliberately not used to discard candidates. It is checked
   // separately by the analyzer, which flags rows whose serial count conflicts
   // with OUT QTY while preserving the extracted source identifiers for review.
   void expectedQuantity
-  return { serials: unique, mixedText }
+  return { serials: found, mixedText }
 }
 
 function normalizeOrigin(raw: string): string {
@@ -315,7 +315,7 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
         sheetName: sheet.name, line, eventAt: date, vehicleType, vehicleNumber, vehicleId: null,
         vehicleLabel: vehicleNumber, driver, serialText, serials: parsedSerials.serials,
         quantity: Number.isInteger(quantity) && quantity > 0 && quantity <= 100 ? quantity : 0,
-        tireSize: size, manufacturer, origin: normalizeOrigin(origin), history,
+        tireSize: size, manufacturer, origin: normalizeOrigin(origin), originText: origin, history,
         odometerKm: Number.isInteger(odometerValue) && odometerValue >= 0 ? odometerValue : null,
         warnings, errors: []
       }
@@ -334,7 +334,7 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
   const exactDuplicateRows = 0
   const units: ImportUnit[] = []
   for (const source of sourceEntries) {
-    const sourceSlots = source.quantity > 0 ? source.quantity : Math.max(1, source.serials.length)
+    const sourceSlots = Math.max(1, source.quantity, source.serials.length)
     for (let index = 0; index < sourceSlots; index++) {
       const serial = source.serials[index] || null
       const key = 'source:' + source.sheetName + ':' + source.line + ':' + String(index + 1)
@@ -355,7 +355,7 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
   const sourceQuantityTotal = sourceEntries.reduce((sum, source) => sum + Math.max(0, source.quantity), 0)
   const serialOccurrenceCounts = new Map<string, number>()
   for (const source of sourceEntries) {
-    for (const serial of source.serials.slice(0, source.quantity)) {
+    for (const serial of source.serials) {
       const key = serial.toLowerCase()
       serialOccurrenceCounts.set(key, (serialOccurrenceCounts.get(key) || 0) + 1)
     }
@@ -480,7 +480,7 @@ export async function POST(request: NextRequest) {
           'Source worksheet: ' + source.sheetName + ', row ' + source.line + '.',
           'Source vehicle: ' + sourceReference,
           source.serialText ? 'Source serial cell: ' + source.serialText : 'No serial supplied in source.',
-          'Source tire size: ' + (source.tireSize || 'not supplied') + '; manufacturer: ' + (source.manufacturer || 'not supplied') + '; origin: ' + (source.origin || 'not supplied') + '.',
+          'Source tire size: ' + (source.tireSize || 'not supplied') + '; manufacturer: ' + (source.manufacturer || 'not supplied') + '; origin: ' + (source.originText || 'not supplied') + '.',
           source.history ? 'Source history: ' + source.history : '',
           source.warnings.length ? 'Source notes: ' + source.warnings.join(' | ') : ''
         ].filter(Boolean).join(' ')
