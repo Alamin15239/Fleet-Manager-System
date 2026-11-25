@@ -484,7 +484,7 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
   if (sheetErrors.length) throw new Error(sheetErrors.join(' '))
 
   const unitsByKey = new Map<string, ImportUnit>()
-  let exactDuplicateRows = 0
+  const exactDuplicateRows = 0
 
   // OUT QTY controls usage occurrences. Rows without a valid quantity remain
   // review-only rows; they must never inflate the physical tire count.
@@ -509,21 +509,9 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
         unitsByKey.set(key, unit)
       }
 
-      const duplicateEvent = unit.entries.some(item =>
-        item.source.eventAt?.getTime() === source.eventAt?.getTime() &&
-        item.source.vehicleType === source.vehicleType &&
-        item.source.vehicleId === source.vehicleId &&
-        item.source.vehicleNumber.toLowerCase() === source.vehicleNumber.toLowerCase() &&
-        item.source.driver.toLowerCase() === source.driver.toLowerCase() &&
-        item.source.history.toLowerCase() === source.history.toLowerCase() &&
-        item.source.odometerKm === source.odometerKm
-      )
-      if (duplicateEvent) {
-        exactDuplicateRows++
-        unit.warnings.push('An identical serial usage event was repeated in the workbook and has been counted once.')
-        continue
-      }
-
+      // Preserve every source OUT QTY occurrence, including identical-looking
+      // rows. The workbook is the historical source of truth; do not silently
+      // discard usage history. Repeated serials still remain one physical tire.
       unit.entries.push({ source, serial })
       unit.warnings.push(...source.warnings)
       unit.errors.push(...source.errors)
