@@ -18,7 +18,7 @@ type Tire = {
 }
 type Vehicle = { id: string; vehicleType: 'truck' | 'trailer'; label: string; detail?: string; mileage?: number | null; driverName?: string | null }
 type Report = {
-  summary?: { inStock: number; installed: number; damaged: number; disposed: number; totalReceived: number; damageEvents: number }
+  summary?: { inStock: number; installed: number; assignedUnverified?: number; damaged: number; disposed: number; totalReceived: number; damageEvents: number }
   inventory?: any[]; damageByDriver?: any[]; damageByReason?: any[]; damageByVehicle?: any[]; vehicleUsage?: any[]; tireLife?: any[]; averageLife?: any[]; purchaseBySupplier?: any[]; inspectionDue?: any[]
 }
 
@@ -164,7 +164,7 @@ export default function TireLifecycleDashboard() {
     }
   }
 
-  const count = report?.summary || { inStock: 0, installed: 0, damaged: 0, disposed: 0, totalReceived: 0, damageEvents: 0 }
+  const count = report?.summary || { inStock: 0, installed: 0, assignedUnverified: 0, damaged: 0, disposed: 0, totalReceived: 0, damageEvents: 0 }
   const formatDate = (value: string) => value ? new Date(value).toLocaleDateString() : '—'
   const formatNumber = (value: unknown) => Number(value || 0).toLocaleString()
 
@@ -180,11 +180,12 @@ export default function TireLifecycleDashboard() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-7">
         {[
           ['Received', count.totalReceived, 'text-foreground'],
           ['In stock', count.inStock, 'text-emerald-600'],
           ['Installed', count.installed, 'text-blue-600'],
+          ['Imported / unverified', count.assignedUnverified || 0, 'text-cyan-600'],
           ['Damaged', count.damaged, 'text-amber-600'],
           ['Disposed', count.disposed, 'text-muted-foreground'],
           ['Damage reports', count.damageEvents, 'text-rose-600']
