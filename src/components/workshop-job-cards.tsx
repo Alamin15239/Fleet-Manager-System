@@ -181,7 +181,7 @@ export default function WorkshopJobCards() {
     return searchable.includes(normalizedSearch)
   }) : cards
   const filteredCards = statusFilter === 'ALL' ? searchedCards : searchedCards.filter(card => statusFilter === 'COMPLETED' ? ['COMPLETED', 'CLOSED'].includes(card.status) : card.status === statusFilter)
-  const creationSummary = { manual: cards.filter(card => card.creationSource === 'MANUAL').length, workbook: cards.filter(card => card.creationSource === 'WORKBOOK').length, unknown: cards.filter(card => !card.creationSource || card.creationSource === 'UNKNOWN').length }
+  const creationSummary = { manual: cards.filter(card => card.creationSource === 'MANUAL').length, workbook: cards.filter(card => card.creationSource === 'WORKBOOK').length, unknown: cards.filter(card => !['MANUAL', 'WORKBOOK'].includes(card.creationSource || 'UNKNOWN')).length }
   const summary = { total: cards.length, open: cards.filter(card => card.status === 'OPEN').length, inProgress: cards.filter(card => card.status === 'IN_PROGRESS').length, completed: cards.filter(card => ['COMPLETED', 'CLOSED'].includes(card.status)).length, cancelled: cards.filter(card => card.status === 'CANCELLED').length, other: cards.filter(card => !['OPEN', 'IN_PROGRESS', 'COMPLETED', 'CLOSED', 'CANCELLED'].includes(card.status)).length }
 
   useEffect(() => {
@@ -197,7 +197,7 @@ export default function WorkshopJobCards() {
         <div className="max-w-2xl">
           <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-primary"><FileText className="h-4 w-4"/> Workshop operations</div>
           <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Job Card Control Center</h2>
-          <p className="mt-2 text-sm leading-6 text-muted-foreground">One maintenance visit, one central job card. Oil changes, tire work and spare-parts issues stay in their own workspaces and link back here automatically.</p>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">One maintenance visit, one central job card. Oil changes, tire work and spare-parts issues stay in their own workspaces and appear here only as read-only activity totals.</p>
           <div className="mt-3 flex flex-wrap gap-2 text-xs">
             <Badge variant="outline" className="bg-background/70">Live register</Badge>
             <Badge variant="outline" className="bg-background/70">Separate module activity totals</Badge>
