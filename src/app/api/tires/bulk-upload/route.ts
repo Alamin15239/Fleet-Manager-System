@@ -282,6 +282,7 @@ async function getOrCreateHistoricalJobCard(tx: any, vehicle: {
       serviceDate: details.eventAt,
       odometerKm: details.odometerKm ?? undefined,
       serviceType: 'TIRE USAGE HISTORY',
+      creationSource: 'TIRE',
       priority: 'NORMAL',
       driverName: details.driverName || undefined,
       status: 'CLOSED',
