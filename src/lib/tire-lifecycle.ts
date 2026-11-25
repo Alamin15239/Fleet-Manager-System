@@ -137,7 +137,7 @@ export async function ensureTireLifecycleTables(tx: any) {
 
 export async function getOrCreateOpenJobCard(tx: any, vehicle: VehicleRef, details: {
   eventAt: Date; odometerKm?: number | null; driverName?: string | null; userId: string;
-  serviceType?: string; reportedIssue?: string; creationSource?: "TIRE" | "SPARE_PARTS" | "OIL" | "MANUAL"
+  serviceType?: string; reportedIssue?: string; creationSource?: "TIRE" | "SPARE_PARTS" | "OIL" | "MANUAL" | "UNKNOWN"
 }) {
   await ensureMaintenanceJobCardColumns(tx)
   const activeVehicle = vehicle.vehicleType === 'truck'
