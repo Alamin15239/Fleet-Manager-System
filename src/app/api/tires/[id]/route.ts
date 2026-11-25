@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requirePermission } from '@/lib/permission-middleware'
 import { syncOneDriveWorkbookAfterChange } from '@/lib/onedrive-excel-sync'
-import { ensureTireLifecycleTables, recordTireLifecycleEvent } from '@/lib/tire-lifecycle'
+import { ensureTireLifecycleTables } from '@/lib/tire-lifecycle'
 
 // GET /api/tires/[id] - Get single tire
 export async function GET(
