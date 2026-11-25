@@ -101,40 +101,37 @@ function parseSerials(rawValue: string, expectedQuantity: number): { serials: st
   const raw = rawValue.trim()
   if (!raw) return { serials: [], mixedText: false }
 
-  // Some worksheets append the tire size after each serial, e.g. SERIAL/315/80.
-  const withoutSize = raw
-    .replace(/\/\s*\d{3}\s*\/\s*\d{2}(?:\s*R?\s*\d{2}(?:\.\d+)?)?$/i, '')
-    .replace(/\s+\d{3}\s*\/\s*\d{2}(?:\s*R?\s*\d{2}(?:\.\d+)?)?$/i, '')
-  const withoutLabels = withoutSize.replace(/\b(?:serial(?:\s*(?:no\.?|number))?|s\/n|sn)\b(?:\s*[:#=]\s*|\s+-\s+|\s+)/gi, '').trim()
+  // Tire dimensions and dates can appear in the same cell as serials. Remove
+  // those annotations first, but do not require the entire cell to be a serial.
+  const cleaned = raw
+    .replace(/\b\d{3}\s*[/-]\s*\d{2,3}(?:\s*[/-]\s*\d{2}(?:\.\d+)?)?(?:\s*R\s*\d{2})?\b/gi, ' ')
+    .replace(/\b\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\b/gi, ' ')
+    .replace(/\b\d{1,2}[\s-]+(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*[\s-]+\d{2,4}\b/gi, ' ')
+    .replace(/\b(?:serial(?:\s*(?:no\.?|number))?|s\/n|sn)\b/gi, ' ')
 
-  // Prefer clear list separators. Hyphens are treated as separators only when
-  // the detected segment count exactly matches OUT QTY.
-  let parts = withoutLabels.split(/[\r\n,;|]+/).map(value => value.trim()).filter(Boolean)
-  if (parts.length === 1 && expectedQuantity > 1) {
-    const hyphenParts = withoutLabels.split(/\s*[-–—]\s*/).map(value => value.trim()).filter(Boolean)
-    if (hyphenParts.length === expectedQuantity) parts = hyphenParts
-  }
-
+  // In these workbooks comma, slash, pipe, spaces and hyphens commonly
+  // separate serials. Extract identifier-like tokens from the whole cell so
+  // notes such as "damage date", "end 69", or "given to truck 908" do not
+  // cause valid serials elsewhere in the same cell to be discarded.
+  const tokens = cleaned.match(/[A-Z0-9]+(?:[._][A-Z0-9]+)*/gi) || []
   const found: string[] = []
-  let mixedText = false
-  for (const part of parts) {
-    const candidate = part.trim()
-      .replace(/^\s*(?:serial(?:\s*(?:no\.?|number))?|s\/n|sn)\b(?:\s*[:#=]\s*|\s+-\s+|\s+)/i, '')
-      .replace(/\s*[-–]\s*(?:history|usage|used|installed|fitted|removed|transferred|truck|trailer|driver|vehicle|date)\b[\s\S]*$/i, '')
-      .replace(/\s+(?:history|usage|used|installed|fitted|removed|transferred|truck|trailer|driver|vehicle|date|on)\b[\s\S]*$/i, '')
-      .replace(/\s*[\[(].*$/, '')
-      .replace(/[.,;:]+$/, '')
-      .trim()
-
-    if (candidate.length >= 3 && /^[a-z0-9][a-z0-9._/-]*$/i.test(candidate) &&
-        (/\d/.test(candidate) || (parts.length === 1 && !/\s/.test(raw)))) {
-      found.push(candidate)
-    } else if (part.trim()) {
-      mixedText = true
-    }
+  for (const token of tokens) {
+    let candidate = token.replace(/^[._]+|[._]+$/g, '')
+    // Source notes frequently append "end" directly to the serial.
+    candidate = candidate.replace(/end\d*$/i, '')
+    if (candidate.length < 6 || !/\d/.test(candidate)) continue
+    // Ignore compact calendar dates, not numeric tire serials.
+    if (/^(?:19|20)\d{6}$/.test(candidate)) continue
+    found.push(candidate)
   }
 
   const unique = Array.from(new Map(found.map(serial => [serial.toLowerCase(), serial])).values())
+  const residue = cleaned.replace(/[A-Z0-9]+(?:[._][A-Z0-9]+)*/gi, ' ').replace(/[^a-z]/gi, ' ').trim()
+  const mixedText = Boolean(residue)
+  // Quantity is deliberately not used to discard candidates. It is checked
+  // separately by the analyzer, which flags rows whose serial count conflicts
+  // with OUT QTY while preserving the extracted source identifiers for review.
+  void expectedQuantity
   return { serials: unique, mixedText }
 }
 
