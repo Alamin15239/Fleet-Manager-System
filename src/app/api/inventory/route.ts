@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireRolePermission } from '@/lib/permission-middleware'
-import { getOrCreateOpenJobCard } from '@/lib/tire-lifecycle'
 
 async function ensureInventorySchema() {
   await db.$executeRawUnsafe(`
@@ -115,46 +114,7 @@ export async function POST(request: NextRequest) {
     const created = await db.$transaction(async tx => {
       const normalizedVehicleType = String(body.vehicleType || '').toLowerCase()
       const vehicleId = typeof body.vehicleId === 'string' ? body.vehicleId.trim() : ''
-      let jobCardId = typeof body.jobCardId === 'string' && body.jobCardId.trim() ? body.jobCardId.trim() : null
-      if (type === 'ISSUE' && vehicleId && ['truck','trailer'].includes(normalizedVehicleType)) {
-        const vehicleType = normalizedVehicleType as 'truck' | 'trailer'
-        const vehicle = vehicleType === 'truck'
-          ? await tx.truck.findFirst({ where: { id: vehicleId, isDeleted: false, status: { not: 'INACTIVE' } }, select: { id: true, driverName: true } })
-          : await tx.trailer.findFirst({ where: { id: vehicleId, isDeleted: false }, select: { id: true, driverName: true } })
-        if (!vehicle) throw new Error('Selected vehicle not found or inactive')
-        if (jobCardId) {
-          await tx.$executeRaw`LOCK TABLE "workshop_job_cards" IN EXCLUSIVE MODE`
-          const where = vehicleType === 'truck'
-            ? { id: jobCardId, truckId: vehicleId, status: { in: ['OPEN', 'IN_PROGRESS'] }, creationSource: { not: 'WORKBOOK' } }
-            : { id: jobCardId, trailerId: vehicleId, status: { in: ['OPEN', 'IN_PROGRESS'] }, creationSource: { not: 'WORKBOOK' } }
-          const linkedCard = await tx.workshopJobCard.findFirst({ where, select: { id: true } })
-          if (!linkedCard) throw new Error('Selected job card does not belong to this vehicle')
-        } else {
-          jobCardId = await getOrCreateOpenJobCard(tx, { vehicleType, vehicleId }, {
-            eventAt: transactionDate, driverName: vehicle.driverName, userId: user.id,
-            creationSource: 'SPARE_PARTS', serviceType: 'SPARE PARTS', reportedIssue: 'Automatically created from spare-parts issue'
-          })
-        }
-      } else if (type === 'ISSUE' && jobCardId) {
-        await tx.$executeRaw`LOCK TABLE "workshop_job_cards" IN EXCLUSIVE MODE`
-        if (vehicleId && !['truck','trailer'].includes(normalizedVehicleType)) throw new Error('Select a valid vehicle type for this job-card issue')
-        const linkedCard = await tx.workshopJobCard.findFirst({
-          where: { id: jobCardId, status: { in: ['OPEN', 'IN_PROGRESS'] }, creationSource: { not: 'WORKBOOK' } },
-          select: { id: true, truckId: true, trailerId: true }
-        })
-        if (!linkedCard) throw new Error('Selected job card is not open')
-        if (!vehicleId) {
-          if (linkedCard.truckId) {
-            const active = await tx.truck.findFirst({ where: { id: linkedCard.truckId, isDeleted: false, status: { not: 'INACTIVE' } }, select: { id: true } })
-            if (!active) throw new Error('Selected vehicle not found or inactive')
-            body.vehicleType = 'truck'; body.vehicleId = linkedCard.truckId
-          } else if (linkedCard.trailerId) {
-            const active = await tx.trailer.findFirst({ where: { id: linkedCard.trailerId, isDeleted: false, status: { not: 'INACTIVE' } }, select: { id: true } })
-            if (!active) throw new Error('Selected vehicle not found or inactive')
-            body.vehicleType = 'trailer'; body.vehicleId = linkedCard.trailerId
-          }
-        }
-      }
+      // Spare-parts inventory is intentionally independent of Workshop Job Cards.
       const item = await tx.$queryRawUnsafe<any[]>(`SELECT "id","name","unit" FROM "inventory_items" WHERE "id"=$1 FOR UPDATE`, body.itemId)
       if (!item.length) throw new Error('Inventory item not found')
       let resolvedUnitCost = suppliedUnitCost
@@ -171,31 +131,11 @@ export async function POST(request: NextRequest) {
       if (Number(balance[0]?.qty || 0) + delta < -0.000001) throw new Error('Insufficient stock for this transaction')
       const inserted = await tx.$queryRawUnsafe<any[]>(`
         INSERT INTO "inventory_transactions"
-        ("id","itemId","type","quantity","transactionDate","reference","vehicleType","vehicleId","jobCardId","unitCost","notes","createdById")
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
+        ("id","itemId","type","quantity","transactionDate","reference","vehicleType","vehicleId","unitCost","notes","createdById")
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
         id, body.itemId, type, quantity, transactionDate, body.reference || null,
-        normalizedVehicleType || (body.vehicleType ? String(body.vehicleType).toLowerCase() : null) || null, vehicleId || body.vehicleId || null, jobCardId,
+        normalizedVehicleType || (body.vehicleType ? String(body.vehicleType).toLowerCase() : null) || null, vehicleId || body.vehicleId || null,
         resolvedUnitCost, body.notes || null, user.id)
-      if (type === 'ISSUE' && jobCardId) {
-        const card = await tx.workshopJobCard.findUnique({
-          where: { id: jobCardId }, select: { id: true, items: true, partsCost: true, totalCost: true }
-        })
-        if (!card) throw new Error('Selected job card not found')
-        const currentItems = Array.isArray(card.items) ? card.items as any[] : []
-        const lineCost = quantity * Number(resolvedUnitCost || 0)
-        const line = {
-          type: 'PART', description: item[0].name, quantity, inventoryItemId: body.itemId,
-          unitCost: Number(resolvedUnitCost || 0), remarks: String(body.notes || 'Issued from spare-parts inventory')
-        }
-        await tx.workshopJobCard.update({
-          where: { id: jobCardId },
-          data: {
-            items: [...currentItems, line],
-            partsCost: Number(card.partsCost || 0) + lineCost,
-            totalCost: Number(card.totalCost || 0) + lineCost
-          }
-        })
-      }
       return inserted
     })
     return NextResponse.json({ transaction: created[0] }, { status: 201 })
