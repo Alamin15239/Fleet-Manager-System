@@ -271,13 +271,6 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
       // credible usage context to be reviewed. This excludes notes, opening
       // balance fragments, copied dates/numbers, and broken formula debris.
       const plausibleDate = Boolean(date && date.getUTCFullYear() >= 2000 && date.getUTCFullYear() <= 2100)
-      const vehicleText = vehicleNumber.trim()
-      const looksLikeDate = /^\d{1,2}[/-]\d{1,2}[/-]\d{2,4}$/.test(vehicleText) ||
-        /^\d{4}-\d{1,2}-\d{1,2}$/.test(vehicleText)
-      const plausibleVehicle = Boolean(vehicleText && !/^(new|opening balance|total|balance)$/i.test(vehicleText) && !looksLikeDate)
-      const hasUsageContext = plausibleDate && plausibleVehicle &&
-        Boolean(driver || parsedSerials.serials.length || history)
-      const hasReviewContext = (plausibleDate && (expectedQuantity > 0 ||
         (plausibleVehicle && Boolean(driver || parsedSerials.serials.length || history)))) ||
         (plausibleVehicle && Boolean(driver || parsedSerials.serials.length || history))
       // A numeric OUT QTY copied into blank-date rows is commonly a carried-down
@@ -294,14 +287,13 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
       const origin = read(columns.origin) || sheetMetadata.origin
       const odometerText = read(columns.odometer)
       const odometerValue = odometerText ? Number(odometerText.replace(/,/g, '').match(/\d+/)?.[0]) : NaN
-      const errors: string[] = []
       const warnings: string[] = []
 
       if (!date) warnings.push('A valid usage date was not detected.')
       if (!vehicleNumber) warnings.push('A truck or trailer number was not detected.')
       if (truckNumber && trailerNumber && !vehicleType) warnings.push('Both truck and trailer are filled in and the sheet does not identify which vehicle owns this tire. Add Vehicle Type or use a dedicated truck or trailer sheet.')
       if (genericNumber && !truckNumber && !trailerNumber && typeText && !vehicleType) warnings.push('Vehicle Type must identify Truck or Trailer.')
-      if (qtyText && !plausibleDate) warnings.push('A valid usage date is required before OUT QTY can be counted.')
+      if (qtyText && !plausibleDate) warnings.push('Usage date is missing or invalid; the tire record will be saved without a dated history event.')
       if (qtyText && (!Number.isInteger(quantity) || quantity < 1 || quantity > 100)) warnings.push('Quantity must be a whole number from 1 to 100.')
       if (parsedSerials.serials.length > 100) warnings.push('More than 100 serial numbers were detected in one row.')
       if (parsedSerials.mixedText) warnings.push('The serial cell contains mixed text; check the extracted tire identifier in the preview.')
@@ -312,7 +304,7 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
       if (quantity > parsedSerials.serials.length && quantity > 0) {
         warnings.push('OUT QTY is ' + quantity + ' but only ' + parsedSerials.serials.length + ' serial number(s) were identified. The remaining tire record(s) will have no serial number.')
       }
-      if (!serialText) warnings.push('No serial number was supplied; tire records will be created only according to OUT QTY and remain without serial identifiers.')
+      if (!serialText) warnings.push('No serial number was supplied; imported tire records will remain without serial identifiers.')
       if (!size) warnings.push('Tire size was not found in the row or worksheet name; the preview will use Unspecified.')
       if (!manufacturer) warnings.push('Manufacturer was not found; the preview will use Unspecified.')
       if (!origin) warnings.push('Origin was not found in the row or worksheet name; the preview will use OTHER.')
@@ -325,7 +317,7 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
         quantity: Number.isInteger(quantity) && quantity > 0 && quantity <= 100 ? quantity : 0,
         tireSize: size, manufacturer, origin: normalizeOrigin(origin), history,
         odometerKm: Number.isInteger(odometerValue) && odometerValue >= 0 ? odometerValue : null,
-        warnings, errors
+        warnings, errors: []
       }
 
       if (vehicleType && !vehicleNumber)      if (vehicleType && !vehicleNumber) entry.warnings.push('A vehicle number is required for the selected vehicle type.')
@@ -488,6 +480,7 @@ export async function POST(request: NextRequest) {
           'Source worksheet: ' + source.sheetName + ', row ' + source.line + '.',
           'Source vehicle: ' + sourceReference,
           source.serialText ? 'Source serial cell: ' + source.serialText : 'No serial supplied in source.',
+          'Source tire size: ' + (source.tireSize || 'not supplied') + '; manufacturer: ' + (source.manufacturer || 'not supplied') + '; origin: ' + (source.origin || 'not supplied') + '.',
           source.history ? 'Source history: ' + source.history : '',
           source.warnings.length ? 'Source notes: ' + source.warnings.join(' | ') : ''
         ].filter(Boolean).join(' ')
