@@ -188,7 +188,7 @@ function inferSheetMetadata(sheetName: string): {
 
 
 async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
-  const sourceEntries: SourceEntry[] = []  const sourceEntries: SourceEntry[] = []
+  const sourceEntries: SourceEntry[] = []
   const sheetNames: string[] = []
   const sheetErrors: string[] = []
 
@@ -274,8 +274,7 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
       // Keep every source row with any source data; missing dates, vehicle refs,
       // or quantities are retained as source data rather than rejected.
 
-      // OUT QTY is the sole source of truth for how many physical tire records exist.
-      // Serial identifiers describe those records; they must never increase the count.
+      // Preserve both OUT QTY slots and any additional serial identifiers from the source row.
       const quantity = qtyText ? parsedQty : 0
       const size = read(columns.size) || sheetMetadata.tireSize
       const manufacturer = read(columns.manufacturer)
@@ -381,17 +380,6 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
     warnings: Array.from(new Set(unit.warnings)).slice(0, 4),
     errors: Array.from(new Set(unit.errors)).slice(0, 4)
   }))
-  // All non-duplicate candidates can be imported. Review flags remain attached
-  // to the tire; unresolved vehicle rows are retained as source notes rather
-  // than being assigned to a guessed truck or trailer.
-  // Only clean units can create new tire records. Database duplicates may still
-  // reconcile missing history against their existing tire; blocked units must
-  // never be counted as importable or silently skipped during commit.
-  const ready = units.filter(unit => unit.status === 'READY')
-  const duplicates = units.filter(unit => unit.status === 'DUPLICATE')
-  const blocked = units.filter(unit => unit.status === 'BLOCKED')
-  const reconcilable = units.filter(unit => unit.status === 'READY' || unit.status === 'DUPLICATE')
-  const warningCount = units.reduce((count, unit) => count + new Set(unit.warnings).size, 0)
   return {
     sheetNames, sourceRows: sourceEntries.length, exactDuplicateRows,
     sourceQuantityTotal, serialUsageOccurrences, uniqueSerialTires, repeatedSerialUsageOccurrences,
