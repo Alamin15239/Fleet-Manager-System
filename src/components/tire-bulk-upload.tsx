@@ -197,8 +197,8 @@ export default function TireBulkUpload() {
               {[
                 ['Source OUT QTY total', preview.summary.sourceQuantityTotal],
                 ['Serial usage occurrences', preview.summary.serialUsageOccurrences],
-                ['Unique serial tires', preview.summary.uniqueSerialTires],
-                ['Repeated serial appearances grouped', preview.summary.repeatedSerialUsageOccurrences],
+                ['Unique serial values in sheet', preview.summary.uniqueSerialTires],
+                ['Repeated serial appearances (kept separate)', preview.summary.repeatedSerialUsageOccurrences],
                 ['Unnumbered quantity slots', preview.summary.unnumberedQuantitySlots],
                 ['Unnumbered tire candidates', preview.summary.unnumberedTireCandidates],
                 ['Rows without valid OUT QTY', preview.summary.unquantifiedRows]
@@ -224,7 +224,7 @@ export default function TireBulkUpload() {
                   <th className="px-3 py-2">Detected details</th>
                   <th className="px-3 py-2">Usage history</th>
                   <th className="px-3 py-2">Vehicles</th>
-                  <th className="px-3 py-2">Review status</th>
+                  <th className="px-3 py-2">Import status</th>
                 </tr>
               </thead>
               <tbody>
