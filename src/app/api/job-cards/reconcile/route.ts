@@ -105,7 +105,7 @@ export async function POST(request: NextRequest) {
         const prefix = `JC-${year}-`
         const numbers = await tx.workshopJobCard.findMany({ where: { jobNumber: { startsWith: prefix } }, select: { jobNumber: true } })
         const highest = numbers.reduce((max: number, item: { jobNumber: string }) => {
-          const match = item.jobNumber.match(/^JC-\\d{4}-(\\d+)$/)
+          const match = item.jobNumber.match(/^JC-\d{4}-(\d+)$/)
           return match ? Math.max(max, Number(match[1]) || 0) : max
         }, 0)
         let sequence = highest + 1
@@ -131,7 +131,7 @@ export async function POST(request: NextRequest) {
 
       for (const tire of unresolvedSourceTires) {
         const note = String(tire.notes || '')
-        const match = note.match(/Unlinked source rows[^:]*:\\s*(.+?) row (\\d+): date=([^,]+), vehicle=([^,]+), driver=([^,]+), serial=(.*), qty=(\\d+), history=/)
+        const match = note.match(/Unlinked source rows[^:]*:\s*(.+?) row (\d+): date=([^,]+), vehicle=([^,]+), driver=([^,]+), serial=(.*), qty=(\d+), history=/)
         if (!match) { skipped++; continue }
         const [, sheetName, sourceLine, dateText, vehicleText, driverText, serialText, quantityText] = match
         const eventAt = new Date(dateText)
@@ -144,7 +144,7 @@ export async function POST(request: NextRequest) {
         )
         if (existingSourceEvent.length) continue
 
-        const vehicleMatch = vehicleText.trim().match(/^(truck|trailer)\\s+(.+)$/i)
+        const vehicleMatch = vehicleText.trim().match(/^(truck|trailer)\s+(.+)$/i)
         const sourceVehicleNumber = vehicleMatch?.[2]?.trim() || vehicleText.trim()
         const normalizedNumber = sourceVehicleNumber.toUpperCase().replace(/[^A-Z0-9]/g, '')
         let vehicle: { vehicleType: VehicleType; vehicleId: string } | null = null
