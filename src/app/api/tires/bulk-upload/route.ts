@@ -381,6 +381,7 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
       const expectedQuantity = qtyText && Number.isInteger(parsedQty) && parsedQty > 0 && parsedQty <= 100 ? parsedQty : 0
       const serialParts = columns.serials.map(column => read(column)).filter(Boolean)
       const serialText = serialParts.join(', ')
+      const history = read(columns.history)
       const parsedSerials = parseSerials(serialText, expectedQuantity)
 
       // Keep a row with missing/invalid OUT QTY only when it still has enough
@@ -401,7 +402,6 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
       const size = read(columns.size) || sheetMetadata.tireSize
       const manufacturer = read(columns.manufacturer)
       const origin = read(columns.origin) || sheetMetadata.origin
-      const history = read(columns.history)
       const odometerText = read(columns.odometer)
       const odometerValue = odometerText ? Number(odometerText.replace(/,/g, '').match(/\d+/)?.[0]) : NaN
       const errors: string[] = []
