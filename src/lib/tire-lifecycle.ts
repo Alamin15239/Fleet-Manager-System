@@ -57,7 +57,191 @@ export async function ensureTireLifecycleTables(tx: any) {
     "createdById" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`)
-  await tx.$executeRawUnsafe(`DO $ BEGIN
+  await tx.$executeRawUnsafe(`DO $tire_fk$ BEGIN
+    IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname='tire_lifecycle_events_tireId_fkey' AND conrelid='"tire_lifecycle_events"'::regclass AND confdeltype <> 'c') THEN
+      ALTER TABLE "tire_lifecycle_events" DROP CONSTRAINT "tire_lifecycle_events_tireId_fkey";
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='tire_lifecycle_events_tireId_fkey' AND conrelid='"tire_lifecycle_events"'::regclass) THEN
+      ALTER TABLE "tire_lifecycle_events" ADD CONSTRAINT "tire_lifecycle_events_tireId_fkey"
+        FOREIGN KEY ("tireId") REFERENCES "tires"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+    END IF;
+  END $tire_fkimport { randomUUID } from 'crypto'
+
+type VehicleRef = { vehicleType: 'truck' | 'trailer'; vehicleId: string }
+
+export async function ensureTireLifecycleTables(tx: any) {
+  await ensureMaintenanceJobCardColumns(tx)
+  await tx.$executeRawUnsafe(`ALTER TABLE "tires" ADD COLUMN IF NOT EXISTS "truckId" TEXT`)
+  await tx.$executeRawUnsafe(`DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='tires_truckId_fkey' AND conrelid='"tires"'::regclass) THEN
+      ALTER TABLE "tires" ADD CONSTRAINT "tires_truckId_fkey"
+        FOREIGN KEY ("truckId") REFERENCES "trucks"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+    END IF;
+  END $$`)
+  await tx.$executeRawUnsafe(`ALTER TABLE "tires" ADD COLUMN IF NOT EXISTS "internalCode" TEXT`)
+  await tx.$executeRawUnsafe(`ALTER TABLE "tires" ADD COLUMN IF NOT EXISTS "lifecycleStatus" TEXT NOT NULL DEFAULT 'STOCK'`)
+  await tx.$executeRawUnsafe(`ALTER TABLE "tires" ADD COLUMN IF NOT EXISTS "currentPosition" TEXT`)
+  await tx.$executeRawUnsafe(`ALTER TABLE "tires" ADD COLUMN IF NOT EXISTS "installedAt" TIMESTAMP(3)`)
+  await tx.$executeRawUnsafe(`ALTER TABLE "tires" ADD COLUMN IF NOT EXISTS "installationOdometer" INTEGER`)
+  await tx.$executeRawUnsafe(`ALTER TABLE "tires" ADD COLUMN IF NOT EXISTS "deletedAt" TIMESTAMP(3)`)
+  await tx.$executeRawUnsafe(`ALTER TABLE "tires" ADD COLUMN IF NOT EXISTS "supplierName" TEXT`)
+  await tx.$executeRawUnsafe(`ALTER TABLE "tires" ADD COLUMN IF NOT EXISTS "purchaseReference" TEXT`)
+  await tx.$executeRawUnsafe(`ALTER TABLE "tires" ADD COLUMN IF NOT EXISTS "purchaseCost" DOUBLE PRECISION`)
+  await tx.$executeRawUnsafe(`CREATE SEQUENCE IF NOT EXISTS "tire_internal_code_seq"`)
+  await tx.$executeRawUnsafe(`UPDATE "tires" SET "internalCode"='TY-' || LPAD(nextval('"tire_internal_code_seq"')::text,6,'0') WHERE "internalCode" IS NULL`)
+  await tx.$executeRawUnsafe(`UPDATE "tires" SET "lifecycleStatus"='INSTALLED', "installedAt"=COALESCE("installedAt","createdAt") WHERE "lifecycleStatus"='STOCK' AND ("truckId" IS NOT NULL OR NULLIF("trailerNumber",'') IS NOT NULL)`)
+  await tx.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "tires_internalCode_key" ON "tires" ("internalCode")`)
+  await tx.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "tires_truck_position_active_key" ON "tires" ("truckId","currentPosition") WHERE "lifecycleStatus"='INSTALLED' AND "truckId" IS NOT NULL AND "currentPosition" IS NOT NULL`)
+  await tx.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "tires_trailer_position_active_key" ON "tires" ("trailerNumber","currentPosition") WHERE "lifecycleStatus"='INSTALLED' AND "trailerNumber" IS NOT NULL AND "currentPosition" IS NOT NULL`)
+  await tx.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "tire_lifecycle_events" (
+    "id" TEXT PRIMARY KEY,
+    "tireId" TEXT NOT NULL REFERENCES "tires"("id") ON DELETE RESTRICT ON UPDATE CASCADE,
+    "eventType" TEXT NOT NULL,
+    "eventAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "fromTruckId" TEXT,
+    "fromTrailerId" TEXT,
+    "toTruckId" TEXT,
+    "toTrailerId" TEXT,
+    "fromPosition" TEXT,
+    "toPosition" TEXT,
+    "driverNameSnapshot" TEXT,
+    "odometerKm" INTEGER,
+    "reason" TEXT,
+    "damageType" TEXT,
+    "repairable" BOOLEAN,
+    "cost" DOUBLE PRECISION,
+    "treadDepthMm" DOUBLE PRECISION,
+    "pressurePsi" DOUBLE PRECISION,
+    "condition" TEXT,
+    "inspectionDueAt" TIMESTAMP(3),
+    "damageLocation" TEXT,
+    "evidenceUrl" TEXT,
+    "supplierName" TEXT,
+    "purchaseReference" TEXT,
+    "purchaseCost" DOUBLE PRECISION,
+    "notes" TEXT,
+    "jobCardId" TEXT REFERENCES "workshop_job_cards"("id") ON DELETE SET NULL ON UPDATE CASCADE,
+    "createdById" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`)
+  await tx.$executeRawUnsafe(`DO $tire_fk$ BEGIN
+    IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname='tire_lifecycle_events_tireId_fkey' AND conrelid='"tire_lifecycle_events"'::regclass AND confdeltype <> 'c') THEN
+      ALTER TABLE "tire_lifecycle_events" DROP CONSTRAINT "tire_lifecycle_events_tireId_fkey";
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='tire_lifecycle_events_tireId_fkey' AND conrelid='"tire_lifecycle_events"'::regclass) THEN
+      ALTER TABLE "tire_lifecycle_events" ADD CONSTRAINT "tire_lifecycle_events_tireId_fkey"
+        FOREIGN KEY ("tireId") REFERENCES "tires"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+    END IF;
+  )
+  await tx.$executeRawUnsafe(`ALTER TABLE "tire_lifecycle_events" ADD COLUMN IF NOT EXISTS "treadDepthMm" DOUBLE PRECISION`)
+  await tx.$executeRawUnsafe(`ALTER TABLE "tire_lifecycle_events" ADD COLUMN IF NOT EXISTS "pressurePsi" DOUBLE PRECISION`)
+  await tx.$executeRawUnsafe(`ALTER TABLE "tire_lifecycle_events" ADD COLUMN IF NOT EXISTS "condition" TEXT`)
+  await tx.$executeRawUnsafe(`ALTER TABLE "tire_lifecycle_events" ADD COLUMN IF NOT EXISTS "inspectionDueAt" TIMESTAMP(3)`)
+  await tx.$executeRawUnsafe(`ALTER TABLE "tire_lifecycle_events" ADD COLUMN IF NOT EXISTS "damageLocation" TEXT`)
+  await tx.$executeRawUnsafe(`ALTER TABLE "tire_lifecycle_events" ADD COLUMN IF NOT EXISTS "evidenceUrl" TEXT`)
+  await tx.$executeRawUnsafe(`ALTER TABLE "tire_lifecycle_events" ADD COLUMN IF NOT EXISTS "supplierName" TEXT`)
+  await tx.$executeRawUnsafe(`ALTER TABLE "tire_lifecycle_events" ADD COLUMN IF NOT EXISTS "purchaseReference" TEXT`)
+  await tx.$executeRawUnsafe(`ALTER TABLE "tire_lifecycle_events" ADD COLUMN IF NOT EXISTS "purchaseCost" DOUBLE PRECISION`)
+  await tx.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "tire_lifecycle_events_inspectionDueAt_idx" ON "tire_lifecycle_events" ("inspectionDueAt") WHERE "eventType"='INSPECT'`)
+  await tx.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "tires_supplierName_idx" ON "tires" ("supplierName")`)
+  await tx.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "tire_lifecycle_events_tireId_eventAt_idx" ON "tire_lifecycle_events" ("tireId","eventAt" DESC)`)
+  await tx.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "tire_lifecycle_events_jobCardId_idx" ON "tire_lifecycle_events" ("jobCardId")`)
+  await tx.$executeRawUnsafe(`INSERT INTO "tire_lifecycle_events" ("id","tireId","eventType","eventAt","reason","notes","supplierName","purchaseReference","purchaseCost","createdById")
+    SELECT 'tireevt_receipt_' || t."id", t."id", 'RECEIVE', t."createdAt",
+      'Initial receipt; legacy purchase details may be unavailable', t."notes", t."supplierName", t."purchaseReference", t."purchaseCost", t."createdById"
+    FROM "tires" t
+    WHERE NOT EXISTS (
+      SELECT 1 FROM "tire_lifecycle_events" e
+      WHERE e."tireId"=t."id" AND e."eventType"='RECEIVE'
+    )`)
+  await tx.$executeRawUnsafe(`INSERT INTO "tire_lifecycle_events" ("id","tireId","eventType","eventAt","toTruckId","toTrailerId","driverNameSnapshot","reason","createdById")
+    SELECT 'tireevt_install_legacy_' || t."id", t."id", 'INSTALL', COALESCE(t."installedAt",t."createdAt"),
+      t."truckId", CASE WHEN t."truckId" IS NULL THEN tr."id" ELSE NULL END, t."driverName", 'Initial installation; legacy wheel position and odometer were not available', t."createdById"
+    FROM "tires" t LEFT JOIN "trailers" tr ON tr."number"=t."trailerNumber"
+    WHERE t."lifecycleStatus"='INSTALLED'
+      AND NOT EXISTS (SELECT 1 FROM "tire_lifecycle_events" e
+        WHERE e."tireId"=t."id" AND e."eventType" IN ('INSTALL','TRANSFER'))`)
+  await tx.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "tire_usage_periods" (
+    "id" TEXT PRIMARY KEY,
+    "tireId" TEXT NOT NULL REFERENCES "tires"("id") ON DELETE RESTRICT ON UPDATE CASCADE,
+    "vehicleType" TEXT NOT NULL,
+    "vehicleId" TEXT NOT NULL,
+    "installedAt" TIMESTAMP(3) NOT NULL,
+    "removedAt" TIMESTAMP(3),
+    "historicalEndUnknown" BOOLEAN NOT NULL DEFAULT FALSE,
+    "startOdometer" INTEGER,
+    "endOdometer" INTEGER,
+    "driverNameSnapshot" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`)
+  await tx.$executeRawUnsafe(`DO $tire_fk$ BEGIN
+    IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname='tire_usage_periods_tireId_fkey' AND conrelid='"tire_usage_periods"'::regclass AND confdeltype <> 'c') THEN
+      ALTER TABLE "tire_usage_periods" DROP CONSTRAINT "tire_usage_periods_tireId_fkey";
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='tire_usage_periods_tireId_fkey' AND conrelid='"tire_usage_periods"'::regclass) THEN
+      ALTER TABLE "tire_usage_periods" ADD CONSTRAINT "tire_usage_periods_tireId_fkey"
+        FOREIGN KEY ("tireId") REFERENCES "tires"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+    END IF;
+  END $tire_fkimport { randomUUID } from 'crypto'
+
+type VehicleRef = { vehicleType: 'truck' | 'trailer'; vehicleId: string }
+
+export async function ensureTireLifecycleTables(tx: any) {
+  await ensureMaintenanceJobCardColumns(tx)
+  await tx.$executeRawUnsafe(`ALTER TABLE "tires" ADD COLUMN IF NOT EXISTS "truckId" TEXT`)
+  await tx.$executeRawUnsafe(`DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='tires_truckId_fkey' AND conrelid='"tires"'::regclass) THEN
+      ALTER TABLE "tires" ADD CONSTRAINT "tires_truckId_fkey"
+        FOREIGN KEY ("truckId") REFERENCES "trucks"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+    END IF;
+  END $$`)
+  await tx.$executeRawUnsafe(`ALTER TABLE "tires" ADD COLUMN IF NOT EXISTS "internalCode" TEXT`)
+  await tx.$executeRawUnsafe(`ALTER TABLE "tires" ADD COLUMN IF NOT EXISTS "lifecycleStatus" TEXT NOT NULL DEFAULT 'STOCK'`)
+  await tx.$executeRawUnsafe(`ALTER TABLE "tires" ADD COLUMN IF NOT EXISTS "currentPosition" TEXT`)
+  await tx.$executeRawUnsafe(`ALTER TABLE "tires" ADD COLUMN IF NOT EXISTS "installedAt" TIMESTAMP(3)`)
+  await tx.$executeRawUnsafe(`ALTER TABLE "tires" ADD COLUMN IF NOT EXISTS "installationOdometer" INTEGER`)
+  await tx.$executeRawUnsafe(`ALTER TABLE "tires" ADD COLUMN IF NOT EXISTS "deletedAt" TIMESTAMP(3)`)
+  await tx.$executeRawUnsafe(`ALTER TABLE "tires" ADD COLUMN IF NOT EXISTS "supplierName" TEXT`)
+  await tx.$executeRawUnsafe(`ALTER TABLE "tires" ADD COLUMN IF NOT EXISTS "purchaseReference" TEXT`)
+  await tx.$executeRawUnsafe(`ALTER TABLE "tires" ADD COLUMN IF NOT EXISTS "purchaseCost" DOUBLE PRECISION`)
+  await tx.$executeRawUnsafe(`CREATE SEQUENCE IF NOT EXISTS "tire_internal_code_seq"`)
+  await tx.$executeRawUnsafe(`UPDATE "tires" SET "internalCode"='TY-' || LPAD(nextval('"tire_internal_code_seq"')::text,6,'0') WHERE "internalCode" IS NULL`)
+  await tx.$executeRawUnsafe(`UPDATE "tires" SET "lifecycleStatus"='INSTALLED', "installedAt"=COALESCE("installedAt","createdAt") WHERE "lifecycleStatus"='STOCK' AND ("truckId" IS NOT NULL OR NULLIF("trailerNumber",'') IS NOT NULL)`)
+  await tx.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "tires_internalCode_key" ON "tires" ("internalCode")`)
+  await tx.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "tires_truck_position_active_key" ON "tires" ("truckId","currentPosition") WHERE "lifecycleStatus"='INSTALLED' AND "truckId" IS NOT NULL AND "currentPosition" IS NOT NULL`)
+  await tx.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "tires_trailer_position_active_key" ON "tires" ("trailerNumber","currentPosition") WHERE "lifecycleStatus"='INSTALLED' AND "trailerNumber" IS NOT NULL AND "currentPosition" IS NOT NULL`)
+  await tx.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "tire_lifecycle_events" (
+    "id" TEXT PRIMARY KEY,
+    "tireId" TEXT NOT NULL REFERENCES "tires"("id") ON DELETE RESTRICT ON UPDATE CASCADE,
+    "eventType" TEXT NOT NULL,
+    "eventAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "fromTruckId" TEXT,
+    "fromTrailerId" TEXT,
+    "toTruckId" TEXT,
+    "toTrailerId" TEXT,
+    "fromPosition" TEXT,
+    "toPosition" TEXT,
+    "driverNameSnapshot" TEXT,
+    "odometerKm" INTEGER,
+    "reason" TEXT,
+    "damageType" TEXT,
+    "repairable" BOOLEAN,
+    "cost" DOUBLE PRECISION,
+    "treadDepthMm" DOUBLE PRECISION,
+    "pressurePsi" DOUBLE PRECISION,
+    "condition" TEXT,
+    "inspectionDueAt" TIMESTAMP(3),
+    "damageLocation" TEXT,
+    "evidenceUrl" TEXT,
+    "supplierName" TEXT,
+    "purchaseReference" TEXT,
+    "purchaseCost" DOUBLE PRECISION,
+    "notes" TEXT,
+    "jobCardId" TEXT REFERENCES "workshop_job_cards"("id") ON DELETE SET NULL ON UPDATE CASCADE,
+    "createdById" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`)
+  await tx.$executeRawUnsafe(`DO $tire_fk$ BEGIN
     IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname='tire_lifecycle_events_tireId_fkey' AND conrelid='"tire_lifecycle_events"'::regclass AND confdeltype <> 'c') THEN
       ALTER TABLE "tire_lifecycle_events" DROP CONSTRAINT "tire_lifecycle_events_tireId_fkey";
     END IF;
@@ -107,7 +291,7 @@ export async function ensureTireLifecycleTables(tx: any) {
     "driverNameSnapshot" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`)
-  await tx.$executeRawUnsafe(`DO $ BEGIN
+  await tx.$executeRawUnsafe(`DO $tire_fk$ BEGIN
     IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname='tire_usage_periods_tireId_fkey' AND conrelid='"tire_usage_periods"'::regclass AND confdeltype <> 'c') THEN
       ALTER TABLE "tire_usage_periods" DROP CONSTRAINT "tire_usage_periods_tireId_fkey";
     END IF;
@@ -115,7 +299,7 @@ export async function ensureTireLifecycleTables(tx: any) {
       ALTER TABLE "tire_usage_periods" ADD CONSTRAINT "tire_usage_periods_tireId_fkey"
         FOREIGN KEY ("tireId") REFERENCES "tires"("id") ON DELETE CASCADE ON UPDATE CASCADE;
     END IF;
-  END $`)
+  )
   await tx.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "tire_usage_periods_tireId_installedAt_idx" ON "tire_usage_periods" ("tireId","installedAt")`)
   await tx.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "tire_usage_periods_vehicleType_vehicleId_idx" ON "tire_usage_periods" ("vehicleType","vehicleId")`)
   await tx.$executeRawUnsafe(`ALTER TABLE "tire_usage_periods" ADD COLUMN IF NOT EXISTS "historicalEndUnknown" BOOLEAN NOT NULL DEFAULT FALSE`)
