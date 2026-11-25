@@ -51,7 +51,7 @@ const dateText = (value?: string | Date | null) => value ? new Date(value).toLoc
 export default function WorkshopJobCards() {
   const { canCreate, canUpdate } = usePermissions()
   const [cards, setCards] = useState<JobCard[]>([])
-  const [activitySummary, setActivitySummary] = useState({ oil: { total: 0, linked: 0, unlinked: 0 }, tires: { total: 0, linked: 0, unlinked: 0 }, spareParts: { total: 0, linked: 0, unlinked: 0 }, total: 0, unlinked: 0 })
+  const [activitySummary, setActivitySummary] = useState({ oil: { total: 0 }, tires: { total: 0 }, spareParts: { total: 0 }, total: 0 })
   const [company, setCompany] = useState<Company | null>(null)
   const [trucks, setTrucks] = useState<Vehicle[]>([])
   const [trailers, setTrailers] = useState<Vehicle[]>([])
@@ -60,7 +60,6 @@ export default function WorkshopJobCards() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [open, setOpen] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [syncing, setSyncing] = useState(false)
   const [downloadingId, setDownloadingId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
@@ -80,7 +79,7 @@ export default function WorkshopJobCards() {
       if (!cardsResponse.ok || !optionsResponse.ok) throw new Error('Unable to load workshop job cards')
       const [cardsData, options, inventory] = await Promise.all([cardsResponse.json(), optionsResponse.json(), inventoryResponse.ok ? inventoryResponse.json() : Promise.resolve({ items: [] })])
       setCards(cardsData.jobCards || [])
-      setActivitySummary(cardsData.activitySummary || { oil: { total: 0, linked: 0, unlinked: 0 }, tires: { total: 0, linked: 0, unlinked: 0 }, spareParts: { total: 0, linked: 0, unlinked: 0 }, total: 0, unlinked: 0 })
+      setActivitySummary(cardsData.activitySummary || { oil: { total: 0 }, tires: { total: 0 }, spareParts: { total: 0 }, total: 0 })
       setCompany(cardsData.company || null)
       setInventoryItems(inventory.items || [])
       setTrucks((options.trucks || []).map((truck: any) => ({ id: truck.id, label: `${truck.licensePlate} · ${truck.year} ${truck.make} ${truck.model}`, driverName: truck.driverName, mileage: truck.currentMileage })))
@@ -91,21 +90,6 @@ export default function WorkshopJobCards() {
   }
 
   useEffect(() => { void load() }, [])
-
-  const checkAndSync = async () => {
-    setSyncing(true)
-    try {
-      const response = await apiPost('/api/job-cards/reconcile', {})
-      const data = await response.json()
-      if (!response.ok) throw new Error(data.error || 'Unable to check job card links')
-      toast.success(`Check complete: linked ${data.linked} existing maintenance entries${data.skipped ? `; ${data.skipped} need review` : ''}`)
-      await load()
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Unable to check job card links')
-    } finally {
-      setSyncing(false)
-    }
-  }
 
   const vehicleLabel = (card: JobCard) => card.truck
     ? `${card.truck.licensePlate} · ${card.truck.year} ${card.truck.make} ${card.truck.model}`
@@ -189,18 +173,15 @@ export default function WorkshopJobCards() {
   const statusLabel = (status: string) => (status === 'CLOSED' ? 'COMPLETED' : status).replace(/_/g, ' ')
   const normalizedSearch = searchQuery.trim().toLocaleLowerCase()
   const searchedCards = normalizedSearch ? cards.filter(card => {
-    const linkedWork = (card.linkedActivities || []).map((activity: any) =>
-      [activity.activityType, activity.eventType, activity.description, activity.serviceType].filter(Boolean).join(' ')
-    ).join(' ')
     const searchable = [
       card.jobNumber, card.serviceDate, vehicleLabel(card), card.serviceType,
       card.technicianName, card.driverName, card.status, card.priority,
-      card.reportedIssue, card.notes, linkedWork
+      card.reportedIssue, card.notes
     ].filter(Boolean).join(' ').toLocaleLowerCase()
     return searchable.includes(normalizedSearch)
   }) : cards
   const filteredCards = statusFilter === 'ALL' ? searchedCards : searchedCards.filter(card => statusFilter === 'COMPLETED' ? ['COMPLETED', 'CLOSED'].includes(card.status) : card.status === statusFilter)
-  const creationSummary = { manual: cards.filter(card => card.creationSource === 'MANUAL').length, tire: cards.filter(card => card.creationSource === 'TIRE').length, spareParts: cards.filter(card => card.creationSource === 'SPARE_PARTS').length, oil: cards.filter(card => card.creationSource === 'OIL').length, workbook: cards.filter(card => card.creationSource === 'WORKBOOK').length, unknown: cards.filter(card => !card.creationSource || card.creationSource === 'UNKNOWN').length }
+  const creationSummary = { manual: cards.filter(card => card.creationSource === 'MANUAL').length, workbook: cards.filter(card => card.creationSource === 'WORKBOOK').length, unknown: cards.filter(card => !card.creationSource || card.creationSource === 'UNKNOWN').length }
   const summary = { total: cards.length, open: cards.filter(card => card.status === 'OPEN').length, inProgress: cards.filter(card => card.status === 'IN_PROGRESS').length, completed: cards.filter(card => ['COMPLETED', 'CLOSED'].includes(card.status)).length, cancelled: cards.filter(card => card.status === 'CANCELLED').length, other: cards.filter(card => !['OPEN', 'IN_PROGRESS', 'COMPLETED', 'CLOSED', 'CANCELLED'].includes(card.status)).length }
 
   useEffect(() => {
@@ -225,7 +206,6 @@ export default function WorkshopJobCards() {
         </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={() => void load()} disabled={loading}><Loader2 className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`}/>Refresh</Button>
-          {canUpdate('maintenance') && <Button variant="outline" onClick={checkAndSync} disabled={syncing}>{syncing ? <><Loader2 className="mr-2 h-4 w-4 animate-spin"/>Checking…</> : <><Search className="mr-2 h-4 w-4"/>Check & Sync</>}</Button>}
           {canCreate('maintenance') && <Button onClick={startNew} className="shadow-sm"><Plus className="mr-2 h-4 w-4"/>New Job Card</Button>}
         </div>
       </div>
@@ -244,27 +224,24 @@ export default function WorkshopJobCards() {
 
     <Card className="shadow-sm">
       <CardHeader className="pb-3"><div className="flex flex-wrap items-start justify-between gap-2"><div><CardTitle className="text-base">Job Cards Created By Source</CardTitle><CardDescription className="mt-1">Counts show which workflow originally created each card. Reusing an open card does not increase the count.</CardDescription></div><Badge variant="secondary">{summary.total} total cards</Badge></div></CardHeader>
-      <CardContent className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
+      <CardContent className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         {[
-          {label:'Manual',value:creationSummary.manual,sub:'Created here',icon:'✍️'},
-          {label:'Tire Management',value:creationSummary.tire,sub:'Tire workflow',icon:'◉'},
-          {label:'Spare Parts',value:creationSummary.spareParts,sub:'Parts issue',icon:'⚙'},
-          {label:'Oil Changes',value:creationSummary.oil,sub:'Oil workflow',icon:'◌'},
-          {label:'Workbook import',value:creationSummary.workbook,sub:'Imported records',icon:'▤'},
+          {label:'Manual Job Cards',value:creationSummary.manual,sub:'Created in Job Cards',icon:'✍️'},
+          {label:'Job Card workbook',value:creationSummary.workbook,sub:'Imported Job Card register',icon:'▤'},
           {label:'Unknown / historical',value:creationSummary.unknown,sub:'Source not recorded',icon:'?'}
         ].map(item => <div key={item.label} className="rounded-xl border bg-muted/20 p-3"><div className="flex items-center justify-between gap-2"><span className="text-xs font-medium text-muted-foreground">{item.label}</span><span className="text-sm opacity-70">{item.icon}</span></div><p className="mt-2 text-2xl font-bold tabular-nums">{item.value}</p><p className="text-[11px] text-muted-foreground">{item.sub}</p></div>)}
       </CardContent>
     </Card>
 
     <Card className="shadow-sm">
-      <CardHeader className="pb-3"><div><CardTitle className="text-base">Linked Maintenance Activity</CardTitle><CardDescription className="mt-1">Activity records remain managed in their dedicated pages. This view shows their connection to job cards.</CardDescription></div></CardHeader>
-      <CardContent className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <CardHeader className="pb-3"><div><CardTitle className="text-base">Activity Totals · Separate Modules</CardTitle><CardDescription className="mt-1">Read-only quantities from Oil Changes, Tire Management and Spare Parts. These records stay separate and never create or attach to Job Cards.</CardDescription></div></CardHeader>
+      <CardContent className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[
-          {label:'Oil changes',total:activitySummary.oil.total,linked:activitySummary.oil.linked,unlinked:activitySummary.oil.unlinked},
-          {label:'Tire events',total:activitySummary.tires.total,linked:activitySummary.tires.linked,unlinked:activitySummary.tires.unlinked},
-          {label:'Spare-parts issues',total:activitySummary.spareParts.total,linked:activitySummary.spareParts.linked,unlinked:activitySummary.spareParts.unlinked},
-          {label:'All activities',total:activitySummary.total,linked:activitySummary.total-activitySummary.unlinked,unlinked:activitySummary.unlinked}
-        ].map(item => <div key={item.label} className="rounded-xl border p-3"><div className="flex items-center justify-between gap-2"><p className="text-sm font-medium">{item.label}</p><Badge variant={item.unlinked ? 'destructive' : 'secondary'}>{item.unlinked ? `${item.unlinked} to review` : 'All linked'}</Badge></div><p className="mt-2 text-2xl font-bold tabular-nums">{item.total}</p><div className="mt-2 flex items-center justify-between text-[11px] text-muted-foreground"><span>{item.linked} linked</span><span>{item.unlinked} unlinked</span></div><div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-primary" style={{width:`${item.total ? Math.min(100,item.linked/item.total*100) : 0}%`}}/></div></div>)}
+          {label:'Oil changes',total:activitySummary.oil.total},
+          {label:'Tire events',total:activitySummary.tires.total},
+          {label:'Spare-parts issues',total:activitySummary.spareParts.total},
+          {label:'All module activities',total:activitySummary.total}
+        ].map(item => <div key={item.label} className="rounded-xl border bg-muted/20 p-3"><p className="text-xs font-medium text-muted-foreground">{item.label}</p><p className="mt-2 text-2xl font-bold tabular-nums">{item.total}</p><p className="mt-1 text-[11px] text-muted-foreground">Managed separately</p></div>)}
       </CardContent>
     </Card>
 
@@ -277,7 +254,7 @@ export default function WorkshopJobCards() {
         </div>
       </CardHeader>
       <CardContent className="p-0">
-        {loading ? <div className="flex items-center justify-center gap-2 py-14 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin"/>Loading job cards…</div> : cards.length===0 ? <div className="py-14 text-center"><FileText className="mx-auto mb-3 h-10 w-10 text-muted-foreground"/><p className="font-semibold">No job cards yet</p><p className="mt-1 text-sm text-muted-foreground">Create a job card when a vehicle arrives for workshop service.</p></div> : filteredCards.length===0 ? <div className="py-14 text-center"><Search className="mx-auto mb-3 h-9 w-9 text-muted-foreground"/><p className="font-semibold">No matching job cards</p><p className="mt-1 text-sm text-muted-foreground">Change the search or status filter and try again.</p></div> : <div className="overflow-x-auto"><Table><TableHeader><TableRow className="bg-muted/30"><TableHead className="whitespace-nowrap">Job number</TableHead><TableHead className="whitespace-nowrap">Service date</TableHead><TableHead>Vehicle</TableHead><TableHead>Work type</TableHead><TableHead>Technician / Driver</TableHead><TableHead>Linked work</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader><TableBody>{filteredCards.map(card => <TableRow key={card.id} className="group"><TableCell><div className="font-semibold text-primary">{card.jobNumber}</div><div className="mt-1 text-[11px] text-muted-foreground">{card.priority || 'NORMAL'} priority</div></TableCell><TableCell className="whitespace-nowrap text-sm">{dateText(card.serviceDate)}</TableCell><TableCell className="min-w-[180px]"><div className="font-medium">{vehicleLabel(card)}</div><div className="mt-1 text-xs text-muted-foreground">{card.odometerKm ? `${Number(card.odometerKm).toLocaleString()} km` : 'Odometer not recorded'}</div></TableCell><TableCell className="min-w-[140px]"><div className="font-medium">{card.serviceType || 'General service'}</div><div className="mt-1 text-xs text-muted-foreground">{card.reportedIssue || 'No complaint recorded'}</div></TableCell><TableCell className="min-w-[130px]"><div>{card.technicianName || 'Technician pending'}</div><div className="mt-1 text-xs text-muted-foreground">{card.driverName || 'Driver not recorded'}</div></TableCell><TableCell className="min-w-[190px]"><div className="flex max-w-[260px] flex-wrap gap-1">{(card.linkedActivities||[]).slice(0,3).map((activity:any,index:number)=><Badge key={activity.id||index} variant="outline" className="max-w-full truncate text-[10px]">{activity.activityType==='TIRE'? 'Tire':activity.activityType==='PART'?'Spare part':activity.serviceType||activity.activityType}</Badge>)}{(card.linkedActivities||[]).length>3&&<Badge variant="secondary">+{card.linkedActivities.length-3}</Badge>}{!(card.linkedActivities||[]).length&&<span className="text-xs text-muted-foreground">No linked activity</span>}</div></TableCell><TableCell><Badge variant={['COMPLETED','CLOSED'].includes(card.status)?'default':card.status==='CANCELLED'?'destructive':'secondary'}>{statusLabel(card.status)}</Badge></TableCell><TableCell><div className="flex justify-end gap-0.5"><Button size="icon" variant="ghost" title="View / print PDF" aria-label={`View PDF for ${card.jobNumber}`} onClick={()=>viewCardPdf(card)}><Eye className="h-4 w-4"/></Button><Button size="icon" variant="ghost" title="Download PDF" aria-label={`Download PDF for ${card.jobNumber}`} disabled={downloadingId===card.id} onClick={()=>downloadCard(card)}><Download className="h-4 w-4"/></Button><Button size="icon" variant="ghost" hidden={!canUpdate('maintenance')} title="Edit job card" aria-label={`Edit job card ${card.jobNumber}`} onClick={()=>startEdit(card)}><Pencil className="h-4 w-4"/></Button></div></TableCell></TableRow>)}</TableBody></Table></div>}
+        {loading ? <div className="flex items-center justify-center gap-2 py-14 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin"/>Loading job cards…</div> : cards.length===0 ? <div className="py-14 text-center"><FileText className="mx-auto mb-3 h-10 w-10 text-muted-foreground"/><p className="font-semibold">No job cards yet</p><p className="mt-1 text-sm text-muted-foreground">Create a job card when a vehicle arrives for workshop service.</p></div> : filteredCards.length===0 ? <div className="py-14 text-center"><Search className="mx-auto mb-3 h-9 w-9 text-muted-foreground"/><p className="font-semibold">No matching job cards</p><p className="mt-1 text-sm text-muted-foreground">Change the search or status filter and try again.</p></div> : <div className="overflow-x-auto"><Table><TableHeader><TableRow className="bg-muted/30"><TableHead className="whitespace-nowrap">Job number</TableHead><TableHead className="whitespace-nowrap">Service date</TableHead><TableHead>Vehicle</TableHead><TableHead>Work type</TableHead><TableHead>Technician / Driver</TableHead><TableHead>Linked work</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader><TableBody>{filteredCards.map(card => <TableRow key={card.id} className="group"><TableCell><div className="font-semibold text-primary">{card.jobNumber}</div><div className="mt-1 text-[11px] text-muted-foreground">{card.priority || 'NORMAL'} priority</div></TableCell><TableCell className="whitespace-nowrap text-sm">{dateText(card.serviceDate)}</TableCell><TableCell className="min-w-[180px]"><div className="font-medium">{vehicleLabel(card)}</div><div className="mt-1 text-xs text-muted-foreground">{card.odometerKm ? `${Number(card.odometerKm).toLocaleString()} km` : 'Odometer not recorded'}</div></TableCell><TableCell className="min-w-[140px]"><div className="font-medium">{card.serviceType || 'General service'}</div><div className="mt-1 text-xs text-muted-foreground">{card.reportedIssue || 'No complaint recorded'}</div></TableCell><TableCell className="min-w-[130px]"><div>{card.technicianName || 'Technician pending'}</div><div className="mt-1 text-xs text-muted-foreground">{card.driverName || 'Driver not recorded'}</div></TableCell><TableCell><span className="text-sm tabular-nums">{Array.isArray(card.items) ? card.items.length : 0} lines</span></TableCell><TableCell><Badge variant={['COMPLETED','CLOSED'].includes(card.status)?'default':card.status==='CANCELLED'?'destructive':'secondary'}>{statusLabel(card.status)}</Badge></TableCell><TableCell><div className="flex justify-end gap-0.5"><Button size="icon" variant="ghost" title="View / print PDF" aria-label={`View PDF for ${card.jobNumber}`} onClick={()=>viewCardPdf(card)}><Eye className="h-4 w-4"/></Button><Button size="icon" variant="ghost" title="Download PDF" aria-label={`Download PDF for ${card.jobNumber}`} disabled={downloadingId===card.id} onClick={()=>downloadCard(card)}><Download className="h-4 w-4"/></Button><Button size="icon" variant="ghost" hidden={!canUpdate('maintenance')} title="Edit job card" aria-label={`Edit job card ${card.jobNumber}`} onClick={()=>startEdit(card)}><Pencil className="h-4 w-4"/></Button></div></TableCell></TableRow>)}</TableBody></Table></div>}
       </CardContent>
     </Card>
 
