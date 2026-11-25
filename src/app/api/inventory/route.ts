@@ -114,6 +114,15 @@ export async function POST(request: NextRequest) {
     const created = await db.$transaction(async tx => {
       const normalizedVehicleType = String(body.vehicleType || '').toLowerCase()
       const vehicleId = typeof body.vehicleId === 'string' ? body.vehicleId.trim() : ''
+      // Issues retain vehicle attribution, but never create or link a Workshop Job Card.
+      if (type === 'ISSUE') {
+        if (!vehicleId || !['truck', 'trailer'].includes(normalizedVehicleType))
+          throw new Error('Select a valid truck or trailer for this issue')
+        const vehicle = normalizedVehicleType === 'truck'
+          ? await tx.truck.findFirst({ where: { id: vehicleId, isDeleted: false, status: { not: 'INACTIVE' } }, select: { id: true } })
+          : await tx.trailer.findFirst({ where: { id: vehicleId, isDeleted: false }, select: { id: true } })
+        if (!vehicle) throw new Error('Selected vehicle not found or inactive')
+      }
       // Spare-parts inventory is intentionally independent of Workshop Job Cards.
       const item = await tx.$queryRawUnsafe<any[]>(`SELECT "id","name","unit" FROM "inventory_items" WHERE "id"=$1 FOR UPDATE`, body.itemId)
       if (!item.length) throw new Error('Inventory item not found')
