@@ -30,6 +30,9 @@ interface Tire {
   manufacturer: string
   origin: string
   plateNumber: string
+  // Workbook imports store the truck link via the truckId relation, so the
+  // legacy plateNumber column can be empty even for an assigned tire.
+  truck?: { licensePlate: string } | null
   trailerNumber: string | null
   driverName: string | null
   quantity: number
@@ -115,8 +118,12 @@ export default function TireInventoryGrouped() {
     // Rows with no OUT QTY are preserved in storage for source traceability,
     // but should not appear as physical tires in inventory totals or cards.
     let filteredTires = tires.filter(tire => Number(tire.quantity) > 0)
+    // Resolve the truck plate from either the legacy plateNumber column or
+    // the truck relation used by workbook imports, so imported tires are
+    // counted under their real vehicle instead of "unassigned".
+    const truckPlateOf = (tire: Tire) => (tire.plateNumber || tire.truck?.licensePlate || '').trim()
     if (vehicleType === 'truck') {
-      filteredTires = filteredTires.filter(t => t.plateNumber && !t.trailerNumber)
+      filteredTires = filteredTires.filter(t => truckPlateOf(t) && !t.trailerNumber)
     } else if (vehicleType === 'trailer') {
       filteredTires = filteredTires.filter(t => t.trailerNumber)
     }
@@ -133,11 +140,11 @@ export default function TireInventoryGrouped() {
           driverName: tire.driverName,
           type: 'trailer' as const
         }
-      } else if (tire.plateNumber) {
+      } else if (truckPlateOf(tire)) {
         // Truck tire
-        key = `truck-${tire.plateNumber}`
+        key = `truck-${truckPlateOf(tire)}`
         vehicleInfo = {
-          plateNumber: tire.plateNumber,
+          plateNumber: truckPlateOf(tire),
           driverName: tire.driverName,
           type: 'truck' as const
         }
