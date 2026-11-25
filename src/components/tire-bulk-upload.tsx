@@ -253,8 +253,8 @@ export default function TireBulkUpload() {
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <Button onClick={() => sendFile('import')} disabled={busy || preview.summary.importableUsageEntries === 0}>
-            {busy ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Processing tire history…</> : <><ShieldCheck className="mr-2 h-4 w-4" />{preview.summary.importableTires > 0 ? `Import ${preview.summary.importableUsageEntries} usage entries across ${preview.summary.importableTires} new tire(s)` : `Reconcile ${preview.summary.importableUsageEntries} existing usage entries`}</>}
+          <Button onClick={() => sendFile('import')} disabled={busy || preview.summary.importableTires === 0}>
+            {busy ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Processing tire history…</> : <><ShieldCheck className="mr-2 h-4 w-4" />{preview.summary.importableTires > 0 ? `Import ${preview.summary.importableTires} tire records from workbook`}</>}
           </Button>
           <Button type="button" variant="outline" onClick={() => sendFile('preview')} disabled={busy || !file}>
             <RefreshCw className="mr-2 h-4 w-4" />Re-analyze sheet
