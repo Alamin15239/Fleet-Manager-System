@@ -729,6 +729,12 @@ export async function POST(request: NextRequest) {
       let historyCount = 0
       const jobCards = new Set<string>()
       const jobCardCache = new Map<string, string>()
+      // Tire.plateNumber is a legacy relation to the separate vehicles table.
+      // Fleet imports resolve against trucks/trailers, so only populate this
+      // optional legacy FK when that exact plate is registered there.
+      const registeredVehiclePlates = new Set(
+        (await tx.vehicle.findMany({ select: { plateNumber: true } })).map((vehicle: { plateNumber: string }) => vehicle.plateNumber)
+      )
 
       for (const unit of analysis.ready) {
         const sourceEntries = unit.entries.map(item => item.source)
@@ -754,7 +760,7 @@ export async function POST(request: NextRequest) {
             tireSize: unit.tireSize,
             manufacturer: unit.manufacturer,
             origin: unit.origin,
-            plateNumber: entries.length ? latestTruck : null,
+            plateNumber: latestTruck && registeredVehiclePlates.has(latestTruck) ? latestTruck : null,
             truckId: entries.length && latestType === 'truck' ? latestVehicle : null,
             trailerNumber: entries.length ? latestTrailer : null,
             driverName: latest.driver || null,
