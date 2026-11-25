@@ -283,7 +283,8 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
       // A numeric OUT QTY copied into blank-date rows is commonly a carried-down
       // balance/formula artifact, not an issue transaction. Only dated rows
       // contribute to the source OUT QTY total and create importable tire units.
-      if (!hasReviewContext) continue
+      // Keep every source row with any source data; missing dates, vehicle refs,
+      // or quantities are retained as source data rather than rejected.
 
       // OUT QTY is the sole source of truth for how many physical tire records exist.
       // Serial identifiers describe those records; they must never increase the count.
@@ -296,17 +297,17 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
       const errors: string[] = []
       const warnings: string[] = []
 
-      if (!date) errors.push('A valid usage date was not detected.')
-      if (!vehicleNumber) errors.push('A truck or trailer number was not detected.')
-      if (truckNumber && trailerNumber && !vehicleType) errors.push('Both truck and trailer are filled in and the sheet does not identify which vehicle owns this tire. Add Vehicle Type or use a dedicated truck or trailer sheet.')
-      if (genericNumber && !truckNumber && !trailerNumber && typeText && !vehicleType) errors.push('Vehicle Type must identify Truck or Trailer.')
-      if (qtyText && !plausibleDate) errors.push('A valid usage date is required before OUT QTY can be counted.')
-      if (qtyText && (!Number.isInteger(quantity) || quantity < 1 || quantity > 100)) errors.push('Quantity must be a whole number from 1 to 100.')
-      if (parsedSerials.serials.length > 100) errors.push('More than 100 serial numbers were detected in one row.')
+      if (!date) warnings.push('A valid usage date was not detected.')
+      if (!vehicleNumber) warnings.push('A truck or trailer number was not detected.')
+      if (truckNumber && trailerNumber && !vehicleType) warnings.push('Both truck and trailer are filled in and the sheet does not identify which vehicle owns this tire. Add Vehicle Type or use a dedicated truck or trailer sheet.')
+      if (genericNumber && !truckNumber && !trailerNumber && typeText && !vehicleType) warnings.push('Vehicle Type must identify Truck or Trailer.')
+      if (qtyText && !plausibleDate) warnings.push('A valid usage date is required before OUT QTY can be counted.')
+      if (qtyText && (!Number.isInteger(quantity) || quantity < 1 || quantity > 100)) warnings.push('Quantity must be a whole number from 1 to 100.')
+      if (parsedSerials.serials.length > 100) warnings.push('More than 100 serial numbers were detected in one row.')
       if (parsedSerials.mixedText) warnings.push('The serial cell contains mixed text; check the extracted tire identifier in the preview.')
-      if (!qtyText) errors.push('OUT QTY is required. The importer will not assume a tire quantity.')
+      if (!qtyText) warnings.push('OUT QTY is required. The importer will not assume a tire quantity.')
       if (parsedSerials.serials.length > quantity && quantity > 0) {
-        errors.push('More serial numbers were detected than OUT QTY. Correct the row so serial identifiers do not exceed the stated tire quantity.')
+        warnings.push('More serial numbers were detected than OUT QTY. Correct the row so serial identifiers do not exceed the stated tire quantity.')
       }
       if (quantity > parsedSerials.serials.length && quantity > 0) {
         warnings.push('OUT QTY is ' + quantity + ' but only ' + parsedSerials.serials.length + ' serial number(s) were identified. The remaining tire record(s) will have no serial number.')
@@ -327,7 +328,7 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
         warnings, errors
       }
 
-      if (vehicleType && !vehicleNumber)      if (vehicleType && !vehicleNumber) entry.errors.push('A vehicle number is required for the selected vehicle type.')
+      if (vehicleType && !vehicleNumber)      if (vehicleType && !vehicleNumber) entry.warnings.push('A vehicle number is required for the selected vehicle type.')
       sourceEntries.push(entry)
     }
   }
@@ -341,8 +342,8 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
   const exactDuplicateRows = 0
   const units: ImportUnit[] = []
   for (const source of sourceEntries) {
-    if (source.quantity <= 0) continue
-    for (let index = 0; index < source.quantity; index++) {
+    const sourceSlots = source.quantity > 0 ? source.quantity : Math.max(1, source.serials.length)
+    for (let index = 0; index < sourceSlots; index++) {
       const serial = source.serials[index] || null
       const key = 'source:' + source.sheetName + ':' + source.line + ':' + String(index + 1)
       units.push({
@@ -414,29 +415,6 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
     importableUsageEntries: reconcilable.reduce((count, unit) => count + unit.entries.filter(item => item.source.eventAt).length, 0),
     blockedUsageEntries: blocked.reduce((count, unit) => count + unit.entries.filter(item => item.source.eventAt).length, 0),
     warningCount, preview, units, ready, reconcilable
-  }
-}
-
-export async function GET(request: NextRequest) {
-  try {
-    await requireRolePermission(request, 'tire-management', 'read')
-    const [trucks, trailers] = await Promise.all([
-      db.truck.findMany({
-        where: { isDeleted: false, status: { not: 'INACTIVE' } },
-        select: { licensePlate: true, driverName: true, make: true, model: true, year: true },
-        orderBy: { licensePlate: 'asc' }
-      }),
-      db.trailer.findMany({
-        where: { isDeleted: false, status: { not: 'INACTIVE' } },
-        select: { number: true, driverName: true },
-        orderBy: { number: 'asc' }
-      })
-    ])
-    return NextResponse.json({ trucks, trailers })
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Could not load active trucks.'
-    const status = ['No token provided', 'Invalid token'].includes(message) ? 401 : message === 'Insufficient permissions' ? 403 : 500
-    return NextResponse.json({ error: status === 401 ? 'Authentication required' : status === 403 ? 'Access denied' : message }, { status })
   }
 }
 
@@ -522,7 +500,7 @@ export async function POST(request: NextRequest) {
             truckId: null,
             trailerNumber: source.vehicleType === 'trailer' ? source.vehicleNumber || null : null,
             driverName: source.driver || null,
-            quantity: 1,
+            quantity: source.quantity > 0 ? 1 : 0,
             serialNumber: unit.serial,
             internalCode: unit.importCode,
             lifecycleStatus: 'ASSIGNED_UNVERIFIED',
@@ -573,7 +551,7 @@ export async function POST(request: NextRequest) {
     const message = error instanceof Error ? error.message : ''
     const status = ['No token provided', 'Invalid token'].includes(message) ? 401
       : message === 'Insufficient permissions' ? 403
-        : message.startsWith('New duplicate records') ? 409 : 500
+        : 500
     return NextResponse.json({
       error: status === 401 ? 'Authentication required'
         : status === 403 ? 'Access denied'
