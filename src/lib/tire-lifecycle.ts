@@ -429,8 +429,17 @@ export async function ensureMaintenanceJobCardColumns(tx: any) {
     CONSTRAINT "workshop_job_cards_vehicle_check" CHECK (num_nonnulls("truckId", "trailerId") = 1)
   )`)
   await tx.$executeRawUnsafe(`ALTER TABLE "workshop_job_cards" ADD COLUMN IF NOT EXISTS "creationSource" TEXT NOT NULL DEFAULT 'UNKNOWN'`)
-  await tx.$executeRawUnsafe(`ALTER TABLE "workshop_job_cards" DROP CONSTRAINT IF EXISTS "workshop_job_cards_vehicle_check"`)
-  await tx.$executeRawUnsafe(`ALTER TABLE "workshop_job_cards" ADD CONSTRAINT "workshop_job_cards_vehicle_check" CHECK (num_nonnulls("truckId", "trailerId") <= 1)`)
+  await tx.$executeRawUnsafe(`DO $ DECLARE constraint_definition TEXT; BEGIN
+    SELECT pg_get_constraintdef(oid) INTO constraint_definition
+    FROM pg_constraint
+    WHERE conname='workshop_job_cards_vehicle_check'
+      AND conrelid='"workshop_job_cards"'::regclass;
+    IF constraint_definition IS NULL OR position('<= 1' IN constraint_definition)=0 THEN
+      ALTER TABLE "workshop_job_cards" DROP CONSTRAINT IF EXISTS "workshop_job_cards_vehicle_check";
+      ALTER TABLE "workshop_job_cards" ADD CONSTRAINT "workshop_job_cards_vehicle_check"
+        CHECK (num_nonnulls("truckId", "trailerId") <= 1);
+    END IF;
+  END $`)
   await tx.$executeRawUnsafe(`ALTER TABLE "workshop_job_cards" ADD COLUMN IF NOT EXISTS "partsCost" DOUBLE PRECISION NOT NULL DEFAULT 0`)
   await tx.$executeRawUnsafe(`ALTER TABLE "workshop_job_cards" ADD COLUMN IF NOT EXISTS "laborCost" DOUBLE PRECISION NOT NULL DEFAULT 0`)
   await tx.$executeRawUnsafe(`ALTER TABLE "workshop_job_cards" ADD COLUMN IF NOT EXISTS "totalCost" DOUBLE PRECISION NOT NULL DEFAULT 0`)
