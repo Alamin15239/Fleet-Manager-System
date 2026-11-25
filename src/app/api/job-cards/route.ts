@@ -159,7 +159,7 @@ export async function POST(request: NextRequest) {
       }, 0)
       const nextJobNumber = `${prefix}${String(highestSequence + 1).padStart(4, '0')}`
       const created = await tx.workshopJobCard.create({
-        data: { ...data, jobNumber: nextJobNumber, createdById: user.id },
+        data: { ...data, jobNumber: nextJobNumber, creationSource: 'MANUAL', createdById: user.id },
         include: {
           truck: { select: { id: true, make: true, model: true, year: true, vin: true, licensePlate: true, currentMileage: true } },
           trailer: { select: { id: true, number: true } }
