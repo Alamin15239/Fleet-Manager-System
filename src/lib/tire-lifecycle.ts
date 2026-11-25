@@ -79,14 +79,6 @@ export async function ensureTireLifecycleTables(tx: any) {
   await tx.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "tires_supplierName_idx" ON "tires" ("supplierName")`)
   await tx.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "tire_lifecycle_events_tireId_eventAt_idx" ON "tire_lifecycle_events" ("tireId","eventAt" DESC)`)
   await tx.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "tire_lifecycle_events_jobCardId_idx" ON "tire_lifecycle_events" ("jobCardId")`)
-  await tx.$executeRawUnsafe(`INSERT INTO "tire_lifecycle_events" ("id","tireId","eventType","eventAt","reason","notes","supplierName","purchaseReference","purchaseCost","createdById")
-    SELECT 'tireevt_receipt_' || t."id", t."id", 'RECEIVE', t."createdAt",
-      'Initial receipt; legacy purchase details may be unavailable', t."notes", t."supplierName", t."purchaseReference", t."purchaseCost", t."createdById"
-    FROM "tires" t
-    WHERE NOT EXISTS (
-      SELECT 1 FROM "tire_lifecycle_events" e
-      WHERE e."tireId"=t."id" AND e."eventType"='RECEIVE'
-    )`)
   await tx.$executeRawUnsafe(`INSERT INTO "tire_lifecycle_events" ("id","tireId","eventType","eventAt","toTruckId","toTrailerId","driverNameSnapshot","reason","createdById")
     SELECT 'tireevt_install_legacy_' || t."id", t."id", 'INSTALL', COALESCE(t."installedAt",t."createdAt"),
       t."truckId", CASE WHEN t."truckId" IS NULL THEN tr."id" ELSE NULL END, t."driverName", 'Initial installation; legacy wheel position and odometer were not available', t."createdById"
@@ -437,6 +429,8 @@ export async function ensureMaintenanceJobCardColumns(tx: any) {
     CONSTRAINT "workshop_job_cards_vehicle_check" CHECK (num_nonnulls("truckId", "trailerId") = 1)
   )`)
   await tx.$executeRawUnsafe(`ALTER TABLE "workshop_job_cards" ADD COLUMN IF NOT EXISTS "creationSource" TEXT NOT NULL DEFAULT 'UNKNOWN'`)
+  await tx.$executeRawUnsafe(`ALTER TABLE "workshop_job_cards" DROP CONSTRAINT IF EXISTS "workshop_job_cards_vehicle_check"`)
+  await tx.$executeRawUnsafe(`ALTER TABLE "workshop_job_cards" ADD CONSTRAINT "workshop_job_cards_vehicle_check" CHECK (num_nonnulls("truckId", "trailerId") <= 1)`)
   await tx.$executeRawUnsafe(`ALTER TABLE "workshop_job_cards" ADD COLUMN IF NOT EXISTS "partsCost" DOUBLE PRECISION NOT NULL DEFAULT 0`)
   await tx.$executeRawUnsafe(`ALTER TABLE "workshop_job_cards" ADD COLUMN IF NOT EXISTS "laborCost" DOUBLE PRECISION NOT NULL DEFAULT 0`)
   await tx.$executeRawUnsafe(`ALTER TABLE "workshop_job_cards" ADD COLUMN IF NOT EXISTS "totalCost" DOUBLE PRECISION NOT NULL DEFAULT 0`)
