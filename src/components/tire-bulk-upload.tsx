@@ -44,6 +44,7 @@ type ImportPreview = {
     importableUsageEntries: number
     existingDuplicates: number
     blockedTires: number
+    blockedUsageEntries: number
     warnings: number
   }
   preview: PreviewUnit[]
@@ -181,6 +182,7 @@ export default function TireBulkUpload() {
               ['Usage entries to import', preview.summary.importableUsageEntries],
               ['Database duplicates', preview.summary.existingDuplicates],
               ['Needs review', preview.summary.blockedTires],
+              ['Usage entries held for review', preview.summary.blockedUsageEntries],
               ['Repeated serial groups', preview.summary.repeatedSerialsGrouped],
               ['Duplicate rows skipped', preview.summary.exactDuplicateRowsSkipped],
               ['Warnings', preview.summary.warnings]
@@ -262,7 +264,7 @@ export default function TireBulkUpload() {
           </Button>
           <Button type="button" variant="ghost" onClick={clearSelection} disabled={busy}>Cancel</Button>
         </div>
-        <p className="text-xs text-muted-foreground">Existing imported tires are matched and their missing usage entries are reconciled without creating duplicate tire records. Every dated usage entry is linked to the vehicle’s open Workshop Job Card, or an automatic unassigned Job Card is created when the vehicle cannot be matched. This workbook does not create stock receipts.</p>
+        <p className="text-xs text-muted-foreground">Only Ready tire groups and eligible history for existing serials are imported. Groups marked Needs review are held back completely until their vehicle, serial, size, or origin conflicts are corrected; they will not create partial tire records or Job Cards. Existing serials are reconciled without creating duplicate tire records. Eligible dated usage entries are linked to the vehicle’s open Workshop Job Card. This workbook does not create stock receipts.</p>
       </>}
     </CardContent>
   </Card>
