@@ -59,6 +59,7 @@ export default function WorkshopJobCards() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [open, setOpen] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [syncing, setSyncing] = useState(false)
   const [downloadingId, setDownloadingId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
@@ -87,6 +88,21 @@ export default function WorkshopJobCards() {
   }
 
   useEffect(() => { void load() }, [])
+
+  const checkAndSync = async () => {
+    setSyncing(true)
+    try {
+      const response = await apiPost('/api/job-cards/reconcile', {})
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'Unable to check job card links')
+      toast.success(`Check complete: linked ${data.linked} existing maintenance entries${data.skipped ? `; ${data.skipped} need review` : ''}`)
+      await load()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Unable to check job card links')
+    } finally {
+      setSyncing(false)
+    }
+  }
 
   const vehicleLabel = (card: JobCard) => card.truck
     ? `${card.truck.licensePlate} · ${card.truck.year} ${card.truck.make} ${card.truck.model}`
@@ -190,7 +206,7 @@ export default function WorkshopJobCards() {
   }, [])
 
   return <div className="space-y-5">
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between"><div><h2 className="text-xl font-semibold"><LocalizedText>Workshop Job Cards</LocalizedText></h2><p className="text-sm text-muted-foreground"><LocalizedText>Create, track, and print the bilingual workshop form.</LocalizedText></p></div>{canCreate('maintenance') && <Button onClick={startNew}><Plus className="mr-2 h-4 w-4"/>New Job Card</Button>}</div>
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between"><div><h2 className="text-xl font-semibold"><LocalizedText>Workshop Job Cards</LocalizedText></h2><p className="text-sm text-muted-foreground"><LocalizedText>Create, track, and print the bilingual workshop form.</LocalizedText></p></div><div className="flex flex-wrap gap-2">{canUpdate('maintenance') && <Button variant="outline" onClick={checkAndSync} disabled={syncing}>{syncing ? <><Loader2 className="mr-2 h-4 w-4 animate-spin"/>Checking…</> : <><Search className="mr-2 h-4 w-4"/>Check & Sync</>}</Button>}{canCreate('maintenance') && <Button onClick={startNew}><Plus className="mr-2 h-4 w-4"/>New Job Card</Button>}</div></div>
     <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">{[['Total Job Cards', summary.total], ['Open', summary.open], ['In Progress', summary.inProgress], ['Completed', summary.completed]].map(([label, value]) => <Card key={label}><CardContent className="p-4"><p className="text-xs text-muted-foreground">{label}</p><p className="mt-1 text-2xl font-semibold">{value}</p></CardContent></Card>)}</div>
     <Card><CardHeader><CardTitle>Job Cards Created By Source</CardTitle><CardDescription>Counts increase only when a new job card is created. Activities added to an existing card do not increase these totals.</CardDescription></CardHeader><CardContent className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">{[['Manual Job Cards', creationSummary.manual], ['Tire Management', creationSummary.tire], ['Spare Parts', creationSummary.spareParts], ['Oil Changes', creationSummary.oil], ['Unknown / Historical', creationSummary.unknown]].map(([label, value]) => <div key={label} className="rounded-lg border p-3"><p className="text-xs text-muted-foreground">{label}</p><p className="mt-1 text-2xl font-semibold">{value}</p></div>)}</CardContent></Card>
     <Card><CardHeader><CardTitle><LocalizedText>Job Card Register</LocalizedText></CardTitle><CardDescription>{cards.length} saved job cards</CardDescription></CardHeader><CardContent>
