@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
       await ensureMaintenanceJobCardColumns(tx)
       await ensureTireLifecycleTables(tx)
       await ensureInventoryTables(tx)
-    })
+    }, { timeout: 60000, maxWait: 10000 })
     const trackingView = new URL(request.url).searchParams.get('tracking') === '1'
     const cardsQuery = trackingView
       ? db.workshopJobCard.findMany({
