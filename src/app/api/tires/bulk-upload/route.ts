@@ -331,7 +331,7 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
         warnings, errors: []
       }
 
-      if (vehicleType && !vehicleNumber)      if (vehicleType && !vehicleNumber) entry.warnings.push('A vehicle number is required for the selected vehicle type.')
+      if (vehicleType && !vehicleNumber) entry.warnings.push('A vehicle number is required for the selected vehicle type.')
       sourceEntries.push(entry)
     }
   }
