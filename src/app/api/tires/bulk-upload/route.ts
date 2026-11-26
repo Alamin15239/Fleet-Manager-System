@@ -226,13 +226,21 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
       // not necessarily one of the mapped transaction columns. Detect it
       // across the entire row BEFORE filtering empty transaction rows.
       let openingBalanceMarker = false
+      let summaryRow = false
       row.eachCell({ includeEmpty: false }, cell => {
+        const normalized = normalizeHeader(cellText(cell.value))
         // Opening stock is not a usage event. Match annotated variants too,
         // then stop reading this worksheet so its balance rows cannot inflate
         // the physical tire/history count.
-        if (normalizeHeader(cellText(cell.value)).startsWith('openingbalance')) openingBalanceMarker = true
+        if (normalized.startsWith('openingbalance')) openingBalanceMarker = true
+        // Spreadsheet grand totals are not source transactions. Detect labels
+        // anywhere in the row, including columns that are not mapped as fields.
+        if (/^(?:grand)?total(?:qty|quantity|outqty|tires|tyres)?$/.test(normalized) || /^subtotal(?:qty|quantity)?$/.test(normalized)) {
+          summaryRow = true
+        }
       })
       if (openingBalanceMarker) break
+      if (summaryRow) continue
 
       // Only inspect columns that describe a tire usage record. Some source
       // workbooks contain broken formula-only balance columns (#REF!) copied
@@ -293,9 +301,11 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
         driver || serialText || history || read(columns.size) || read(columns.manufacturer) ||
         read(columns.origin) || read(columns.odometer)
       )
-      // Ignore formula debris such as a lone #REF! in OUT QTY, but keep a
-      // quantity-only row when the quantity itself is valid.
-      if (!hasSourceContext && !quantityIsValid) continue
+      // A quantity cell by itself is not a usage transaction: it commonly
+      // represents a worksheet grand-total row. Require at least one source
+      // context field (date, vehicle, driver, serial, or usage detail) so
+      // summary totals cannot be imported as additional tire units.
+      if (!hasSourceContext) continue
 
       const plausibleDate = Boolean(date && date.getUTCFullYear() >= 2000 && date.getUTCFullYear() <= 2100)
       // Source rows are retained in the analysis even when date, vehicle, or
