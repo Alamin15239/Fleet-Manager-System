@@ -317,14 +317,50 @@ export default function TireInventoryGrouped() {
         </CardContent>
       </Card>
 
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-center gap-3">
         <div>
           <h2 className="text-2xl font-bold"><LocalizedText>Tires by Vehicle</LocalizedText></h2>
           <p className="text-muted-foreground">
             {Object.keys(groupedTires).length} vehicles with tires
           </p>
         </div>
+        {canDelete('tire-management') && (
+          <Button variant="destructive" size="sm" onClick={() => { setDeleteConfirmation(''); setDeleteError(null); setDeleteDialogOpen(true) }}>
+            <Trash2 className="mr-2 h-4 w-4" /> Delete all tires
+          </Button>
+        )}
       </div>
+
+      <Dialog open={deleteDialogOpen} onOpenChange={open => { if (!deletingAll) setDeleteDialogOpen(open) }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete all tire records?</DialogTitle>
+            <DialogDescription>This permanently deletes every tire record and its linked tire lifecycle events and usage history. Trucks, trailers, vehicles, workshop job cards, and other fleet records will not be deleted. This cannot be undone.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="delete-all-tires-confirm">Type DELETE ALL TIRES to confirm</Label>
+            <Input id="delete-all-tires-confirm" value={deleteConfirmation} onChange={event => setDeleteConfirmation(event.target.value)} autoComplete="off" />
+            {deleteError && <p role="alert" className="text-sm text-destructive">{deleteError}</p>}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)} disabled={deletingAll}>Cancel</Button>
+            <Button variant="destructive" disabled={deleteConfirmation !== 'DELETE ALL TIRES' || deletingAll} onClick={async () => {
+              setDeletingAll(true); setDeleteError(null)
+              try {
+                const response = await apiFetch('/api/tires/bulk-delete', { method: 'DELETE', body: JSON.stringify({ confirmation: 'DELETE ALL TIRES' }) })
+                const result = await response.json().catch(() => ({}))
+                if (!response.ok) throw new Error(result.error || 'Failed to delete tire records')
+                setDeleteDialogOpen(false); setDeleteConfirmation('')
+                await fetchAndGroupTires()
+              } catch (error) {
+                setDeleteError(error instanceof Error ? error.message : 'Failed to delete tire records')
+              } finally { setDeletingAll(false) }
+            }}>
+              {deletingAll ? 'Deleting...' : 'Permanently delete all'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <div className="space-y-3">
         {Object.entries(groupedTires).map(([key, group]) => (
