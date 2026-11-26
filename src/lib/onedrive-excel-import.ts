@@ -13,7 +13,7 @@ const SHEETS: SheetSpec[] = [
   { sheet: 'Trailers', entityType: 'TRAILER', naturalKeys: [['Trailer Number']] },
   { sheet: 'Maintenance', entityType: 'MAINTENANCE', naturalKeys: [['Asset Type', 'Truck / Trailer', 'Service Date', 'Service Type'], ['Asset Type', 'Truck / Trailer', 'Service Date']] },
   { sheet: 'Oil Changes', entityType: 'OIL_CHANGE', naturalKeys: [['Truck Number', 'Service Date', 'Mileage (km)'], ['Truck Number', 'Service Date']] },
-  { sheet: 'Tires', entityType: 'TIRE', naturalKeys: [['Serial Number', 'Tire Size'], ['Tire Size', 'Truck Number', 'Trailer Number', 'Date']] },
+  { sheet: 'Tires', entityType: 'TIRE', naturalKeys: [['Serial Number'], ['Serial Number', 'Tire Size'], ['Tire Size', 'Truck Number', 'Trailer Number', 'Date']] },
   { sheet: 'Job Cards', entityType: 'JOBCARD', naturalKeys: [['Job Number']] },
   { sheet: 'Vehicle Documents', entityType: 'VEHICLE_DOCUMENT', naturalKeys: [['Owner Type', 'Owner', 'Document Type']] },
   { sheet: 'Spare Parts', entityType: 'SPARE_PART', naturalKeys: [['Part Number'], ['Part Name']] },
