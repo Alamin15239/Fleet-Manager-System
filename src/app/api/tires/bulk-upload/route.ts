@@ -19,6 +19,8 @@ type SourceEntry = {
   vehicleType: VehicleType | null
   vehicleTypeText: string
   vehicleNumber: string
+  truckNumber: string
+  trailerNumber: string
   vehicleText: string
   vehicleId: string | null
   vehicleLabel: string
@@ -346,7 +348,7 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
       if (odometerText && (!Number.isInteger(odometerValue) || odometerValue < 0)) warnings.push('Odometer value could not be interpreted and will be left empty.')
 
       const entry: SourceEntry = {
-        sheetName: sheet.name, line, eventAt: date, dateText: cellText(dateCell as ExcelJS.CellValue), vehicleType, vehicleTypeText: typeText, vehicleNumber, vehicleText, vehicleId: null,
+        sheetName: sheet.name, line, eventAt: date, dateText: cellText(dateCell as ExcelJS.CellValue), vehicleType, vehicleTypeText: typeText, vehicleNumber, truckNumber, trailerNumber, vehicleText, vehicleId: null,
         vehicleLabel: vehicleText, driver, serialText, serials: parsedSerials.serials,
         quantity: Number.isSafeInteger(quantity) && quantity > 0 ? quantity : 0,
         quantityText: qtyText, tireSize: size, tireSizeText: read(columns.size), manufacturer, origin: normalizeOrigin(origin), originText: origin, history,
@@ -613,6 +615,23 @@ export async function POST(request: NextRequest) {
       const truckMap = uniqueMap(trucks.map(item => ({ id: item.id, number: item.licensePlate })))
       const trailerMap = uniqueMap(trailers.map(item => ({ id: item.id, number: item.number })))
       const resolveVehicle = (source: SourceEntry) => {
+        const truckKey = normalizeVehicleKey(source.truckNumber)
+        const trailerKey = normalizeVehicleKey(source.trailerNumber)
+        const truckId = truckKey ? truckMap.get(truckKey) || null : null
+        const trailerId = trailerKey ? trailerMap.get(trailerKey) || null : null
+
+        // When the workbook supplies both columns, prefer the only exact fleet
+        // match. If both exist, use the source's explicit/inferred tire vehicle type.
+        if (truckKey && trailerKey) {
+          if (truckId && !trailerId) return { type: 'truck' as const, id: truckId }
+          if (trailerId && !truckId) return { type: 'trailer' as const, id: trailerId }
+          if (truckId && trailerId && source.vehicleType === 'truck') return { type: 'truck' as const, id: truckId }
+          if (truckId && trailerId && source.vehicleType === 'trailer') return { type: 'trailer' as const, id: trailerId }
+          return null
+        }
+        if (truckKey) return truckId ? { type: 'truck' as const, id: truckId } : null
+        if (trailerKey) return trailerId ? { type: 'trailer' as const, id: trailerId } : null
+
         const key = normalizeVehicleKey(source.vehicleNumber)
         if (!key || !source.vehicleType) return null
         const id = (source.vehicleType === 'truck' ? truckMap : trailerMap).get(key)
@@ -676,7 +695,7 @@ export async function POST(request: NextRequest) {
           // because it references the separate legacy Vehicle table.
           plateNumber: null,
           truckId: vehicleMatch?.type === 'truck' ? vehicleMatch.id : null,
-          trailerNumber: source.vehicleType === 'trailer' ? source.vehicleNumber || null : null,
+          trailerNumber: source.trailerNumber || (source.vehicleType === 'trailer' ? source.vehicleNumber : null),
           driverName: source.driver || null,
           quantity: 1,
           serialNumber: unit.serial,
