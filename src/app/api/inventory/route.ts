@@ -186,11 +186,20 @@ export async function PATCH(request: NextRequest) {
       if (!old) throw new Error('Inventory transaction not found')
       if (old.type !== 'ISSUE') throw new Error('Only issued-part transactions can be edited')
 
+      // Serialize stock corrections against both the original and corrected
+      // item. Use a stable lock order to avoid deadlocks when two issues swap parts.
+      const stockItemIds = [...new Set([String(old.itemId), itemId])].sort()
+      for (const stockItemId of stockItemIds) {
+        await tx.$queryRawUnsafe<any[]>(
+          `SELECT "id" FROM "inventory_items" WHERE "id"=$1 FOR UPDATE`,
+          stockItemId
+        )
+      }
       const [item, vehicle] = await Promise.all([
         tx.$queryRawUnsafe<any[]>(`SELECT "id","name" FROM "inventory_items" WHERE "id"=$1`, itemId),
         vehicleType === 'truck'
           ? tx.truck.findFirst({ where: { id: vehicleId, isDeleted: false, status: { not: 'INACTIVE' } }, select: { id: true } })
-          : tx.trailer.findFirst({ where: { id: vehicleId, isDeleted: false, status: { not: 'INACTIVE' } }, select: { id: true } })
+          : tx.trailer.findFirst({ where: { id: vehicleId, isDeleted: false }, select: { id: true } })
       ])
       if (!item.length) throw new Error('Inventory item not found')
       if (!vehicle) throw new Error('Selected vehicle not found or inactive')
