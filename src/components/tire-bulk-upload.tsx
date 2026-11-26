@@ -142,7 +142,7 @@ export default function TireBulkUpload() {
     return [
       { label: 'Tire records', value: s.tiresDetected, icon: Database },
       { label: 'Usage history', value: s.historyEntries, icon: History },
-      { label: 'Serial occurrences', value: s.serialUsageOccurrences, icon: Hash },
+      { label: 'Existing tires to merge', value: s.existingDuplicates, icon: RefreshCw },
       { label: 'Rows to review', value: s.unquantifiedRows, icon: AlertTriangle }
     ]
   }, [preview])
@@ -150,7 +150,7 @@ export default function TireBulkUpload() {
   const status = (value: PreviewUnit['status']) => value === 'READY'
     ? <Badge className="border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-300">Ready</Badge>
     : value === 'DUPLICATE'
-      ? <Badge variant="secondary">Duplicate</Badge>
+      ? <Badge variant="secondary">Merge existing</Badge>
       : <Badge variant="destructive">Blocked</Badge>
 
   return <div className="space-y-5">
@@ -167,8 +167,8 @@ export default function TireBulkUpload() {
       <CardContent className="space-y-5 p-4 sm:p-6">
         <div className="grid gap-3 sm:grid-cols-3">
           <div className="flex gap-3 rounded-xl border p-3"><Hash className="mt-0.5 h-5 w-5 text-primary" /><div><p className="text-sm font-semibold">Usage quantity controls count</p><p className="text-xs text-muted-foreground">Opening balance stock is excluded; only usage rows create tire history.</p></div></div>
-          <div className="flex gap-3 rounded-xl border p-3"><History className="mt-0.5 h-5 w-5 text-primary" /><div><p className="text-sm font-semibold">History stays separate</p><p className="text-xs text-muted-foreground">Dated usage events are attached to their source tire slots.</p></div></div>
-          <div className="flex gap-3 rounded-xl border p-3"><ShieldCheck className="mt-0.5 h-5 w-5 text-primary" /><div><p className="text-sm font-semibold">No silent matching</p><p className="text-xs text-muted-foreground">No serial deduplication, fleet lookup, or vehicle assignment.</p></div></div>
+          <div className="flex gap-3 rounded-xl border p-3"><History className="mt-0.5 h-5 w-5 text-primary" /><div><p className="text-sm font-semibold">History stays separate</p><p className="text-xs text-muted-foreground">New dated events are appended to the matching tire without replacing its earlier history.</p></div></div>
+          <div className="flex gap-3 rounded-xl border p-3"><ShieldCheck className="mt-0.5 h-5 w-5 text-primary" /><div><p className="text-sm font-semibold">Serial-based reconciliation</p><p className="text-xs text-muted-foreground">Repeated serials are grouped and matched to existing tires. Unnumbered tires are not guessed.</p></div></div>
         </div>
 
         <div
@@ -227,7 +227,7 @@ export default function TireBulkUpload() {
       </div>
 
       <Card>
-        <CardHeader className="pb-3"><CardTitle className="text-base">Quantity reconciliation</CardTitle><p className="text-sm text-muted-foreground">Every valid OUT QTY slot creates exactly one tire record. Serial values label slots; extra serials never create records. Invalid quantity rows remain visible but contribute zero.</p></CardHeader>
+        <CardHeader className="pb-3"><CardTitle className="text-base">Quantity reconciliation</CardTitle><p className="text-sm text-muted-foreground">OUT QTY controls the number of source tire slots. Matching serials identify the same physical tire and are grouped into one record with multiple history events. Unnumbered slots remain separate. Invalid quantity rows contribute zero.</p></CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {[
@@ -276,7 +276,7 @@ export default function TireBulkUpload() {
                     <td className="px-3 py-3"><p>{item.tireSize || 'Unspecified'}</p><p className="text-xs text-muted-foreground">{item.manufacturer || 'Unspecified'} · {item.origin || 'OTHER'}</p></td>
                     <td className="px-3 py-3"><p>{item.historyEntries} event(s)</p><p className="text-xs text-muted-foreground">{formatDate(item.firstDate)} – {formatDate(item.lastDate)}</p>{item.warnings.slice(0,1).map((warning,i)=><p key={i} className="mt-1 max-w-xs text-xs text-amber-700 dark:text-amber-300">{warning}</p>)}</td>
                     <td className="px-3 py-3">{item.vehicles.join(', ') || <span className="text-muted-foreground">Not supplied</span>}</td>
-                    <td className="px-3 py-3">{status(item.status)}{item.errors.length > 0 && <p className="mt-1 max-w-xs text-xs text-destructive">{item.errors[0]}</p>}</td>
+                    <td className="px-3 py-3">{status(item.status)}{item.duplicateReason && <p className="mt-1 max-w-xs text-xs text-muted-foreground">{item.duplicateReason}</p>}{item.errors.length > 0 && <p className="mt-1 max-w-xs text-xs text-destructive">{item.errors[0]}</p>}</td>
                   </tr>)}
                   {preview.preview.length === 0 && <tr><td colSpan={6} className="px-3 py-10 text-center text-sm text-muted-foreground">No records match these filters.</td></tr>}
                 </tbody>
@@ -303,8 +303,8 @@ export default function TireBulkUpload() {
 
       <Card className="border-primary/30">
         <CardContent className="space-y-3 p-4 sm:p-5">
-          <div className="flex items-start gap-3"><FileCheck2 className="mt-0.5 h-5 w-5 text-primary" /><div><p className="font-semibold">Ready to import {number(preview.summary.importableTires)} tire records</p><p className="text-sm text-muted-foreground">This operation writes tire records and dated usage history only. It does not create stock receipts, match fleet vehicles, search existing serial numbers, or create Workshop Job Cards.</p></div></div>
-          {confirmImport ? <Alert><AlertTriangle className="h-4 w-4" /><AlertDescription><strong>Confirm permanent import.</strong> {number(preview.summary.importableTires)} tire records and {number(preview.summary.importableUsageEntries)} usage-history entries will be written to the database. Confirm only if this is the final reviewed workbook.</AlertDescription></Alert> : null}
+          <div className="flex items-start gap-3"><FileCheck2 className="mt-0.5 h-5 w-5 text-primary" /><div><p className="font-semibold">Ready to create or merge {number(preview.summary.importableTires)} tire records</p><p className="text-sm text-muted-foreground">Existing serial numbers are merged into their existing tire records and only new dated history is appended. Repeated serials in this workbook are grouped. Unnumbered slots use a stable source-row fingerprint and cannot be matched across changed source rows. Fleet links are made only for exact, unique truck/trailer matches. No existing tire records are deleted.</p></div></div>
+          {confirmImport ? <Alert><AlertTriangle className="h-4 w-4" /><AlertDescription><strong>Confirm tire reconciliation.</strong> {number(preview.summary.importableTires)} tire records will be created or matched, and up to {number(preview.summary.importableUsageEntries)} dated usage-history entries will be reconciled. Existing tire records will be preserved.</AlertDescription></Alert> : null}
           <div className="flex flex-wrap gap-2">
             {!confirmImport ? <Button onClick={() => setConfirmImport(true)} disabled={busy || preview.summary.importableTires === 0}><ShieldCheck className="mr-2 h-4 w-4" />Review and confirm import</Button> : <Button onClick={() => sendFile('import')} disabled={busy || preview.summary.importableTires === 0}>{busy ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Importing records…</> : <><CheckCircle2 className="mr-2 h-4 w-4" />Confirm import of {number(preview.summary.importableTires)} tires</>}</Button>}
             <Button variant="outline" onClick={() => sendFile('preview', 1)} disabled={busy || !file}><RefreshCw className="mr-2 h-4 w-4" />Re-analyze</Button>
