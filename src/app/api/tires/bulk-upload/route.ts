@@ -218,6 +218,15 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
       const row = sheet.getRow(line)
       const read = (column: number | null) => column ? cellText(row.getCell(column).value) : ''
 
+      // The "Opening Balance" marker may be placed in any worksheet column,
+      // not necessarily one of the mapped transaction columns. Detect it
+      // across the entire row BEFORE filtering empty transaction rows.
+      let openingBalanceMarker = false
+      row.eachCell({ includeEmpty: false }, cell => {
+        if (normalizeHeader(cellText(cell.value)) === 'openingbalance') openingBalanceMarker = true
+      })
+      if (openingBalanceMarker) break
+
       // Only inspect columns that describe a tire usage record. Some source
       // workbooks contain broken formula-only balance columns (#REF!) copied
       // down hundreds of otherwise empty rows; those are not transactions.
@@ -228,15 +237,9 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
       ].filter((column): column is number => column !== null)))
       if (!sourceColumns.some(column => read(column))) continue
 
-      // Ignore repeated in-sheet header rows and opening-balance labels.
+      // Ignore repeated in-sheet header rows.
       if (normalizeHeader(read(columns.date)) === 'date' &&
           normalizeHeader(read(columns.quantity)) === 'outqty') continue
-      const rowVehicleLabel = read(columns.truck) || read(columns.trailer) || read(columns.vehicle)
-      // Opening Balance starts a separate stock/balance block, not more usage
-      // history. Ignore the marker and every row after it on this worksheet.
-      // Some sheets put quantities (for example 1, 2, 9) in OUT QTY below this
-      // marker; counting those values inflated the historical issue total.
-      if (/^opening balance$/i.test(rowVehicleLabel) && !read(columns.date)) break
 
       const dateCell = columns.date ? row.getCell(columns.date).value : null
       const date = dateCell == null || cellText(dateCell) === '' ? null : parseDate(dateCell)
