@@ -487,6 +487,24 @@ export async function POST(request: NextRequest) {
         detectedTires: analysis.sourceQuantityTotal,
         sheetTotals: analysis.sheetQuantityTotals,
         sheetReconciliationFailures,
+        // Diagnostic-only row trace. This response is returned before any
+        // database transaction and never changes import eligibility.
+        rowDiagnostics: analysis.sheetQuantityTotals.map(sheet => ({
+          sheetName: sheet.sheetName,
+          rows: analysis.units
+            .filter(unit => unit.entries[0]?.source.sheetName === sheet.sheetName)
+            .reduce((rows, unit) => {
+              const source = unit.entries[0]?.source
+              if (source && !rows.some(row => row.sourceRow === source.line)) {
+                rows.push({
+                  sourceRow: source.line,
+                  quantityText: source.quantityText,
+                  parsedQuantity: source.quantity
+                })
+              }
+              return rows
+            }, [] as Array<{ sourceRow: number; quantityText: string; parsedQuantity: number }>)
+        })),
         sourceHash
       }, { status: 422 })
     }
