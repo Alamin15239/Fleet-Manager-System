@@ -273,7 +273,10 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
       // trucks, so sheet-name inference must only be a fallback.
       let vehicleType: VehicleType | null = /trailer/.test(typeText) ? 'trailer'
         : /truck/.test(typeText) ? 'truck'
-          : truckNumber && !trailerNumber ? 'truck'
+          : truckNumber && !trailerNumber
+            ? (/^\s*\d{3,5}\s*[-/]\s*\d{3,5}\s*$/.test(truckNumber) && sheetMetadata.vehicleType
+              ? sheetMetadata.vehicleType
+              : 'truck')
             : trailerNumber && !truckNumber ? 'trailer'
               : sheetMetadata.vehicleType
       if (genericNumber && !vehicleType) {
