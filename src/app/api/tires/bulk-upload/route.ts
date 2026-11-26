@@ -532,16 +532,58 @@ export async function POST(request: NextRequest) {
 
     if (mode !== 'import') {
       const incomingSourceCodes = analysis.units.map(unit => unit.importCode)
-      const existingSourceRows = incomingSourceCodes.length ? await db.tire.findMany({
-        where: { internalCode: { in: incomingSourceCodes } },
-        select: { internalCode: true }
-      }) : []
+      const [existingSourceRows, legacyTireRows] = await Promise.all([
+        incomingSourceCodes.length ? db.tire.findMany({
+          where: { internalCode: { in: incomingSourceCodes } },
+          select: { internalCode: true }
+        }) : Promise.resolve([]),
+        db.tire.findMany({
+          where: { deletedAt: null, internalCode: { startsWith: 'TY-' } },
+          select: { id: true, serialNumber: true, plateNumber: true, trailerNumber: true, tireSize: true, origin: true, createdAt: true }
+        })
+      ])
       const existingSourceCodes = new Set(existingSourceRows.map(item => item.internalCode).filter(Boolean))
       for (const unit of analysis.units) {
         if (existingSourceCodes.has(unit.importCode)) {
           unit.status = 'DUPLICATE'
-          unit.duplicateReason = 'This exact source worksheet row and OUT QTY slot were already imported. No duplicate record will be created.'
+          unit.duplicateReason = 'This exact source worksheet row and OUT QTY slot were already imported. No duplicate tire record will be created.'
         }
+      }
+      const legacySignature = (at: Date, tireSize: string, origin: string, serialText: string) =>
+        [at.toISOString().slice(0, 10), normalizeVehicleKey(tireSize), normalizeVehicleKey(origin), normalizeVehicleKey(serialText)].join('|')
+      const legacyRowsBySignature = new Map<string, typeof legacyTireRows>()
+      for (const tire of legacyTireRows) {
+        if (!tire.serialNumber) continue
+        const key = legacySignature(tire.createdAt, tire.tireSize, tire.origin, tire.serialNumber)
+        const group = legacyRowsBySignature.get(key) || []
+        group.push(tire)
+        legacyRowsBySignature.set(key, group)
+      }
+      const unitsBySourceRow = new Map<string, ImportUnit[]>()
+      for (const unit of analysis.units) {
+        const source = unit.entries[0]?.source
+        if (!source) continue
+        const key = source.sheetName + ':' + source.line
+        const group = unitsBySourceRow.get(key) || []
+        group.push(unit)
+        unitsBySourceRow.set(key, group)
+      }
+      const legacyMatchedSourceCodes = new Set<string>()
+      const claimedLegacyTireIds = new Set<string>()
+      for (const rowUnits of unitsBySourceRow.values()) {
+        const source = rowUnits[0]?.entries[0]?.source
+        if (!source?.eventAt || !source.serialText || rowUnits.some(unit => !unit.serial || existingSourceCodes.has(unit.importCode))) continue
+        const signature = legacySignature(source.eventAt, source.tireSize, source.origin, source.serialText)
+        const candidates = (legacyRowsBySignature.get(signature) || []).filter(tire => !claimedLegacyTireIds.has(tire.id))
+        const vehicleKeys = (source.vehicleNumber.match(/\d{3,5}/g) || []).map(normalizeVehicleKey)
+        const matched = candidates.filter(tire => {
+          const plateKey = normalizeVehicleKey(tire.plateNumber || '')
+          const trailerKey = normalizeVehicleKey(tire.trailerNumber || '')
+          return vehicleKeys.some(key => plateKey.startsWith(key) || trailerKey === key)
+        })
+        if (matched.length !== rowUnits.length) continue
+        for (const tire of matched) claimedLegacyTireIds.add(tire.id)
+        for (const unit of rowUnits) legacyMatchedSourceCodes.add(unit.importCode)
       }
       const requestedPage = Math.max(1, Number.parseInt(String(form.get('page') || '1'), 10) || 1)
       const pageSize = Math.min(100, Math.max(10, Number.parseInt(String(form.get('pageSize') || '50'), 10) || 50))
@@ -574,7 +616,8 @@ export async function POST(request: NextRequest) {
         status: unit.status,
         duplicateReason: unit.duplicateReason,
         warnings: Array.from(new Set(unit.warnings)).slice(0, 4),
-        errors: Array.from(new Set(unit.errors)).slice(0, 4)
+        errors: Array.from(new Set(unit.errors)).slice(0, 4),
+        willReconcileExisting: legacyMatchedSourceCodes.has(unit.importCode)
       }))
       return NextResponse.json({
         message: 'Analysis complete. No tire records or history have been saved.',
@@ -601,6 +644,8 @@ export async function POST(request: NextRequest) {
           importableUsageEntries: analysis.importableUsageEntries,
           blockedUsageEntries: analysis.blockedUsageEntries,
           existingDuplicates: analysis.units.filter(unit => unit.status === 'DUPLICATE').length,
+          legacyRecordsToReconcile: legacyMatchedSourceCodes.size,
+          newTireRecordsToCreate: Math.max(0, analysis.units.length - existingSourceCodes.size - legacyMatchedSourceCodes.size),
           blockedTires: analysis.blockedTires,
           warnings: analysis.warningCount
         },
