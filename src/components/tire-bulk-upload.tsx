@@ -10,6 +10,9 @@ import { Upload, FileSpreadsheet, CheckCircle2, AlertCircle, Loader2, Eye, Shiel
 import { toast } from '@/lib/localized-toast'
 
 type PreviewUnit = {
+  sourceSheet: string
+  sourceRow: number
+  sourceOutQty: number
   serial: string | null
   tireSize: string
   manufacturer: string
@@ -220,6 +223,7 @@ export default function TireBulkUpload() {
             <table className="w-full min-w-[760px] text-left text-xs">
               <thead className="bg-muted/60">
                 <tr>
+                  <th className="px-3 py-2">Source row</th>
                   <th className="px-3 py-2">Serial / tire</th>
                   <th className="px-3 py-2">Detected details</th>
                   <th className="px-3 py-2">Usage history</th>
@@ -229,6 +233,10 @@ export default function TireBulkUpload() {
               </thead>
               <tbody>
                 {preview.preview.map((item, index) => <tr key={(item.serial || 'unserialised') + '-' + index} className="border-t align-top">
+                  <td className="px-3 py-3">
+                    <div className="font-medium">{item.sourceSheet}</div>
+                    <div className="text-muted-foreground">Row {item.sourceRow} · OUT QTY {item.sourceOutQty}</div>
+                  </td>
                   <td className="px-3 py-3 font-medium">{item.serial || 'Serial not supplied'}</td>
                   <td className="px-3 py-3">
                     <div>{item.tireSize}</div>
