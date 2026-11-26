@@ -12,6 +12,7 @@ on:
           - preflight
           - migrate
           - schema-audit
+          - schema-repair-preflight
         default: export
       confirm_target_empty:
         description: "Required for migrate: confirm the TiDB target has no application tables/data"
@@ -52,7 +53,7 @@ jobs:
           print(f"  port={parsed.port or 5432}")
           print(f"  database={database or '(not specified)'}")
           PY
-          if [[ "${{ inputs.operation }}" == "preflight" || "${{ inputs.operation }}" == "migrate" || "${{ inputs.operation }}" == "schema-audit" ]]; then
+          if [[ "${{ inputs.operation }}" == "preflight" || "${{ inputs.operation }}" == "migrate" || "${{ inputs.operation }}" == "schema-audit" || "${{ inputs.operation }}" == "schema-repair-preflight" ]]; then
             test -n "$TIDB_DATABASE_URL" || { echo "::error::Missing TIDB_DATABASE_URL repository secret"; exit 1; }
           fi
           if [[ "${{ inputs.operation }}" == "migrate" ]]; then
@@ -208,6 +209,96 @@ jobs:
           path: |
             migration-artifacts/tidb-to-prisma-schema-diff.sql
             migration-artifacts/tidb-schema-audit-summary.txt
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Safely test Prisma schema repair in an isolated TiDB schema
+        if: ${{ inputs.operation == 'schema-repair-preflight' }}
+        shell: bash
+        env:
+          NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+          TIDB_DATABASE_URL: ${{ secrets.TIDB_DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          REPAIR_TEST_SCHEMA="tidb_schema_repair_test_${GITHUB_RUN_ID}"
+          export REPAIR_TEST_SCHEMA
+          python3 - <<'PY'
+          import os, re
+          schema = os.environ["REPAIR_TEST_SCHEMA"]
+          if not re.fullmatch(r"[a-z][a-z0-9_]{0,62}", schema):
+              raise SystemExit("Invalid temporary schema identifier")
+          with open("migration-artifacts/schema.sql", encoding="utf-8") as f:
+              ddl = f.read()
+          ddl = ddl.replace("CREATE SCHEMA public;", f"CREATE SCHEMA {schema};")
+          ddl = ddl.replace('"public".', f'"{schema}".')
+          ddl = re.sub(r"(?m)^SET [^;]+;\\s*\\n", "", ddl)
+          ddl = re.sub(r"(?m)^SELECT pg_catalog\\.set_config\\([^;]+;\\s*\\n", "", ddl)
+          with open("migration-artifacts/repair-test-base.sql", "w", encoding="utf-8") as f:
+              f.write(ddl)
+          PY
+          npx --yes prisma@6.15.0 migrate diff \
+            --from-url "$TIDB_DATABASE_URL" \
+            --to-schema-datamodel prisma/schema.prisma \
+            --script > migration-artifacts/tidb-to-prisma-schema-diff.sql
+          python3 - <<'PY'
+          import os, re
+          schema = os.environ["REPAIR_TEST_SCHEMA"]
+          path = "migration-artifacts/tidb-to-prisma-schema-diff.sql"
+          sql = open(path, encoding="utf-8").read()
+          # Preserve TiDB-managed tables and existing performance indexes.
+          sql = re.sub(r'(?m)^DROP TABLE "public"\\."tidbcloud_com_cell_[^"]+";\\s*\\n?', "", sql)
+          sql = re.sub(r'(?m)^DROP INDEX "public"\\."maintenance_records_vehiclePlateNumber_idx";\\s*\\n?', "", sql)
+          sql = re.sub(r'(?m)^DROP INDEX "public"\\."tire_lifecycle_events_tireId_eventAt_idx";\\s*\\n?', "", sql)
+          sql = re.sub(r'(?m)^CREATE INDEX "tire_lifecycle_events_tireId_eventAt_idx" ON "public"\\."tire_lifecycle_events"\\("tireId", "eventAt"\\);\\s*\\n?', "", sql)
+          # The only permitted index removal is the obsolete unique emailId index:
+          # the Prisma model now permits multiple webhook events per email.
+          forbidden = re.findall(r'(?im)^\\s*DROP\\s+(?:TABLE|INDEX|TYPE|SCHEMA)\\b.*;', sql)
+          for statement in forbidden:
+              if 'DROP INDEX "public"."email_logs_emailId_key"' not in statement:
+                  raise SystemExit("Unexpected destructive DDL in schema diff: " + statement)
+          if 'DROP TABLE "public"."tidbcloud_com_cell_' in sql:
+              raise SystemExit("Refusing to drop TiDB-managed tables")
+          sql = sql.replace('"public".', f'"{schema}".')
+          open("migration-artifacts/tidb-schema-repair-preflight.sql", "w", encoding="utf-8").write(sql)
+          print("Sanitized repair DDL generated; TiDB-managed tables and retained indexes are protected.")
+          PY
+          docker run --rm -i --network host \
+            -e TIDB_DATABASE_URL -e REPAIR_TEST_SCHEMA \
+            -v "$PWD/migration-artifacts:/work" -w /work \
+            postgres:18 bash -euo pipefail -s <<'CONTAINER_SCRIPT'
+          exists=$(psql "$TIDB_DATABASE_URL" -X -v ON_ERROR_STOP=1 -At -c "SELECT count(*) FROM information_schema.schemata WHERE schema_name = '$REPAIR_TEST_SCHEMA'")
+          if [ "$exists" != "0" ]; then
+            echo "Refusing to reuse existing test schema: $REPAIR_TEST_SCHEMA"
+            exit 1
+          fi
+          cleanup() {
+            psql "$TIDB_DATABASE_URL" -X -v ON_ERROR_STOP=1 -c "DROP SCHEMA IF EXISTS $REPAIR_TEST_SCHEMA CASCADE" >/dev/null
+            echo "Temporary schema cleanup completed."
+          }
+          trap cleanup EXIT
+          psql "$TIDB_DATABASE_URL" -X -v ON_ERROR_STOP=1 -f repair-test-base.sql
+          psql "$TIDB_DATABASE_URL" -X -v ON_ERROR_STOP=1 -f tidb-schema-repair-preflight.sql
+          required=$(psql "$TIDB_DATABASE_URL" -X -v ON_ERROR_STOP=1 -At -c "SELECT count(*) FROM information_schema.tables WHERE table_schema = '$REPAIR_TEST_SCHEMA' AND table_type = 'BASE TABLE'")
+          if [ "$required" -lt 43 ]; then
+            echo "Schema repair test created only $required tables; expected at least 43."
+            exit 1
+          fi
+          echo "Schema repair DDL passed in isolated TiDB schema. Tables present: $required"
+          CONTAINER_SCRIPT
+          {
+            echo "Isolated TiDB schema-repair preflight: PASS"
+            echo "The generated repair SQL was applied only to $REPAIR_TEST_SCHEMA and that schema was removed."
+            echo "No public TiDB tables or Neon data were modified."
+          } > migration-artifacts/tidb-schema-repair-preflight-summary.txt
+
+      - name: Upload schema repair preflight
+        if: ${{ inputs.operation == 'schema-repair-preflight' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: tidb-schema-repair-preflight
+          path: |
+            migration-artifacts/tidb-schema-repair-preflight.sql
+            migration-artifacts/tidb-schema-repair-preflight-summary.txt
           if-no-files-found: error
           retention-days: 7
 
