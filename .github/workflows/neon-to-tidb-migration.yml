@@ -154,12 +154,12 @@ jobs:
           psql "$TIDB_DATABASE_URL" -X -v ON_ERROR_STOP=1 -f preflight-data.sql
           echo "Checking all source table row counts in isolated schema..."
           while IFS="|" read -r source_schema table expected; do
-            actual=$(psql "$TIDB_DATABASE_URL" -X -v ON_ERROR_STOP=1 -At -c "SELECT count(*) FROM \\"$PREFLIGHT_SCHEMA\\".\\"$table\\"")
+            actual=$(psql "$TIDB_DATABASE_URL" -X -v ON_ERROR_STOP=1 -v schema_name="$PREFLIGHT_SCHEMA" -v table_name="$table" -At -c 'SELECT count(*) FROM :"schema_name".:"table_name"')
             if [ "$actual" != "$expected" ]; then
               echo "PREFLIGHT COUNT MISMATCH $table source=$expected target=$actual"
               exit 1
             fi
-            printf "OK %s %s rows\\n" "$table" "$actual"
+            printf "OK %s %s rows\n" "$table" "$actual"
           done < source-row-counts.txt
           echo "Preflight passed: schema and all data imported and verified in isolated schema."
           CONTAINER_SCRIPT
