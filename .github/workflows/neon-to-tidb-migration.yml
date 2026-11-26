@@ -128,7 +128,7 @@ jobs:
           with open("migration-artifacts/preflight-schema.sql", "w", encoding="utf-8") as f:
               f.write(ddl)
           PY
-          docker run --rm --network host \
+          docker run --rm -i --network host \
             -e NEON_DATABASE_URL -e TIDB_DATABASE_URL -e PREFLIGHT_SCHEMA \
             -v "$PWD/migration-artifacts:/work" -w /work \
             postgres:18 bash -euo pipefail -s <<'CONTAINER_SCRIPT'
@@ -143,7 +143,7 @@ jobs:
             echo "Refusing preflight: temporary schema already exists: $PREFLIGHT_SCHEMA"
             exit 1
           fi
-          cleanup() { psql "$TIDB_DATABASE_URL" -X -v ON_ERROR_STOP=1 -c "DROP SCHEMA IF EXISTS $PREFLIGHT_SCHEMA CASCADE" >/dev/null 2>&1 || true; }
+          cleanup() { psql "$TIDB_DATABASE_URL" -X -v ON_ERROR_STOP=1 -c "DROP SCHEMA IF EXISTS $PREFLIGHT_SCHEMA CASCADE" >/dev/null; echo "Temporary preflight schema cleanup completed."; }
           trap cleanup EXIT
           psql "$TIDB_DATABASE_URL" -X -v ON_ERROR_STOP=1 -c "CREATE SCHEMA $PREFLIGHT_SCHEMA"
           psql "$TIDB_DATABASE_URL" -X -v ON_ERROR_STOP=1 -f preflight-schema.sql
