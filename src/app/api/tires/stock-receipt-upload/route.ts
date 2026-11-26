@@ -48,6 +48,7 @@ function parseDate(value: ExcelJS.CellValue): Date | null {
 }
 
 const normalizeHeader = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, '')
+const normalizeSerial = (value: string) => value.normalize('NFKC').trim().toUpperCase().replace(/\s+/g, '')
 
 export async function POST(request: NextRequest) {
   try {
@@ -143,34 +144,69 @@ export async function POST(request: NextRequest) {
     if (!rows.length) return NextResponse.json({ error: 'No stock receipt rows found.' }, { status: 400 })
 
     const serials = rows.map(row => row.serial).filter(Boolean)
-    if (new Set(serials.map(value => value.toLowerCase())).size !== serials.length) {
+    if (new Set(serials.map(normalizeSerial)).size !== serials.length) {
       return NextResponse.json({ error: 'The sheet contains duplicate serial numbers. Each serial number must identify one tire.' }, { status: 400 })
     }
 
     const result = await db.$transaction(async tx => {
       await ensureTireLifecycleTables(tx)
-      if (serials.length) {
-        const existing = await tx.tire.findFirst({
-          where: {
-            deletedAt: null,
-            OR: serials.map(serial => ({ serialNumber: { equals: serial, mode: 'insensitive' } }))
-          },
-          select: { serialNumber: true }
-        })
-        if (existing?.serialNumber) throw new Error('Serial number already exists in Tire Management: ' + existing.serialNumber)
+      const existingSerialRows = serials.length ? await tx.tire.findMany({
+        where: { deletedAt: null, serialNumber: { not: null } },
+        select: {
+          id: true, serialNumber: true, createdAt: true, tireSize: true, manufacturer: true,
+          origin: true, supplierName: true, purchaseReference: true, purchaseCost: true, notes: true
+        }
+      }) : []
+      const existingBySerial = new Map<string, typeof existingSerialRows>()
+      for (const item of existingSerialRows) {
+        if (!item.serialNumber) continue
+        const key = normalizeSerial(item.serialNumber)
+        const matches = existingBySerial.get(key) || []
+        matches.push(item)
+        existingBySerial.set(key, matches)
       }
+      for (const matches of existingBySerial.values()) matches.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime() || a.id.localeCompare(b.id))
 
       let tireCount = 0
+      let mergedCount = 0
+      let updatedExisting = 0
+      let legacyDuplicateSerials = 0
       const receiptIds: string[] = []
       for (const row of rows) {
+        const existingMatches = row.serial ? existingBySerial.get(normalizeSerial(row.serial)) || [] : []
+        const existingTire = existingMatches[0]
+        if (existingMatches.length > 1) legacyDuplicateSerials++
+
+        if (existingTire) {
+          // A serial identifies the same physical tire even if the uploaded
+          // workbook has changed. Preserve its current assignment, lifecycle
+          // state and existing purchase/history details; only fill missing data.
+          const updateData: any = {}
+          if ((!existingTire.tireSize || existingTire.tireSize === 'Unspecified') && row.tireSize) updateData.tireSize = row.tireSize
+          if ((!existingTire.manufacturer || existingTire.manufacturer === 'Unspecified') && row.manufacturer) updateData.manufacturer = row.manufacturer
+          if ((!existingTire.origin || existingTire.origin === 'OTHER') && row.origin) updateData.origin = row.origin
+          if (!existingTire.supplierName && row.supplierName) updateData.supplierName = row.supplierName
+          if (!existingTire.purchaseReference && row.purchaseReference) updateData.purchaseReference = row.purchaseReference
+          if (existingTire.purchaseCost == null && row.purchaseCost != null) updateData.purchaseCost = row.purchaseCost
+          if (row.notes && !(existingTire.notes || '').includes(row.notes)) {
+            updateData.notes = [existingTire.notes, 'Additional stock receipt workbook note: ' + row.notes].filter(Boolean).join(' | ')
+          }
+          if (Object.keys(updateData).length) {
+            await tx.tire.update({ where: { id: existingTire.id }, data: updateData })
+            updatedExisting++
+          }
+          mergedCount++
+          continue
+        }
+
         const fingerprint = [
           row.date.toISOString(), row.tireSize.toLowerCase(), row.manufacturer.toLowerCase(),
-          row.origin, row.serial.toLowerCase(), row.quantity, row.supplierName.toLowerCase(),
+          row.origin, normalizeSerial(row.serial), row.quantity, row.supplierName.toLowerCase(),
           row.purchaseReference.toLowerCase(), row.purchaseCost ?? '', row.notes.toLowerCase(), row.line
         ].join('|')
         const codePrefix = 'TY-RC-' + createHash('sha256').update(fingerprint).digest('hex').slice(0, 18).toUpperCase()
         const codes = Array.from({ length: row.quantity }, (_, index) => codePrefix + '-' + String(index + 1).padStart(3, '0'))
-        const duplicate = await tx.tire.findFirst({ where: { internalCode: { in: codes }, deletedAt: null }, select: { internalCode: true } })
+        const duplicate = await tx.tire.findFirst({ where: { internalCode: { in: codes } }, select: { internalCode: true } })
         if (duplicate) throw new Error('This stock receipt sheet appears to have already been uploaded. Duplicate import prevented.')
 
         for (let index = 0; index < row.quantity; index++) {
@@ -208,16 +244,19 @@ export async function POST(request: NextRequest) {
           tireCount++
         }
       }
-      return { tireCount, receiptCount: receiptIds.length }
+      return { tireCount, mergedCount, updatedExisting, legacyDuplicateSerials, receiptCount: receiptIds.length }
     }, { timeout: 120000 })
 
     await syncOneDriveWorkbookAfterChange()
     return NextResponse.json({
-      message: 'Received ' + result.tireCount + ' individual tire records from ' + rows.length + ' spreadsheet rows. All receipt events were saved to tire lifecycle history; no workshop job cards were created.',
+      message: 'Created ' + result.tireCount + ' new tire records and matched ' + result.mergedCount + ' rows to existing serial-number records. ' + result.updatedExisting + ' existing records were updated only where details were missing. Existing assignments and lifecycle histories were preserved; no duplicate tires or repeat receipt events were created. ' + result.legacyDuplicateSerials + ' serials already had multiple legacy rows and were matched to the oldest record. No workshop job cards were created.',
       rows: rows.length,
       tires: result.tireCount,
+      merged: result.mergedCount,
+      updatedExisting: result.updatedExisting,
+      legacyDuplicateSerials: result.legacyDuplicateSerials,
       receipts: result.receiptCount
-    }, { status: 201 })
+    }, { status: result.tireCount > 0 ? 201 : 200 })
   } catch (error) {
     console.error('Bulk tire stock receipt failed:', error)
     const message = error instanceof Error ? error.message : ''
