@@ -1,12 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Upload, FileSpreadsheet, CheckCircle2, AlertCircle, Loader2, Eye, ShieldCheck, RefreshCw } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import { Upload, FileSpreadsheet, CheckCircle2, AlertCircle, Loader2, Eye, ShieldCheck, RefreshCw, Search, ChevronLeft, ChevronRight, X, FileCheck2, Database, History, Hash, AlertTriangle } from 'lucide-react'
 import { toast } from '@/lib/localized-toast'
 
 type PreviewUnit = {
@@ -53,224 +54,212 @@ type ImportPreview = {
   preview: PreviewUnit[]
   previewLimit: number
   previewTruncated: boolean
+  pageInfo?: { page: number; pageSize: number; total: number; totalPages: number }
 }
 
+const PAGE_SIZE = 50
+const number = (value: number) => new Intl.NumberFormat().format(value)
+const formatDate = (value: string | null) => value ? new Date(value).toLocaleDateString() : '—'
+
 export default function TireBulkUpload() {
+  const inputRef = useRef<HTMLInputElement>(null)
   const [file, setFile] = useState<File | null>(null)
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [preview, setPreview] = useState<ImportPreview | null>(null)
+  const [page, setPage] = useState(1)
+  const [search, setSearch] = useState('')
+  const [appliedSearch, setAppliedSearch] = useState('')
+  const [sheet, setSheet] = useState('all')
+  const [confirmImport, setConfirmImport] = useState(false)
+  const [dragging, setDragging] = useState(false)
 
-  const sendFile = async (mode: 'preview' | 'import') => {
-    if (!file) {
-      setError('Choose an Excel or CSV file first.')
-      return
-    }
-    setBusy(true)
-    setError('')
-    setMessage('')
+  const clearSelection = useCallback(() => {
+    setFile(null); setPreview(null); setMessage(''); setError('')
+    setPage(1); setSearch(''); setAppliedSearch(''); setSheet('all'); setConfirmImport(false)
+    if (inputRef.current) inputRef.current.value = ''
+  }, [])
+
+  const sendFile = async (mode: 'preview' | 'import', requestedPage = 1) => {
+    if (!file) { setError('Choose an Excel or CSV file first.'); return }
+    setBusy(true); setError(''); setMessage('')
     try {
       const data = new FormData()
       data.append('file', file)
       data.append('mode', mode)
-      // The app stores its JWT in localStorage. This upload previously sent
-      // only cookies, which fails for OTP sessions because the OTP login route
-      // returns a token but does not set the auth-token cookie.
+      data.append('page', String(requestedPage))
+      data.append('pageSize', String(PAGE_SIZE))
+      data.append('search', appliedSearch)
+      data.append('sheet', sheet)
       const token = localStorage.getItem('authToken')
       const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {}
-      const response = await fetch('/api/tires/bulk-upload', {
-        method: 'POST',
-        headers,
-        credentials: 'include',
-        body: data
-      })
+      const response = await fetch('/api/tires/bulk-upload', { method: 'POST', headers, credentials: 'include', body: data })
       const result = await response.json()
       if (!response.ok) throw new Error(result.error || 'Tire sheet operation failed.')
       if (mode === 'preview') {
-        setPreview(result as ImportPreview)
+        setPreview(result as ImportPreview); setPage(requestedPage)
+        setConfirmImport(false)
         setMessage(result.message || 'Analysis complete. No records have been saved.')
-        toast.success('Sheet analyzed. Review the preview before importing.')
       } else {
         setMessage(result.message || 'Tire usage history imported.')
-        setPreview(null)
-        setFile(null)
-        const input = document.getElementById('tire-bulk-file') as HTMLInputElement | null
-        if (input) input.value = ''
+        setPreview(null); setConfirmImport(false); setFile(null)
+        if (inputRef.current) inputRef.current.value = ''
         toast.success(result.message || 'Tire usage history imported.')
       }
     } catch (cause) {
       const msg = cause instanceof Error ? cause.message : 'Tire sheet operation failed.'
-      setError(msg)
-      toast.error(msg)
-    } finally {
-      setBusy(false)
-    }
+      setError(msg); toast.error(msg)
+    } finally { setBusy(false) }
   }
 
-  const formatDate = (value: string | null) => value
-    ? new Date(value).toLocaleDateString()
-    : '—'
-
-  const statusLabel = (status: PreviewUnit['status']) => status === 'READY'
-    ? 'Ready'
-    : status === 'DUPLICATE' ? 'Duplicate' : 'Needs review'
-
-  const statusClass = (status: PreviewUnit['status']) => status === 'READY'
-    ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
-    : status === 'DUPLICATE'
-      ? 'bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300'
-      : 'bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300'
-
-  const clearSelection = () => {
-    setFile(null)
-    setPreview(null)
-    setMessage('')
-    setError('')
-    const input = document.getElementById('tire-bulk-file') as HTMLInputElement | null
-    if (input) input.value = ''
+  const chooseFile = (next: File | null) => {
+    setFile(next); setPreview(null); setMessage(''); setError('')
+    setPage(1); setSearch(''); setAppliedSearch(''); setSheet('all'); setConfirmImport(false)
   }
 
-  return <Card>
-    <CardHeader>
-      <CardTitle className="flex items-center gap-2"><FileSpreadsheet className="h-5 w-5" /> Smart tire usage-history import</CardTitle>
-      <p className="text-sm text-muted-foreground">Upload the spreadsheet as it is. The importer creates exactly the number of tire records stated in each valid OUT QTY cell. Serial numbers identify those records; they never increase the count.</p>
-    </CardHeader>
-    <CardContent className="space-y-4">
-      <div className="rounded-lg border bg-muted/30 p-3 text-sm">
-        <p className="font-medium">No fixed tire-size or origin selection is required</p>
-        <p className="mt-1 text-xs text-muted-foreground">The importer reads date, truck or trailer reference, driver, serial number, quantity, tire size, manufacturer, origin and usage history directly from each worksheet. Missing values remain missing; source vehicle references are retained as text.</p>
-        <p className="mt-2 text-xs text-muted-foreground">Repeated serials on separate source rows are imported as separate source occurrences. No database serial lookup, fleet lookup, deduplication, or automatic vehicle assignment is performed.</p>
-      </div>
+  const applyFilters = () => { setAppliedSearch(search.trim()); setPage(1); void sendFile('preview', 1) }
+  const goToPage = (next: number) => { if (!busy && next >= 1 && next <= (preview?.pageInfo?.totalPages || 1)) void sendFile('preview', next) }
 
-      <div className="space-y-2">
-        <Label htmlFor="tire-bulk-file">Excel / CSV usage-history file</Label>
-        <Input
-          id="tire-bulk-file"
-          type="file"
-          accept=".xlsx,.csv"
-          disabled={busy}
-          onChange={event => {
-            setFile(event.target.files?.[0] || null)
-            setPreview(null)
-            setMessage('')
-            setError('')
-          }}
-        />
-        {file && <p className="text-xs text-muted-foreground">{file.name} · {(file.size / 1024).toFixed(1)} KB</p>}
-      </div>
+  const stats = useMemo(() => {
+    if (!preview) return []
+    const s = preview.summary
+    return [
+      { label: 'Tire records', value: s.tiresDetected, icon: Database },
+      { label: 'Usage history', value: s.historyEntries, icon: History },
+      { label: 'Serial occurrences', value: s.serialUsageOccurrences, icon: Hash },
+      { label: 'Rows to review', value: s.unquantifiedRows, icon: AlertTriangle }
+    ]
+  }, [preview])
 
-      {error && <Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertDescription>{error}</AlertDescription></Alert>}
-      {message && <Alert><CheckCircle2 className="h-4 w-4" /><AlertDescription>{message}</AlertDescription></Alert>}
+  const status = (value: PreviewUnit['status']) => value === 'READY'
+    ? <Badge className="border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-300">Ready</Badge>
+    : value === 'DUPLICATE'
+      ? <Badge variant="secondary">Duplicate</Badge>
+      : <Badge variant="destructive">Blocked</Badge>
 
-      {!preview && <Button onClick={() => sendFile('preview')} disabled={busy || !file}>
-        {busy ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Analyzing sheet…</> : <><Eye className="mr-2 h-4 w-4" />Analyze sheet and show preview</>}
-      </Button>}
-
-      {preview && <>
-        <div className="rounded-lg border p-3">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <p className="font-medium">Import analysis</p>
-              <p className="text-xs text-muted-foreground">File: {preview.fileName}</p>
-              <p className="text-xs text-muted-foreground">Detected worksheets: {preview.sheets.join(', ')}</p>
-            </div>
-            <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium">Preview only · database unchanged</span>
+  return <div className="space-y-5">
+    <Card className="overflow-hidden border-0 shadow-sm">
+      <CardHeader className="border-b bg-gradient-to-r from-slate-50 to-white dark:from-slate-950 dark:to-background">
+        <div className="flex items-start gap-3">
+          <div className="rounded-xl bg-primary/10 p-3 text-primary"><FileSpreadsheet className="h-6 w-6" /></div>
+          <div className="min-w-0">
+            <CardTitle className="text-xl">Tire history import</CardTitle>
+            <p className="mt-1 text-sm text-muted-foreground">Upload the original workbook. Review the reconciliation, inspect source rows, then confirm one controlled import.</p>
           </div>
-          <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-5 p-4 sm:p-6">
+        <div className="grid gap-3 sm:grid-cols-3">
+          <div className="flex gap-3 rounded-xl border p-3"><Hash className="mt-0.5 h-5 w-5 text-primary" /><div><p className="text-sm font-semibold">OUT QTY controls count</p><p className="text-xs text-muted-foreground">One tire record per valid quantity slot.</p></div></div>
+          <div className="flex gap-3 rounded-xl border p-3"><History className="mt-0.5 h-5 w-5 text-primary" /><div><p className="text-sm font-semibold">History stays separate</p><p className="text-xs text-muted-foreground">Dated usage events are attached to their source tire slots.</p></div></div>
+          <div className="flex gap-3 rounded-xl border p-3"><ShieldCheck className="mt-0.5 h-5 w-5 text-primary" /><div><p className="text-sm font-semibold">No silent matching</p><p className="text-xs text-muted-foreground">No serial deduplication, fleet lookup, or vehicle assignment.</p></div></div>
+        </div>
+
+        <div
+          role="button" tabIndex={0}
+          onClick={() => !busy && inputRef.current?.click()}
+          onKeyDown={event => { if ((event.key === 'Enter' || event.key === ' ') && !busy) inputRef.current?.click() }}
+          onDragOver={event => { event.preventDefault(); if (!busy) setDragging(true) }}
+          onDragLeave={() => setDragging(false)}
+          onDrop={event => { event.preventDefault(); setDragging(false); if (!busy) chooseFile(event.dataTransfer.files?.[0] || null) }}
+          className={`cursor-pointer rounded-2xl border-2 border-dashed p-6 text-center transition sm:p-10 ${dragging ? 'border-primary bg-primary/5' : 'border-muted-foreground/25 hover:border-primary/60 hover:bg-muted/30'} ${busy ? 'pointer-events-none opacity-60' : ''}`}
+        >
+          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary"><Upload className="h-6 w-6" /></div>
+          <p className="font-semibold">{file ? file.name : 'Drop your workbook here'}</p>
+          <p className="mt-1 text-sm text-muted-foreground">{file ? `${(file.size / 1024).toFixed(1)} KB · Click to replace file` : 'or browse to select an Excel or CSV file'}</p>
+          <p className="mt-2 text-xs text-muted-foreground">.xlsx or .csv · Maximum 10 MB · No template required</p>
+          <Input ref={inputRef} id="tire-bulk-file" type="file" accept=".xlsx,.csv" className="sr-only" disabled={busy} onChange={event => chooseFile(event.target.files?.[0] || null)} />
+        </div>
+
+        {error && <Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertDescription>{error}</AlertDescription></Alert>}
+        {message && <Alert><CheckCircle2 className="h-4 w-4" /><AlertDescription>{message}</AlertDescription></Alert>}
+
+        {!preview && <div className="flex flex-wrap items-center gap-2">
+          <Button onClick={() => sendFile('preview')} disabled={busy || !file} className="min-w-44">
+            {busy ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Analyzing workbook…</> : <><Eye className="mr-2 h-4 w-4" />Analyze workbook</>}
+          </Button>
+          {file && <Button variant="ghost" onClick={clearSelection} disabled={busy}><X className="mr-2 h-4 w-4" />Clear</Button>}
+        </div>}
+      </CardContent>
+    </Card>
+
+    {preview && <>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div><h2 className="text-lg font-semibold">Import analysis</h2><p className="text-sm text-muted-foreground">{preview.fileName} · {preview.summary.sourceRows} source rows · {preview.sheets.length} worksheets</p></div>
+        <Badge variant="outline" className="gap-1.5 px-3 py-1.5"><ShieldCheck className="h-3.5 w-3.5" />Preview only · database unchanged</Badge>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {stats.map(item => <Card key={item.label}><CardContent className="flex items-center gap-3 p-4"><div className="rounded-lg bg-muted p-2"><item.icon className="h-5 w-5 text-muted-foreground" /></div><div className="min-w-0"><p className="text-2xl font-bold tabular-nums">{number(item.value)}</p><p className="text-xs text-muted-foreground">{item.label}</p></div></CardContent></Card>)}
+      </div>
+
+      <Card>
+        <CardHeader className="pb-3"><CardTitle className="text-base">Quantity reconciliation</CardTitle><p className="text-sm text-muted-foreground">Every valid OUT QTY slot creates exactly one tire record. Serial values label slots; extra serials never create records. Invalid quantity rows remain visible but contribute zero.</p></CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {[
-              ['Tires detected', preview.summary.tiresDetected],
-              ['Usage entries', preview.summary.historyEntries],
-              ['Tire records from sheet', preview.summary.importableTires],
-              ['Usage entries to import', preview.summary.importableUsageEntries],
-              ['Repeated serial groups (kept separate)', preview.summary.repeatedSerialsGrouped],
-              ['Rows without valid OUT QTY', preview.summary.unquantifiedRows],
+              ['OUT QTY total', preview.summary.sourceQuantityTotal],
+              ['Unique serial values', preview.summary.uniqueSerialTires],
+              ['Repeated appearances', preview.summary.repeatedSerialUsageOccurrences],
+              ['Unnumbered slots', preview.summary.unnumberedQuantitySlots],
+              ['Repeated serial groups', preview.summary.repeatedSerialsGrouped],
+              ['Rows without valid quantity', preview.summary.unquantifiedRows],
+              ['Usage entries to save', preview.summary.importableUsageEntries],
               ['Warnings', preview.summary.warnings]
-            ].map(([label, value]) => <div key={String(label)} className="rounded-md bg-muted/50 p-2">
-              <p className="text-lg font-semibold tabular-nums">{value}</p>
-              <p className="text-xs text-muted-foreground">{label}</p>
-            </div>)}
+            ].map(([label, value]) => <div key={String(label)} className="rounded-xl bg-muted/50 p-3"><p className="text-xl font-semibold tabular-nums">{number(Number(value))}</p><p className="text-xs text-muted-foreground">{label}</p></div>)}
           </div>
-          <div className="mt-4 rounded-md border p-3">
-            <p className="text-sm font-semibold">Quantity reconciliation</p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              OUT QTY is the total number of tire-usage units recorded in the source. Every OUT QTY slot is retained as a separate tire record. Repeated serials on different rows are not merged or matched. Rows without a valid OUT QTY remain visible in the analysis but create zero tire records. Extra serial numbers never increase the OUT QTY count.
-            </p>
-            <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
-              {[
-                ['Source OUT QTY total', preview.summary.sourceQuantityTotal],
-                ['Serial usage occurrences', preview.summary.serialUsageOccurrences],
-                ['Unique serial values in sheet', preview.summary.uniqueSerialTires],
-                ['Repeated serial appearances (kept separate)', preview.summary.repeatedSerialUsageOccurrences],
-                ['Unnumbered quantity slots', preview.summary.unnumberedQuantitySlots],
-                ['Unnumbered tire candidates', preview.summary.unnumberedTireCandidates],
-                ['Rows without valid OUT QTY', preview.summary.unquantifiedRows]
-              ].map(([label, value]) => <div key={String(label)} className="rounded-md bg-muted/50 p-2">
-                <p className="text-base font-semibold tabular-nums">{value}</p>
-                <p className="text-xs text-muted-foreground">{label}</p>
-              </div>)}
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            <span className="font-medium">Worksheets:</span>
+            {preview.sheets.map(name => <Badge key={name} variant="secondary">{name}</Badge>)}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-3"><div className="flex flex-wrap items-center justify-between gap-2"><div><CardTitle className="text-base">Source tire records</CardTitle><p className="text-sm text-muted-foreground">Inspect each quantity slot with its original worksheet and row reference.</p></div><Badge variant="outline">{number(preview.pageInfo?.total ?? preview.summary.tiresDetected)} records</Badge></div></CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <div className="relative min-w-0 flex-1"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input value={search} onChange={event => setSearch(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') applyFilters() }} placeholder="Search serial, vehicle, worksheet or tire size…" className="pl-9" /></div>
+            <select value={sheet} onChange={event => { setSheet(event.target.value); setPage(1); setTimeout(() => void sendFile('preview', 1), 0) }} className="h-10 rounded-md border bg-background px-3 text-sm sm:w-56"><option value="all">All worksheets</option>{preview.sheets.map(name => <option key={name} value={name}>{name}</option>)}</select>
+            <Button variant="secondary" onClick={applyFilters} disabled={busy}><Search className="mr-2 h-4 w-4" />Search</Button>
+          </div>
+          <div className="overflow-hidden rounded-xl border">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[900px] text-left text-sm">
+                <thead className="bg-muted/60 text-xs text-muted-foreground"><tr><th className="px-3 py-3">Source</th><th className="px-3 py-3">Serial</th><th className="px-3 py-3">Specification</th><th className="px-3 py-3">History</th><th className="px-3 py-3">Source vehicle</th><th className="px-3 py-3">Status</th></tr></thead>
+                <tbody>
+                  {preview.preview.map((item, index) => <tr key={item.sourceSheet + '-' + item.sourceRow + '-' + index} className="border-t align-top hover:bg-muted/20">
+                    <td className="px-3 py-3"><p className="font-medium">{item.sourceSheet}</p><p className="text-xs text-muted-foreground">Row {item.sourceRow} · OUT QTY {item.sourceOutQty}</p></td>
+                    <td className="px-3 py-3 font-mono text-xs">{item.serial || <span className="font-sans text-muted-foreground">Not supplied</span>}</td>
+                    <td className="px-3 py-3"><p>{item.tireSize || 'Unspecified'}</p><p className="text-xs text-muted-foreground">{item.manufacturer || 'Unspecified'} · {item.origin || 'OTHER'}</p></td>
+                    <td className="px-3 py-3"><p>{item.historyEntries} event(s)</p><p className="text-xs text-muted-foreground">{formatDate(item.firstDate)} – {formatDate(item.lastDate)}</p>{item.warnings.slice(0,1).map((warning,i)=><p key={i} className="mt-1 max-w-xs text-xs text-amber-700 dark:text-amber-300">{warning}</p>)}</td>
+                    <td className="px-3 py-3">{item.vehicles.join(', ') || <span className="text-muted-foreground">Not supplied</span>}</td>
+                    <td className="px-3 py-3">{status(item.status)}{item.errors.length > 0 && <p className="mt-1 max-w-xs text-xs text-destructive">{item.errors[0]}</p>}</td>
+                  </tr>)}
+                  {preview.preview.length === 0 && <tr><td colSpan={6} className="px-3 py-10 text-center text-sm text-muted-foreground">No records match these filters.</td></tr>}
+                </tbody>
+              </table>
             </div>
           </div>
-          <p className="mt-3 text-xs text-muted-foreground">Source rows analyzed: {preview.summary.sourceRows}. Each workbook row and quantity slot is counted independently. No database records are changed during analysis.</p>
-        </div>
-
-        <div className="space-y-2">
-          <div className="flex items-center justify-between gap-2">
-            <p className="font-medium">Detected tire records</p>
-            <span className="text-xs text-muted-foreground">Showing {preview.preview.length} of {preview.summary.tiresDetected}</span>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-xs text-muted-foreground">Showing {preview.preview.length ? ((preview.pageInfo?.page || page)-1)*(preview.pageInfo?.pageSize || PAGE_SIZE)+1 : 0}–{Math.min((preview.pageInfo?.page || page)*(preview.pageInfo?.pageSize || PAGE_SIZE), preview.pageInfo?.total ?? preview.summary.tiresDetected)} of {number(preview.pageInfo?.total ?? preview.summary.tiresDetected)}</p>
+            <div className="flex items-center gap-2"><Button variant="outline" size="sm" onClick={() => goToPage(page-1)} disabled={busy || page <= 1}><ChevronLeft className="h-4 w-4" />Previous</Button><span className="text-xs tabular-nums text-muted-foreground">Page {preview.pageInfo?.page || page} of {preview.pageInfo?.totalPages || 1}</span><Button variant="outline" size="sm" onClick={() => goToPage(page+1)} disabled={busy || page >= (preview.pageInfo?.totalPages || 1)}>Next<ChevronRight className="h-4 w-4" /></Button></div>
           </div>
-          <div className="overflow-x-auto rounded-lg border">
-            <table className="w-full min-w-[760px] text-left text-xs">
-              <thead className="bg-muted/60">
-                <tr>
-                  <th className="px-3 py-2">Source row</th>
-                  <th className="px-3 py-2">Serial / tire</th>
-                  <th className="px-3 py-2">Detected details</th>
-                  <th className="px-3 py-2">Usage history</th>
-                  <th className="px-3 py-2">Vehicles</th>
-                  <th className="px-3 py-2">Import status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {preview.preview.map((item, index) => <tr key={(item.serial || 'unserialised') + '-' + index} className="border-t align-top">
-                  <td className="px-3 py-3">
-                    <div className="font-medium">{item.sourceSheet}</div>
-                    <div className="text-muted-foreground">Row {item.sourceRow} · OUT QTY {item.sourceOutQty}</div>
-                  </td>
-                  <td className="px-3 py-3 font-medium">{item.serial || 'Serial not supplied'}</td>
-                  <td className="px-3 py-3">
-                    <div>{item.tireSize}</div>
-                    <div className="text-muted-foreground">{item.manufacturer} · {item.origin}</div>
-                  </td>
-                  <td className="px-3 py-3">
-                    <div>{item.historyEntries} entry/entries</div>
-                    <div className="text-muted-foreground">{formatDate(item.firstDate)} – {formatDate(item.lastDate)}</div>
-                    {item.warnings.slice(0, 2).map((warning, i) => <p key={i} className="mt-1 text-amber-700 dark:text-amber-300">{warning}</p>)}
-                    {item.errors.slice(0, 2).map((problem, i) => <p key={i} className="mt-1 text-red-600 dark:text-red-400">{problem}</p>)}
-                  </td>
-                  <td className="px-3 py-3">{item.vehicles.join(', ') || 'Unresolved'}</td>
-                  <td className="px-3 py-3">
-                    <span className={'inline-flex rounded-full px-2 py-1 font-medium ' + statusClass(item.status)}>{statusLabel(item.status)}</span>
-                    {item.duplicateReason && <p className="mt-1 text-muted-foreground">{item.duplicateReason}</p>}
-                  </td>
-                </tr>)}
-              </tbody>
-            </table>
-          </div>
-          {preview.previewTruncated && <p className="text-xs text-muted-foreground">Only the first {preview.previewLimit} tire records are displayed here. All detected source records are included in the import.</p>}
-        </div>
+        </CardContent>
+      </Card>
 
-        <div className="flex flex-wrap gap-2">
-          <Button onClick={() => sendFile('import')} disabled={busy || preview.summary.importableTires === 0}>
-            {busy ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Processing tire history…</> : <><ShieldCheck className="mr-2 h-4 w-4" />Import {preview.summary.importableTires} tire records from workbook</>}
-          </Button>
-          <Button type="button" variant="outline" onClick={() => sendFile('preview')} disabled={busy || !file}>
-            <RefreshCw className="mr-2 h-4 w-4" />Re-analyze sheet
-          </Button>
-          <Button type="button" variant="ghost" onClick={clearSelection} disabled={busy}>Cancel</Button>
-        </div>
-        <p className="text-xs text-muted-foreground">Exactly the valid OUT QTY total is imported. Rows without valid OUT QTY create no tire records; serial identifiers only label quantity slots. No fleet matching, existing-serial matching, grouping, or review-based blocking is performed. Original vehicle references and source row details are saved as text when no database relation is available. Dated rows create tire usage-history events; rows without dates remain as tire source records. Tire imports never create or link Workshop Job Cards. This workbook does not create stock receipts.</p>
-      </>}
-    </CardContent>
-  </Card>
+      <Card className="border-primary/30">
+        <CardContent className="space-y-3 p-4 sm:p-5">
+          <div className="flex items-start gap-3"><FileCheck2 className="mt-0.5 h-5 w-5 text-primary" /><div><p className="font-semibold">Ready to import {number(preview.summary.importableTires)} tire records</p><p className="text-sm text-muted-foreground">This operation writes tire records and dated usage history only. It does not create stock receipts, match fleet vehicles, search existing serial numbers, or create Workshop Job Cards.</p></div></div>
+          {confirmImport ? <Alert><AlertTriangle className="h-4 w-4" /><AlertDescription><strong>Confirm permanent import.</strong> {number(preview.summary.importableTires)} tire records and {number(preview.summary.importableUsageEntries)} usage-history entries will be written to the database. Confirm only if this is the final reviewed workbook.</AlertDescription></Alert> : null}
+          <div className="flex flex-wrap gap-2">
+            {!confirmImport ? <Button onClick={() => setConfirmImport(true)} disabled={busy || preview.summary.importableTires === 0}><ShieldCheck className="mr-2 h-4 w-4" />Review and confirm import</Button> : <Button onClick={() => sendFile('import')} disabled={busy || preview.summary.importableTires === 0}>{busy ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Importing records…</> : <><CheckCircle2 className="mr-2 h-4 w-4" />Confirm import of {number(preview.summary.importableTires)} tires</>}</Button>}
+            <Button variant="outline" onClick={() => sendFile('preview', 1)} disabled={busy || !file}><RefreshCw className="mr-2 h-4 w-4" />Re-analyze</Button>
+            <Button variant="ghost" onClick={clearSelection} disabled={busy}>Cancel</Button>
+          </div>
+        </CardContent>
+      </Card>
+    </>}
+  </div>
 }
