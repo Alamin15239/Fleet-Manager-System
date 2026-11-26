@@ -286,10 +286,9 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
       if (!hasSourceContext && !quantityIsValid) continue
 
       const plausibleDate = Boolean(date && date.getUTCFullYear() >= 2000 && date.getUTCFullYear() <= 2100)
-      // Source rows are retained even when date, vehicle, or quantity is missing.
-      // OUT QTY creates that many individual tire records; extra serial identifiers
-      // are also retained rather than discarded when they exceed OUT QTY.
-      // Every non-empty source row is retained; no fleet or database lookup is used.
+      // Source rows are retained in the analysis even when date, vehicle, or
+      // quantity is missing. Only a valid OUT QTY creates tire records. Serial
+      // identifiers are assigned to those quantity slots and never add units.
 
       // Preserve both OUT QTY slots and any additional serial identifiers from the source row.
       const quantity = qtyText ? parsedQty : 0
@@ -345,7 +344,12 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
   const exactDuplicateRows = 0
   const units: ImportUnit[] = []
   for (const source of sourceEntries) {
-    const sourceSlots = Math.max(1, source.quantity, source.serials.length)
+    // OUT QTY is the sole authority for the number of tire units. Serial
+    // identifiers label those units; they never create additional units.
+    // Rows with missing/invalid OUT QTY remain in source analysis but create
+    // no tire records. Extra serial tokens are reported as warnings above
+    // and are not allowed to inflate the import count.
+    const sourceSlots = source.quantity
     for (let index = 0; index < sourceSlots; index++) {
       const serial = source.serials[index] || null
       const key = 'source:' + source.sheetName + ':' + source.line + ':' + String(index + 1)
@@ -366,7 +370,8 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
   const sourceQuantityTotal = sourceEntries.reduce((sum, source) => sum + Math.max(0, source.quantity), 0)
   const serialOccurrenceCounts = new Map<string, number>()
   for (const source of sourceEntries) {
-    for (const serial of source.serials) {
+    // Only serials assigned to an OUT QTY slot count as imported occurrences.
+    for (const serial of source.serials.slice(0, source.quantity)) {
       const key = serial.toLowerCase()
       serialOccurrenceCounts.set(key, (serialOccurrenceCounts.get(key) || 0) + 1)
     }
