@@ -23,7 +23,7 @@ import {
   Trash2
 } from 'lucide-react'
 import { format } from 'date-fns'
-import { apiDelete, apiGet } from '@/lib/api'
+import { apiFetch, apiGet } from '@/lib/api'
 import { usePermissions } from '@/contexts/permissions-context'
 import { useRealTime } from '../../components/real-time-provider'
 
