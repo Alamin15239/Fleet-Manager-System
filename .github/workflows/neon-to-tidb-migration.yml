@@ -222,12 +222,21 @@ jobs:
           set -euo pipefail
           REPAIR_TEST_SCHEMA="tidb_schema_repair_test_${GITHUB_RUN_ID}"
           export REPAIR_TEST_SCHEMA
+          # Build the isolated test baseline from the actual TiDB public schema,
+          # not Neon. The repair diff is generated from TiDB, so testing it against
+          # a Neon schema can collide with indexes/objects that already differ.
+          docker run --rm --network host \
+            -e TIDB_DATABASE_URL \
+            -v "$PWD/migration-artifacts:/work" -w /work \
+            postgres:18 bash -euo pipefail -c '
+              pg_dump --schema-only --schema=public --no-owner --no-privileges "$TIDB_DATABASE_URL" > tidb-current-schema.sql
+            '
           python3 - <<'PY'
           import os, re
           schema = os.environ["REPAIR_TEST_SCHEMA"]
           if not re.fullmatch(r"[a-z][a-z0-9_]{0,62}", schema):
               raise SystemExit("Invalid temporary schema identifier")
-          with open("migration-artifacts/schema.sql", encoding="utf-8") as f:
+          with open("migration-artifacts/tidb-current-schema.sql", encoding="utf-8") as f:
               ddl = f.read()
           ddl = ddl.replace("CREATE SCHEMA public;", f"CREATE SCHEMA {schema};")
           ddl = ddl.replace("COMMENT ON SCHEMA public", f"COMMENT ON SCHEMA {schema}")
