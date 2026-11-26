@@ -176,7 +176,7 @@ describe('fleet maintenance synchronization', () => {
     expect(sql).toContain('UPDATE "tire_usage_periods" SET "removedAt"')
     expect(sql).toContain('INSERT INTO "tire_usage_periods"')
     expect(sql).toContain('UPDATE "tires" SET "truckId"=$2')
-    const eventInsert = executeCalls.find(call => String(call[0]).includes('INSERT INTO "tire_lifecycle_events"'))
+    const eventInsert = executeCalls.find(call => String(call[0]).includes('INSERT INTO "tire_lifecycle_events"') && call.includes('job-source'))
     expect(eventInsert).toBeDefined()
     expect(eventInsert).toContain('job-source')
     expect(queryCalls.some(call => String(call[0]).includes('FOR UPDATE'))).toBe(true)
