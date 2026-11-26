@@ -11,8 +11,9 @@ describe('fleet maintenance synchronization', () => {
         truck: { findFirst: jest.fn().mockResolvedValue({ id: 'truck-1' }) },
         trailer: { findFirst: jest.fn() },
         workshopJobCard: {
-          findFirst: jest.fn().mockResolvedValue({ id: 'job-existing' }),
-          findMany: jest.fn(),
+          findMany: jest.fn().mockResolvedValue([{
+            id: 'job-existing', serviceDate: date, creationSource: 'WORKBOOK'
+          }]),
           create: jest.fn()
         }
       }
@@ -25,8 +26,8 @@ describe('fleet maintenance synchronization', () => {
 
       expect(result).toBe('job-existing')
       expect(tx.workshopJobCard.create).not.toHaveBeenCalled()
-      expect(tx.workshopJobCard.findFirst).toHaveBeenCalledWith(expect.objectContaining({
-        where: { truckId: 'truck-1', status: { in: ['OPEN', 'IN_PROGRESS'] } }
+      expect(tx.workshopJobCard.findMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: expect.objectContaining({ truckId: 'truck-1', status: { in: ['OPEN', 'IN_PROGRESS'] } })
       }))
     })
 
@@ -36,8 +37,9 @@ describe('fleet maintenance synchronization', () => {
         truck: { findFirst: jest.fn().mockResolvedValue({ id: 'truck-1' }) },
         trailer: { findFirst: jest.fn() },
         workshopJobCard: {
-          findFirst: jest.fn().mockResolvedValue(null),
-          findMany: jest.fn().mockResolvedValue([{ jobNumber: 'JC-2026-0007' }]),
+          findMany: jest.fn()
+            .mockResolvedValueOnce([])
+            .mockResolvedValueOnce([{ jobNumber: 'JC-2026-0007' }]),
           create: jest.fn().mockResolvedValue({ id: 'job-new' })
         }
       }
@@ -146,7 +148,11 @@ describe('fleet maintenance synchronization', () => {
         findFirst: jest.fn().mockResolvedValue({ id: 'truck-1' })
       },
       trailer: { findFirst: jest.fn(), findUnique: jest.fn() },
-      workshopJobCard: { findFirst: jest.fn().mockResolvedValue({ id: 'job-source' }) }
+      workshopJobCard: {
+        findMany: jest.fn().mockResolvedValue([{
+          id: 'job-source', serviceDate: date, creationSource: 'MANUAL'
+        }])
+      }
     }
 
     const result = await recordTireLifecycleEvent(tx, {
@@ -163,8 +169,8 @@ describe('fleet maintenance synchronization', () => {
 
     expect(result.jobCardId).toBe('job-source')
     expect(result.lifecycleStatus).toBe('INSTALLED')
-    expect(tx.workshopJobCard.findFirst).toHaveBeenCalledWith(expect.objectContaining({
-      where: { truckId: 'truck-1', status: { in: ['OPEN', 'IN_PROGRESS'] } }
+    expect(tx.workshopJobCard.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ truckId: 'truck-1', status: { in: ['OPEN', 'IN_PROGRESS'] } })
     }))
     const sql = executeCalls.map(call => String(call[0])).join('\n')
     expect(sql).toContain('UPDATE "tire_usage_periods" SET "removedAt"')
