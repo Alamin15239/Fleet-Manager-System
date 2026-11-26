@@ -3,6 +3,7 @@ import { PrismaClient } from '@prisma/client'
 import jwt from 'jsonwebtoken'
 import { headers } from 'next/headers'
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto'
+import { getPrimaryDatabaseUrl } from '@/lib/primary-database'
 
 export type OrganizationRecord = {
   id: string
@@ -22,9 +23,11 @@ const globalForPrisma = globalThis as typeof globalThis & {
   fleetOrganizationPrismas?: Map<string, PrismaClient>
 }
 
+const primaryDatabaseUrl = getPrimaryDatabaseUrl(process.env)
+
 const controlDb = globalForPrisma.fleetControlPrisma ?? new PrismaClient({
   log: process.env.NODE_ENV === 'development' ? ['error'] : ['error'],
-  datasources: { db: { url: process.env.DATABASE_URL } },
+  datasources: { db: { url: primaryDatabaseUrl } },
   errorFormat: 'pretty',
   transactionOptions: { timeout: 10000, maxWait: 5000 }
 })
@@ -347,7 +350,7 @@ export async function getOrganizationPrismaClient(organization: OrganizationReco
   if (process.env.DATABASE_URL) {
     try {
       const tenantTarget = new URL(databaseUrl)
-      const primaryTarget = new URL(process.env.DATABASE_URL)
+      const primaryTarget = new URL(primaryDatabaseUrl)
       const tenantHost = tenantTarget.hostname.toLowerCase().replace(/-pooler(?=\.)/, '')
       const primaryHost = primaryTarget.hostname.toLowerCase().replace(/-pooler(?=\.)/, '')
       if (tenantHost === primaryHost && tenantTarget.pathname === primaryTarget.pathname) {
