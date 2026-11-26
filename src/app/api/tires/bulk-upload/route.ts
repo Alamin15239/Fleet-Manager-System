@@ -337,7 +337,7 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
       if (parsedSerials.mixedText) warnings.push('The serial cell contains mixed text; check the extracted tire identifier in the preview.')
       const rowSerialKeys = parsedSerials.serials.slice(0, quantity).map(normalizeSerialKey)
       if (new Set(rowSerialKeys).size < rowSerialKeys.length) {
-        warnings.push('The same serial number appears more than once in this row. It will be grouped as one physical tire; verify OUT QTY.')
+        warnings.push('The same serial number appears more than once in this row. Each OUT QTY slot will remain a separate tire record; verify the repeated identifier.')
       }
       if (!qtyText) warnings.push('OUT QTY is required. The importer will not assume a tire quantity.')
       if (parsedSerials.serials.length > quantity && quantity > 0) {
@@ -385,34 +385,19 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
   }, new Map<string, { sheetName: string; usageRows: number; tireQuantity: number }>()).values())
   const requestedUnitCount = sourceEntries.reduce((sum, source) => sum + Math.max(0, source.quantity), 0)
   if (requestedUnitCount > 10000) throw new Error('This workbook contains more than 10,000 tire quantity slots. Split the workbook into smaller files; no records were imported.')
-  // A serial number identifies one physical tire. Repeated appearances of
-  // that serial are grouped into one tire with multiple dated usage entries.
-  // Unnumbered slots remain separate because they cannot be matched safely.
+  // OUT QTY is authoritative. Every quantity slot gets its own tire row,
+  // even when a serial repeats in this or another source row. Serial numbers
+  // label slots; they never merge rows or increase the number of tires.
   const units: ImportUnit[] = []
-  const unitsBySerial = new Map<string, ImportUnit>()
   for (const source of sourceEntries) {
     for (let index = 0; index < source.quantity; index++) {
       const serial = source.serials[index] || null
-      const serialKey = serial ? normalizeSerialKey(serial) : ''
-      const key = serialKey
-        ? 'serial:' + serialKey
-        : 'source:' + source.sheetName + ':' + source.line + ':' + String(index + 1)
-      const entry: ImportEntry = { source, serial }
-      const grouped = serialKey ? unitsBySerial.get(serialKey) : undefined
-      if (grouped) {
-        grouped.entries.push(entry)
-        grouped.warnings = Array.from(new Set([...grouped.warnings, ...source.warnings]))
-        const differs = (left: string, right: string) => Boolean(left && right && left !== 'Unspecified' && right !== 'Unspecified' && left.trim().toUpperCase() !== right.trim().toUpperCase())
-        if (differs(grouped.tireSize, source.tireSize) || differs(grouped.manufacturer, source.manufacturer) || differs(grouped.origin, source.origin)) {
-          grouped.warnings = Array.from(new Set([...grouped.warnings, 'This serial appears with different tire specifications in the workbook. Review the source rows before importing.']))
-        }
-        continue
-      }
-      const unit: ImportUnit = {
+      const key = 'source:' + source.sheetName + ':' + source.line + ':' + String(index + 1)
+      units.push({
         key,
         serial,
-        importCode: serialKey ? 'UP-SN-' + stableHash(serialKey).slice(0, 24) : 'UP-XLS-' + stableHash(key).slice(0, 24),
-        entries: [entry],
+        importCode: 'UP-XLS-' + stableHash(key).slice(0, 24),
+        entries: [{ source, serial }],
         warnings: [...source.warnings],
         errors: [],
         tireSize: source.tireSize || 'Unspecified',
@@ -420,9 +405,7 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
         origin: source.origin || 'OTHER',
         status: 'READY',
         duplicateReason: null
-      }
-      units.push(unit)
-      if (serialKey) unitsBySerial.set(serialKey, unit)
+      })
     }
   }
   const sourceQuantityTotal = sourceEntries.reduce((sum, source) => sum + Math.max(0, source.quantity), 0)
@@ -545,35 +528,16 @@ export async function POST(request: NextRequest) {
     }
 
     if (mode !== 'import') {
-      const incomingSerialKeys = new Set(analysis.units.map(unit => unit.serial ? normalizeSerialKey(unit.serial) : '').filter(Boolean))
-      const incomingSourceCodes = analysis.units.filter(unit => !unit.serial).map(unit => unit.importCode)
-      const [existingSerialRows, existingSourceRows] = await Promise.all([
-        incomingSerialKeys.size ? db.tire.findMany({
-          where: { deletedAt: null, serialNumber: { not: null } },
-          select: { id: true, serialNumber: true }
-        }) : Promise.resolve([]),
-        incomingSourceCodes.length ? db.tire.findMany({
-          where: { internalCode: { in: incomingSourceCodes } },
-          select: { internalCode: true }
-        }) : Promise.resolve([])
-      ])
-      const existingSerialCounts = new Map<string, number>()
-      for (const item of existingSerialRows) {
-        const key = item.serialNumber ? normalizeSerialKey(item.serialNumber) : ''
-        if (key) existingSerialCounts.set(key, (existingSerialCounts.get(key) || 0) + 1)
-      }
+      const incomingSourceCodes = analysis.units.map(unit => unit.importCode)
+      const existingSourceRows = incomingSourceCodes.length ? await db.tire.findMany({
+        where: { internalCode: { in: incomingSourceCodes } },
+        select: { internalCode: true }
+      }) : []
       const existingSourceCodes = new Set(existingSourceRows.map(item => item.internalCode).filter(Boolean))
       for (const unit of analysis.units) {
-        const key = unit.serial ? normalizeSerialKey(unit.serial) : ''
-        const serialMatches = key ? existingSerialCounts.get(key) || 0 : 0
-        if (serialMatches) {
+        if (existingSourceCodes.has(unit.importCode)) {
           unit.status = 'DUPLICATE'
-          unit.duplicateReason = serialMatches > 1
-            ? 'This serial exists on multiple legacy tire rows. New history will be attached to the oldest record; older rows are preserved for review.'
-            : 'Serial already exists. Its new usage history will be merged into the existing tire record.'
-        } else if (!unit.serial && existingSourceCodes.has(unit.importCode)) {
-          unit.status = 'DUPLICATE'
-          unit.duplicateReason = 'This unnumbered source slot was already imported. No duplicate tire record will be created.'
+          unit.duplicateReason = 'This exact source worksheet row and OUT QTY slot were already imported. No duplicate record will be created.'
         }
       }
       const requestedPage = Math.max(1, Number.parseInt(String(form.get('page') || '1'), 10) || 1)
@@ -649,68 +613,87 @@ export async function POST(request: NextRequest) {
 
     const result = await db.$transaction(async tx => {
       await ensureTireLifecycleTables(tx)
-      const importCodes = analysis.units.map(unit => unit.serial
-        ? 'UP-SN-' + stableHash(normalizeSerialKey(unit.serial)).slice(0, 24)
-        : 'UP-XLS-' + stableHash(unit.key).slice(0, 24))
-      const unnumberedCodes = analysis.units.filter(unit => !unit.serial).map(unit => importCodes[analysis.units.indexOf(unit)])
-      const existingByCodeRows = unnumberedCodes.length
-        ? await tx.tire.findMany({ where: { internalCode: { in: unnumberedCodes } }, select: { id: true, internalCode: true, deletedAt: true } })
+      const importCodes = analysis.units.map(unit => unit.importCode)
+      const existingByCodeRows = importCodes.length
+        ? await tx.tire.findMany({ where: { internalCode: { in: importCodes } }, select: { id: true, internalCode: true, deletedAt: true, tireSize: true, manufacturer: true, origin: true } })
         : []
       const existingByCode = new Map(existingByCodeRows.filter(item => item.internalCode).map(item => [item.internalCode as string, item]))
-      const existingSerialRows = await tx.tire.findMany({
-        where: { deletedAt: null, serialNumber: { not: null } },
-        select: { id: true, serialNumber: true, internalCode: true, createdAt: true, tireSize: true, manufacturer: true, origin: true }
-      })
-      const existingBySerial = new Map<string, typeof existingSerialRows>()
-      for (const item of existingSerialRows) {
-        if (!item.serialNumber) continue
-        const key = normalizeSerialKey(item.serialNumber)
-        const group = existingBySerial.get(key) || []
-        group.push(item)
-        existingBySerial.set(key, group)
-      }
-      // If old imports already produced duplicate rows for one serial, use the
-      // oldest row as the canonical history owner. Existing rows are retained;
-      // this import never deletes legacy records.
-      for (const group of existingBySerial.values()) group.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime() || a.id.localeCompare(b.id))
 
       const trucks = await tx.truck.findMany({ where: { isDeleted: false }, select: { id: true, licensePlate: true } })
       const trailers = await tx.trailer.findMany({ where: { isDeleted: false }, select: { id: true, number: true } })
-      const uniqueMap = (items: Array<{ id: string; number: string }>) => {
-        const map = new Map<string, string | null>()
-        for (const item of items) {
-          const key = normalizeVehicleKey(item.number)
-          if (!key) continue
-          map.set(key, map.has(key) ? null : item.id)
-        }
-        return map
+      const addUniqueAlias = (map: Map<string, string | null>, alias: string, id: string) => {
+        const key = normalizeVehicleKey(alias)
+        if (!key) return
+        if (map.has(key) && map.get(key) !== id) map.set(key, null)
+        else map.set(key, id)
       }
-      const truckMap = uniqueMap(trucks.map(item => ({ id: item.id, number: item.licensePlate })))
-      const trailerMap = uniqueMap(trailers.map(item => ({ id: item.id, number: item.number })))
+      const truckMap = new Map<string, string | null>()
+      const truckNumberById = new Map<string, string>()
+      for (const item of trucks) {
+        truckNumberById.set(item.id, item.licensePlate)
+        addUniqueAlias(truckMap, item.licensePlate, item.id)
+        const numericPlatePrefix = item.licensePlate.match(/^\s*(\d{3,5})\b/)
+        if (numericPlatePrefix) addUniqueAlias(truckMap, numericPlatePrefix[1], item.id)
+      }
+      const trailerMap = new Map<string, string | null>()
+      const trailerNumberById = new Map<string, string>()
+      for (const item of trailers) {
+        trailerNumberById.set(item.id, item.number)
+        addUniqueAlias(trailerMap, item.number, item.id)
+        const numericTrailerSuffix = item.number.match(/(\d{3,5})\s*$/)
+        if (numericTrailerSuffix) addUniqueAlias(trailerMap, numericTrailerSuffix[1], item.id)
+        if (/lowbed/i.test(item.number)) addUniqueAlias(trailerMap, 'lowbed', item.id)
+        if (/long\s*sata/i.test(item.number)) addUniqueAlias(trailerMap, 'long sata', item.id)
+      }
       const resolveVehicle = (source: SourceEntry) => {
         const truckKey = normalizeVehicleKey(source.truckNumber)
         const trailerKey = normalizeVehicleKey(source.trailerNumber)
-        const truckId = truckKey ? truckMap.get(truckKey) || null : null
-        const trailerId = trailerKey ? trailerMap.get(trailerKey) || null : null
-        if (truckKey && trailerKey) {
-          if (truckId && !trailerId) return { type: 'truck' as const, id: truckId }
-          if (trailerId && !truckId) return { type: 'trailer' as const, id: trailerId }
-          if (truckId && trailerId && source.vehicleType === 'truck') return { type: 'truck' as const, id: truckId }
-          if (truckId && trailerId && source.vehicleType === 'trailer') return { type: 'trailer' as const, id: trailerId }
-          return null
+        const explicitTruckId = truckKey ? truckMap.get(truckKey) || null : null
+        const explicitTrailerId = trailerKey ? trailerMap.get(trailerKey) || null : null
+        if (explicitTruckId && explicitTrailerId) {
+          return source.vehicleType === 'trailer'
+            ? { type: 'trailer' as const, id: explicitTrailerId, number: trailerNumberById.get(explicitTrailerId) || source.trailerNumber }
+            : { type: 'truck' as const, id: explicitTruckId, number: truckNumberById.get(explicitTruckId) || source.truckNumber }
         }
-        if (truckKey) return truckId ? { type: 'truck' as const, id: truckId } : null
-        if (trailerKey) return trailerId ? { type: 'trailer' as const, id: trailerId } : null
-        const key = normalizeVehicleKey(source.vehicleNumber)
-        if (!key || !source.vehicleType) return null
-        const id = (source.vehicleType === 'truck' ? truckMap : trailerMap).get(key)
-        return id ? { type: source.vehicleType, id } : null
+        if (explicitTruckId) return { type: 'truck' as const, id: explicitTruckId, number: truckNumberById.get(explicitTruckId) || source.truckNumber }
+        if (explicitTrailerId) return { type: 'trailer' as const, id: explicitTrailerId, number: trailerNumberById.get(explicitTrailerId) || source.trailerNumber }
+
+        const rawVehicle = source.vehicleNumber || source.truckNumber || source.trailerNumber
+        if (!rawVehicle) return null
+        const pairedNumbers = rawVehicle.match(/^\s*(\d{3,5})\s*[-/]\s*(\d{3,5})\s*$/)
+        if (pairedNumbers) {
+          const candidates = [pairedNumbers[1], pairedNumbers[2]]
+          const truckId = candidates.map(value => truckMap.get(normalizeVehicleKey(value)) || null).find(Boolean) || null
+          const trailerId = candidates.map(value => trailerMap.get(normalizeVehicleKey(value)) || null).find(Boolean) || null
+          if (truckId && trailerId) {
+            return source.vehicleType === 'trailer'
+              ? { type: 'trailer' as const, id: trailerId, number: trailerNumberById.get(trailerId) || pairedNumbers[1] }
+              : { type: 'truck' as const, id: truckId, number: truckNumberById.get(truckId) || pairedNumbers[1] }
+          }
+          if (truckId) return { type: 'truck' as const, id: truckId, number: truckNumberById.get(truckId) || pairedNumbers[1] }
+          if (trailerId) return { type: 'trailer' as const, id: trailerId, number: trailerNumberById.get(trailerId) || pairedNumbers[1] }
+        }
+
+        const firstNumericIdentifier = rawVehicle.match(/\d{3,5}/)?.[0]
+        const candidateKey = normalizeVehicleKey(firstNumericIdentifier || rawVehicle)
+        const candidateTruckId = candidateKey ? truckMap.get(candidateKey) || null : null
+        const candidateTrailerId = candidateKey ? trailerMap.get(candidateKey) || null : null
+        if (candidateTruckId && candidateTrailerId) {
+          return source.vehicleType === 'trailer'
+            ? { type: 'trailer' as const, id: candidateTrailerId, number: trailerNumberById.get(candidateTrailerId) || rawVehicle }
+            : { type: 'truck' as const, id: candidateTruckId, number: truckNumberById.get(candidateTruckId) || rawVehicle }
+        }
+        if (candidateTruckId) return { type: 'truck' as const, id: candidateTruckId, number: truckNumberById.get(candidateTruckId) || rawVehicle }
+        if (candidateTrailerId) return { type: 'trailer' as const, id: candidateTrailerId, number: trailerNumberById.get(candidateTrailerId) || rawVehicle }
+        const namedKey = normalizeVehicleKey(rawVehicle)
+        if (namedKey && trailerMap.has(namedKey)) {
+          const namedTrailerId = trailerMap.get(namedKey)
+          if (namedTrailerId) return { type: 'trailer' as const, id: namedTrailerId, number: trailerNumberById.get(namedTrailerId) || rawVehicle }
+        }
+        return null
       }
 
-      const existingTireIds = Array.from(new Set([
-        ...existingSerialRows.map(item => item.id),
-        ...existingByCodeRows.filter(item => !item.deletedAt).map(item => item.id)
-      ]))
+      const existingTireIds = Array.from(new Set(existingByCodeRows.filter(item => !item.deletedAt).map(item => item.id)))
       const existingPeriods = existingTireIds.length ? await tx.tireUsagePeriod.findMany({
         where: { tireId: { in: existingTireIds } },
         select: { tireId: true, vehicleType: true, vehicleId: true, installedAt: true, driverNameSnapshot: true }
@@ -733,18 +716,13 @@ export async function POST(request: NextRequest) {
       const periodsToCreate: any[] = []
       let updatedExisting = 0
       let reconciledVehicles = 0
-      let legacyDuplicateSerials = 0
-      let mergedTires = 0
       let reusedSourceRows = 0
 
       for (let index = 0; index < analysis.units.length; index++) {
         const unit = analysis.units[index]
         const code = importCodes[index]
-        const serialKey = unit.serial ? normalizeSerialKey(unit.serial) : ''
-        const serialMatches = serialKey ? existingBySerial.get(serialKey) || [] : []
-        if (serialMatches.length > 1) legacyDuplicateSerials++
-        const codeMatch = !unit.serial ? existingByCode.get(code) : undefined
-        const existingTire = serialMatches[0] || (codeMatch && !codeMatch.deletedAt ? codeMatch : undefined)
+        const codeMatch = existingByCode.get(code)
+        const existingTire = codeMatch && !codeMatch.deletedAt ? codeMatch : undefined
         const orderedEntries = [...unit.entries].sort((a, b) =>
           (a.source.eventAt?.getTime() ?? 0) - (b.source.eventAt?.getTime() ?? 0))
         const firstSource = orderedEntries[0]?.source
@@ -753,14 +731,12 @@ export async function POST(request: NextRequest) {
 
         let tireId = existingTire?.id || 'tire_' + randomUUID()
         if (existingTire) {
-          if (serialMatches.length) mergedTires++
-          else reusedSourceRows++
-          const canonical = serialMatches[0]
+          reusedSourceRows++
           const latestVehicle = resolveVehicle(latestSource)
           const updateData: any = {}
-          if ((!canonical || canonical.tireSize === 'Unspecified' || !canonical.tireSize) && latestSource.tireSize) updateData.tireSize = latestSource.tireSize
-          if ((!canonical || canonical.manufacturer === 'Unspecified' || !canonical.manufacturer) && latestSource.manufacturer) updateData.manufacturer = latestSource.manufacturer
-          if ((!canonical || canonical.origin === 'OTHER' || !canonical.origin) && latestSource.origin) updateData.origin = latestSource.origin
+          if ((existingTire.tireSize === 'Unspecified' || !existingTire.tireSize) && latestSource.tireSize) updateData.tireSize = latestSource.tireSize
+          if ((existingTire.manufacturer === 'Unspecified' || !existingTire.manufacturer) && latestSource.manufacturer) updateData.manufacturer = latestSource.manufacturer
+          if ((existingTire.origin === 'OTHER' || !existingTire.origin) && latestSource.origin) updateData.origin = latestSource.origin
           if (Object.keys(updateData).length) {
             await tx.tire.update({ where: { id: tireId }, data: updateData })
             updatedExisting++
@@ -784,7 +760,11 @@ export async function POST(request: NextRequest) {
             origin: latestSource.origin || unit.origin || 'OTHER',
             plateNumber: null,
             truckId: latestVehicle?.type === 'truck' ? latestVehicle.id : null,
-            trailerNumber: latestVehicle?.type === 'trailer' ? (latestSource.trailerNumber || latestSource.vehicleNumber) : (!latestVehicle && latestSource.vehicleType === 'trailer' ? (latestSource.trailerNumber || latestSource.vehicleNumber) : null),
+            trailerNumber: latestVehicle?.type === 'trailer'
+              ? latestVehicle.number
+              : (!latestVehicle && latestSource.vehicleType === 'trailer' && !/^\s*\d{3,5}\s*[-/]\s*\d{3,5}\s*$/.test(latestSource.vehicleNumber)
+                ? (latestSource.trailerNumber || latestSource.vehicleNumber)
+                : null),
             driverName: latestSource.driver || null,
             quantity: 1,
             serialNumber: unit.serial,
@@ -801,7 +781,7 @@ export async function POST(request: NextRequest) {
           if (!source.eventAt) continue
           const vehicleMatch = resolveVehicle(source)
           const eventVehicleText = source.vehicleText || source.vehicleNumber || [source.vehicleType ? source.vehicleType.toUpperCase() : 'VEHICLE TYPE NOT SPECIFIED', source.vehicleNumber || 'VEHICLE NUMBER NOT SUPPLIED'].join(': ')
-          const vehicleType = vehicleMatch?.type || source.vehicleType || 'unknown'
+          const vehicleType = vehicleMatch?.type || source.vehicleType || (/\d{3,5}/.test(source.vehicleNumber) ? 'truck' : 'unknown')
           const vehicleId = vehicleMatch?.id || eventVehicleText
           const periodKey = periodSignature(tireId, source.eventAt, vehicleType, vehicleId, source.driver)
           const eventKey = eventSignature(tireId, 'ISSUE', source.eventAt, vehicleMatch?.type === 'truck' ? vehicleMatch.id : null,
@@ -810,7 +790,7 @@ export async function POST(request: NextRequest) {
           const eventExists = eventKeys.has(eventKey)
           if (!eventExists) {
             const notes = [
-              'Imported from workbook; matched by tire serial when available.',
+              'Imported from workbook; each OUT QTY slot is a separate tire record.',
               'Source worksheet: ' + source.sheetName + ', row ' + source.line + '.',
               'Source vehicle columns: ' + (eventVehicleText || 'Vehicle not supplied') + '.',
               'Source date cell: ' + (source.dateText || 'not supplied') + '; source OUT QTY cell: ' + (source.quantityText || 'not supplied') + '; source odometer cell: ' + (source.odometerText || 'not supplied') + '.',
@@ -860,26 +840,24 @@ export async function POST(request: NextRequest) {
         periodCount: periodsToCreate.length,
         alreadyImported: !tiresToCreate.length && !eventsToCreate.length && !periodsToCreate.length && !updatedExisting,
         reconciledVehicles,
-        legacyDuplicateSerials,
-        mergedTires,
         reusedSourceRows,
         updatedExisting
       }    }, { timeout: 120000 })
 
     if (result.alreadyImported) {
       return NextResponse.json({
-        message: 'All tire serials already existed and their usage history was already recorded. No new tire or history rows were needed. Reconciled ' + result.reconciledVehicles + ' vehicle references.' ,
+        message: 'All source worksheet rows and OUT QTY slots were already imported. No duplicate tire or history rows were created. Reconciled ' + result.reconciledVehicles + ' vehicle references.' ,
         tires: 0, historyEntries: 0, reconciledVehicles: result.reconciledVehicles, alreadyImported: true
       }, { status: 200 })
     }
     await syncOneDriveWorkbookAfterChange()
     return NextResponse.json({
-      message: 'Created ' + result.tireCount + ' new tire records and merged history into ' + result.mergedTires + ' existing serial-matched records. ' + result.reusedSourceRows + ' unnumbered source rows were already imported and reused. Saved ' + result.historyCount + ' new dated usage-history entries and ' + result.periodCount + ' usage periods. ' + result.reconciledVehicles + ' entries matched exact, unique truck/trailer records. ' + result.legacyDuplicateSerials + ' serials have multiple legacy rows; history was attached to the oldest record and existing rows were preserved for review. Workshop Job Card linking and stock receipt events were not performed.',
+      message: 'Created ' + result.tireCount + ' separate tire records from OUT QTY slots; serial numbers were retained without merging repeated identifiers. ' + result.reusedSourceRows + ' source slots were already imported and reused. Saved ' + result.historyCount + ' dated usage-history entries and ' + result.periodCount + ' usage periods. ' + result.reconciledVehicles + ' entries matched active truck/trailer records using normalized fleet identifiers. Workshop Job Card linking and stock receipt events were not performed.',
       tires: result.tireCount,
       historyEntries: result.historyCount,
       reconciledVehicles: result.reconciledVehicles,
       skippedDuplicates: 0,
-      legacyDuplicateSerials: result.legacyDuplicateSerials,
+      reusedSourceRows: result.reusedSourceRows,
       updatedExisting: result.updatedExisting,
       blockedTires: 0,
       reviewRequiredTires: 0,
