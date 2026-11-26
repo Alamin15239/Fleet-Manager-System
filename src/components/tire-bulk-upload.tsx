@@ -52,6 +52,7 @@ type ImportPreview = {
     warnings: number
   }
   preview: PreviewUnit[]
+  unquantifiedPreview?: Array<{ sourceSheet: string; sourceRow: number; quantityText: string; serialText: string; vehicleText: string; driver: string; warnings: string[] }>
   previewLimit: number
   previewTruncated: boolean
   pageInfo?: { page: number; pageSize: number; total: number; totalPages: number }
@@ -248,6 +249,17 @@ export default function TireBulkUpload() {
           </div>
         </CardContent>
       </Card>
+
+      {(preview.unquantifiedPreview?.length || 0) > 0 && <Card>
+        <CardHeader className="pb-3"><CardTitle className="text-base">Source rows excluded from tire creation</CardTitle><p className="text-sm text-muted-foreground">{number(preview.summary.unquantifiedRows)} rows have a missing or invalid OUT QTY. They remain visible here for review and create zero tire records.</p></CardHeader>
+        <CardContent className="space-y-2">
+          <div className="overflow-x-auto rounded-xl border"><table className="w-full min-w-[700px] text-left text-sm">
+            <thead className="bg-muted/60 text-xs text-muted-foreground"><tr><th className="px-3 py-2">Source</th><th className="px-3 py-2">OUT QTY value</th><th className="px-3 py-2">Serial text</th><th className="px-3 py-2">Vehicle / driver</th><th className="px-3 py-2">Review note</th></tr></thead>
+            <tbody>{preview.unquantifiedPreview?.map((item,index)=><tr key={item.sourceSheet+'-'+item.sourceRow} className="border-t align-top"><td className="px-3 py-3"><p className="font-medium">{item.sourceSheet}</p><p className="text-xs text-muted-foreground">Row {item.sourceRow}</p></td><td className="px-3 py-3 font-mono">{item.quantityText || 'Blank'}</td><td className="px-3 py-3 font-mono text-xs">{item.serialText || '—'}</td><td className="px-3 py-3">{item.vehicleText || '—'}<p className="text-xs text-muted-foreground">{item.driver || 'Driver not supplied'}</p></td><td className="px-3 py-3 text-xs text-amber-700 dark:text-amber-300">{item.warnings.join(' ') || 'OUT QTY is not valid'}</td></tr>)}</tbody>
+          </table></div>
+          {preview.summary.unquantifiedRows > (preview.unquantifiedPreview?.length || 0) && <p className="text-xs text-muted-foreground">Showing the first {preview.unquantifiedPreview?.length} excluded source rows.</p>}
+        </CardContent>
+      </Card>}
 
       <Card className="border-primary/30">
         <CardContent className="space-y-3 p-4 sm:p-5">
