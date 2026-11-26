@@ -37,7 +37,7 @@ jobs:
       - name: Validate Prisma schema against the existing Neon source configuration
         run: npx prisma validate
         env:
-          DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+          DATABASE_URL: ${{ secrets.TIDB_DATABASE_URL }}
 
       - name: Type-check application
         run: npm run type-check
