@@ -61,7 +61,7 @@ jobs:
           fi
 
       - name: Checkout application schema for audit
-        if: ${{ inputs.operation == 'schema-audit' }}
+        if: ${{ inputs.operation == 'schema-audit' || inputs.operation == 'schema-repair-preflight' }}
         uses: actions/checkout@v4
 
       - name: Export schema and source row counts
