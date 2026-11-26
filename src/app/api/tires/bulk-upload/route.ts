@@ -335,6 +335,10 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
       if (qtyText && (!Number.isSafeInteger(quantity) || quantity < 1)) warnings.push('OUT QTY must be a positive whole number.')
       if (parsedSerials.serials.length > 100) warnings.push('More than 100 serial numbers were detected in one row.')
       if (parsedSerials.mixedText) warnings.push('The serial cell contains mixed text; check the extracted tire identifier in the preview.')
+      const rowSerialKeys = parsedSerials.serials.slice(0, quantity).map(normalizeSerialKey)
+      if (new Set(rowSerialKeys).size < rowSerialKeys.length) {
+        warnings.push('The same serial number appears more than once in this row. It will be grouped as one physical tire; verify OUT QTY.')
+      }
       if (!qtyText) warnings.push('OUT QTY is required. The importer will not assume a tire quantity.')
       if (parsedSerials.serials.length > quantity && quantity > 0) {
         warnings.push('More serial numbers were detected than OUT QTY. Correct the row so serial identifiers do not exceed the stated tire quantity.')
@@ -398,6 +402,10 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
       if (grouped) {
         grouped.entries.push(entry)
         grouped.warnings = Array.from(new Set([...grouped.warnings, ...source.warnings]))
+        const differs = (left: string, right: string) => Boolean(left && right && left !== 'Unspecified' && right !== 'Unspecified' && left.trim().toUpperCase() !== right.trim().toUpperCase())
+        if (differs(grouped.tireSize, source.tireSize) || differs(grouped.manufacturer, source.manufacturer) || differs(grouped.origin, source.origin)) {
+          grouped.warnings = Array.from(new Set([...grouped.warnings, 'This serial appears with different tire specifications in the workbook. Review the source rows before importing.']))
+        }
         continue
       }
       const unit: ImportUnit = {
