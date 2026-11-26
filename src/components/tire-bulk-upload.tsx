@@ -26,6 +26,7 @@ type PreviewUnit = {
   duplicateReason: string | null
   warnings: string[]
   errors: string[]
+  willReconcileExisting?: boolean
 }
 type ImportErrorDiagnostics = {
   expectedTires?: number
@@ -56,6 +57,8 @@ type ImportPreview = {
     importableTires: number
     importableUsageEntries: number
     existingDuplicates: number
+    legacyRecordsToReconcile?: number
+    newTireRecordsToCreate?: number
     blockedTires: number
     blockedUsageEntries: number
     warnings: number
@@ -142,7 +145,7 @@ export default function TireBulkUpload() {
     return [
       { label: 'Tire records', value: s.tiresDetected, icon: Database },
       { label: 'Usage history', value: s.historyEntries, icon: History },
-      { label: 'Existing tires to merge', value: s.existingDuplicates, icon: RefreshCw },
+      { label: 'Legacy records to reconcile', value: s.legacyRecordsToReconcile ?? 0, icon: RefreshCw },
       { label: 'Rows to review', value: s.unquantifiedRows, icon: AlertTriangle }
     ]
   }, [preview])
@@ -150,7 +153,7 @@ export default function TireBulkUpload() {
   const status = (value: PreviewUnit['status']) => value === 'READY'
     ? <Badge className="border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-300">Ready</Badge>
     : value === 'DUPLICATE'
-      ? <Badge variant="secondary">Merge existing</Badge>
+      ? <Badge variant="secondary">Already imported</Badge>
       : <Badge variant="destructive">Blocked</Badge>
 
   return <div className="space-y-5">
@@ -227,7 +230,7 @@ export default function TireBulkUpload() {
       </div>
 
       <Card>
-        <CardHeader className="pb-3"><CardTitle className="text-base">Quantity reconciliation</CardTitle><p className="text-sm text-muted-foreground">OUT QTY controls the number of source tire slots. Matching serials identify the same physical tire and are grouped into one record with multiple history events. Unnumbered slots remain separate. Invalid quantity rows contribute zero.</p></CardHeader>
+        <CardHeader className="pb-3"><CardTitle className="text-base">Quantity reconciliation</CardTitle><p className="text-sm text-muted-foreground">OUT QTY controls the number of tire records. Every quantity slot remains separate, even when serial numbers repeat; serials label records and never add quantity. Missing or invalid OUT QTY contributes zero. Opening Balance sections are excluded.</p></CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {[
@@ -235,7 +238,7 @@ export default function TireBulkUpload() {
               ['Unique serial values', preview.summary.uniqueSerialTires],
               ['Repeated appearances', preview.summary.repeatedSerialUsageOccurrences],
               ['Unnumbered slots', preview.summary.unnumberedQuantitySlots],
-              ['Repeated serial groups', preview.summary.repeatedSerialsGrouped],
+              ['Repeated serial groups (kept separate)', preview.summary.repeatedSerialsGrouped],
               ['Rows without valid quantity', preview.summary.unquantifiedRows],
               ['Usage entries to save', preview.summary.importableUsageEntries],
               ['Warnings', preview.summary.warnings]
@@ -276,7 +279,7 @@ export default function TireBulkUpload() {
                     <td className="px-3 py-3"><p>{item.tireSize || 'Unspecified'}</p><p className="text-xs text-muted-foreground">{item.manufacturer || 'Unspecified'} · {item.origin || 'OTHER'}</p></td>
                     <td className="px-3 py-3"><p>{item.historyEntries} event(s)</p><p className="text-xs text-muted-foreground">{formatDate(item.firstDate)} – {formatDate(item.lastDate)}</p>{item.warnings.slice(0,1).map((warning,i)=><p key={i} className="mt-1 max-w-xs text-xs text-amber-700 dark:text-amber-300">{warning}</p>)}</td>
                     <td className="px-3 py-3">{item.vehicles.join(', ') || <span className="text-muted-foreground">Not supplied</span>}</td>
-                    <td className="px-3 py-3">{status(item.status)}{item.duplicateReason && <p className="mt-1 max-w-xs text-xs text-muted-foreground">{item.duplicateReason}</p>}{item.errors.length > 0 && <p className="mt-1 max-w-xs text-xs text-destructive">{item.errors[0]}</p>}</td>
+                    <td className="px-3 py-3">{status(item.status)}{item.willReconcileExisting && <p className="mt-1"><Badge variant="outline">Reconcile existing row</Badge></p>}{item.duplicateReason && <p className="mt-1 max-w-xs text-xs text-muted-foreground">{item.duplicateReason}</p>}{item.errors.length > 0 && <p className="mt-1 max-w-xs text-xs text-destructive">{item.errors[0]}</p>}</td>
                   </tr>)}
                   {preview.preview.length === 0 && <tr><td colSpan={6} className="px-3 py-10 text-center text-sm text-muted-foreground">No records match these filters.</td></tr>}
                 </tbody>
@@ -303,8 +306,8 @@ export default function TireBulkUpload() {
 
       <Card className="border-primary/30">
         <CardContent className="space-y-3 p-4 sm:p-5">
-          <div className="flex items-start gap-3"><FileCheck2 className="mt-0.5 h-5 w-5 text-primary" /><div><p className="font-semibold">Ready to create or merge {number(preview.summary.importableTires)} tire records</p><p className="text-sm text-muted-foreground">Existing serial numbers are merged into their existing tire records and only new dated history is appended. Repeated serials in this workbook are grouped. Unnumbered slots use a stable source-row fingerprint and cannot be matched across changed source rows. Fleet links are made only for exact, unique truck/trailer matches. No existing tire records are deleted.</p></div></div>
-          {confirmImport ? <Alert><AlertTriangle className="h-4 w-4" /><AlertDescription><strong>Confirm tire reconciliation.</strong> {number(preview.summary.importableTires)} tire records will be created or matched, and up to {number(preview.summary.importableUsageEntries)} dated usage-history entries will be reconciled. Existing tire records will be preserved.</AlertDescription></Alert> : null}
+          <div className="flex items-start gap-3"><FileCheck2 className="mt-0.5 h-5 w-5 text-primary" /><div><p className="font-semibold">Ready to import {number(preview.summary.importableTires)} separate OUT QTY tire slots</p><p className="text-sm text-muted-foreground">{number(preview.summary.newTireRecordsToCreate ?? preview.summary.importableTires)} new records will be created and {number(preview.summary.legacyRecordsToReconcile ?? 0)} exact legacy records will be corrected in place. Repeated serials remain separate. Stable source-row/slot codes prevent re-import duplicates. Truck and trailer references are matched using normalized fleet identifiers; unmatched references remain visible as unverified history. No existing tire records are deleted.</p></div></div>
+          {confirmImport ? <Alert><AlertTriangle className="h-4 w-4" /><AlertDescription><strong>Confirm tire reconciliation.</strong> {number(preview.summary.newTireRecordsToCreate ?? preview.summary.importableTires)} new tire records will be created, {number(preview.summary.legacyRecordsToReconcile ?? 0)} existing legacy records will be corrected, and {number(preview.summary.importableUsageEntries)} dated usage-history entries will be saved. All {number(preview.summary.sourceQuantityTotal)} OUT QTY slots will remain separate.</AlertDescription></Alert> : null>
           <div className="flex flex-wrap gap-2">
             {!confirmImport ? <Button onClick={() => setConfirmImport(true)} disabled={busy || preview.summary.importableTires === 0}><ShieldCheck className="mr-2 h-4 w-4" />Review and confirm import</Button> : <Button onClick={() => sendFile('import')} disabled={busy || preview.summary.importableTires === 0}>{busy ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Importing records…</> : <><CheckCircle2 className="mr-2 h-4 w-4" />Confirm import of {number(preview.summary.importableTires)} tires</>}</Button>}
             <Button variant="outline" onClick={() => sendFile('preview', 1)} disabled={busy || !file}><RefreshCw className="mr-2 h-4 w-4" />Re-analyze</Button>
