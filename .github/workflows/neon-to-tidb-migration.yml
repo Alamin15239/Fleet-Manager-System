@@ -4,11 +4,12 @@ on:
   workflow_dispatch:
     inputs:
       operation:
-        description: "Export schema for review, or import schema and data into TiDB"
+        description: "Export, safely test the schema/data in an isolated TiDB schema, or migrate into public"
         required: true
         type: choice
         options:
           - export
+          - preflight
           - migrate
         default: export
       confirm_target_empty:
@@ -50,8 +51,10 @@ jobs:
           print(f"  port={parsed.port or 5432}")
           print(f"  database={database or '(not specified)'}")
           PY
-          if [[ "${{ inputs.operation }}" == "migrate" ]]; then
+          if [[ "${{ inputs.operation }}" == "preflight" || "${{ inputs.operation }}" == "migrate" ]]; then
             test -n "$TIDB_DATABASE_URL" || { echo "::error::Missing TIDB_DATABASE_URL repository secret"; exit 1; }
+          fi
+          if [[ "${{ inputs.operation }}" == "migrate" ]]; then
             [[ "${{ inputs.confirm_target_empty }}" == "true" ]] || { echo "::error::Set confirm_target_empty only after verifying the TiDB database is empty"; exit 1; }
           fi
 
@@ -100,6 +103,64 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+      - name: Preflight schema and data in isolated TiDB schema
+        if: ${{ inputs.operation == 'preflight' }}
+        shell: bash
+        env:
+          NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+          TIDB_DATABASE_URL: ${{ secrets.TIDB_DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          PREFLIGHT_SCHEMA="nexora_migration_preflight_${GITHUB_RUN_ID}"
+          export PREFLIGHT_SCHEMA
+          python3 - <<'PY'
+          import os, re
+          schema = os.environ["PREFLIGHT_SCHEMA"]
+          if not re.fullmatch(r"[a-z][a-z0-9_]{0,62}", schema):
+              raise SystemExit("Invalid preflight schema identifier")
+          with open("migration-artifacts/schema.sql", encoding="utf-8") as f:
+              ddl = f.read()
+          ddl = ddl.replace("CREATE SCHEMA public;", f"CREATE SCHEMA {schema};")
+          ddl = ddl.replace("COMMENT ON SCHEMA public", f"COMMENT ON SCHEMA {schema}")
+          ddl = re.sub(r"\\bpublic\\.", schema + ".", ddl)
+          ddl = re.sub(r"(?m)^SET [^;]+;\\s*\\n", "", ddl)
+          ddl = re.sub(r"(?m)^SELECT pg_catalog\\.set_config\\([^;]+;\\s*\\n", "", ddl)
+          with open("migration-artifacts/preflight-schema.sql", "w", encoding="utf-8") as f:
+              f.write(ddl)
+          PY
+          docker run --rm --network host \\
+            -e NEON_DATABASE_URL -e TIDB_DATABASE_URL -e PREFLIGHT_SCHEMA \\
+            -v "$PWD/migration-artifacts:/work" -w /work \\
+            postgres:18 bash -euo pipefail -c '
+              db=$(psql "$TIDB_DATABASE_URL" -X -v ON_ERROR_STOP=1 -At -c "SELECT current_database()")
+              version=$(psql "$TIDB_DATABASE_URL" -X -v ON_ERROR_STOP=1 -At -c "SELECT version()")
+              echo "TiDB preflight target database: $db"
+              echo "TiDB server: $version"
+              exists=$(psql "$TIDB_DATABASE_URL" -X -v ON_ERROR_STOP=1 -At -c "SELECT count(*) FROM information_schema.schemata WHERE schema_name = '$PREFLIGHT_SCHEMA'")
+              if [ "$exists" != "0" ]; then
+                echo "Refusing preflight: temporary schema already exists: $PREFLIGHT_SCHEMA"
+                exit 1
+              fi
+              cleanup() { psql "$TIDB_DATABASE_URL" -X -v ON_ERROR_STOP=1 -c "DROP SCHEMA IF EXISTS $PREFLIGHT_SCHEMA CASCADE" >/dev/null 2>&1 || true; }
+              trap cleanup EXIT
+              psql "$TIDB_DATABASE_URL" -X -v ON_ERROR_STOP=1 -c "CREATE SCHEMA $PREFLIGHT_SCHEMA"
+              psql "$TIDB_DATABASE_URL" -X -v ON_ERROR_STOP=1 -f preflight-schema.sql
+              pg_dump --data-only --schema=public --no-owner --no-privileges "$NEON_DATABASE_URL" > preflight-data.sql
+              sed -i "s/public\\./$PREFLIGHT_SCHEMA./g" preflight-data.sql
+              sed -i "/^SET /d" preflight-data.sql
+              sed -i "/^SELECT pg_catalog.set_config/d" preflight-data.sql
+              psql "$TIDB_DATABASE_URL" -X -v ON_ERROR_STOP=1 -f preflight-data.sql
+              echo "Checking all source table row counts in isolated schema..."
+              while IFS="|" read -r source_schema table expected; do
+                actual=$(psql "$TIDB_DATABASE_URL" -X -v ON_ERROR_STOP=1 -At -c "SELECT count(*) FROM \"$PREFLIGHT_SCHEMA\".\"$table\"")
+                if [ "$actual" != "$expected" ]; then
+                  echo "PREFLIGHT COUNT MISMATCH $table source=$expected target=$actual"
+                  exit 1
+                fi
+                printf "OK %s %s rows\\n" "$table" "$actual"
+              done < source-row-counts.txt
+              echo "Preflight passed: schema and all data imported and verified in isolated schema."
+            '
       - name: Import schema and data into TiDB
         if: ${{ inputs.operation == 'migrate' }}
         shell: bash
