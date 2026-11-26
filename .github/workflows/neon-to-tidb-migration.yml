@@ -230,6 +230,7 @@ jobs:
           with open("migration-artifacts/schema.sql", encoding="utf-8") as f:
               ddl = f.read()
           ddl = ddl.replace("CREATE SCHEMA public;", f"CREATE SCHEMA {schema};")
+          ddl = ddl.replace("COMMENT ON SCHEMA public", f"COMMENT ON SCHEMA {schema}")
           ddl = ddl.replace('"public".', f'"{schema}".')
           ddl = re.sub(r"(?m)^SET [^;]+;\s*\n", "", ddl)
           ddl = re.sub(r"(?m)^SELECT pg_catalog\.set_config\([^;]+;\s*\n", "", ddl)
