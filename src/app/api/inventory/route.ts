@@ -39,8 +39,14 @@ export async function GET(request: NextRequest) {
       FROM "inventory_items" i LEFT JOIN "inventory_transactions" t ON t."itemId"=i."id"
       GROUP BY i."id" ORDER BY i."name" ASC`)
     const transactions = await db.$queryRawUnsafe<any[]>(`
-      SELECT t.*, i."name" AS "itemName", i."partNumber", i."unit"
-      FROM "inventory_transactions" t JOIN "inventory_items" i ON i."id"=t."itemId"
+      SELECT t.*, i."name" AS "itemName", i."partNumber", i."unit",
+        CASE WHEN LOWER(COALESCE(t."vehicleType",''))='truck' THEN tr."licensePlate"
+             WHEN LOWER(COALESCE(t."vehicleType",''))='trailer' THEN tl."number"
+             ELSE NULL END AS "vehicleLabel"
+      FROM "inventory_transactions" t
+      JOIN "inventory_items" i ON i."id"=t."itemId"
+      LEFT JOIN "trucks" tr ON LOWER(COALESCE(t."vehicleType",''))='truck' AND tr."id"=t."vehicleId"
+      LEFT JOIN "trailers" tl ON LOWER(COALESCE(t."vehicleType",''))='trailer' AND tl."id"=t."vehicleId"
       ORDER BY t."transactionDate" DESC, t."createdAt" DESC LIMIT 500`)
     return NextResponse.json({ items, transactions })
   } catch (error) {
