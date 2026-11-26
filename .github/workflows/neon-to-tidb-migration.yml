@@ -52,7 +52,7 @@ jobs:
           docker run --rm --network host \
             -e NEON_DATABASE_URL \
             -v "$PWD/migration-artifacts:/work" -w /work \
-            postgres:17 bash -euo pipefail -c '
+            postgres:18 bash -euo pipefail -c '
               pg_dump --version
               pg_dump --schema-only --schema=public --no-owner --no-privileges "$NEON_DATABASE_URL" > schema.sql
               psql "$NEON_DATABASE_URL" -X -v ON_ERROR_STOP=1 -At -F "|" -c "
@@ -98,7 +98,7 @@ jobs:
           docker run --rm --network host \
             -e NEON_DATABASE_URL -e TIDB_DATABASE_URL \
             -v "$PWD/migration-artifacts:/work" -w /work \
-            postgres:17 bash -euo pipefail -c '
+            postgres:18 bash -euo pipefail -c '
               # Never overwrite an existing application schema.
               existing=$(psql "$TIDB_DATABASE_URL" -X -v ON_ERROR_STOP=1 -At -c "
                 SELECT count(*) FROM information_schema.tables
