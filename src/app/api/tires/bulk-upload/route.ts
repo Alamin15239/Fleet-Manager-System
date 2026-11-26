@@ -651,10 +651,10 @@ export async function POST(request: NextRequest) {
         const match = resolveVehicle(source)
         if (!match) continue
         if (match.type === 'truck') {
-          await tx.tire.updateMany({ where: { id: existingTire.id, truckId: null }, data: { truckId: match.id, lifecycleStatus: 'ASSIGNED' } })
+          await tx.tire.updateMany({ where: { id: existingTire.id, truckId: null }, data: { truckId: match.id, trailerNumber: null, lifecycleStatus: 'ASSIGNED' } })
           await tx.tireLifecycleEvent.updateMany({ where: { tireId: existingTire.id, eventType: 'ISSUE', toTruckId: null }, data: { toTruckId: match.id } })
         } else {
-          await tx.tire.updateMany({ where: { id: existingTire.id, trailerNumber: null }, data: { trailerNumber: source.vehicleNumber, lifecycleStatus: 'ASSIGNED' } })
+          await tx.tire.updateMany({ where: { id: existingTire.id, trailerNumber: null }, data: { trailerNumber: source.trailerNumber || source.vehicleNumber, lifecycleStatus: 'ASSIGNED' } })
           await tx.tireLifecycleEvent.updateMany({ where: { tireId: existingTire.id, eventType: 'ISSUE', toTrailerId: null }, data: { toTrailerId: match.id } })
         }
         await tx.tireUsagePeriod.updateMany({
@@ -695,12 +695,12 @@ export async function POST(request: NextRequest) {
           // because it references the separate legacy Vehicle table.
           plateNumber: null,
           truckId: vehicleMatch?.type === 'truck' ? vehicleMatch.id : null,
-          trailerNumber: source.trailerNumber || (source.vehicleType === 'trailer' ? source.vehicleNumber : null),
+          trailerNumber: vehicleMatch?.type === 'trailer' ? (source.trailerNumber || source.vehicleNumber) : (!vehicleMatch && source.vehicleType === 'trailer' ? (source.trailerNumber || source.vehicleNumber) : null),
           driverName: source.driver || null,
           quantity: 1,
           serialNumber: unit.serial,
           internalCode: code,
-          lifecycleStatus: 'ASSIGNED_UNVERIFIED',
+          lifecycleStatus: vehicleMatch ? 'ASSIGNED' : 'ASSIGNED_UNVERIFIED',
           createdById: user.id,
           createdAt: source.eventAt || undefined,
           notes
