@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
       ? db.workshopJobCard.findMany({
           select: {
             id: true, jobNumber: true, truckId: true, trailerId: true, serviceDate: true,
-            serviceType: true, status: true, nextServiceOdometer: true, nextServiceDate: true, createdAt: true,
+            serviceType: true, creationSource: true, items: true, status: true, nextServiceOdometer: true, nextServiceDate: true, createdAt: true,
             truck: { select: { id: true, make: true, model: true, year: true, vin: true, licensePlate: true, currentMileage: true } },
             trailer: { select: { id: true, number: true } }
           },
@@ -32,7 +32,17 @@ export async function GET(request: NextRequest) {
           },
           orderBy: [{ serviceDate: 'desc' }, { createdAt: 'desc' }]
         })
-    const [jobCards, settings] = await Promise.all([cardsQuery, db.settings.findFirst({ select: { companyName: true, companyAddress: true, companyPhone: true, companyEmail: true } })])
+    const [savedJobCards, settings] = await Promise.all([cardsQuery, db.settings.findFirst({ select: { companyName: true, companyAddress: true, companyPhone: true, companyEmail: true } })])
+    // Older oil-import workflows incorrectly materialized oil changes as
+    // standalone Job Cards. Hide only those legacy, unclassified oil-only
+    // records from Job Card views; retain the underlying oil history and all
+    // explicitly manual/workbook Job Cards.
+    const jobCards = savedJobCards.filter((card: any) => {
+      const legacyUnknownSource = String(card.creationSource || 'UNKNOWN').toUpperCase() === 'UNKNOWN'
+      const oilOnlyService = /oil[\\s_-]*change/i.test(String(card.serviceType || ''))
+      const hasNoJobCardLines = !Array.isArray(card.items) || card.items.length === 0
+      return !(legacyUnknownSource && oilOnlyService && hasNoJobCardLines)
+    })
     const activityRows = await db.$queryRawUnsafe<any[]>(`
       SELECT
         (SELECT COUNT(*) FROM "maintenance_records" WHERE "isDeleted"=false AND "isOilChange"=true)::int AS "oilTotal",
