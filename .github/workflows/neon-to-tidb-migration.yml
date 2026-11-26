@@ -192,6 +192,12 @@ jobs:
             exit 1
           fi
 
+          # TiDB creates the public schema for each database; do not try to create it again.
+          sed -i '/^CREATE SCHEMA public;$/d' schema.sql
+          if grep -Eq '^[[:space:]]*CREATE SCHEMA[[:space:]]+public([;[:space:]]|$)' schema.sql; then
+            echo "Refusing import: schema.sql still attempts to create the existing public schema."
+            exit 1
+          fi
           psql "$TIDB_DATABASE_URL" -X -v ON_ERROR_STOP=1 -f schema.sql
           pg_dump --data-only --inserts --rows-per-insert=100 --schema=public --no-owner --no-privileges "$NEON_DATABASE_URL" |
             psql "$TIDB_DATABASE_URL" -X -v ON_ERROR_STOP=1
