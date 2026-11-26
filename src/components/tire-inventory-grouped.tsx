@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { 
   ChevronDown, 
   ChevronRight, 
@@ -18,10 +19,12 @@ import {
   Calendar,
   RefreshCw,
   Search,
-  Filter
+  Filter,
+  Trash2
 } from 'lucide-react'
 import { format } from 'date-fns'
-import { apiGet } from '@/lib/api'
+import { apiDelete, apiGet } from '@/lib/api'
+import { usePermissions } from '@/contexts/permissions-context'
 import { useRealTime } from '../../components/real-time-provider'
 
 interface Tire {
@@ -66,6 +69,11 @@ export default function TireInventoryGrouped() {
   const [dateTo, setDateTo] = useState('')
   const [manufacturers, setManufacturers] = useState<string[]>([])
   const { refreshData } = useRealTime()
+  const { canDelete } = usePermissions()
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [deleteConfirmation, setDeleteConfirmation] = useState('')
+  const [deletingAll, setDeletingAll] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   useEffect(() => {
     fetchAndGroupTires()
