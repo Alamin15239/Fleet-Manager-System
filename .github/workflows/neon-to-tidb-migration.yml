@@ -270,20 +270,14 @@ jobs:
           open("migration-artifacts/tidb-schema-repair-public.sql", "w", encoding="utf-8").write(public_sql)
           destructive = re.findall(r'(?im)^\s*(DROP\s+(?:TABLE|INDEX|TYPE|SCHEMA)|ALTER TABLE .* DROP CONSTRAINT)\b.*;', public_sql)
           with open("migration-artifacts/tidb-schema-repair-review.txt", "w", encoding="utf-8") as report:
-              report.write("PRODUCTION SCHEMA REPAIR PLAN — NOT APPLIED
-")
-              report.write("Target: TiDB public schema
-")
-              report.write("Existing row data is preserved; new tables are empty.
-")
-              report.write("Reviewed destructive/constraint-change statements:
-")
+              report.write("PRODUCTION SCHEMA REPAIR PLAN — NOT APPLIED\n")
+              report.write("Target: TiDB public schema\n")
+              report.write("Existing row data is preserved; new tables are empty.\n")
+              report.write("Reviewed destructive/constraint-change statements:\n")
               for statement in destructive:
-                  report.write(statement + "
-")
-              report.write("\\nForeign keys dropped by the plan are recreated later in the same SQL file.\\n")
-              report.write("The email_logs.emailId unique index is intentionally replaced by a non-unique lookup index, matching Prisma schema semantics (one email can have multiple webhook events).
-")
+                  report.write(statement + "\n")
+              report.write("\nForeign keys dropped by the plan are recreated later in the same SQL file.\n")
+              report.write("The email_logs.emailId unique index is intentionally replaced by a non-unique lookup index, matching Prisma schema semantics (one email can have multiple webhook events).\n")
           print("Sanitized repair DDL generated; TiDB-managed tables and unrelated indexes are protected.")
           PY
           docker run --rm -i --network host \
