@@ -138,7 +138,7 @@ jobs:
               echo "TiDB server: $version"
               public_tables=$(psql "$TIDB_DATABASE_URL" -X -v ON_ERROR_STOP=1 -At -c "SELECT count(*) FROM information_schema.tables WHERE table_schema = \\$\\$public\\$\\$ AND table_type = \\$\\$BASE TABLE\\$\\$ AND table_name NOT LIKE \\$\\$tidbcloud_com_cell_%\\$\\$")
               echo "Existing public application tables in TiDB: $public_tables"
-              exists=$(psql "$TIDB_DATABASE_URL" -X -v ON_ERROR_STOP=1 -At -c "SELECT count(*) FROM information_schema.schemata WHERE schema_name = \\$\\$"${PREFLIGHT_SCHEMA}"\\$\\$")
+              exists=$(psql "$TIDB_DATABASE_URL" -X -v ON_ERROR_STOP=1 -At -c "SELECT count(*) FROM information_schema.schemata WHERE schema_name = \\$\\${PREFLIGHT_SCHEMA}\\$\\$")
               if [ "$exists" != "0" ]; then
                 echo "Refusing preflight: temporary schema already exists: $PREFLIGHT_SCHEMA"
                 exit 1
