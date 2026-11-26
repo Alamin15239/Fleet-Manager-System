@@ -131,7 +131,7 @@ export default function TireBulkUpload() {
   return <Card>
     <CardHeader>
       <CardTitle className="flex items-center gap-2"><FileSpreadsheet className="h-5 w-5" /> Smart tire usage-history import</CardTitle>
-      <p className="text-sm text-muted-foreground">Upload the spreadsheet as it is. The importer preserves each source row and OUT QTY occurrence without matching vehicle records or existing tire serials.</p>
+      <p className="text-sm text-muted-foreground">Upload the spreadsheet as it is. The importer creates exactly the number of tire records stated in each valid OUT QTY cell. Serial numbers identify those records; they never increase the count.</p>
     </CardHeader>
     <CardContent className="space-y-4">
       <div className="rounded-lg border bg-muted/30 p-3 text-sm">
@@ -191,7 +191,7 @@ export default function TireBulkUpload() {
           <div className="mt-4 rounded-md border p-3">
             <p className="text-sm font-semibold">Quantity reconciliation</p>
             <p className="mt-1 text-xs text-muted-foreground">
-              OUT QTY is the total number of tire-usage units recorded in the source. Every OUT QTY slot is retained as a separate tire record. Repeated serials on different rows are not merged or matched. Rows without a valid OUT QTY are retained as source rows with quantity recorded as unknown (zero).
+              OUT QTY is the total number of tire-usage units recorded in the source. Every OUT QTY slot is retained as a separate tire record. Repeated serials on different rows are not merged or matched. Rows without a valid OUT QTY remain visible in the analysis but create zero tire records. Extra serial numbers never increase the OUT QTY count.
             </p>
             <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
               {[
@@ -261,7 +261,7 @@ export default function TireBulkUpload() {
           </Button>
           <Button type="button" variant="ghost" onClick={clearSelection} disabled={busy}>Cancel</Button>
         </div>
-        <p className="text-xs text-muted-foreground">Every detected source tire record is imported without fleet matching, existing-serial matching, grouping, or review-based blocking. Original vehicle references and source row details are saved as text when no database relation is available. Dated rows create tire usage-history events; rows without dates remain as tire source records. Tire imports never create or link Workshop Job Cards. This workbook does not create stock receipts.</p>
+        <p className="text-xs text-muted-foreground">Exactly the valid OUT QTY total is imported. Rows without valid OUT QTY create no tire records; serial identifiers only label quantity slots. No fleet matching, existing-serial matching, grouping, or review-based blocking is performed. Original vehicle references and source row details are saved as text when no database relation is available. Dated rows create tire usage-history events; rows without dates remain as tire source records. Tire imports never create or link Workshop Job Cards. This workbook does not create stock receipts.</p>
       </>}
     </CardContent>
   </Card>
