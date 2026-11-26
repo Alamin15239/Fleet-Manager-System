@@ -27,6 +27,14 @@ type PreviewUnit = {
   warnings: string[]
   errors: string[]
 }
+type ImportErrorDiagnostics = {
+  expectedTires?: number
+  detectedTires?: number
+  sheetTotals?: Array<{ sheetName: string; usageRows: number; tireQuantity: number }>
+  sheetReconciliationFailures?: Array<{ sheetName: string; expected: number; detected: number }>
+  rowDiagnostics?: Array<{ sheetName: string; rows: Array<{ sourceRow: number; quantityText: string; parsedQuantity: number }> }>
+}
+
 type ImportPreview = {
   message: string
   fileName: string
@@ -69,6 +77,7 @@ export default function TireBulkUpload() {
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
+  const [errorDiagnostics, setErrorDiagnostics] = useState<ImportErrorDiagnostics | null>(null)
   const [preview, setPreview] = useState<ImportPreview | null>(null)
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
@@ -78,7 +87,7 @@ export default function TireBulkUpload() {
   const [dragging, setDragging] = useState(false)
 
   const clearSelection = useCallback(() => {
-    setFile(null); setPreview(null); setMessage(''); setError('')
+    setFile(null); setPreview(null); setMessage(''); setError(''); setErrorDiagnostics(null)
     setPage(1); setSearch(''); setAppliedSearch(''); setSheet('all'); setConfirmImport(false)
     if (inputRef.current) inputRef.current.value = ''
   }, [])
@@ -98,7 +107,11 @@ export default function TireBulkUpload() {
       const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {}
       const response = await fetch('/api/tires/bulk-upload', { method: 'POST', headers, credentials: 'include', body: data })
       const result = await response.json()
-      if (!response.ok) throw new Error(result.error || 'Tire sheet operation failed.')
+      if (!response.ok) {
+        setErrorDiagnostics(result as ImportErrorDiagnostics)
+        throw new Error(result.error || 'Tire sheet operation failed.')
+      }
+      setErrorDiagnostics(null)
       if (mode === 'preview') {
         setPreview(result as ImportPreview); setPage(requestedPage)
         setConfirmImport(false)
@@ -116,7 +129,7 @@ export default function TireBulkUpload() {
   }
 
   const chooseFile = (next: File | null) => {
-    setFile(next); setPreview(null); setMessage(''); setError('')
+    setFile(next); setPreview(null); setMessage(''); setError(''); setErrorDiagnostics(null)
     setPage(1); setSearch(''); setAppliedSearch(''); setSheet('all'); setConfirmImport(false)
   }
 
@@ -175,6 +188,23 @@ export default function TireBulkUpload() {
         </div>
 
         {error && <Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertDescription>{error}</AlertDescription></Alert>}
+        {errorDiagnostics?.sheetTotals?.length ? <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-base">Blocked import diagnostics</CardTitle><p className="text-sm text-muted-foreground">No records were imported. Compare the parser's row-level values with the original workbook.</p></CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-sm font-medium">Expected {number(errorDiagnostics.expectedTires || 0)} tires · detected {number(errorDiagnostics.detectedTires || 0)}</p>
+            {errorDiagnostics.sheetTotals.map(sheetTotal => {
+              const detail = errorDiagnostics.rowDiagnostics?.find(item => item.sheetName === sheetTotal.sheetName)
+              return <div key={sheetTotal.sheetName} className="rounded-lg border p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2 text-sm"><strong>{sheetTotal.sheetName}</strong><span>{number(sheetTotal.tireQuantity)} parsed tires · {number(sheetTotal.usageRows)} rows</span></div>
+                {detail?.rows?.length ? <div className="mt-2 max-h-48 overflow-auto rounded border">
+                  <table className="w-full text-xs"><thead className="sticky top-0 bg-muted"><tr><th className="p-2 text-left">Source row</th><th className="p-2 text-left">Original OUT QTY</th><th className="p-2 text-right">Parsed</th></tr></thead>
+                    <tbody>{detail.rows.map(row => <tr key={row.sourceRow} className="border-t"><td className="p-2">{row.sourceRow}</td><td className="p-2 font-mono">{row.quantityText || 'Blank'}</td><td className="p-2 text-right font-semibold">{row.parsedQuantity}</td></tr>)}</tbody>
+                  </table>
+                </div> : <p className="mt-2 text-xs text-muted-foreground">No positive quantity rows were parsed.</p>}
+              </div>
+            })}
+          </CardContent>
+        </Card> : null}
         {message && <Alert><CheckCircle2 className="h-4 w-4" /><AlertDescription>{message}</AlertDescription></Alert>}
 
         {!preview && <div className="flex flex-wrap items-center gap-2">
