@@ -122,15 +122,15 @@ jobs:
               ddl = f.read()
           ddl = ddl.replace("CREATE SCHEMA public;", f"CREATE SCHEMA {schema};")
           ddl = ddl.replace("COMMENT ON SCHEMA public", f"COMMENT ON SCHEMA {schema}")
-          ddl = re.sub(r"\\bpublic\\.", schema + ".", ddl)
-          ddl = re.sub(r"(?m)^SET [^;]+;\\s*\\n", "", ddl)
-          ddl = re.sub(r"(?m)^SELECT pg_catalog\\.set_config\\([^;]+;\\s*\\n", "", ddl)
+          ddl = re.sub(r"\bpublic\.", schema + ".", ddl)
+          ddl = re.sub(r"(?m)^SET [^;]+;\s*\n", "", ddl)
+          ddl = re.sub(r"(?m)^SELECT pg_catalog\.set_config\([^;]+;\s*\n", "", ddl)
           with open("migration-artifacts/preflight-schema.sql", "w", encoding="utf-8") as f:
               f.write(ddl)
           PY
-          docker run --rm --network host \\
-            -e NEON_DATABASE_URL -e TIDB_DATABASE_URL -e PREFLIGHT_SCHEMA \\
-            -v "$PWD/migration-artifacts:/work" -w /work \\
+          docker run --rm --network host \
+            -e NEON_DATABASE_URL -e TIDB_DATABASE_URL -e PREFLIGHT_SCHEMA \
+            -v "$PWD/migration-artifacts:/work" -w /work \
             postgres:18 bash -euo pipefail -c '
               db=$(psql "$TIDB_DATABASE_URL" -X -v ON_ERROR_STOP=1 -At -c "SELECT current_database()")
               version=$(psql "$TIDB_DATABASE_URL" -X -v ON_ERROR_STOP=1 -At -c "SELECT version()")
@@ -146,7 +146,7 @@ jobs:
               psql "$TIDB_DATABASE_URL" -X -v ON_ERROR_STOP=1 -c "CREATE SCHEMA $PREFLIGHT_SCHEMA"
               psql "$TIDB_DATABASE_URL" -X -v ON_ERROR_STOP=1 -f preflight-schema.sql
               pg_dump --data-only --schema=public --no-owner --no-privileges "$NEON_DATABASE_URL" > preflight-data.sql
-              sed -i "s/public\\./$PREFLIGHT_SCHEMA./g" preflight-data.sql
+              sed -i "s/public\./$PREFLIGHT_SCHEMA./g" preflight-data.sql
               sed -i "/^SET /d" preflight-data.sql
               sed -i "/^SELECT pg_catalog.set_config/d" preflight-data.sql
               psql "$TIDB_DATABASE_URL" -X -v ON_ERROR_STOP=1 -f preflight-data.sql
@@ -157,7 +157,7 @@ jobs:
                   echo "PREFLIGHT COUNT MISMATCH $table source=$expected target=$actual"
                   exit 1
                 fi
-                printf "OK %s %s rows\\n" "$table" "$actual"
+                printf "OK %s %s rows\n" "$table" "$actual"
               done < source-row-counts.txt
               echo "Preflight passed: schema and all data imported and verified in isolated schema."
             '
