@@ -171,7 +171,7 @@ export default function TireBulkUpload() {
         <div className="grid gap-3 sm:grid-cols-3">
           <div className="flex gap-3 rounded-xl border p-3"><Hash className="mt-0.5 h-5 w-5 text-primary" /><div><p className="text-sm font-semibold">Usage quantity controls count</p><p className="text-xs text-muted-foreground">Opening balance stock is excluded; only usage rows create tire history.</p></div></div>
           <div className="flex gap-3 rounded-xl border p-3"><History className="mt-0.5 h-5 w-5 text-primary" /><div><p className="text-sm font-semibold">History stays separate</p><p className="text-xs text-muted-foreground">New dated events are appended to the matching tire without replacing its earlier history.</p></div></div>
-          <div className="flex gap-3 rounded-xl border p-3"><ShieldCheck className="mt-0.5 h-5 w-5 text-primary" /><div><p className="text-sm font-semibold">Serial-based reconciliation</p><p className="text-xs text-muted-foreground">Repeated serials are grouped and matched to existing tires. Unnumbered tires are not guessed.</p></div></div>
+          <div className="flex gap-3 rounded-xl border p-3"><ShieldCheck className="mt-0.5 h-5 w-5 text-primary" /><div><p className="text-sm font-semibold">Source-row reconciliation</p><p className="text-xs text-muted-foreground">Repeated serials stay separate. Existing tires are reused only when the complete source row, date, vehicle, size, origin and serial group match exactly.</p></div></div>
         </div>
 
         <div
