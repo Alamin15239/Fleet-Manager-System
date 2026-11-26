@@ -236,8 +236,7 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
       // history. Ignore the marker and every row after it on this worksheet.
       // Some sheets put quantities (for example 1, 2, 9) in OUT QTY below this
       // marker; counting those values inflated the historical issue total.
-      if (/^opening balance$/i.test(rowVehicleLabel) &&
-          !read(columns.date) && !read(columns.quantity)) break
+      if (/^opening balance$/i.test(rowVehicleLabel) && !read(columns.date)) break
 
       const dateCell = columns.date ? row.getCell(columns.date).value : null
       const date = dateCell == null || cellText(dateCell) === '' ? null : parseDate(dateCell)
@@ -392,6 +391,9 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
   const blocked: ImportUnit[] = []
   const reconcilable = units
   const preview = units.slice(0, 150).map(unit => ({
+    sourceSheet: unit.entries[0]?.source.sheetName || '',
+    sourceRow: unit.entries[0]?.source.line || 0,
+    sourceOutQty: unit.entries[0]?.source.quantity || 0,
     serial: unit.serial,
     tireSize: unit.tireSize,
     manufacturer: unit.manufacturer,
