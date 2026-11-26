@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
       FROM "inventory_items" i LEFT JOIN "inventory_transactions" t ON t."itemId"=i."id"
       GROUP BY i."id" ORDER BY i."name" ASC`)
     const transactions = await db.$queryRawUnsafe<any[]>(`
-      SELECT t.*, i."name" AS "itemName", i."unit"
+      SELECT t.*, i."name" AS "itemName", i."partNumber", i."unit"
       FROM "inventory_transactions" t JOIN "inventory_items" i ON i."id"=t."itemId"
       ORDER BY t."transactionDate" DESC, t."createdAt" DESC LIMIT 500`)
     return NextResponse.json({ items, transactions })
