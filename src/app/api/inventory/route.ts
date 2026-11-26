@@ -163,45 +163,111 @@ export async function PATCH(request: NextRequest) {
     const user = await requireRolePermission(request, 'maintenance', 'update')
     await ensureInventorySchema()
     const body = await request.json()
-    if (body.action !== 'updateIssueVehicle')
+    if (body.action !== 'updateIssue')
       return NextResponse.json({ error: 'Unsupported inventory update' }, { status: 400 })
 
     const transactionId = String(body.transactionId || '').trim()
+    const itemId = String(body.itemId || '').trim()
     const vehicleType = String(body.vehicleType || '').toLowerCase()
     const vehicleId = String(body.vehicleId || '').trim()
-    if (!transactionId || !vehicleId || !['truck', 'trailer'].includes(vehicleType))
-      return NextResponse.json({ error: 'Select a valid issue and destination truck or trailer' }, { status: 400 })
+    const quantity = Number(body.quantity)
+    const unitCost = body.unitCost === '' || body.unitCost == null ? null : Number(body.unitCost)
+    const transactionDate = body.transactionDate ? new Date(body.transactionDate) : new Date()
+    if (!transactionId || !itemId || !Number.isFinite(quantity) || quantity <= 0 ||
+        !['truck', 'trailer'].includes(vehicleType) || !vehicleId ||
+        Number.isNaN(transactionDate.getTime()) ||
+        (unitCost !== null && (!Number.isFinite(unitCost) || unitCost < 0)))
+      return NextResponse.json({ error: 'Enter a part, valid quantity, date, cost and destination vehicle' }, { status: 400 })
 
     const result = await db.$transaction(async tx => {
       const rows = await tx.$queryRawUnsafe<any[]>(`
-        SELECT "id", "type", "jobCardId", "sourceType"
-        FROM "inventory_transactions" WHERE "id"=$1 FOR UPDATE`, transactionId)
-      const transaction = rows[0]
-      if (!transaction) throw new Error('Inventory transaction not found')
-      if (transaction.type !== 'ISSUE') throw new Error('Only issued parts can have their vehicle corrected')
-      if (transaction.jobCardId || transaction.sourceType)
-        throw new Error('This issue is linked to a Workshop Job Card or maintenance record. Correct the vehicle on its source record instead.')
+        SELECT * FROM "inventory_transactions" WHERE "id"=$1 FOR UPDATE`, transactionId)
+      const old = rows[0]
+      if (!old) throw new Error('Inventory transaction not found')
+      if (old.type !== 'ISSUE') throw new Error('Only issued-part transactions can be edited')
 
-      const vehicle = vehicleType === 'truck'
-        ? await tx.truck.findFirst({ where: { id: vehicleId, isDeleted: false, status: { not: 'INACTIVE' } }, select: { id: true } })
-        : await tx.trailer.findFirst({ where: { id: vehicleId, isDeleted: false }, select: { id: true } })
+      const [item, vehicle] = await Promise.all([
+        tx.$queryRawUnsafe<any[]>(`SELECT "id","name" FROM "inventory_items" WHERE "id"=$1`, itemId),
+        vehicleType === 'truck'
+          ? tx.truck.findFirst({ where: { id: vehicleId, isDeleted: false, status: { not: 'INACTIVE' } }, select: { id: true } })
+          : tx.trailer.findFirst({ where: { id: vehicleId, isDeleted: false, status: { not: 'INACTIVE' } }, select: { id: true } })
+      ])
+      if (!item.length) throw new Error('Inventory item not found')
       if (!vehicle) throw new Error('Selected vehicle not found or inactive')
+      if (old.sourceType && old.sourceType !== 'OIL_CHANGE')
+        throw new Error('This issue belongs to a source workflow that does not support direct editing yet')
+
+      // Check the resulting balance while excluding this issue. This permits
+      // correcting an issue without temporarily double-counting its old quantity.
+      const balance = await tx.$queryRawUnsafe<any[]>(`
+        SELECT COALESCE(SUM(CASE WHEN "type" IN ('OPENING','PURCHASE','CUSTOMER_RETURN','ADJUSTMENT_IN') THEN "quantity"
+          WHEN "type" IN ('ISSUE','SUPPLIER_RETURN','ADJUSTMENT_OUT') THEN -"quantity" ELSE 0 END),0)::float AS qty
+        FROM "inventory_transactions" WHERE "itemId"=$1 AND "id"<>$2`,
+        itemId, transactionId)
+      if (Number(balance[0]?.qty || 0) + 0.000001 < quantity)
+        throw new Error('Insufficient stock for the corrected issue')
+
+      if (old.jobCardId) {
+        const card = await tx.workshopJobCard.findUnique({ where: { id: old.jobCardId } })
+        if (!card) throw new Error('Linked Workshop Job Card was not found')
+        const lines = Array.isArray(card.items) ? [...card.items as any[]] : []
+        const matches = lines.map((line, index) => ({ line, index }))
+          .filter(({ line }) => line?.type === 'PART' && line?.inventoryItemId === old.itemId)
+        if (matches.length !== 1)
+          throw new Error('The linked Job Card has multiple or missing lines for this part. Edit the part line in the Job Card instead.')
+        const { index } = matches[0]
+        lines[index] = { ...lines[index], inventoryItemId: itemId, description: item[0].name, quantity, unitCost }
+        await tx.workshopJobCard.update({
+          where: { id: card.id },
+          data: {
+            items: lines,
+            serviceDate: transactionDate,
+            truckId: vehicleType === 'truck' ? vehicleId : null,
+            trailerId: vehicleType === 'trailer' ? vehicleId : null
+          }
+        })
+        // A Job Card is one maintenance visit; keep all of its inventory issue
+        // rows aligned with the corrected visit date and assigned vehicle.
+        await tx.$executeRawUnsafe(`
+          UPDATE "inventory_transactions" SET "transactionDate"=$2,"vehicleType"=$3,"vehicleId"=$4
+          WHERE "jobCardId"=$1 AND "type"='ISSUE'`,
+          card.id, transactionDate, vehicleType, vehicleId)
+      }
+
+      if (old.sourceType === 'OIL_CHANGE') {
+        if (vehicleType !== 'truck') throw new Error('Oil-change inventory issues must remain assigned to a truck')
+        const source = await tx.maintenanceRecord.findFirst({
+          where: { id: String(old.sourceId || ''), isDeleted: false, isOilChange: true },
+          select: { id: true }
+        })
+        if (!source) throw new Error('Linked oil-change record was not found')
+        await tx.maintenanceRecord.update({
+          where: { id: source.id },
+          data: { truckId: vehicleId, datePerformed: transactionDate, oilQuantityLiters: quantity }
+        })
+      }
 
       const updated = await tx.$queryRawUnsafe<any[]>(`
         UPDATE "inventory_transactions"
-        SET "vehicleType"=$2, "vehicleId"=$3
-        WHERE "id"=$1 RETURNING "id", "vehicleType", "vehicleId"`,
-        transactionId, vehicleType, vehicleId)
+        SET "itemId"=$2,"quantity"=$3,"transactionDate"=$4,"reference"=$5,
+            "vehicleType"=$6,"vehicleId"=$7,"unitCost"=$8,"notes"=$9
+        WHERE "id"=$1 RETURNING *`,
+        transactionId, itemId, quantity, transactionDate,
+        body.reference ? String(body.reference).trim() : null,
+        vehicleType, vehicleId, unitCost,
+        body.notes ? String(body.notes).trim() : null)
       return updated[0]
-    })
+    }, { timeout: 30000, maxWait: 10000 })
     return NextResponse.json({ transaction: result, updatedBy: user.id })
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unable to correct issued part vehicle'
+    const message = error instanceof Error ? error.message : 'Unable to update issued part'
     const status = message === 'Insufficient permissions' ? 403
-      : message === 'Inventory transaction not found' ? 404
-      : message === 'Selected vehicle not found or inactive' ? 404
-      : message.includes('Only issued parts') || message.includes('linked to a Workshop') || message.includes('Select a valid issue') ? 400
-      : 500
+      : message === 'Inventory transaction not found' || message === 'Inventory item not found' ||
+        message === 'Selected vehicle not found or inactive' || message.includes('record was not found') ? 404
+      : message.includes('Only issued-part') || message.includes('Enter a part') ||
+        message.includes('does not support') || message.includes('multiple or missing') ||
+        message.includes('must remain assigned') ? 400
+      : message.includes('Insufficient stock') ? 409 : 500
     return NextResponse.json({ error: message }, { status })
   }
 }
