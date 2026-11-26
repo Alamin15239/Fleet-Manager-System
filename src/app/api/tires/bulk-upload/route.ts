@@ -81,6 +81,8 @@ function parseDate(value: ExcelJS.CellValue): Date | null {
   return Number.isNaN(date.getTime()) ? null : date
 }
 
+const normalizeVehicleKey = (value: string) => value.normalize('NFKD').toUpperCase().replace(/[^A-Z0-9]/g, '')
+
 const normalizeHeader = (value: string) => value.toLowerCase().normalize('NFKD').replace(/[^a-z0-9]/g, '')
 const headerAliases: Record<string, string[]> = {
   date: ['date', 'issuedate', 'dateissued', 'dateofissue', 'issuedon', 'outdate', 'transactiondate', 'eventdate', 'installationdate', 'fitmentdate', 'mounteddate', 'startdate', 'usagedate'],
@@ -594,10 +596,54 @@ export async function POST(request: NextRequest) {
     const result = await db.$transaction(async tx => {
       await ensureTireLifecycleTables(tx)
       const codes = analysis.units.map((_, index) => 'UP-XLS-' + sourceHash + '-' + String(index + 1).padStart(5, '0'))
-      const existing = await tx.tire.findMany({ where: { internalCode: { in: codes } }, select: { internalCode: true } })
-      const existingCodes = new Set(existing.map(item => item.internalCode).filter(Boolean))
-      const newUnits = analysis.units.map((unit, index) => ({ unit, code: codes[index] })).filter(item => !existingCodes.has(item.code))
-      if (!newUnits.length) return { tireCount: 0, historyCount: 0, alreadyImported: true }
+      const existing = await tx.tire.findMany({ where: { internalCode: { in: codes } }, select: { id: true, internalCode: true } })
+      const existingByCode = new Map(existing.filter(item => item.internalCode).map(item => [item.internalCode as string, item]))
+      const newUnits = analysis.units.map((unit, index) => ({ unit, code: codes[index] })).filter(item => !existingByCode.has(item.code))
+      const trucks = await tx.truck.findMany({ where: { isDeleted: false }, select: { id: true, licensePlate: true } })
+      const trailers = await tx.trailer.findMany({ where: { isDeleted: false }, select: { id: true, number: true } })
+      const uniqueMap = (items: Array<{ id: string; number: string }>) => {
+        const map = new Map<string, string | null>()
+        for (const item of items) {
+          const key = normalizeVehicleKey(item.number)
+          if (!key) continue
+          map.set(key, map.has(key) ? null : item.id)
+        }
+        return map
+      }
+      const truckMap = uniqueMap(trucks.map(item => ({ id: item.id, number: item.licensePlate })))
+      const trailerMap = uniqueMap(trailers.map(item => ({ id: item.id, number: item.number })))
+      const resolveVehicle = (source: SourceEntry) => {
+        const key = normalizeVehicleKey(source.vehicleNumber)
+        if (!key || !source.vehicleType) return null
+        const id = (source.vehicleType === 'truck' ? truckMap : trailerMap).get(key)
+        return id ? { type: source.vehicleType, id } : null
+      }
+
+      // Re-uploading the same workbook is an idempotent reconciliation pass:
+      // attach previously imported historical records to exact, unique fleet matches
+      // without creating a second set of tires or usage events.
+      let reconciledVehicles = 0
+      for (let index = 0; index < analysis.units.length; index++) {
+        const unit = analysis.units[index]
+        const code = codes[index]
+        const existingTire = existingByCode.get(code)
+        const source = unit.entries[0]?.source
+        if (!existingTire || !source) continue
+        const match = resolveVehicle(source)
+        if (!match) continue
+        if (match.type === 'truck') {
+          await tx.tire.updateMany({ where: { id: existingTire.id, truckId: null }, data: { truckId: match.id, lifecycleStatus: 'ASSIGNED' } })
+          await tx.tireLifecycleEvent.updateMany({ where: { tireId: existingTire.id, eventType: 'ISSUE', toTruckId: null }, data: { toTruckId: match.id } })
+        } else {
+          await tx.tire.updateMany({ where: { id: existingTire.id, trailerNumber: null }, data: { trailerNumber: source.vehicleNumber, lifecycleStatus: 'ASSIGNED' } })
+          await tx.tireLifecycleEvent.updateMany({ where: { tireId: existingTire.id, eventType: 'ISSUE', toTrailerId: null }, data: { toTrailerId: match.id } })
+        }
+        await tx.tireUsagePeriod.updateMany({
+          where: { tireId: existingTire.id, vehicleId: source.vehicleText || source.vehicleNumber },
+          data: { vehicleType: match.type, vehicleId: match.id }
+        })
+        reconciledVehicles++
+      }
 
       const tires: any[] = []
       const events: any[] = []
@@ -605,6 +651,7 @@ export async function POST(request: NextRequest) {
       for (const { unit, code } of newUnits) {
         const source = unit.entries[0]?.source
         if (!source) continue
+        const vehicleMatch = resolveVehicle(source)
         const sourceReference = [
           source.vehicleType ? source.vehicleType.toUpperCase() : 'VEHICLE TYPE NOT SPECIFIED',
           source.vehicleNumber || 'VEHICLE NUMBER NOT SUPPLIED'
@@ -625,8 +672,10 @@ export async function POST(request: NextRequest) {
           tireSize: source.tireSize || 'Unspecified',
           manufacturer: source.manufacturer || 'Unspecified',
           origin: source.origin || 'OTHER',
+          // Link only exact, unique fleet matches. Keep legacy plateNumber unset
+          // because it references the separate legacy Vehicle table.
           plateNumber: null,
-          truckId: null,
+          truckId: vehicleMatch?.type === 'truck' ? vehicleMatch.id : null,
           trailerNumber: source.vehicleType === 'trailer' ? source.vehicleNumber || null : null,
           driverName: source.driver || null,
           quantity: 1,
@@ -645,8 +694,8 @@ export async function POST(request: NextRequest) {
             eventAt: source.eventAt,
             fromTruckId: null,
             fromTrailerId: null,
-            toTruckId: null,
-            toTrailerId: null,
+            toTruckId: vehicleMatch?.type === 'truck' ? vehicleMatch.id : null,
+            toTrailerId: vehicleMatch?.type === 'trailer' ? vehicleMatch.id : null,
             driverNameSnapshot: source.driver || null,
             odometerKm: source.odometerKm,
             reason: 'Tire usage workbook import',
@@ -658,8 +707,8 @@ export async function POST(request: NextRequest) {
             periods.push({
               id: 'tyuse_' + randomUUID(),
               tireId,
-              vehicleType: source.vehicleText.includes('; Trailer:') ? 'source' : source.vehicleType || 'unknown',
-              vehicleId: source.vehicleText || source.vehicleNumber,
+              vehicleType: vehicleMatch?.type || source.vehicleType || 'unknown',
+              vehicleId: vehicleMatch?.id || source.vehicleText || source.vehicleNumber,
               installedAt: source.eventAt,
               removedAt: null,
               historicalEndUnknown: true,
@@ -672,20 +721,21 @@ export async function POST(request: NextRequest) {
       if (tires.length) await tx.tire.createMany({ data: tires, skipDuplicates: true })
       if (events.length) await tx.tireLifecycleEvent.createMany({ data: events, skipDuplicates: true })
       if (periods.length) await tx.tireUsagePeriod.createMany({ data: periods, skipDuplicates: true })
-      return { tireCount: tires.length, historyCount: events.length, alreadyImported: false }
+      return { tireCount: tires.length, historyCount: events.length, alreadyImported: !newUnits.length, reconciledVehicles }
     }, { timeout: 120000 })
 
     if (result.alreadyImported) {
       return NextResponse.json({
-        message: 'This exact workbook has already been imported. No additional tire records or history were created.',
-        tires: 0, historyEntries: 0, alreadyImported: true
+        message: 'This workbook was already imported. No duplicate tires or history were created. Reconciled ' + result.reconciledVehicles + ' previously imported tire records to exact, unique truck/trailer matches.',
+        tires: 0, historyEntries: 0, reconciledVehicles: result.reconciledVehicles, alreadyImported: true
       }, { status: 200 })
     }
     await syncOneDriveWorkbookAfterChange()
     return NextResponse.json({
-      message: 'Imported ' + result.tireCount + ' tire records directly from the workbook and saved ' + result.historyCount + ' dated usage-history entries. Source vehicle references were preserved as text; no fleet matching, serial-number matching, or Workshop Job Card linking was performed. No stock receipt events are created.',
+      message: 'Imported ' + result.tireCount + ' tire records and saved ' + result.historyCount + ' dated usage-history entries. ' + result.reconciledVehicles + ' existing tire records were reconciled to exact, unique truck/trailer matches. Unmatched vehicle references remain preserved as text. No serial-number matching, Workshop Job Card linking, or stock receipt events were performed.',
       tires: result.tireCount,
       historyEntries: result.historyCount,
+      reconciledVehicles: result.reconciledVehicles,
       skippedDuplicates: 0,
       blockedTires: 0,
       reviewRequiredTires: 0,
