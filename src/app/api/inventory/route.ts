@@ -23,6 +23,8 @@ async function ensureInventorySchema() {
     )`)
   await db.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "inventory_transactions_itemId_date_idx" ON "inventory_transactions"("itemId", "transactionDate" DESC)`)
   await db.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "inventory_transactions_vehicle_idx" ON "inventory_transactions"("vehicleType", "vehicleId")`)
+  await db.$executeRawUnsafe(`ALTER TABLE "inventory_transactions" ADD COLUMN IF NOT EXISTS "sourceType" TEXT`)
+  await db.$executeRawUnsafe(`ALTER TABLE "inventory_transactions" ADD COLUMN IF NOT EXISTS "sourceId" TEXT`)
 }
 
 export async function GET(request: NextRequest) {
@@ -151,6 +153,55 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unable to save inventory transaction'
     const status = message === 'Insufficient stock for this transaction' ? 409 : message === 'Inventory item not found' || message === 'Selected vehicle not found or inactive' ? 404 : message === 'Selected job card does not belong to this vehicle' || message === 'Selected job card is not open' || message === 'Select a valid vehicle type for this job-card issue' || message === 'Select a valid truck or trailer for this issue' ? 400 : message === 'Selected job card not found' ? 404 : message === 'Insufficient permissions' ? 403 : 500
+    return NextResponse.json({ error: message }, { status })
+  }
+}
+
+
+export async function PATCH(request: NextRequest) {
+  try {
+    const user = await requireRolePermission(request, 'maintenance', 'update')
+    await ensureInventorySchema()
+    const body = await request.json()
+    if (body.action !== 'updateIssueVehicle')
+      return NextResponse.json({ error: 'Unsupported inventory update' }, { status: 400 })
+
+    const transactionId = String(body.transactionId || '').trim()
+    const vehicleType = String(body.vehicleType || '').toLowerCase()
+    const vehicleId = String(body.vehicleId || '').trim()
+    if (!transactionId || !vehicleId || !['truck', 'trailer'].includes(vehicleType))
+      return NextResponse.json({ error: 'Select a valid issue and destination truck or trailer' }, { status: 400 })
+
+    const result = await db.$transaction(async tx => {
+      const rows = await tx.$queryRawUnsafe<any[]>(`
+        SELECT "id", "type", "jobCardId", "sourceType"
+        FROM "inventory_transactions" WHERE "id"=$1 FOR UPDATE`, transactionId)
+      const transaction = rows[0]
+      if (!transaction) throw new Error('Inventory transaction not found')
+      if (transaction.type !== 'ISSUE') throw new Error('Only issued parts can have their vehicle corrected')
+      if (transaction.jobCardId || transaction.sourceType)
+        throw new Error('This issue is linked to a Workshop Job Card or maintenance record. Correct the vehicle on its source record instead.')
+
+      const vehicle = vehicleType === 'truck'
+        ? await tx.truck.findFirst({ where: { id: vehicleId, isDeleted: false, status: { not: 'INACTIVE' } }, select: { id: true } })
+        : await tx.trailer.findFirst({ where: { id: vehicleId, isDeleted: false }, select: { id: true } })
+      if (!vehicle) throw new Error('Selected vehicle not found or inactive')
+
+      const updated = await tx.$queryRawUnsafe<any[]>(`
+        UPDATE "inventory_transactions"
+        SET "vehicleType"=$2, "vehicleId"=$3
+        WHERE "id"=$1 RETURNING "id", "vehicleType", "vehicleId"`,
+        transactionId, vehicleType, vehicleId)
+      return updated[0]
+    })
+    return NextResponse.json({ transaction: result, updatedBy: user.id })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unable to correct issued part vehicle'
+    const status = message === 'Insufficient permissions' ? 403
+      : message === 'Inventory transaction not found' ? 404
+      : message === 'Selected vehicle not found or inactive' ? 404
+      : message.includes('Only issued parts') || message.includes('linked to a Workshop') || message.includes('Select a valid issue') ? 400
+      : 500
     return NextResponse.json({ error: message }, { status })
   }
 }
