@@ -348,8 +348,8 @@ export default function TireLifecycleDashboard() {
           <CardHeader><CardTitle>Truck / trailer tire consumption</CardTitle></CardHeader>
           <CardContent className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead><tr className="border-b text-left text-muted-foreground"><th className="py-2">Vehicle</th><th className="text-right">Tires used</th><th className="text-right">Usage days</th><th className="text-right">Known km</th></tr></thead>
-              <tbody>{(report?.vehicleUsage || []).map((row, i) => <tr key={i} className="border-b last:border-0"><td className="py-2">{row.vehicleLabel}</td><td className="text-right">{formatNumber(row.tiresUsed)}</td><td className="text-right">{Math.round(Number(row.totalDays || 0))}</td><td className="text-right">{formatNumber(row.totalKm)}</td></tr>)}</tbody>
+              <thead><tr className="border-b text-left text-muted-foreground"><th className="py-2">Vehicle / reference</th><th>Type</th><th className="text-right">Tires used</th><th className="text-right">Usage days</th><th className="text-right">Known km</th></tr></thead>
+              <tbody>{(report?.vehicleUsage || []).map((row, i) => <tr key={i} className="border-b last:border-0"><td className="py-2">{row.vehicleLabel}</td><td>{row.vehicleType === 'truck' ? 'Truck' : row.vehicleType === 'trailer' ? 'Trailer' : 'Unverified'}</td><td className="text-right">{formatNumber(row.tiresUsed)}</td><td className="text-right">{Math.round(Number(row.totalDays || 0))}</td><td className="text-right">{formatNumber(row.totalKm)}</td></tr>)}</tbody>
             </table>
           </CardContent>
         </Card>
