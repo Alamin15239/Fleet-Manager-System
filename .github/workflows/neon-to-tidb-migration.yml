@@ -154,7 +154,11 @@ jobs:
           psql "$TIDB_DATABASE_URL" -X -v ON_ERROR_STOP=1 -f preflight-data.sql
           echo "Checking all source table row counts in isolated schema..."
           while IFS="|" read -r source_schema table expected; do
-            actual=$(psql "$TIDB_DATABASE_URL" -X -v ON_ERROR_STOP=1 -v schema_name="$PREFLIGHT_SCHEMA" -v table_name="$table" -At -c 'SELECT count(*) FROM :"schema_name".:"table_name"')
+            if [[ ! "$table" =~ ^[a-zA-Z_][a-zA-Z0-9_]*$ ]]; then
+              echo "Refusing unsafe table identifier from source inventory: $table"
+              exit 1
+            fi
+            actual=$(psql "$TIDB_DATABASE_URL" -X -v ON_ERROR_STOP=1 -At -c "SELECT count(*) FROM \"$PREFLIGHT_SCHEMA\".\"$table\"")
             if [ "$actual" != "$expected" ]; then
               echo "PREFLIGHT COUNT MISMATCH $table source=$expected target=$actual"
               exit 1
