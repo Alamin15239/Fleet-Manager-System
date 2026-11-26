@@ -233,7 +233,7 @@ jobs:
           ddl = ddl.replace("COMMENT ON SCHEMA public", f"COMMENT ON SCHEMA {schema}")
           # pg_dump qualifies enum types as public.Type, while tables may use "public"."name".
           # Rewrite both qualified forms so enum types are isolated too.
-          ddl = re.sub(r'(?<![A-Za-z0-9_])public\\.', f'"{schema}".', ddl)
+          ddl = re.sub(r'(?<![A-Za-z0-9_])public\.', f'"{schema}".', ddl)
           ddl = re.sub(r"(?m)^SET [^;]+;\s*\n", "", ddl)
           ddl = re.sub(r"(?m)^SELECT pg_catalog\.set_config\([^;]+;\s*\n", "", ddl)
           with open("migration-artifacts/repair-test-base.sql", "w", encoding="utf-8") as f:
