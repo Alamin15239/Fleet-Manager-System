@@ -231,8 +231,8 @@ jobs:
               ddl = f.read()
           ddl = ddl.replace("CREATE SCHEMA public;", f"CREATE SCHEMA {schema};")
           ddl = ddl.replace('"public".', f'"{schema}".')
-          ddl = re.sub(r"(?m)^SET [^;]+;\\s*\\n", "", ddl)
-          ddl = re.sub(r"(?m)^SELECT pg_catalog\\.set_config\\([^;]+;\\s*\\n", "", ddl)
+          ddl = re.sub(r"(?m)^SET [^;]+;\s*\n", "", ddl)
+          ddl = re.sub(r"(?m)^SELECT pg_catalog\.set_config\([^;]+;\s*\n", "", ddl)
           with open("migration-artifacts/repair-test-base.sql", "w", encoding="utf-8") as f:
               f.write(ddl)
           PY
@@ -246,13 +246,13 @@ jobs:
           path = "migration-artifacts/tidb-to-prisma-schema-diff.sql"
           sql = open(path, encoding="utf-8").read()
           # Preserve TiDB-managed tables and existing performance indexes.
-          sql = re.sub(r'(?m)^DROP TABLE "public"\\."tidbcloud_com_cell_[^"]+";\\s*\\n?', "", sql)
-          sql = re.sub(r'(?m)^DROP INDEX "public"\\."maintenance_records_vehiclePlateNumber_idx";\\s*\\n?', "", sql)
-          sql = re.sub(r'(?m)^DROP INDEX "public"\\."tire_lifecycle_events_tireId_eventAt_idx";\\s*\\n?', "", sql)
-          sql = re.sub(r'(?m)^CREATE INDEX "tire_lifecycle_events_tireId_eventAt_idx" ON "public"\\."tire_lifecycle_events"\\("tireId", "eventAt"\\);\\s*\\n?', "", sql)
+          sql = re.sub(r'(?m)^DROP TABLE "public"\."tidbcloud_com_cell_[^"]+";\s*\n?', "", sql)
+          sql = re.sub(r'(?m)^DROP INDEX "public"\."maintenance_records_vehiclePlateNumber_idx";\s*\n?', "", sql)
+          sql = re.sub(r'(?m)^DROP INDEX "public"\."tire_lifecycle_events_tireId_eventAt_idx";\s*\n?', "", sql)
+          sql = re.sub(r'(?m)^CREATE INDEX "tire_lifecycle_events_tireId_eventAt_idx" ON "public"\."tire_lifecycle_events"\("tireId", "eventAt"\);\s*\n?', "", sql)
           # The only permitted index removal is the obsolete unique emailId index:
           # the Prisma model now permits multiple webhook events per email.
-          forbidden = re.findall(r'(?im)^\\s*DROP\\s+(?:TABLE|INDEX|TYPE|SCHEMA)\\b.*;', sql)
+          forbidden = re.findall(r'(?im)^\s*DROP\s+(?:TABLE|INDEX|TYPE|SCHEMA)\b.*;', sql)
           for statement in forbidden:
               if 'DROP INDEX "public"."email_logs_emailId_key"' not in statement:
                   raise SystemExit("Unexpected destructive DDL in schema diff: " + statement)
