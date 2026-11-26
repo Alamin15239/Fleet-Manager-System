@@ -730,7 +730,7 @@ export async function POST(request: NextRequest) {
       const claimedLegacyTireIds = new Set<string>()
       for (const rowUnits of unitsBySourceRow.values()) {
         const source = rowUnits[0]?.entries[0]?.source
-        if (!source?.eventAt || !source.serialText || rowUnits.some(unit => existingByCode.has(unit.importCode))) continue
+        if (!source?.eventAt || !source.serialText || rowUnits.some(unit => !unit.serial || existingByCode.has(unit.importCode))) continue
         const signature = legacySignature(source.eventAt, source.tireSize, source.origin, source.serialText)
         const candidates = (legacyRowsBySignature.get(signature) || []).filter(tire => !claimedLegacyTireIds.has(tire.id))
         const vehicleKeys = (source.vehicleNumber.match(/\d{3,5}/g) || []).map(normalizeVehicleKey)
