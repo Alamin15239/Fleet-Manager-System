@@ -621,6 +621,17 @@ export async function POST(request: NextRequest) {
         ? await tx.tire.findMany({ where: { internalCode: { in: importCodes } }, select: { id: true, internalCode: true, deletedAt: true, tireSize: true, manufacturer: true, origin: true } })
         : []
       const existingByCode = new Map(existingByCodeRows.filter(item => item.internalCode).map(item => [item.internalCode as string, item]))
+      // Older manual imports may already contain the exact source row but lack
+      // the stable UP-XLS code and have a combined serial cell copied to each
+      // tire. Reconcile only an exact date/size/origin/serial/vehicle group.
+      const legacyTireRows = await tx.tire.findMany({
+        where: { deletedAt: null, internalCode: { startsWith: 'TY-' } },
+        select: {
+          id: true, internalCode: true, serialNumber: true, plateNumber: true,
+          truckId: true, trailerNumber: true, tireSize: true, manufacturer: true,
+          origin: true, createdAt: true, notes: true, driverName: true
+        }
+      })
 
       const trucks = await tx.truck.findMany({ where: { isDeleted: false }, select: { id: true, licensePlate: true } })
       const trailers = await tx.trailer.findMany({ where: { isDeleted: false }, select: { id: true, number: true } })
@@ -696,7 +707,50 @@ export async function POST(request: NextRequest) {
         return null
       }
 
-      const existingTireIds = Array.from(new Set(existingByCodeRows.filter(item => !item.deletedAt).map(item => item.id)))
+      const legacySignature = (at: Date, tireSize: string, origin: string, serialText: string) =>
+        [at.toISOString().slice(0, 10), normalizeVehicleKey(tireSize), normalizeVehicleKey(origin), normalizeVehicleKey(serialText)].join('|')
+      const legacyRowsBySignature = new Map<string, typeof legacyTireRows>()
+      for (const tire of legacyTireRows) {
+        if (!tire.serialNumber) continue
+        const key = legacySignature(tire.createdAt, tire.tireSize, tire.origin, tire.serialNumber)
+        const group = legacyRowsBySignature.get(key) || []
+        group.push(tire)
+        legacyRowsBySignature.set(key, group)
+      }
+      const unitsBySourceRow = new Map<string, ImportUnit[]>()
+      for (const unit of analysis.units) {
+        const source = unit.entries[0]?.source
+        if (!source) continue
+        const key = source.sheetName + ':' + source.line
+        const group = unitsBySourceRow.get(key) || []
+        group.push(unit)
+        unitsBySourceRow.set(key, group)
+      }
+      const legacyMatchesByCode = new Map<string, typeof legacyTireRows[number]>()
+      const claimedLegacyTireIds = new Set<string>()
+      for (const rowUnits of unitsBySourceRow.values()) {
+        const source = rowUnits[0]?.entries[0]?.source
+        if (!source?.eventAt || !source.serialText || rowUnits.some(unit => existingByCode.has(unit.importCode))) continue
+        const signature = legacySignature(source.eventAt, source.tireSize, source.origin, source.serialText)
+        const candidates = (legacyRowsBySignature.get(signature) || []).filter(tire => !claimedLegacyTireIds.has(tire.id))
+        const vehicleKeys = (source.vehicleNumber.match(/\d{3,5}/g) || []).map(normalizeVehicleKey)
+        const matched = candidates.filter(tire => {
+          const plateKey = normalizeVehicleKey(tire.plateNumber || '')
+          const trailerKey = normalizeVehicleKey(tire.trailerNumber || '')
+          return vehicleKeys.some(key => plateKey.startsWith(key) || trailerKey === key)
+        })
+        if (matched.length !== rowUnits.length) continue
+        const orderedUnits = [...rowUnits].sort((a, b) => a.key.localeCompare(b.key))
+        const orderedTires = [...matched].sort((a, b) => a.id.localeCompare(b.id))
+        orderedUnits.forEach((unit, index) => {
+          legacyMatchesByCode.set(unit.importCode, orderedTires[index])
+          claimedLegacyTireIds.add(orderedTires[index].id)
+        })
+      }
+      const existingTireIds = Array.from(new Set([
+        ...existingByCodeRows.filter(item => !item.deletedAt).map(item => item.id),
+        ...Array.from(legacyMatchesByCode.values()).map(item => item.id)
+      ]))
       const existingPeriods = existingTireIds.length ? await tx.tireUsagePeriod.findMany({
         where: { tireId: { in: existingTireIds } },
         select: { tireId: true, vehicleType: true, vehicleId: true, installedAt: true, driverNameSnapshot: true }
@@ -714,6 +768,15 @@ export async function POST(request: NextRequest) {
         const sourceVehicle = item.notes?.match(/Source vehicle columns: (.*?)(?:\. Source date cell:|\. No source)/)?.[1] || ''
         return eventSignature(item.tireId, item.eventType, item.eventAt, item.toTruckId, item.toTrailerId, item.driverNameSnapshot || '', item.odometerKm, sourceVehicle)
       }))
+      const sourceNotesFor = (source: SourceEntry) => [
+        'Source worksheet: ' + source.sheetName + ', row ' + source.line + '.',
+        'Source vehicle columns: ' + (source.vehicleText || 'Vehicle not supplied') + '.',
+        'Source date cell: ' + (source.dateText || 'not supplied') + '; source OUT QTY cell: ' + (source.quantityText || 'not supplied') + '; source vehicle type cell: ' + (source.vehicleTypeText || 'not supplied') + '; source odometer cell: ' + (source.odometerText || 'not supplied') + '.',
+        source.serialText ? 'Source serial cell: ' + source.serialText : 'No serial supplied in source.',
+        'Source tire size cell: ' + (source.tireSizeText || 'not supplied') + '; imported tire size: ' + (source.tireSize || 'Unspecified') + '; manufacturer: ' + (source.manufacturer || 'not supplied') + '; origin: ' + (source.originText || 'not supplied') + '.',
+        source.history ? 'Source history: ' + source.history : '',
+        source.warnings.length ? 'Source notes: ' + source.warnings.join(' | ') : ''
+      ].filter(Boolean).join(' ')
       const tiresToCreate: any[] = []
       const eventsToCreate: any[] = []
       const periodsToCreate: any[] = []
@@ -725,7 +788,8 @@ export async function POST(request: NextRequest) {
         const unit = analysis.units[index]
         const code = importCodes[index]
         const codeMatch = existingByCode.get(code)
-        const existingTire = codeMatch && !codeMatch.deletedAt ? codeMatch : undefined
+        const legacyMatch = legacyMatchesByCode.get(code)
+        const existingTire = codeMatch && !codeMatch.deletedAt ? codeMatch : legacyMatch
         const orderedEntries = [...unit.entries].sort((a, b) =>
           (a.source.eventAt?.getTime() ?? 0) - (b.source.eventAt?.getTime() ?? 0))
         const firstSource = orderedEntries[0]?.source
@@ -736,26 +800,39 @@ export async function POST(request: NextRequest) {
         if (existingTire) {
           reusedSourceRows++
           const latestVehicle = resolveVehicle(latestSource)
-          const updateData: any = {}
-          if ((existingTire.tireSize === 'Unspecified' || !existingTire.tireSize) && latestSource.tireSize) updateData.tireSize = latestSource.tireSize
-          if ((existingTire.manufacturer === 'Unspecified' || !existingTire.manufacturer) && latestSource.manufacturer) updateData.manufacturer = latestSource.manufacturer
-          if ((existingTire.origin === 'OTHER' || !existingTire.origin) && latestSource.origin) updateData.origin = latestSource.origin
-          if (Object.keys(updateData).length) {
+          if (legacyMatch) {
+            const updateData: any = {
+              internalCode: code,
+              serialNumber: unit.serial,
+              quantity: 1,
+              lifecycleStatus: 'ASSIGNED_UNVERIFIED',
+              driverName: latestSource.driver || legacyMatch.driverName || null,
+              notes: [legacyMatch.notes, sourceNotesFor(latestSource)].filter(Boolean).join(' ')
+            }
+            if (latestVehicle?.type === 'truck') {
+              updateData.truckId = latestVehicle.id
+              updateData.trailerNumber = null
+            } else if (latestVehicle?.type === 'trailer') {
+              updateData.truckId = null
+              updateData.plateNumber = null
+              updateData.trailerNumber = latestVehicle.number
+            }
             await tx.tire.update({ where: { id: tireId }, data: updateData })
             updatedExisting++
+          } else {
+            const updateData: any = {}
+            if ((codeMatch?.tireSize === 'Unspecified' || !codeMatch?.tireSize) && latestSource.tireSize) updateData.tireSize = latestSource.tireSize
+            if ((codeMatch?.manufacturer === 'Unspecified' || !codeMatch?.manufacturer) && latestSource.manufacturer) updateData.manufacturer = latestSource.manufacturer
+            if ((codeMatch?.origin === 'OTHER' || !codeMatch?.origin) && latestSource.origin) updateData.origin = latestSource.origin
+            if (Object.keys(updateData).length) {
+              await tx.tire.update({ where: { id: tireId }, data: updateData })
+              updatedExisting++
+            }
           }
           if (latestVehicle) reconciledVehicles++
         } else {
           const latestVehicle = resolveVehicle(latestSource)
-          const sourceNotes = orderedEntries.map(({ source }) => [
-            'Source worksheet: ' + source.sheetName + ', row ' + source.line + '.',
-            'Source vehicle columns: ' + (source.vehicleText || 'Vehicle not supplied') + '.',
-            'Source date cell: ' + (source.dateText || 'not supplied') + '; source OUT QTY cell: ' + (source.quantityText || 'not supplied') + '; source vehicle type cell: ' + (source.vehicleTypeText || 'not supplied') + '; source odometer cell: ' + (source.odometerText || 'not supplied') + '.',
-            source.serialText ? 'Source serial cell: ' + source.serialText : 'No serial supplied in source.',
-            'Source tire size cell: ' + (source.tireSizeText || 'not supplied') + '; imported tire size: ' + (source.tireSize || 'Unspecified') + '; manufacturer: ' + (source.manufacturer || 'not supplied') + '; origin: ' + (source.originText || 'not supplied') + '.',
-            source.history ? 'Source history: ' + source.history : '',
-            source.warnings.length ? 'Source notes: ' + source.warnings.join(' | ') : ''
-          ].filter(Boolean).join(' '))
+          const sourceNotes = orderedEntries.map(({ source }) => sourceNotesFor(source))
           tiresToCreate.push({
             id: tireId,
             tireSize: latestSource.tireSize || unit.tireSize || 'Unspecified',
