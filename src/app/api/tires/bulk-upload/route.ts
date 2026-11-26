@@ -269,8 +269,11 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
       }
       const driver = read(columns.driver)
       const qtyText = read(columns.quantity)
-      const parsedQty = qtyText ? Number(qtyText.replace(/,/g, '').match(/-?\d+(?:\.\d+)?/)?.[0]) : NaN
-      const expectedQuantity = qtyText && Number.isInteger(parsedQty) && parsedQty > 0 && parsedQty <= 100 ? parsedQty : 0
+      // Accept only a cell whose complete value is a numeric quantity.
+      // Do not extract incidental numbers from notes, formulas, or mixed text.
+      const normalizedQtyText = qtyText.replace(/,/g, '').trim()
+      const parsedQty = /^\d+(?:\.0+)?$/.test(normalizedQtyText) ? Number(normalizedQtyText) : NaN
+      const expectedQuantity = Number.isInteger(parsedQty) && parsedQty > 0 && parsedQty <= 100 ? parsedQty : 0
       const serialParts = columns.serials.map(column => read(column)).filter(Boolean)
       const serialText = serialParts.join(', ')
       const history = read(columns.history)
