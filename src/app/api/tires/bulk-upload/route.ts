@@ -538,18 +538,34 @@ export async function POST(request: NextRequest) {
 
     if (mode !== 'import') {
       const incomingSerialKeys = new Set(analysis.units.map(unit => unit.serial ? normalizeSerialKey(unit.serial) : '').filter(Boolean))
-      if (incomingSerialKeys.size) {
-        const existingSerialRows = await db.tire.findMany({
+      const incomingSourceCodes = analysis.units.filter(unit => !unit.serial).map(unit => unit.importCode)
+      const [existingSerialRows, existingSourceRows] = await Promise.all([
+        incomingSerialKeys.size ? db.tire.findMany({
           where: { deletedAt: null, serialNumber: { not: null } },
-          select: { serialNumber: true }
-        })
-        const existingSerialKeys = new Set(existingSerialRows.map(item => item.serialNumber ? normalizeSerialKey(item.serialNumber) : '').filter(Boolean))
-        for (const unit of analysis.units) {
-          const key = unit.serial ? normalizeSerialKey(unit.serial) : ''
-          if (key && existingSerialKeys.has(key)) {
-            unit.status = 'DUPLICATE'
-            unit.duplicateReason = 'Serial already exists. Its usage history will be merged into the existing tire record.'
-          }
+          select: { id: true, serialNumber: true }
+        }) : Promise.resolve([]),
+        incomingSourceCodes.length ? db.tire.findMany({
+          where: { internalCode: { in: incomingSourceCodes } },
+          select: { internalCode: true }
+        }) : Promise.resolve([])
+      ])
+      const existingSerialCounts = new Map<string, number>()
+      for (const item of existingSerialRows) {
+        const key = item.serialNumber ? normalizeSerialKey(item.serialNumber) : ''
+        if (key) existingSerialCounts.set(key, (existingSerialCounts.get(key) || 0) + 1)
+      }
+      const existingSourceCodes = new Set(existingSourceRows.map(item => item.internalCode).filter(Boolean))
+      for (const unit of analysis.units) {
+        const key = unit.serial ? normalizeSerialKey(unit.serial) : ''
+        const serialMatches = key ? existingSerialCounts.get(key) || 0 : 0
+        if (serialMatches) {
+          unit.status = 'DUPLICATE'
+          unit.duplicateReason = serialMatches > 1
+            ? 'This serial exists on multiple legacy tire rows. New history will be attached to the oldest record; older rows are preserved for review.'
+            : 'Serial already exists. Its new usage history will be merged into the existing tire record.'
+        } else if (!unit.serial && existingSourceCodes.has(unit.importCode)) {
+          unit.status = 'DUPLICATE'
+          unit.duplicateReason = 'This unnumbered source slot was already imported. No duplicate tire record will be created.'
         }
       }
       const requestedPage = Math.max(1, Number.parseInt(String(form.get('page') || '1'), 10) || 1)
@@ -711,6 +727,7 @@ export async function POST(request: NextRequest) {
       let reconciledVehicles = 0
       let legacyDuplicateSerials = 0
       let mergedTires = 0
+      let reusedSourceRows = 0
 
       for (let index = 0; index < analysis.units.length; index++) {
         const unit = analysis.units[index]
@@ -728,7 +745,8 @@ export async function POST(request: NextRequest) {
 
         let tireId = existingTire?.id || 'tire_' + randomUUID()
         if (existingTire) {
-          mergedTires++
+          if (serialMatches.length) mergedTires++
+          else reusedSourceRows++
           const canonical = serialMatches[0]
           const latestVehicle = resolveVehicle(latestSource)
           const updateData: any = {}
@@ -836,6 +854,7 @@ export async function POST(request: NextRequest) {
         reconciledVehicles,
         legacyDuplicateSerials,
         mergedTires,
+        reusedSourceRows,
         updatedExisting
       }    }, { timeout: 120000 })
 
@@ -847,7 +866,7 @@ export async function POST(request: NextRequest) {
     }
     await syncOneDriveWorkbookAfterChange()
     return NextResponse.json({
-      message: 'Created ' + result.tireCount + ' new tire records and merged ' + result.mergedTires + ' serial-matched records. Saved ' + result.historyCount + ' new dated usage-history entries and ' + result.periodCount + ' usage periods. ' + result.reconciledVehicles + ' entries matched exact, unique truck/trailer records. Existing tire records were not deleted. Unnumbered tires are matched only by their stable source-row fingerprint. Workshop Job Card linking and stock receipt events were not performed.',
+      message: 'Created ' + result.tireCount + ' new tire records and merged history into ' + result.mergedTires + ' existing serial-matched records. ' + result.reusedSourceRows + ' unnumbered source rows were already imported and reused. Saved ' + result.historyCount + ' new dated usage-history entries and ' + result.periodCount + ' usage periods. ' + result.reconciledVehicles + ' entries matched exact, unique truck/trailer records. ' + result.legacyDuplicateSerials + ' serials have multiple legacy rows; history was attached to the oldest record and existing rows were preserved for review. Workshop Job Card linking and stock receipt events were not performed.',
       tires: result.tireCount,
       historyEntries: result.historyCount,
       reconciledVehicles: result.reconciledVehicles,
