@@ -1,0 +1,52 @@
+name: TiDB Production Readiness
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'prisma/**'
+      - 'src/lib/**'
+      - 'scripts/tidb-readonly-smoke.cjs'
+      - '.github/workflows/tidb-production-readiness.yml'
+      - 'package.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tidb-production-readiness
+  cancel-in-progress: false
+
+jobs:
+  readiness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm install --no-package-lock --no-audit --no-fund
+
+      - name: Validate Prisma schema against the existing Neon source configuration
+        run: npx prisma validate
+        env:
+          DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+
+      - name: Type-check application
+        run: npm run type-check
+
+      - name: Run automated tests
+        run: npm test -- --runInBand
+
+      - name: Read-only Prisma compatibility check against TiDB production
+        run: node scripts/tidb-readonly-smoke.cjs
+        env:
+          TIDB_DATABASE_URL: ${{ secrets.TIDB_DATABASE_URL }}
