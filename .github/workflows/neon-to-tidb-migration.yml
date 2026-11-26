@@ -253,6 +253,16 @@ jobs:
           sql = re.sub(r'(?m)^DROP INDEX "public"\."maintenance_records_vehiclePlateNumber_idx";\s*\n?', "", sql)
           sql = re.sub(r'(?m)^DROP INDEX "public"\."tire_lifecycle_events_tireId_eventAt_idx";\s*\n?', "", sql)
           sql = re.sub(r'(?m)^CREATE INDEX "tire_lifecycle_events_tireId_eventAt_idx" ON "public"\."tire_lifecycle_events"\("tireId", "eventAt"\);\s*\n?', "", sql)
+          # Replace the obsolete unique emailId index with the non-unique
+          # lookup index explicitly declared by Prisma's EmailLog model.
+          old_email_index = 'DROP INDEX "public"."email_logs_emailId_key";'
+          if old_email_index not in sql:
+              raise SystemExit("Expected obsolete email_logs unique index was not found")
+          sql = sql.replace(
+              old_email_index,
+              old_email_index + '\nCREATE INDEX "email_logs_emailId_idx" ON "public"."email_logs"("emailId");',
+              1,
+          )
           # The only permitted index removal is the obsolete unique emailId index:
           # the Prisma model now permits multiple webhook events per email.
           forbidden = re.findall(r'(?im)^\s*DROP\s+(?:TABLE|INDEX|TYPE|SCHEMA)\b.*;', sql)
@@ -277,7 +287,7 @@ jobs:
               for statement in destructive:
                   report.write(statement + "\n")
               report.write("\nForeign keys dropped by the plan are recreated later in the same SQL file.\n")
-              report.write("The email_logs.emailId unique index is intentionally replaced by a non-unique lookup index, matching Prisma schema semantics (one email can have multiple webhook events).\n")
+              report.write("The email_logs.emailId unique index is replaced by email_logs_emailId_idx (non-unique), as declared by Prisma EmailLog.\n")
           print("Sanitized repair DDL generated; TiDB-managed tables and unrelated indexes are protected.")
           PY
           docker run --rm -i --network host \
