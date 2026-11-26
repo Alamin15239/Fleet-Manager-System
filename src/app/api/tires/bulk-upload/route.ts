@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import ExcelJS from 'exceljs'
 import { Readable } from 'node:stream'
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { db } from '@/lib/db'
 import { requireRolePermission } from '@/lib/permission-middleware'
 import { ensureTireLifecycleTables } from '@/lib/tire-lifecycle'
@@ -393,23 +393,6 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
   const duplicates: ImportUnit[] = []
   const blocked: ImportUnit[] = []
   const reconcilable = units
-  const preview = units.slice(0, 150).map(unit => ({
-    sourceSheet: unit.entries[0]?.source.sheetName || '',
-    sourceRow: unit.entries[0]?.source.line || 0,
-    sourceOutQty: unit.entries[0]?.source.quantity || 0,
-    serial: unit.serial,
-    tireSize: unit.tireSize,
-    manufacturer: unit.manufacturer,
-    origin: unit.origin,
-    historyEntries: unit.entries.length,
-    firstDate: unit.entries[0]?.source.eventAt?.toISOString() || null,
-    lastDate: unit.entries[unit.entries.length - 1]?.source.eventAt?.toISOString() || null,
-    vehicles: Array.from(new Set(unit.entries.map(item => item.source.vehicleLabel).filter(Boolean))).slice(0, 5),
-    status: unit.status,
-    duplicateReason: unit.duplicateReason,
-    warnings: Array.from(new Set(unit.warnings)).slice(0, 4),
-    errors: Array.from(new Set(unit.errors)).slice(0, 4)
-  }))
   return {
     sheetNames, sourceRows: sourceEntries.length, exactDuplicateRows,
     sourceQuantityTotal, serialUsageOccurrences, uniqueSerialTires, repeatedSerialUsageOccurrences,
@@ -419,7 +402,7 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
     importableTires: ready.length, duplicateTires: duplicates.length, blockedTires: blocked.length,
     importableUsageEntries: reconcilable.reduce((count, unit) => count + unit.entries.filter(item => item.source.eventAt).length, 0),
     blockedUsageEntries: blocked.reduce((count, unit) => count + unit.entries.filter(item => item.source.eventAt).length, 0),
-    warningCount, preview, units, ready, reconcilable
+    warningCount, units, ready, reconcilable
   }
 }
 
@@ -441,12 +424,48 @@ export async function POST(request: NextRequest) {
       await workbook.xlsx.load(bytes as any)
     }
     const analysis = await analyzeWorkbook(workbook)
+    const sourceHash = createHash('sha256').update(bytes).digest('hex').slice(0, 20).toUpperCase()
 
     if (mode !== 'import') {
+      const requestedPage = Math.max(1, Number.parseInt(String(form.get('page') || '1'), 10) || 1)
+      const pageSize = Math.min(100, Math.max(10, Number.parseInt(String(form.get('pageSize') || '50'), 10) || 50))
+      const search = String(form.get('search') || '').trim().toLocaleLowerCase()
+      const selectedSheet = String(form.get('sheet') || 'all')
+      const filteredUnits = analysis.units.filter(unit => {
+        const source = unit.entries[0]?.source
+        if (!source) return false
+        if (selectedSheet !== 'all' && source.sheetName !== selectedSheet) return false
+        if (!search) return true
+        const haystack = [source.sheetName, source.serialText, unit.serial || '', source.vehicleText,
+          source.vehicleNumber, source.driver, source.tireSize, source.manufacturer, source.originText]
+          .join(' ').toLocaleLowerCase()
+        return haystack.includes(search)
+      })
+      const totalPages = Math.max(1, Math.ceil(filteredUnits.length / pageSize))
+      const page = Math.min(requestedPage, totalPages)
+      const preview = filteredUnits.slice((page - 1) * pageSize, page * pageSize).map(unit => ({
+        sourceSheet: unit.entries[0]?.source.sheetName || '',
+        sourceRow: unit.entries[0]?.source.line || 0,
+        sourceOutQty: unit.entries[0]?.source.quantity || 0,
+        serial: unit.serial,
+        tireSize: unit.tireSize,
+        manufacturer: unit.manufacturer,
+        origin: unit.origin,
+        historyEntries: unit.entries.filter(item => Boolean(item.source.eventAt)).length,
+        firstDate: unit.entries[0]?.source.eventAt?.toISOString() || null,
+        lastDate: unit.entries[unit.entries.length - 1]?.source.eventAt?.toISOString() || null,
+        vehicles: Array.from(new Set(unit.entries.map(item => item.source.vehicleLabel).filter(Boolean))).slice(0, 5),
+        status: unit.status,
+        duplicateReason: unit.duplicateReason,
+        warnings: Array.from(new Set(unit.warnings)).slice(0, 4),
+        errors: Array.from(new Set(unit.errors)).slice(0, 4)
+      }))
       return NextResponse.json({
         message: 'Analysis complete. No tire records or history have been saved.',
         fileName: file.name,
+        sourceHash,
         sheets: analysis.sheetNames,
+        pageInfo: { page, pageSize, total: filteredUnits.length, totalPages },
         summary: {
           sourceRows: analysis.sourceRows,
           sourceQuantityTotal: analysis.sourceQuantityTotal,
@@ -467,9 +486,9 @@ export async function POST(request: NextRequest) {
           blockedTires: analysis.blockedTires,
           warnings: analysis.warningCount
         },
-        preview: analysis.preview,
-        previewLimit: 150,
-        previewTruncated: analysis.totalTires > 150
+        preview,
+        previewLimit: pageSize,
+        previewTruncated: filteredUnits.length > pageSize
       })
     }
 
@@ -479,9 +498,16 @@ export async function POST(request: NextRequest) {
 
     const result = await db.$transaction(async tx => {
       await ensureTireLifecycleTables(tx)
-      let tireCount = 0
-      let historyCount = 0
-      for (const unit of analysis.units) {
+      const codes = analysis.units.map((_, index) => 'UP-XLS-' + sourceHash + '-' + String(index + 1).padStart(5, '0'))
+      const existing = await tx.tire.findMany({ where: { internalCode: { in: codes } }, select: { internalCode: true } })
+      const existingCodes = new Set(existing.map(item => item.internalCode).filter(Boolean))
+      const newUnits = analysis.units.map((unit, index) => ({ unit, code: codes[index] })).filter(item => !existingCodes.has(item.code))
+      if (!newUnits.length) return { tireCount: 0, historyCount: 0, alreadyImported: true }
+
+      const tires: any[] = []
+      const events: any[] = []
+      const periods: any[] = []
+      for (const { unit, code } of newUnits) {
         const source = unit.entries[0]?.source
         if (!source) continue
         const sourceReference = [
@@ -498,71 +524,71 @@ export async function POST(request: NextRequest) {
           source.history ? 'Source history: ' + source.history : '',
           source.warnings.length ? 'Source notes: ' + source.warnings.join(' | ') : ''
         ].filter(Boolean).join(' ')
-        const tire = await tx.tire.create({
-          data: {
-            tireSize: source.tireSize || 'Unspecified',
-            manufacturer: source.manufacturer || 'Unspecified',
-            origin: source.origin || 'OTHER',
-            plateNumber: null,
-            truckId: null,
-            trailerNumber: source.vehicleType === 'trailer' ? source.vehicleNumber || null : null,
-            driverName: source.driver || null,
-            quantity: source.quantity > 0 ? 1 : 0,
-            serialNumber: unit.serial,
-            internalCode: unit.importCode,
-            lifecycleStatus: 'ASSIGNED_UNVERIFIED',
-            createdById: user.id,
-            createdAt: source.eventAt || undefined,
-            notes
-          },
-          select: { id: true }
+        const tireId = 'tire_' + randomUUID()
+        tires.push({
+          id: tireId,
+          tireSize: source.tireSize || 'Unspecified',
+          manufacturer: source.manufacturer || 'Unspecified',
+          origin: source.origin || 'OTHER',
+          plateNumber: null,
+          truckId: null,
+          trailerNumber: source.vehicleType === 'trailer' ? source.vehicleNumber || null : null,
+          driverName: source.driver || null,
+          quantity: 1,
+          serialNumber: unit.serial,
+          internalCode: code,
+          lifecycleStatus: 'ASSIGNED_UNVERIFIED',
+          createdById: user.id,
+          createdAt: source.eventAt || undefined,
+          notes
         })
-        tireCount++
         if (source.eventAt) {
-          await tx.tireLifecycleEvent.create({
-            data: {
-              id: 'tireevt_' + randomUUID(),
-              tireId: tire.id,
-              eventType: 'ISSUE',
-              eventAt: source.eventAt,
-              fromTruckId: null,
-              fromTrailerId: null,
-              toTruckId: null,
-              toTrailerId: null,
-              driverNameSnapshot: source.driver || null,
-              odometerKm: source.odometerKm,
-              reason: 'Tire usage workbook import',
-              notes,
-              jobCardId: null,
-              createdById: user.id
-            }
+          events.push({
+            id: 'tireevt_' + randomUUID(),
+            tireId,
+            eventType: 'ISSUE',
+            eventAt: source.eventAt,
+            fromTruckId: null,
+            fromTrailerId: null,
+            toTruckId: null,
+            toTrailerId: null,
+            driverNameSnapshot: source.driver || null,
+            odometerKm: source.odometerKm,
+            reason: 'Tire usage workbook import',
+            notes,
+            jobCardId: null,
+            createdById: user.id
           })
-          historyCount++
           if (source.vehicleNumber) {
-            // TireUsagePeriod stores the original workbook vehicle reference as
-            // text; it does not require a truck/trailer database match.
-            await tx.tireUsagePeriod.create({
-              data: {
-                id: 'tyuse_' + randomUUID(),
-                tireId: tire.id,
-                vehicleType: source.vehicleText.includes('; Trailer:') ? 'source' : source.vehicleType || 'unknown',
-                vehicleId: source.vehicleText || source.vehicleNumber,
-                installedAt: source.eventAt,
-                removedAt: null,
-                historicalEndUnknown: true,
-                startOdometer: source.odometerKm,
-                driverNameSnapshot: source.driver || null
-              }
+            periods.push({
+              id: 'tyuse_' + randomUUID(),
+              tireId,
+              vehicleType: source.vehicleText.includes('; Trailer:') ? 'source' : source.vehicleType || 'unknown',
+              vehicleId: source.vehicleText || source.vehicleNumber,
+              installedAt: source.eventAt,
+              removedAt: null,
+              historicalEndUnknown: true,
+              startOdometer: source.odometerKm,
+              driverNameSnapshot: source.driver || null
             })
           }
         }
       }
-      return { tireCount, historyCount }
+      if (tires.length) await tx.tire.createMany({ data: tires, skipDuplicates: true })
+      if (events.length) await tx.tireLifecycleEvent.createMany({ data: events, skipDuplicates: true })
+      if (periods.length) await tx.tireUsagePeriod.createMany({ data: periods, skipDuplicates: true })
+      return { tireCount: tires.length, historyCount: events.length, alreadyImported: false }
     }, { timeout: 120000 })
 
+    if (result.alreadyImported) {
+      return NextResponse.json({
+        message: 'This exact workbook has already been imported. No additional tire records or history were created.',
+        tires: 0, historyEntries: 0, alreadyImported: true
+      }, { status: 200 })
+    }
     await syncOneDriveWorkbookAfterChange()
     return NextResponse.json({
-      message: 'Imported ' + result.tireCount + ' tire records directly from the workbook and saved ' + result.historyCount + ' dated usage-history entries. Source vehicle references were preserved as text; no fleet matching, duplicate matching, or Workshop Job Card linking was performed. No stock receipt events are created.',
+      message: 'Imported ' + result.tireCount + ' tire records directly from the workbook and saved ' + result.historyCount + ' dated usage-history entries. Source vehicle references were preserved as text; no fleet matching, serial-number matching, or Workshop Job Card linking was performed. No stock receipt events are created.',
       tires: result.tireCount,
       historyEntries: result.historyCount,
       skippedDuplicates: 0,
