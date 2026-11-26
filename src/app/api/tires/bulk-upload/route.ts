@@ -408,7 +408,17 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
     importableTires: ready.length, duplicateTires: duplicates.length, blockedTires: blocked.length,
     importableUsageEntries: reconcilable.reduce((count, unit) => count + unit.entries.filter(item => item.source.eventAt).length, 0),
     blockedUsageEntries: blocked.reduce((count, unit) => count + unit.entries.filter(item => item.source.eventAt).length, 0),
-    warningCount, units, ready, reconcilable
+    warningCount,
+    unquantifiedPreview: sourceEntries.filter(source => source.quantity <= 0).slice(0, 100).map(source => ({
+      sourceSheet: source.sheetName,
+      sourceRow: source.line,
+      quantityText: source.quantityText,
+      serialText: source.serialText,
+      vehicleText: source.vehicleText,
+      driver: source.driver,
+      warnings: source.warnings
+    })),
+    units, ready, reconcilable
   }
 }
 
@@ -472,6 +482,7 @@ export async function POST(request: NextRequest) {
         sourceHash,
         sheets: analysis.sheetNames,
         pageInfo: { page, pageSize, total: filteredUnits.length, totalPages },
+        unquantifiedPreview: analysis.unquantifiedPreview,
         summary: {
           sourceRows: analysis.sourceRows,
           sourceQuantityTotal: analysis.sourceQuantityTotal,
