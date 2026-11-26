@@ -145,7 +145,7 @@ jobs:
           fi
           cleanup() { psql "$TIDB_DATABASE_URL" -X -v ON_ERROR_STOP=1 -c "DROP SCHEMA IF EXISTS $PREFLIGHT_SCHEMA CASCADE" >/dev/null; echo "Temporary preflight schema cleanup completed."; }
           trap cleanup EXIT
-          psql "$TIDB_DATABASE_URL" -X -v ON_ERROR_STOP=1 -c "CREATE SCHEMA $PREFLIGHT_SCHEMA"
+          # The rewritten schema dump already contains CREATE SCHEMA for this isolated schema.
           psql "$TIDB_DATABASE_URL" -X -v ON_ERROR_STOP=1 -f preflight-schema.sql
           pg_dump --data-only --schema=public --no-owner --no-privileges "$NEON_DATABASE_URL" > preflight-data.sql
           sed -i "s/public\\./$PREFLIGHT_SCHEMA./g" preflight-data.sql
