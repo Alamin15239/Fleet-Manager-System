@@ -340,7 +340,7 @@ export default function TireLifecycleDashboard() {
           <CardContent className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead><tr className="border-b text-left text-muted-foreground"><th className="py-2">Brand / size</th><th className="text-right">Tires</th><th className="text-right">Avg. days</th><th className="text-right">Known km</th></tr></thead>
-              <tbody>{(report?.averageLife || []).map((row, i) => <tr key={i} className="border-b last:border-0"><td className="py-2">{row.manufacturer} · {row.tireSize}</td><td className="text-right">{formatNumber(row.tireCount)}</td><td className="text-right">{Math.round(Number(row.averageLifeDays || 0))}</td><td className="text-right">{formatNumber(Math.round(Number(row.averageLifeKm || 0)))}</td></tr>)}</tbody>
+              <tbody>{(report?.averageLife || []).map((row, i) => <tr key={i} className="border-b last:border-0"><td className="py-2">{row.manufacturer} · {row.tireSize}</td><td className="text-right">{formatNumber(row.tireCount)}</td><td className="text-right">{row.averageLifeDays == null ? 'Unknown' : Math.round(Number(row.averageLifeDays))}</td><td className="text-right">{row.averageLifeKm == null ? 'Unknown' : formatNumber(Math.round(Number(row.averageLifeKm)))}</td></tr>)}</tbody>
             </table>
           </CardContent>
         </Card>
@@ -349,7 +349,7 @@ export default function TireLifecycleDashboard() {
           <CardContent className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead><tr className="border-b text-left text-muted-foreground"><th className="py-2">Vehicle / reference</th><th>Type</th><th className="text-right">Tires used</th><th className="text-right">Usage days</th><th className="text-right">Known km</th></tr></thead>
-              <tbody>{(report?.vehicleUsage || []).map((row, i) => <tr key={i} className="border-b last:border-0"><td className="py-2">{row.vehicleLabel}</td><td>{row.vehicleType === 'truck' ? 'Truck' : row.vehicleType === 'trailer' ? 'Trailer' : 'Unverified'}</td><td className="text-right">{formatNumber(row.tiresUsed)}</td><td className="text-right">{Math.round(Number(row.totalDays || 0))}</td><td className="text-right">{formatNumber(row.totalKm)}</td></tr>)}</tbody>
+              <tbody>{(report?.vehicleUsage || []).map((row, i) => <tr key={i} className="border-b last:border-0"><td className="py-2">{row.vehicleLabel}</td><td>{row.vehicleType === 'truck' ? 'Truck' : row.vehicleType === 'trailer' ? 'Trailer' : 'Unverified'}</td><td className="text-right">{formatNumber(row.tiresUsed)}</td><td className="text-right">{row.totalDays == null ? 'Unknown' : Math.round(Number(row.totalDays))}</td><td className="text-right">{row.totalKm == null ? 'Unknown' : formatNumber(row.totalKm)}</td></tr>)}</tbody>
             </table>
           </CardContent>
         </Card>
@@ -358,7 +358,7 @@ export default function TireLifecycleDashboard() {
           <CardContent className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead><tr className="border-b text-left text-muted-foreground"><th className="py-2">Tire ID</th><th>Brand / size</th><th className="text-right">Installations</th><th className="text-right">Days</th><th className="text-right">Known km</th></tr></thead>
-              <tbody>{(report?.tireLife || []).slice(0,100).map((row, i) => <tr key={row.id || i} className="border-b last:border-0"><td className="py-2">{row.internalCode || row.id}</td><td>{row.manufacturer} · {row.tireSize}</td><td className="text-right">{formatNumber(row.installations)}</td><td className="text-right">{Math.round(Number(row.lifetimeDays || 0))}</td><td className="text-right">{formatNumber(row.lifetimeKm)}</td></tr>)}</tbody>
+              <tbody>{(report?.tireLife || []).slice(0,100).map((row, i) => <tr key={row.id || i} className="border-b last:border-0"><td className="py-2">{row.internalCode || row.id}</td><td>{row.manufacturer} · {row.tireSize}</td><td className="text-right">{formatNumber(row.installations)}</td><td className="text-right">{row.lifetimeDays == null ? 'Unknown' : Math.round(Number(row.lifetimeDays))}</td><td className="text-right">{row.lifetimeKm == null ? 'Unknown' : formatNumber(row.lifetimeKm)}</td></tr>)}</tbody>
             </table>
           </CardContent>
         </Card>
