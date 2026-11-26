@@ -81,7 +81,7 @@ export default function TireBulkUpload() {
     if (inputRef.current) inputRef.current.value = ''
   }, [])
 
-  const sendFile = async (mode: 'preview' | 'import', requestedPage = 1) => {
+  const sendFile = async (mode: 'preview' | 'import', requestedPage = 1, searchOverride = appliedSearch, sheetOverride = sheet) => {
     if (!file) { setError('Choose an Excel or CSV file first.'); return }
     setBusy(true); setError(''); setMessage('')
     try {
@@ -90,8 +90,8 @@ export default function TireBulkUpload() {
       data.append('mode', mode)
       data.append('page', String(requestedPage))
       data.append('pageSize', String(PAGE_SIZE))
-      data.append('search', appliedSearch)
-      data.append('sheet', sheet)
+      data.append('search', searchOverride)
+      data.append('sheet', sheetOverride)
       const token = localStorage.getItem('authToken')
       const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {}
       const response = await fetch('/api/tires/bulk-upload', { method: 'POST', headers, credentials: 'include', body: data })
@@ -118,7 +118,7 @@ export default function TireBulkUpload() {
     setPage(1); setSearch(''); setAppliedSearch(''); setSheet('all'); setConfirmImport(false)
   }
 
-  const applyFilters = () => { setAppliedSearch(search.trim()); setPage(1); void sendFile('preview', 1) }
+  const applyFilters = () => { const value = search.trim(); setAppliedSearch(value); setPage(1); void sendFile('preview', 1, value, sheet) }
   const goToPage = (next: number) => { if (!busy && next >= 1 && next <= (preview?.pageInfo?.totalPages || 1)) void sendFile('preview', next) }
 
   const stats = useMemo(() => {
@@ -221,7 +221,7 @@ export default function TireBulkUpload() {
         <CardContent className="space-y-3">
           <div className="flex flex-col gap-2 sm:flex-row">
             <div className="relative min-w-0 flex-1"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input value={search} onChange={event => setSearch(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') applyFilters() }} placeholder="Search serial, vehicle, worksheet or tire size…" className="pl-9" /></div>
-            <select value={sheet} onChange={event => { setSheet(event.target.value); setPage(1); setTimeout(() => void sendFile('preview', 1), 0) }} className="h-10 rounded-md border bg-background px-3 text-sm sm:w-56"><option value="all">All worksheets</option>{preview.sheets.map(name => <option key={name} value={name}>{name}</option>)}</select>
+            <select value={sheet} onChange={event => { const value = event.target.value; setSheet(value); setPage(1); void sendFile('preview', 1, appliedSearch, value) }} className="h-10 rounded-md border bg-background px-3 text-sm sm:w-56"><option value="all">All worksheets</option>{preview.sheets.map(name => <option key={name} value={name}>{name}</option>)}</select>
             <Button variant="secondary" onClick={applyFilters} disabled={busy}><Search className="mr-2 h-4 w-4" />Search</Button>
           </div>
           <div className="overflow-hidden rounded-xl border">
