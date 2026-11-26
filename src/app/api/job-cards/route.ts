@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
     // explicitly manual/workbook Job Cards.
     const jobCards = savedJobCards.filter((card: any) => {
       const legacyUnknownSource = String(card.creationSource || 'UNKNOWN').toUpperCase() === 'UNKNOWN'
-      const oilOnlyService = /oil[\\s_-]*change/i.test(String(card.serviceType || ''))
+      const oilOnlyService = /oil[\s_-]*change/i.test(String(card.serviceType || ''))
       const hasNoJobCardLines = !Array.isArray(card.items) || card.items.length === 0
       return !(legacyUnknownSource && oilOnlyService && hasNoJobCardLines)
     })
