@@ -774,7 +774,7 @@ export async function POST(request: NextRequest) {
         for (const { source } of orderedEntries) {
           if (!source.eventAt) continue
           const vehicleMatch = resolveVehicle(source)
-          const eventVehicleText = source.vehicleText || source.vehicleNumber || ''
+          const eventVehicleText = source.vehicleText || source.vehicleNumber || [source.vehicleType ? source.vehicleType.toUpperCase() : 'VEHICLE TYPE NOT SPECIFIED', source.vehicleNumber || 'VEHICLE NUMBER NOT SUPPLIED'].join(': ')
           const vehicleType = vehicleMatch?.type || source.vehicleType || 'unknown'
           const vehicleId = vehicleMatch?.id || eventVehicleText
           const periodKey = periodSignature(tireId, source.eventAt, vehicleType, vehicleId, source.driver)
@@ -782,7 +782,7 @@ export async function POST(request: NextRequest) {
             vehicleMatch?.type === 'trailer' ? vehicleMatch.id : null, source.driver, source.odometerKm, eventVehicleText)
           const periodExists = Boolean(source.vehicleNumber && periodKeys.has(periodKey))
           const eventExists = eventKeys.has(eventKey)
-          if (!periodExists && !eventExists) {
+          if (!eventExists) {
             const notes = [
               'Imported from workbook; matched by tire serial when available.',
               'Source worksheet: ' + source.sheetName + ', row ' + source.line + '.',
