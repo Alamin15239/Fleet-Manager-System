@@ -187,6 +187,24 @@ export async function PATCH(request: NextRequest) {
     const user = await requireRolePermission(request, 'maintenance', 'update')
     await ensureInventorySchema()
     const body = await request.json()
+    if (body.action === 'updateItem') {
+      const itemId = String(body.itemId || '').trim()
+      const name = String(body.name || '').trim()
+      const partNumber = String(body.partNumber || '').trim() || null
+      const category = String(body.category || 'GENERAL').trim()
+      const unit = String(body.unit || 'pcs').trim()
+      const oilGrade = String(body.oilGrade || '').trim() || null
+      const reorderLevel = Number(body.reorderLevel)
+      if (!itemId || !name || !category || !unit || !Number.isFinite(reorderLevel) || reorderLevel < 0)
+        return NextResponse.json({ error: 'Enter a part name, category, unit and valid reorder level' }, { status: 400 })
+      const rows = await db.$queryRawUnsafe<any[]>(`
+        UPDATE "inventory_items"
+        SET "name"=$2,"partNumber"=$3,"category"=$4,"unit"=$5,"oilGrade"=$6,"reorderLevel"=$7,"updatedAt"=$8
+        WHERE "id"=$1 RETURNING *
+      `, itemId, name, partNumber, category, unit, oilGrade, reorderLevel, new Date())
+      if (!rows.length) return NextResponse.json({ error: 'Inventory item not found' }, { status: 404 })
+      return NextResponse.json({ item: rows[0], updatedBy: user.id })
+    }
     if (body.action !== 'updateIssue')
       return NextResponse.json({ error: 'Unsupported inventory update' }, { status: 400 })
 
