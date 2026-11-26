@@ -783,7 +783,7 @@ export async function POST(request: NextRequest) {
         for (const { source } of orderedEntries) {
           if (!source.eventAt) continue
           const vehicleMatch = resolveVehicle(source)
-          const eventVehicleText = source.vehicleText || source.vehicleNumber || [source.vehicleType ? source.vehicleType.toUpperCase() : 'VEHICLE TYPE NOT SPECIFIED', source.vehicleNumber || 'VEHICLE NUMBER NOT SUPPLIED'].join(': ')
+          const eventVehicleText = source.vehicleText || source.vehicleNumber || 'Unassigned / vehicle not recorded'
           const vehicleType = vehicleMatch?.type || source.vehicleType || (/\d{3,5}/.test(source.vehicleNumber) ? 'truck' : 'unknown')
           const vehicleId = vehicleMatch?.id || eventVehicleText
           const periodKey = periodSignature(tireId, source.eventAt, vehicleType, vehicleId, source.driver)
@@ -817,7 +817,9 @@ export async function POST(request: NextRequest) {
               createdById: user.id
             })
           }
-          if (source.vehicleNumber && !periodExists) {
+          // Preserve every dated OUT QTY slot in the consumption report,
+          // including source rows where the workbook did not record a vehicle.
+          if (!periodExists) {
             periodsToCreate.push({
               id: 'tyuse_' + stableHash(tireId + '|' + periodKey).slice(0, 32).toLowerCase(),
               tireId,
