@@ -693,16 +693,16 @@ export async function POST(request: NextRequest) {
       }) : []
       const existingEvents = existingTireIds.length ? await tx.tireLifecycleEvent.findMany({
         where: { tireId: { in: existingTireIds } },
-        select: { tireId: true, eventAt: true, toTruckId: true, toTrailerId: true, driverNameSnapshot: true, odometerKm: true, notes: true }
+        select: { tireId: true, eventType: true, eventAt: true, toTruckId: true, toTrailerId: true, driverNameSnapshot: true, odometerKm: true, notes: true }
       }) : []
       const periodSignature = (tireId: string, at: Date, vehicleType: string, vehicleId: string, driver: string) =>
         [tireId, at.toISOString(), vehicleType, vehicleId, driver.trim().toUpperCase()].join('|')
-      const eventSignature = (tireId: string, at: Date, truckId: string | null, trailerId: string | null, driver: string, odometer: number | null, sourceVehicle: string) =>
-        [tireId, at.toISOString(), truckId || '', trailerId || '', driver.trim().toUpperCase(), odometer ?? '', normalizeVehicleKey(sourceVehicle)].join('|')
+      const eventSignature = (tireId: string, eventType: string, at: Date, truckId: string | null, trailerId: string | null, driver: string, odometer: number | null, sourceVehicle: string) =>
+        [tireId, eventType, at.toISOString(), truckId || '', trailerId || '', driver.trim().toUpperCase(), odometer ?? '', normalizeVehicleKey(sourceVehicle)].join('|')
       const periodKeys = new Set(existingPeriods.map(item => periodSignature(item.tireId, item.installedAt, item.vehicleType, item.vehicleId, item.driverNameSnapshot || '')))
       const eventKeys = new Set(existingEvents.map(item => {
         const sourceVehicle = item.notes?.match(/Source vehicle columns: (.*?)(?:\. Source date cell:|\. No source)/)?.[1] || ''
-        return eventSignature(item.tireId, item.eventAt, item.toTruckId, item.toTrailerId, item.driverNameSnapshot || '', item.odometerKm, sourceVehicle)
+        return eventSignature(item.tireId, item.eventType, item.eventAt, item.toTruckId, item.toTrailerId, item.driverNameSnapshot || '', item.odometerKm, sourceVehicle)
       }))
       const tiresToCreate: any[] = []
       const eventsToCreate: any[] = []
@@ -778,7 +778,7 @@ export async function POST(request: NextRequest) {
           const vehicleType = vehicleMatch?.type || source.vehicleType || 'unknown'
           const vehicleId = vehicleMatch?.id || eventVehicleText
           const periodKey = periodSignature(tireId, source.eventAt, vehicleType, vehicleId, source.driver)
-          const eventKey = eventSignature(tireId, source.eventAt, vehicleMatch?.type === 'truck' ? vehicleMatch.id : null,
+          const eventKey = eventSignature(tireId, 'ISSUE', source.eventAt, vehicleMatch?.type === 'truck' ? vehicleMatch.id : null,
             vehicleMatch?.type === 'trailer' ? vehicleMatch.id : null, source.driver, source.odometerKm, eventVehicleText)
           const periodExists = Boolean(source.vehicleNumber && periodKeys.has(periodKey))
           const eventExists = eventKeys.has(eventKey)
