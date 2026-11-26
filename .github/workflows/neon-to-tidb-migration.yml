@@ -280,8 +280,8 @@ jobs:
           psql "$TIDB_DATABASE_URL" -X -v ON_ERROR_STOP=1 -f repair-test-base.sql
           psql "$TIDB_DATABASE_URL" -X -v ON_ERROR_STOP=1 -f tidb-schema-repair-preflight.sql
           required=$(psql "$TIDB_DATABASE_URL" -X -v ON_ERROR_STOP=1 -At -c "SELECT count(*) FROM information_schema.tables WHERE table_schema = '$REPAIR_TEST_SCHEMA' AND table_type = 'BASE TABLE'")
-          if [ "$required" -lt 43 ]; then
-            echo "Schema repair test created only $required tables; expected at least 43."
+          if [ "$required" -lt 44 ]; then
+            echo "Schema repair test created only $required tables; expected at least 44."
             exit 1
           fi
           echo "Schema repair DDL passed in isolated TiDB schema. Tables present: $required"
