@@ -695,14 +695,14 @@ export async function POST(request: NextRequest) {
         where: { tireId: { in: existingTireIds } },
         select: { tireId: true, eventAt: true, toTruckId: true, toTrailerId: true, driverNameSnapshot: true, odometerKm: true, notes: true }
       }) : []
-      const periodSignature = (at: Date, vehicleType: string, vehicleId: string, driver: string) =>
-        [at.toISOString(), vehicleType, vehicleId, driver.trim().toUpperCase()].join('|')
-      const eventSignature = (at: Date, truckId: string | null, trailerId: string | null, driver: string, odometer: number | null, sourceVehicle: string) =>
-        [at.toISOString(), truckId || '', trailerId || '', driver.trim().toUpperCase(), odometer ?? '', normalizeVehicleKey(sourceVehicle)].join('|')
-      const periodKeys = new Set(existingPeriods.map(item => periodSignature(item.installedAt, item.vehicleType, item.vehicleId, item.driverNameSnapshot || '')))
+      const periodSignature = (tireId: string, at: Date, vehicleType: string, vehicleId: string, driver: string) =>
+        [tireId, at.toISOString(), vehicleType, vehicleId, driver.trim().toUpperCase()].join('|')
+      const eventSignature = (tireId: string, at: Date, truckId: string | null, trailerId: string | null, driver: string, odometer: number | null, sourceVehicle: string) =>
+        [tireId, at.toISOString(), truckId || '', trailerId || '', driver.trim().toUpperCase(), odometer ?? '', normalizeVehicleKey(sourceVehicle)].join('|')
+      const periodKeys = new Set(existingPeriods.map(item => periodSignature(item.tireId, item.installedAt, item.vehicleType, item.vehicleId, item.driverNameSnapshot || '')))
       const eventKeys = new Set(existingEvents.map(item => {
         const sourceVehicle = item.notes?.match(/Source vehicle columns: (.*?)(?:\. Source date cell:|\. No source)/)?.[1] || ''
-        return eventSignature(item.eventAt, item.toTruckId, item.toTrailerId, item.driverNameSnapshot || '', item.odometerKm, sourceVehicle)
+        return eventSignature(item.tireId, item.eventAt, item.toTruckId, item.toTrailerId, item.driverNameSnapshot || '', item.odometerKm, sourceVehicle)
       }))
       const tiresToCreate: any[] = []
       const eventsToCreate: any[] = []
@@ -710,6 +710,7 @@ export async function POST(request: NextRequest) {
       let updatedExisting = 0
       let reconciledVehicles = 0
       let legacyDuplicateSerials = 0
+      let mergedTires = 0
 
       for (let index = 0; index < analysis.units.length; index++) {
         const unit = analysis.units[index]
@@ -727,9 +728,10 @@ export async function POST(request: NextRequest) {
 
         let tireId = existingTire?.id || 'tire_' + randomUUID()
         if (existingTire) {
+          mergedTires++
           const canonical = serialMatches[0]
           const latestVehicle = resolveVehicle(latestSource)
-          const updateData: Record<string, string> = {}
+          const updateData: any = {}
           if ((!canonical || canonical.tireSize === 'Unspecified' || !canonical.tireSize) && latestSource.tireSize) updateData.tireSize = latestSource.tireSize
           if ((!canonical || canonical.manufacturer === 'Unspecified' || !canonical.manufacturer) && latestSource.manufacturer) updateData.manufacturer = latestSource.manufacturer
           if ((!canonical || canonical.origin === 'OTHER' || !canonical.origin) && latestSource.origin) updateData.origin = latestSource.origin
@@ -775,8 +777,8 @@ export async function POST(request: NextRequest) {
           const eventVehicleText = source.vehicleText || source.vehicleNumber || ''
           const vehicleType = vehicleMatch?.type || source.vehicleType || 'unknown'
           const vehicleId = vehicleMatch?.id || eventVehicleText
-          const periodKey = periodSignature(source.eventAt, vehicleType, vehicleId, source.driver)
-          const eventKey = eventSignature(source.eventAt, vehicleMatch?.type === 'truck' ? vehicleMatch.id : null,
+          const periodKey = periodSignature(tireId, source.eventAt, vehicleType, vehicleId, source.driver)
+          const eventKey = eventSignature(tireId, source.eventAt, vehicleMatch?.type === 'truck' ? vehicleMatch.id : null,
             vehicleMatch?.type === 'trailer' ? vehicleMatch.id : null, source.driver, source.odometerKm, eventVehicleText)
           const periodExists = Boolean(source.vehicleNumber && periodKeys.has(periodKey))
           const eventExists = eventKeys.has(eventKey)
@@ -833,6 +835,7 @@ export async function POST(request: NextRequest) {
         alreadyImported: !tiresToCreate.length && !eventsToCreate.length && !periodsToCreate.length && !updatedExisting,
         reconciledVehicles,
         legacyDuplicateSerials,
+        mergedTires,
         updatedExisting
       }    }, { timeout: 120000 })
 
@@ -844,7 +847,7 @@ export async function POST(request: NextRequest) {
     }
     await syncOneDriveWorkbookAfterChange()
     return NextResponse.json({
-      message: 'Created ' + result.tireCount + ' new tire records and merged ' + Math.max(0, analysis.units.length - result.tireCount) + ' serial-matched records. Saved ' + result.historyCount + ' new dated usage-history entries and ' + result.periodCount + ' usage periods. ' + result.reconciledVehicles + ' entries matched exact, unique truck/trailer records. Existing tire records were not deleted. Unnumbered tires are matched only by their stable source-row fingerprint. Workshop Job Card linking and stock receipt events were not performed.',
+      message: 'Created ' + result.tireCount + ' new tire records and merged ' + result.mergedTires + ' serial-matched records. Saved ' + result.historyCount + ' new dated usage-history entries and ' + result.periodCount + ' usage periods. ' + result.reconciledVehicles + ' entries matched exact, unique truck/trailer records. Existing tire records were not deleted. Unnumbered tires are matched only by their stable source-row fingerprint. Workshop Job Card linking and stock receipt events were not performed.',
       tires: result.tireCount,
       historyEntries: result.historyCount,
       reconciledVehicles: result.reconciledVehicles,
