@@ -67,7 +67,7 @@ export default function TireStockReceiptUpload() {
         <p className="font-medium">Required columns</p>
         <p className="mt-2 text-xs text-muted-foreground">Date, Tire Size, Manufacturer, Origin, Quantity</p>
         <p className="mt-1 text-xs text-muted-foreground">Optional: Serial Number, Supplier, Purchase Reference, Purchase Cost, Notes</p>
-        <p className="mt-2 text-xs text-muted-foreground">Each tire is saved as an individual stock record with its own TY code. If you provide a serial number, use one tire per row so the serial identifies exactly one tire. A multi-quantity row is accepted only without a serial number.</p>
+        <p className="mt-2 text-xs text-muted-foreground">Each new tire is saved as an individual stock record with its own TY code. Existing serial numbers are matched to their current tire record instead of creating duplicates. Existing assignment and lifecycle history are preserved. Use one tire per row when providing a serial number; a multi-quantity row is accepted only without a serial number.</p>
         <Button type="button" variant="outline" size="sm" className="mt-3" onClick={downloadTemplate}>
           <Download className="mr-2 h-4 w-4" /> Download CSV template
         </Button>
@@ -81,7 +81,7 @@ export default function TireStockReceiptUpload() {
       <Button onClick={submit} disabled={busy || !file}>
         {busy ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Importing…</> : <><Upload className="mr-2 h-4 w-4" />Validate and receive stock</>}
       </Button>
-      <p className="text-xs text-muted-foreground">Receipt events are recorded in Tire Lifecycle and do not create workshop job cards because stock purchasing is not vehicle maintenance.</p>
+      <p className="text-xs text-muted-foreground">New tire records receive a Tire Lifecycle receipt event. If a serial already exists, the importer merges missing details only and does not create a duplicate tire or repeat receipt event. It does not create workshop job cards.</p>
     </CardContent>
   </Card>
 }
