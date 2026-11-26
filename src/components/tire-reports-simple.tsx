@@ -200,13 +200,28 @@ export default function TireReportsSimple() {
     setError(null)
 
     try {
-      const response = await apiGet(`/api/tires?limit=1000&startDate=${dateRange.start}&endDate=${dateRange.end}`)
-      
-      if (response.ok) {
+      // Fetch every page. The API caps each page at 1,000 rows, so a
+      // single request silently truncated larger reports at exactly 1,000.
+      const allRows: any[] = []
+      let page = 1
+      let pages = 1
+      let responseOk = true
+      while (page <= pages) {
+        const response = await apiGet(`/api/tires?limit=1000&page=${page}&dateFrom=${dateRange.start}&dateTo=${dateRange.end}`)
+        if (!response.ok) {
+          responseOk = false
+          break
+        }
         const data = await response.json()
+        allRows.push(...(data.tires || []))
+        pages = Math.max(1, Number(data.pagination?.pages || 1))
+        page += 1
+      }
+
+      if (responseOk) {
         // Keep unclassified source rows in inventory; analytics counts only
         // positive OUT QTY with one of the recognized origins.
-        const tires = (data.tires || []).filter(isTireIncludedInAnalytics)
+        const tires = allRows.filter(isTireIncludedInAnalytics)
         const quantityOf = (tire: any) => Number(tire.quantity ?? 0)
 
         // Calculate statistics
