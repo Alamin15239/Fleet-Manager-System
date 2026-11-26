@@ -849,7 +849,7 @@ export async function POST(request: NextRequest) {
             quantity: 1,
             serialNumber: unit.serial,
             internalCode: code,
-            lifecycleStatus: latestVehicle ? 'ASSIGNED' : 'ASSIGNED_UNVERIFIED',
+            lifecycleStatus: 'ASSIGNED_UNVERIFIED',
             createdById: user.id,
             createdAt: firstSource.eventAt || undefined,
             notes: sourceNotes.join(' ')
@@ -866,7 +866,7 @@ export async function POST(request: NextRequest) {
           const periodKey = periodSignature(tireId, source.eventAt, vehicleType, vehicleId, source.driver)
           const eventKey = eventSignature(tireId, 'ISSUE', source.eventAt, vehicleMatch?.type === 'truck' ? vehicleMatch.id : null,
             vehicleMatch?.type === 'trailer' ? vehicleMatch.id : null, source.driver, source.odometerKm, eventVehicleText)
-          const periodExists = Boolean(source.vehicleNumber && periodKeys.has(periodKey))
+          const periodExists = periodKeys.has(periodKey)
           const eventExists = eventKeys.has(eventKey)
           if (!eventExists) {
             const notes = [
