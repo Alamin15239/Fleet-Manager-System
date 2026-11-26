@@ -934,7 +934,7 @@ export async function POST(request: NextRequest) {
     }
     await syncOneDriveWorkbookAfterChange()
     return NextResponse.json({
-      message: 'Created ' + result.tireCount + ' separate tire records from OUT QTY slots; serial numbers were retained without merging repeated identifiers. ' + result.reusedSourceRows + ' source slots were already imported and reused. Saved ' + result.historyCount + ' dated usage-history entries and ' + result.periodCount + ' usage periods. ' + result.reconciledVehicles + ' entries matched active truck/trailer records using normalized fleet identifiers. Workshop Job Card linking and stock receipt events were not performed.',
+      message: 'Created ' + result.tireCount + ' new tire records and reconciled ' + result.updatedExisting + ' pre-existing legacy tire records. Together they represent all ' + analysis.units.length + ' OUT QTY slots; repeated serial identifiers remain separate records. Saved ' + result.historyCount + ' dated usage-history entries and ' + result.periodCount + ' usage periods, including unassigned source rows. ' + result.reconciledVehicles + ' entries matched active truck/trailer records using normalized fleet identifiers. Historical import does not create new Workshop Job Cards or stock receipt events; live tire operations link to the central Workshop Job Card.',
       tires: result.tireCount,
       historyEntries: result.historyCount,
       reconciledVehicles: result.reconciledVehicles,
