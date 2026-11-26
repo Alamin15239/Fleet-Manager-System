@@ -37,6 +37,19 @@ jobs:
         run: |
           set -euo pipefail
           test -n "$NEON_DATABASE_URL" || { echo "::error::Missing NEON_DATABASE_URL repository secret"; exit 1; }
+          python3 - <<'PY'
+          import os
+          from urllib.parse import urlsplit, unquote
+          value = os.environ["NEON_DATABASE_URL"]
+          parsed = urlsplit(value)
+          if parsed.scheme not in ("postgres", "postgresql") or not parsed.hostname:
+              raise SystemExit("NEON_DATABASE_URL is not a valid PostgreSQL URL")
+          database = unquote(parsed.path.lstrip("/"))
+          print("Neon source endpoint (credentials hidden):")
+          print(f"  host={parsed.hostname}")
+          print(f"  port={parsed.port or 5432}")
+          print(f"  database={database or '(not specified)'}")
+          PY
           if [[ "${{ inputs.operation }}" == "migrate" ]]; then
             test -n "$TIDB_DATABASE_URL" || { echo "::error::Missing TIDB_DATABASE_URL repository secret"; exit 1; }
             [[ "${{ inputs.confirm_target_empty }}" == "true" ]] || { echo "::error::Set confirm_target_empty only after verifying the TiDB database is empty"; exit 1; }
