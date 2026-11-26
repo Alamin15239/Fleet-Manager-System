@@ -11,6 +11,7 @@ on:
           - export
           - preflight
           - migrate
+          - schema-audit
         default: export
       confirm_target_empty:
         description: "Required for migrate: confirm the TiDB target has no application tables/data"
@@ -51,12 +52,16 @@ jobs:
           print(f"  port={parsed.port or 5432}")
           print(f"  database={database or '(not specified)'}")
           PY
-          if [[ "${{ inputs.operation }}" == "preflight" || "${{ inputs.operation }}" == "migrate" ]]; then
+          if [[ "${{ inputs.operation }}" == "preflight" || "${{ inputs.operation }}" == "migrate" || "${{ inputs.operation }}" == "schema-audit" ]]; then
             test -n "$TIDB_DATABASE_URL" || { echo "::error::Missing TIDB_DATABASE_URL repository secret"; exit 1; }
           fi
           if [[ "${{ inputs.operation }}" == "migrate" ]]; then
             [[ "${{ inputs.confirm_target_empty }}" == "true" ]] || { echo "::error::Set confirm_target_empty only after verifying the TiDB database is empty"; exit 1; }
           fi
+
+      - name: Checkout application schema for audit
+        if: ${{ inputs.operation == 'schema-audit' }}
+        uses: actions/checkout@v4
 
       - name: Export schema and source row counts
         shell: bash
@@ -168,6 +173,44 @@ jobs:
           done < source-row-counts.txt
           echo "Preflight passed: schema and all data imported and verified in isolated schema."
           CONTAINER_SCRIPT
+      - name: Compare TiDB schema with Prisma application schema
+        if: ${{ inputs.operation == 'schema-audit' }}
+        shell: bash
+        env:
+          TIDB_DATABASE_URL: ${{ secrets.TIDB_DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          mkdir -p migration-artifacts
+          npx --yes prisma@6.15.0 migrate diff \
+            --from-url "$TIDB_DATABASE_URL" \
+            --to-schema-datamodel prisma/schema.prisma \
+            --script > migration-artifacts/tidb-to-prisma-schema-diff.sql
+          {
+            echo "TiDB public schema versus prisma/schema.prisma"
+            echo "Generated at: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo
+            echo "CREATE TABLE statements:"
+            grep -Ec '^[[:space:]]*CREATE TABLE' migration-artifacts/tidb-to-prisma-schema-diff.sql || true
+            echo "ALTER TABLE statements:"
+            grep -Ec '^[[:space:]]*ALTER TABLE' migration-artifacts/tidb-to-prisma-schema-diff.sql || true
+            echo "DROP statements (review carefully; this audit does not execute SQL):"
+            grep -Ein '^[[:space:]]*DROP ' migration-artifacts/tidb-to-prisma-schema-diff.sql || true
+            echo
+            echo "This workflow only generates a diff. It does not change TiDB or Neon."
+          } > migration-artifacts/tidb-schema-audit-summary.txt
+          cat migration-artifacts/tidb-schema-audit-summary.txt
+
+      - name: Upload Prisma schema audit
+        if: ${{ inputs.operation == 'schema-audit' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: tidb-prisma-schema-audit
+          path: |
+            migration-artifacts/tidb-to-prisma-schema-diff.sql
+            migration-artifacts/tidb-schema-audit-summary.txt
+          if-no-files-found: error
+          retention-days: 7
+
       - name: Import schema and data into TiDB
         if: ${{ inputs.operation == 'migrate' }}
         shell: bash
