@@ -276,7 +276,7 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
           : truckNumber && !trailerNumber
             ? (/^\s*\d{3,5}\s*[-/]\s*\d{3,5}\s*$/.test(truckNumber) && sheetMetadata.vehicleType
               ? sheetMetadata.vehicleType
-              : 'truck')
+              : /\d{3,5}/.test(truckNumber) ? 'truck' : null)
             : trailerNumber && !truckNumber ? 'trailer'
               : sheetMetadata.vehicleType
       if (genericNumber && !vehicleType) {
