@@ -155,8 +155,12 @@ function headerMap(sheet: ExcelJS.Worksheet): { row: number; columns: Map<string
     const find = (key: string) => headerAliases[key].some(alias => columns.has(alias)) ||
       (key === 'serial' && Array.from(columns.keys()).some(name => name.includes('serial') || name === 'sn'))
     const hasVehicle = find('truck') || find('trailer') || find('vehicle')
-    const hasEventIdentifier = find('serial') || find('quantity') || find('driver')
-    if (find('date') && hasVehicle && hasEventIdentifier) return { row: rowNo, columns }
+    const hasEventIdentifier = find('serial') || find('quantity')
+    const hasContextColumn = find('date') || hasVehicle || find('driver')
+    // Vehicle/date values may be absent in source workbooks. Recognize a
+    // history table from its tire identifier/quantity column plus any
+    // contextual column, then preserve missing values as null/blank.
+    if (hasEventIdentifier && hasContextColumn) return { row: rowNo, columns }
   }
   return null
 }
@@ -275,12 +279,12 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
       // Do not extract incidental numbers from notes, formulas, or mixed text.
       const normalizedQtyText = qtyText.replace(/,/g, '').trim()
       const parsedQty = /^\d+(?:\.0+)?$/.test(normalizedQtyText) ? Number(normalizedQtyText) : NaN
-      const expectedQuantity = Number.isInteger(parsedQty) && parsedQty > 0 && parsedQty <= 100 ? parsedQty : 0
+      const expectedQuantity = Number.isSafeInteger(parsedQty) && parsedQty > 0 ? parsedQty : 0
       const serialParts = columns.serials.map(column => read(column)).filter(Boolean)
       const serialText = serialParts.join(', ')
       const history = read(columns.history)
       const parsedSerials = parseSerials(serialText, expectedQuantity)
-      const quantityIsValid = Number.isInteger(parsedQty) && parsedQty > 0 && parsedQty <= 100
+      const quantityIsValid = Number.isSafeInteger(parsedQty) && parsedQty > 0
       const hasSourceContext = Boolean(
         cellText(dateCell as ExcelJS.CellValue) || truckNumber || trailerNumber || genericNumber ||
         driver || serialText || history || read(columns.size) || read(columns.manufacturer) ||
@@ -309,7 +313,7 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
       if (truckNumber && trailerNumber && !vehicleType) warnings.push('Both truck and trailer are filled in and the sheet does not identify which vehicle owns this tire. Add Vehicle Type or use a dedicated truck or trailer sheet.')
       if (genericNumber && !truckNumber && !trailerNumber && typeText && !vehicleType) warnings.push('Vehicle Type must identify Truck or Trailer.')
       if (qtyText && !plausibleDate) warnings.push('Usage date is missing or invalid; the tire record will be saved without a dated history event.')
-      if (qtyText && (!Number.isInteger(quantity) || quantity < 1 || quantity > 100)) warnings.push('Quantity must be a whole number from 1 to 100.')
+      if (qtyText && (!Number.isSafeInteger(quantity) || quantity < 1)) warnings.push('OUT QTY must be a positive whole number.')
       if (parsedSerials.serials.length > 100) warnings.push('More than 100 serial numbers were detected in one row.')
       if (parsedSerials.mixedText) warnings.push('The serial cell contains mixed text; check the extracted tire identifier in the preview.')
       if (!qtyText) warnings.push('OUT QTY is required. The importer will not assume a tire quantity.')
@@ -329,7 +333,7 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
       const entry: SourceEntry = {
         sheetName: sheet.name, line, eventAt: date, dateText: cellText(dateCell as ExcelJS.CellValue), vehicleType, vehicleTypeText: typeText, vehicleNumber, vehicleText, vehicleId: null,
         vehicleLabel: vehicleText, driver, serialText, serials: parsedSerials.serials,
-        quantity: Number.isInteger(quantity) && quantity > 0 && quantity <= 100 ? quantity : 0,
+        quantity: Number.isSafeInteger(quantity) && quantity > 0 ? quantity : 0,
         quantityText: qtyText, tireSize: size, tireSizeText: read(columns.size), manufacturer, origin: normalizeOrigin(origin), originText: origin, history,
         odometerKm: Number.isInteger(odometerValue) && odometerValue >= 0 ? odometerValue : null, odometerText,
         warnings, errors: []
@@ -347,6 +351,8 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
   if (sheetErrors.length) throw new Error(sheetErrors.join(' '))
 
   const exactDuplicateRows = 0
+  const requestedUnitCount = sourceEntries.reduce((sum, source) => sum + Math.max(0, source.quantity), 0)
+  if (requestedUnitCount > 10000) throw new Error('This workbook contains more than 10,000 tire quantity slots. Split the workbook into smaller files; no records were imported.')
   const units: ImportUnit[] = []
   for (const source of sourceEntries) {
     // OUT QTY is the sole authority for the number of tire units. Serial
