@@ -58,7 +58,7 @@ jobs:
               psql "$NEON_DATABASE_URL" -X -v ON_ERROR_STOP=1 -v schema_name=public -At -F "|" -c "
                 SELECT schemaname, tablename
                 FROM pg_tables
-                WHERE schemaname = :'schema_name'
+                WHERE schemaname = \$\$public\$\$
                 ORDER BY tablename
               " > source-tables.txt
               while IFS="|" read -r schema table; do
@@ -102,9 +102,9 @@ jobs:
               # Never overwrite an existing application schema.
               existing=$(psql "$TIDB_DATABASE_URL" -X -v ON_ERROR_STOP=1 -v schema_name=public -v base_table_type='BASE TABLE' -v managed_prefix='tidbcloud_com_cell_%' -At -c "
                 SELECT count(*) FROM information_schema.tables
-                WHERE table_schema = :'schema_name'
-                  AND table_type = :'base_table_type'
-                  AND table_name NOT LIKE :'managed_prefix'
+                WHERE table_schema = \$\$public\$\$
+                  AND table_type = \$\$BASE TABLE\$\$
+                  AND table_name NOT LIKE \$\$tidbcloud_com_cell_%\$\$
               ")
               if [ "$existing" != "0" ]; then
                 echo "Refusing import: TiDB already contains public base tables."
