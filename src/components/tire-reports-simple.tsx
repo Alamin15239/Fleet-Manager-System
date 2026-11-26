@@ -129,13 +129,13 @@ async function createTireReportPdf(data: ReportData, dateRange: { start: string;
   pdf.setFontSize(6)
   const tires = [...(data.tireRows || [])].sort((a, b) =>
     String(a.tireSize || '').localeCompare(String(b.tireSize || ''), undefined, { numeric: true }) ||
-    String(a.plateNumber || '').localeCompare(String(b.plateNumber || ''), undefined, { numeric: true }) ||
+    String(a.truck?.licensePlate || a.plateNumber || '').localeCompare(String(b.truck?.licensePlate || b.plateNumber || ''), undefined, { numeric: true }) ||
     String(a.trailerNumber || '').localeCompare(String(b.trailerNumber || ''), undefined, { numeric: true })
   )
   tires.forEach((tire, index) => {
     const values = [
       tire.tireSize || '—',
-      tire.plateNumber || '—',
+      tire.truck?.licensePlate || tire.plateNumber || '—',
       tire.trailerNumber || '—',
       tire.manufacturer || '—',
       tire.origin || '—',
@@ -212,8 +212,8 @@ export default function TireReportsSimple() {
         // Calculate statistics
         const totalTires = tires.reduce((sum: number, tire: any) => sum + quantityOf(tire), 0)
         const uniqueVehicles = new Set([
-          ...tires.map((t: any) => t.plateNumber).filter(Boolean),
-          ...tires.map((t: any) => t.trailerNumber).filter(Boolean)
+          ...tires.map((t: any) => t.truck?.licensePlate || t.plateNumber).filter(Boolean),
+          ...tires.filter((t: any) => !t.truckId && !t.truck?.id).map((t: any) => t.trailerNumber).filter(Boolean)
         ]).size
         const uniqueDrivers = new Set(tires.map((t: any) => t.driverName).filter(Boolean)).size
 
@@ -245,9 +245,9 @@ export default function TireReportsSimple() {
           .sort((a, b) => b.count - a.count)
 
         // Vehicle type stats
-        const truckTires = tires.filter((t: any) => t.plateNumber && !t.trailerNumber)
+        const truckTires = tires.filter((t: any) => t.truckId || t.truck?.id || (t.plateNumber && !t.trailerNumber))
           .reduce((sum: number, t: any) => sum + quantityOf(t), 0)
-        const trailerTires = tires.filter((t: any) => t.trailerNumber)
+        const trailerTires = tires.filter((t: any) => !(t.truckId || t.truck?.id) && t.trailerNumber)
           .reduce((sum: number, t: any) => sum + quantityOf(t), 0)
 
         setReportData({
@@ -311,7 +311,7 @@ export default function TireReportsSimple() {
     if (!reportData) return null
     const tires = reportData.tireRows.filter(tire =>
       (pdfFilters.size === 'all' || tire.tireSize === pdfFilters.size) &&
-      (pdfFilters.truck === 'all' || tire.plateNumber === pdfFilters.truck) &&
+      (pdfFilters.truck === 'all' || (tire.truck?.licensePlate || tire.plateNumber) === pdfFilters.truck) &&
       (pdfFilters.trailer === 'all' || tire.trailerNumber === pdfFilters.trailer)
     )
     const quantity = (tire: any) => Number(tire.quantity ?? 0)
@@ -329,13 +329,13 @@ export default function TireReportsSimple() {
     return {
       ...reportData,
       totalTires,
-      totalVehicles: new Set(tires.flatMap(tire => [tire.plateNumber, tire.trailerNumber]).filter(Boolean)).size,
+      totalVehicles: new Set(tires.flatMap(tire => [tire.truck?.licensePlate || tire.plateNumber, (tire.truckId || tire.truck?.id) ? null : tire.trailerNumber]).filter(Boolean)).size,
       totalDrivers: new Set(tires.map(tire => tire.driverName).filter(Boolean)).size,
       manufacturerStats: statsFor('manufacturer'),
       originStats: statsFor('origin'),
       vehicleTypeStats: {
-        trucks: tires.filter(tire => tire.plateNumber && !tire.trailerNumber).reduce((sum, tire) => sum + quantity(tire), 0),
-        trailers: tires.filter(tire => tire.trailerNumber).reduce((sum, tire) => sum + quantity(tire), 0),
+        trucks: tires.filter(tire => tire.truckId || tire.truck?.id || (tire.plateNumber && !tire.trailerNumber)).reduce((sum, tire) => sum + quantity(tire), 0),
+        trailers: tires.filter(tire => !(tire.truckId || tire.truck?.id) && tire.trailerNumber).reduce((sum, tire) => sum + quantity(tire), 0),
       },
       tireRows: tires,
     }
@@ -383,7 +383,7 @@ export default function TireReportsSimple() {
     (pdfFilters.trailer === 'all' || tire.trailerNumber === pdfFilters.trailer)
   )
   const uniqueValues = (field: 'tireSize' | 'plateNumber' | 'trailerNumber') => Array.from(new Set(
-    (reportData?.tireRows || []).map(tire => String(tire[field] || '').trim()).filter(Boolean)
+    (reportData?.tireRows || []).map(tire => String(field === 'plateNumber' ? (tire.truck?.licensePlate || tire.plateNumber || '') : tire[field] || '').trim()).filter(Boolean)
   )).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
 
   useEffect(() => {
