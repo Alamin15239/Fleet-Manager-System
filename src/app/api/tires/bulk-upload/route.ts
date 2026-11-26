@@ -227,7 +227,10 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
       // across the entire row BEFORE filtering empty transaction rows.
       let openingBalanceMarker = false
       row.eachCell({ includeEmpty: false }, cell => {
-        if (normalizeHeader(cellText(cell.value)) === 'openingbalance') openingBalanceMarker = true
+        // Opening stock is not a usage event. Match annotated variants too,
+        // then stop reading this worksheet so its balance rows cannot inflate
+        // the physical tire/history count.
+        if (normalizeHeader(cellText(cell.value)).startsWith('openingbalance')) openingBalanceMarker = true
       })
       if (openingBalanceMarker) break
 
@@ -351,6 +354,15 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
   if (sheetErrors.length) throw new Error(sheetErrors.join(' '))
 
   const exactDuplicateRows = 0
+  const sheetQuantityTotals = Array.from(sourceEntries.reduce((totals, source) => {
+    const current = totals.get(source.sheetName) || { sheetName: source.sheetName, usageRows: 0, tireQuantity: 0 }
+    if (source.quantity > 0) {
+      current.usageRows += 1
+      current.tireQuantity += source.quantity
+    }
+    totals.set(source.sheetName, current)
+    return totals
+  }, new Map<string, { sheetName: string; usageRows: number; tireQuantity: number }>()).values())
   const requestedUnitCount = sourceEntries.reduce((sum, source) => sum + Math.max(0, source.quantity), 0)
   if (requestedUnitCount > 10000) throw new Error('This workbook contains more than 10,000 tire quantity slots. Split the workbook into smaller files; no records were imported.')
   const units: ImportUnit[] = []
@@ -400,7 +412,7 @@ async function analyzeWorkbook(workbook: ExcelJS.Workbook) {
   const blocked: ImportUnit[] = []
   const reconcilable = units
   return {
-    sheetNames, sourceRows: sourceEntries.length, exactDuplicateRows,
+    sheetNames, sourceRows: sourceEntries.length, exactDuplicateRows, sheetQuantityTotals,
     sourceQuantityTotal, serialUsageOccurrences, uniqueSerialTires, repeatedSerialUsageOccurrences,
     unnumberedQuantitySlots, unnumberedTireCandidates, unquantifiedRows,
     totalTires: units.length, historyEntries: units.reduce((count, unit) => count + unit.entries.filter(item => item.source.eventAt).length, 0),
@@ -441,6 +453,18 @@ export async function POST(request: NextRequest) {
     }
     const analysis = await analyzeWorkbook(workbook)
     const sourceHash = createHash('sha256').update(bytes).digest('hex').slice(0, 20).toUpperCase()
+
+    // The user's confirmed original workbook has 794 usage tires. Its 36
+    // opening-balance units are stock, not additional usage records. Fail
+    // closed if parsing ever changes this exact source workbook's total.
+    if (sourceHash === 'B1411BE22C06ED31E7BB' && analysis.sourceQuantityTotal !== 794) {
+      return NextResponse.json({
+        error: 'Source reconciliation failed: this original workbook must resolve to exactly 794 usage tires after excluding opening balance. No records were imported.',
+        expectedTires: 794,
+        detectedTires: analysis.sourceQuantityTotal,
+        sheetTotals: analysis.sheetQuantityTotals
+      }, { status: 422 })
+    }
 
     if (mode !== 'import') {
       const requestedPage = Math.max(1, Number.parseInt(String(form.get('page') || '1'), 10) || 1)
@@ -486,6 +510,7 @@ export async function POST(request: NextRequest) {
         summary: {
           sourceRows: analysis.sourceRows,
           sourceQuantityTotal: analysis.sourceQuantityTotal,
+          sheetQuantityTotals: analysis.sheetQuantityTotals,
           tiresDetected: analysis.totalTires,
           historyEntries: analysis.historyEntries,
           serialUsageOccurrences: analysis.serialUsageOccurrences,
