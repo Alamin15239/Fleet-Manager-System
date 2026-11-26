@@ -454,15 +454,40 @@ export async function POST(request: NextRequest) {
     const analysis = await analyzeWorkbook(workbook)
     const sourceHash = createHash('sha256').update(bytes).digest('hex').slice(0, 20).toUpperCase()
 
-    // The user's confirmed original workbook has 794 usage tires. Its 36
-    // opening-balance units are stock, not additional usage records. Fail
-    // closed if parsing ever changes this exact source workbook's total.
-    if (sourceHash === 'B1411BE22C06ED31E7BB' && analysis.sourceQuantityTotal !== 794) {
+    // Fail closed for the known 10-sheet historical workbook. The source
+    // workbook has exactly 794 usage tires; 36 opening-balance units are stock.
+    // Use the workbook structure as well as the content hash because Excel
+    // editors can rewrite XLSX package metadata without changing worksheet data.
+    const expectedHistoricalSheetTotals: Record<string, number> = {
+      '315-80 China': 384,
+      '315-80 Japan': 56,
+      '385-65 China': 193,
+      '385-65Japan': 89,
+      'Small car': 4,
+      '215------17': 34,
+      '215-----17': 1,
+      '215----17': 2,
+      '215-17': 29,
+      '215--17': 2
+    }
+    const actualSheetNames = analysis.sheetNames.map(name => name.trim())
+    const matchesHistoricalWorkbook = Object.keys(expectedHistoricalSheetTotals)
+      .every(name => actualSheetNames.includes(name)) && actualSheetNames.length === 10
+    const sheetReconciliationFailures = matchesHistoricalWorkbook
+      ? Object.entries(expectedHistoricalSheetTotals).flatMap(([sheetName, expected]) => {
+          const actual = analysis.sheetQuantityTotals.find(item => item.sheetName.trim() === sheetName)?.tireQuantity ?? 0
+          return actual === expected ? [] : [{ sheetName, expected, detected: actual }]
+        })
+      : []
+    if ((sourceHash === 'B1411BE22C06ED31E7BB' || matchesHistoricalWorkbook) &&
+        (analysis.sourceQuantityTotal !== 794 || sheetReconciliationFailures.length > 0)) {
       return NextResponse.json({
-        error: 'Source reconciliation failed: this original workbook must resolve to exactly 794 usage tires after excluding opening balance. No records were imported.',
+        error: 'Import blocked: this historical workbook must reconcile to exactly 794 usage tires, with the expected quantity on every worksheet. The current analysis does not match. No records were imported.',
         expectedTires: 794,
         detectedTires: analysis.sourceQuantityTotal,
-        sheetTotals: analysis.sheetQuantityTotals
+        sheetTotals: analysis.sheetQuantityTotals,
+        sheetReconciliationFailures,
+        sourceHash
       }, { status: 422 })
     }
 
