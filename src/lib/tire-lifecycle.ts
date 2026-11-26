@@ -233,10 +233,6 @@ export async function recordTireLifecycleEvent(tx: any, input: {
   if (eventType === 'REPAIR' && (currentTruckId || tire.trailerNumber)) throw new Error('Remove the damaged tire before repair')
   if (eventType === 'RECEIVE' && (tire.lifecycleStatus === 'INSTALLED' || currentTruckId || tire.trailerNumber)) throw new Error('An installed tire cannot be received again')
 
-  // Tire Management is an independent module. Lifecycle events never create,
-  // attach to, or update Workshop Job Cards. Keep the nullable column empty for
-  // compatibility with existing databases and historical records.
-  const jobCardId: string | null = null
   const currentTrailer = tire.trailerNumber ? await tx.trailer.findFirst({ where: { number: tire.trailerNumber }, select: { id: true, driverName: true } }) : null
   const currentTruck = currentTruckId ? await tx.truck.findUnique({ where: { id: currentTruckId }, select: { driverName: true } }) : null
   const targetVehicleDriver = target?.vehicleType === 'truck'
@@ -273,6 +269,23 @@ export async function recordTireLifecycleEvent(tx: any, input: {
   const sourceDriverName = currentTruck?.driverName || currentTrailer?.driverName || null
   const eventDriverName = input.driverName || (eventType === 'INSTALL' ? targetVehicleDriver : sourceDriverName) || targetVehicleDriver || null
   const usageDriverName = input.driverName || targetVehicleDriver || eventDriverName
+
+  // Tire work is part of the vehicle's central maintenance visit. Reuse the
+  // matching open job card, or create one when the vehicle has none. For a
+  // transfer, the work belongs to the source vehicle being serviced.
+  const jobCardVehicle = currentVehicle || target
+  const linksToJobCard = ['INSTALL', 'TRANSFER', 'POSITION_CHANGE', 'REMOVE', 'DAMAGE', 'INSPECT', 'ISSUE'].includes(eventType)
+  const jobCardId = linksToJobCard && jobCardVehicle
+    ? await getOrCreateOpenJobCard(tx, jobCardVehicle, {
+        eventAt: input.eventAt,
+        odometerKm: input.odometerKm,
+        driverName: eventDriverName,
+        userId: input.userId,
+        serviceType: 'TIRE MAINTENANCE',
+        reportedIssue: input.reason || ('Tire ' + eventType.toLowerCase()),
+        creationSource: 'TIRE'
+      })
+    : null
 
   const fromTruckId = currentTruckId
   const fromPosition = tire.currentPosition || null
