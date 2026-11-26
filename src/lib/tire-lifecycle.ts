@@ -233,7 +233,10 @@ export async function recordTireLifecycleEvent(tx: any, input: {
   if (eventType === 'REPAIR' && (currentTruckId || tire.trailerNumber)) throw new Error('Remove the damaged tire before repair')
   if (eventType === 'RECEIVE' && (tire.lifecycleStatus === 'INSTALLED' || currentTruckId || tire.trailerNumber)) throw new Error('An installed tire cannot be received again')
 
-  let jobCardId: string | null = null
+  // Tire Management is an independent module. Lifecycle events never create,
+  // attach to, or update Workshop Job Cards. Keep the nullable column empty for
+  // compatibility with existing databases and historical records.
+  const jobCardId: string | null = null
   const currentTrailer = tire.trailerNumber ? await tx.trailer.findFirst({ where: { number: tire.trailerNumber }, select: { id: true, driverName: true } }) : null
   const currentTruck = currentTruckId ? await tx.truck.findUnique({ where: { id: currentTruckId }, select: { driverName: true } }) : null
   const targetVehicleDriver = target?.vehicleType === 'truck'
@@ -244,10 +247,7 @@ export async function recordTireLifecycleEvent(tx: any, input: {
   const currentVehicle: VehicleRef | null = currentTruckId
     ? { vehicleType: 'truck', vehicleId: currentTruckId }
     : currentTrailer ? { vehicleType: 'trailer', vehicleId: currentTrailer.id } : null
-  // Never save a vehicle-mounted operation without a canonical fleet link:
-  // otherwise the tire event would be orphaned from its required Job Card.
-  const vehicleLinkedOperations = ['TRANSFER','POSITION_CHANGE','REMOVE','DAMAGE','INSPECT','DISPOSE']
-  if (tire.lifecycleStatus === 'INSTALLED' && !currentVehicle && vehicleLinkedOperations.includes(eventType)) {
+  if (tire.lifecycleStatus === 'INSTALLED' && !currentVehicle && ['TRANSFER','POSITION_CHANGE','REMOVE','DAMAGE','INSPECT','DISPOSE'].includes(eventType)) {
     throw new Error('This installed tire is not linked to an active truck or trailer. Correct its vehicle assignment before recording this operation.')
   }
   if (tire.lifecycleStatus === 'DAMAGED' && (tire.plateNumber || tire.trailerNumber) && !currentVehicle &&
@@ -273,39 +273,6 @@ export async function recordTireLifecycleEvent(tx: any, input: {
   const sourceDriverName = currentTruck?.driverName || currentTrailer?.driverName || null
   const eventDriverName = input.driverName || (eventType === 'INSTALL' ? targetVehicleDriver : sourceDriverName) || targetVehicleDriver || null
   const usageDriverName = input.driverName || targetVehicleDriver || eventDriverName
-  const operationalVehicle = ['TRANSFER','POSITION_CHANGE','REMOVE','DAMAGE','REPAIR','INSPECT','DISPOSE'].includes(eventType)
-    ? currentVehicle || target : target || currentVehicle
-  if (operationalVehicle && !['RECEIVE'].includes(eventType)) {
-    jobCardId = await getOrCreateOpenJobCard(tx, operationalVehicle, {
-      eventAt: input.eventAt, odometerKm: input.odometerKm, driverName: eventDriverName, userId: input.userId,
-      serviceType: eventType === 'ISSUE' ? 'TIRE ISSUE' : 'TIRE MAINTENANCE', creationSource: 'TIRE', reportedIssue: eventType === 'ISSUE' ? 'Tire issued to vehicle from outgoing tire sheet; installation position not recorded' : 'Automatically created from tire lifecycle activity'
-    })
-  } else if (['REPAIR','DISPOSE','DAMAGE'].includes(eventType)) {
-    const previousVehicleEvent = await tx.$queryRawUnsafe(
-      `SELECT "jobCardId","fromTruckId","fromTrailerId" FROM "tire_lifecycle_events"
-       WHERE "tireId"=$1 AND "jobCardId" IS NOT NULL
-       ORDER BY "eventAt" DESC,"createdAt" DESC LIMIT 1`, input.tireId
-    )
-    const previous = previousVehicleEvent[0]
-    if (previous?.jobCardId) {
-      const openCard = await tx.workshopJobCard.findFirst({
-        where: { id: previous.jobCardId, status: { in: ['OPEN','IN_PROGRESS'] }, creationSource: { not: 'WORKBOOK' } },
-        select: { id: true }
-      })
-      if (openCard) jobCardId = openCard.id
-    }
-    if (!jobCardId && previous?.fromTruckId) {
-      jobCardId = await getOrCreateOpenJobCard(tx, { vehicleType: 'truck', vehicleId: previous.fromTruckId }, {
-        eventAt: input.eventAt, odometerKm: input.odometerKm, driverName: eventDriverName, userId: input.userId,
-        serviceType: 'TIRE MAINTENANCE', creationSource: 'TIRE', reportedIssue: 'Automatically created for tire repair or disposal'
-      })
-    } else if (!jobCardId && previous?.fromTrailerId) {
-      jobCardId = await getOrCreateOpenJobCard(tx, { vehicleType: 'trailer', vehicleId: previous.fromTrailerId }, {
-        eventAt: input.eventAt, odometerKm: input.odometerKm, driverName: eventDriverName, userId: input.userId,
-        serviceType: 'TIRE MAINTENANCE', reportedIssue: 'Automatically created for tire repair or disposal'
-      })
-    }
-  }
 
   const fromTruckId = currentTruckId
   const fromPosition = tire.currentPosition || null
@@ -323,19 +290,6 @@ export async function recordTireLifecycleEvent(tx: any, input: {
     input.damageLocation || null, input.evidenceUrl || null, input.supplierName || null,
     input.purchaseReference || null, input.purchaseCost ?? null, input.notes || null, jobCardId, input.userId
   )
-
-  // Tire work performed on a vehicle is part of its job-card cost summary.
-  // Stock receipt remains a purchasing/inventory event and is not charged to a vehicle visit.
-  if (jobCardId && input.cost != null && Number.isFinite(Number(input.cost)) && Number(input.cost) > 0) {
-    await tx.$executeRawUnsafe(
-      `UPDATE "workshop_job_cards"
-       SET "partsCost"=COALESCE("partsCost",0)+$2,
-           "totalCost"=COALESCE("totalCost",0)+$2,
-           "updatedAt"=NOW()
-       WHERE "id"=$1`,
-      jobCardId, Number(input.cost)
-    )
-  }
 
   // ISSUE can reassign an installed tire without confirming its wheel position;
   // close any prior mounted usage period before marking it assigned-unverified.
