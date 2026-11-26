@@ -153,17 +153,18 @@ jobs:
           sed -i "/^SELECT pg_catalog.set_config/d" preflight-data.sql
           psql "$TIDB_DATABASE_URL" -X -v ON_ERROR_STOP=1 -f preflight-data.sql
           echo "Checking all source table row counts in isolated schema..."
-          while IFS="|" read -r source_schema table expected; do
-            if [[ ! "$table" =~ ^[a-zA-Z_][a-zA-Z0-9_]*$ ]]; then
-              echo "Refusing unsafe table identifier from source inventory: $table"
+          while IFS="|" read -r source_table expected; do
+            if [[ ! "$source_table" =~ ^public\.[a-zA-Z_][a-zA-Z0-9_]*$ || ! "$expected" =~ ^[0-9]+$ ]]; then
+              echo "Refusing invalid source inventory row: $source_table|$expected"
               exit 1
             fi
+            table="${source_table#public.}"
             actual=$(psql "$TIDB_DATABASE_URL" -X -v ON_ERROR_STOP=1 -At -c "SELECT count(*) FROM \"$PREFLIGHT_SCHEMA\".\"$table\"")
             if [ "$actual" != "$expected" ]; then
               echo "PREFLIGHT COUNT MISMATCH $table source=$expected target=$actual"
               exit 1
             fi
-            printf "OK %s %s rows\n" "$table" "$actual"
+            printf "OK %s %s rows\\n" "$table" "$actual"
           done < source-row-counts.txt
           echo "Preflight passed: schema and all data imported and verified in isolated schema."
           CONTAINER_SCRIPT
@@ -196,13 +197,18 @@ jobs:
                 psql "$TIDB_DATABASE_URL" -X -v ON_ERROR_STOP=1
 
               echo "Data transfer finished. Comparing row counts..."
-              while IFS="|" read -r schema table expected; do
-                actual=$(psql "$TIDB_DATABASE_URL" -X -v ON_ERROR_STOP=1 -At -c "SELECT count(*) FROM \"$schema\".\"$table\"")
-                if [ "$actual" != "$expected" ]; then
-                  echo "COUNT MISMATCH $schema.$table source=$expected target=$actual"
+              while IFS="|" read -r source_table expected; do
+                if [[ ! "$source_table" =~ ^public\.[a-zA-Z_][a-zA-Z0-9_]*$ || ! "$expected" =~ ^[0-9]+$ ]]; then
+                  echo "Refusing invalid source inventory row: $source_table|$expected"
                   exit 1
                 fi
-                printf "OK %s.%s %s rows\\n" "$schema" "$table" "$actual"
+                table="${source_table#public.}"
+                actual=$(psql "$TIDB_DATABASE_URL" -X -v ON_ERROR_STOP=1 -At -c "SELECT count(*) FROM \"public\".\"$table\"")
+                if [ "$actual" != "$expected" ]; then
+                  echo "COUNT MISMATCH public.$table source=$expected target=$actual"
+                  exit 1
+                fi
+                printf "OK public.%s %s rows\\n" "$table" "$actual"
               done < source-row-counts.txt
               echo "All public table row counts match."
             '
