@@ -176,39 +176,39 @@ jobs:
           TIDB_DATABASE_URL: ${{ secrets.TIDB_DATABASE_URL }}
         run: |
           set -euo pipefail
-          docker run --rm --network host \
+          docker run --rm -i --network host \
             -e NEON_DATABASE_URL -e TIDB_DATABASE_URL \
             -v "$PWD/migration-artifacts:/work" -w /work \
-            postgres:18 bash -euo pipefail -c '
-              # Never overwrite an existing application schema.
-              existing=$(psql "$TIDB_DATABASE_URL" -X -v ON_ERROR_STOP=1 -v schema_name=public -v base_table_type='BASE TABLE' -v managed_prefix='tidbcloud_com_cell_%' -At -c "
-                SELECT count(*) FROM information_schema.tables
-                WHERE table_schema = \$\$public\$\$
-                  AND table_type = \$\$BASE TABLE\$\$
-                  AND table_name NOT LIKE \$\$tidbcloud_com_cell_%\$\$
-              ")
-              if [ "$existing" != "0" ]; then
-                echo "Refusing import: TiDB already contains public base tables."
-                exit 1
-              fi
+            postgres:18 bash -euo pipefail -s <<'CONTAINER_SCRIPT'
+          # Never overwrite an existing application schema.
+          existing=$(psql "$TIDB_DATABASE_URL" -X -v ON_ERROR_STOP=1 -At -c "
+            SELECT count(*) FROM information_schema.tables
+            WHERE table_schema = 'public'
+              AND table_type = 'BASE TABLE'
+              AND table_name NOT LIKE 'tidbcloud_com_cell_%'
+          ")
+          if [ "$existing" != "0" ]; then
+            echo "Refusing import: TiDB already contains public base tables."
+            exit 1
+          fi
 
-              psql "$TIDB_DATABASE_URL" -X -v ON_ERROR_STOP=1 -f schema.sql
-              pg_dump --data-only --inserts --rows-per-insert=100 --schema=public --no-owner --no-privileges "$NEON_DATABASE_URL" |
-                psql "$TIDB_DATABASE_URL" -X -v ON_ERROR_STOP=1
+          psql "$TIDB_DATABASE_URL" -X -v ON_ERROR_STOP=1 -f schema.sql
+          pg_dump --data-only --inserts --rows-per-insert=100 --schema=public --no-owner --no-privileges "$NEON_DATABASE_URL" |
+            psql "$TIDB_DATABASE_URL" -X -v ON_ERROR_STOP=1
 
-              echo "Data transfer finished. Comparing row counts..."
-              while IFS="|" read -r source_table expected; do
-                if [[ ! "$source_table" =~ ^public\.[a-zA-Z_][a-zA-Z0-9_]*$ || ! "$expected" =~ ^[0-9]+$ ]]; then
-                  echo "Refusing invalid source inventory row: $source_table|$expected"
-                  exit 1
-                fi
-                table="${source_table#public.}"
-                actual=$(psql "$TIDB_DATABASE_URL" -X -v ON_ERROR_STOP=1 -At -c "SELECT count(*) FROM \"public\".\"$table\"")
-                if [ "$actual" != "$expected" ]; then
-                  echo "COUNT MISMATCH public.$table source=$expected target=$actual"
-                  exit 1
-                fi
-                printf "OK public.%s %s rows\\n" "$table" "$actual"
-              done < source-row-counts.txt
-              echo "All public table row counts match."
-            '
+          echo "Data transfer finished. Comparing row counts..."
+          while IFS="|" read -r source_table expected; do
+            if [[ ! "$source_table" =~ ^public\.[a-zA-Z_][a-zA-Z0-9_]*$ || ! "$expected" =~ ^[0-9]+$ ]]; then
+              echo "Refusing invalid source inventory row: $source_table|$expected"
+              exit 1
+            fi
+            table="${source_table#public.}"
+            actual=$(psql "$TIDB_DATABASE_URL" -X -v ON_ERROR_STOP=1 -At -c "SELECT count(*) FROM \"public\".\"$table\"")
+            if [ "$actual" != "$expected" ]; then
+              echo "COUNT MISMATCH public.$table source=$expected target=$actual"
+              exit 1
+            fi
+            printf "OK public.%s %s rows\\n" "$table" "$actual"
+          done < source-row-counts.txt
+          echo "All public table row counts match."
+          CONTAINER_SCRIPT
