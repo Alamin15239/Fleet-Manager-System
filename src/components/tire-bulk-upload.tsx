@@ -34,6 +34,7 @@ type ImportPreview = {
   summary: {
     sourceRows: number
     sourceQuantityTotal: number
+    sheetQuantityTotals?: Array<{ sheetName: string; usageRows: number; tireQuantity: number }>
     tiresDetected: number
     historyEntries: number
     serialUsageOccurrences: number
@@ -152,7 +153,7 @@ export default function TireBulkUpload() {
       </CardHeader>
       <CardContent className="space-y-5 p-4 sm:p-6">
         <div className="grid gap-3 sm:grid-cols-3">
-          <div className="flex gap-3 rounded-xl border p-3"><Hash className="mt-0.5 h-5 w-5 text-primary" /><div><p className="text-sm font-semibold">OUT QTY controls count</p><p className="text-xs text-muted-foreground">One tire record per valid quantity slot.</p></div></div>
+          <div className="flex gap-3 rounded-xl border p-3"><Hash className="mt-0.5 h-5 w-5 text-primary" /><div><p className="text-sm font-semibold">Usage quantity controls count</p><p className="text-xs text-muted-foreground">Opening balance stock is excluded; only usage rows create tire history.</p></div></div>
           <div className="flex gap-3 rounded-xl border p-3"><History className="mt-0.5 h-5 w-5 text-primary" /><div><p className="text-sm font-semibold">History stays separate</p><p className="text-xs text-muted-foreground">Dated usage events are attached to their source tire slots.</p></div></div>
           <div className="flex gap-3 rounded-xl border p-3"><ShieldCheck className="mt-0.5 h-5 w-5 text-primary" /><div><p className="text-sm font-semibold">No silent matching</p><p className="text-xs text-muted-foreground">No serial deduplication, fleet lookup, or vehicle assignment.</p></div></div>
         </div>
@@ -210,6 +211,15 @@ export default function TireBulkUpload() {
               ['Warnings', preview.summary.warnings]
             ].map(([label, value]) => <div key={String(label)} className="rounded-xl bg-muted/50 p-3"><p className="text-xl font-semibold tabular-nums">{number(Number(value))}</p><p className="text-xs text-muted-foreground">{label}</p></div>)}
           </div>
+          {preview.summary.sheetQuantityTotals?.length ? <div className="space-y-2">
+            <p className="text-sm font-semibold">Usage quantity by worksheet</p>
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {preview.summary.sheetQuantityTotals.map(item => <div key={item.sheetName} className="flex items-center justify-between rounded-lg border px-3 py-2 text-sm">
+                <span className="truncate pr-3">{item.sheetName}</span>
+                <span className="shrink-0 font-semibold tabular-nums">{number(item.tireQuantity)} tires <span className="font-normal text-muted-foreground">· {number(item.usageRows)} rows</span></span>
+              </div>)}
+            </div>
+          </div> : null}
           <div className="flex flex-wrap items-center gap-2 text-sm">
             <span className="font-medium">Worksheets:</span>
             {preview.sheets.map(name => <Badge key={name} variant="secondary">{name}</Badge>)}
