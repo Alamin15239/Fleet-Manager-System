@@ -1,0 +1,128 @@
+name: Neon to TiDB PostgreSQL Migration
+
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: "Export schema for review, or import schema and data into TiDB"
+        required: true
+        type: choice
+        options:
+          - export
+          - migrate
+        default: export
+      confirm_target_empty:
+        description: "Required for migrate: confirm the TiDB target has no application tables/data"
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: neon-to-tidb-migration
+  cancel-in-progress: false
+
+jobs:
+  migration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Validate required secrets
+        shell: bash
+        env:
+          NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+          TIDB_DATABASE_URL: ${{ secrets.TIDB_DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          test -n "$NEON_DATABASE_URL" || { echo "::error::Missing NEON_DATABASE_URL repository secret"; exit 1; }
+          if [[ "${{ inputs.operation }}" == "migrate" ]]; then
+            test -n "$TIDB_DATABASE_URL" || { echo "::error::Missing TIDB_DATABASE_URL repository secret"; exit 1; }
+            [[ "${{ inputs.confirm_target_empty }}" == "true" ]] || { echo "::error::Set confirm_target_empty only after verifying the TiDB database is empty"; exit 1; }
+          fi
+
+      - name: Export schema and source row counts
+        shell: bash
+        env:
+          NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          mkdir -p migration-artifacts
+          docker run --rm --network host \
+            -e NEON_DATABASE_URL \
+            -v "$PWD/migration-artifacts:/work" -w /work \
+            postgres:17 bash -euo pipefail -c '
+              pg_dump --version
+              pg_dump --schema-only --schema=public --no-owner --no-privileges "$NEON_DATABASE_URL" > schema.sql
+              psql "$NEON_DATABASE_URL" -X -v ON_ERROR_STOP=1 -At -F "|" -c "
+                SELECT schemaname, tablename
+                FROM pg_tables
+                WHERE schemaname = '''public'''
+                ORDER BY tablename
+              " > source-tables.txt
+              while IFS="|" read -r schema table; do
+                count=$(psql "$NEON_DATABASE_URL" -X -v ON_ERROR_STOP=1 -At -c "SELECT count(*) FROM \"$schema\".\"$table\"")
+                printf "%s.%s|%s\\n" "$schema" "$table" "$count"
+              done < source-tables.txt > source-row-counts.txt
+              echo "Exported schema and source row counts."
+              wc -l source-tables.txt
+            '
+
+      - name: Check schema dump for known unsupported DDL
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -Ein 'CREATE (SERVER|SUBSCRIPTION|PUBLICATION)|CREATE FOREIGN TABLE|PARTITION BY|PARTITION OF| INHERITS ' migration-artifacts/schema.sql; then
+            echo "::error::Review unsupported PostgreSQL DDL before importing into TiDB."
+            exit 1
+          fi
+          echo "No known unsupported DDL patterns detected. This is not a full compatibility certification."
+
+      - name: Upload schema and source inventory
+        uses: actions/upload-artifact@v4
+        with:
+          name: neon-tidb-migration-review
+          path: migration-artifacts/
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Import schema and data into TiDB
+        if: ${{ inputs.operation == 'migrate' }}
+        shell: bash
+        env:
+          NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+          TIDB_DATABASE_URL: ${{ secrets.TIDB_DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          docker run --rm --network host \
+            -e NEON_DATABASE_URL -e TIDB_DATABASE_URL \
+            -v "$PWD/migration-artifacts:/work" -w /work \
+            postgres:17 bash -euo pipefail -c '
+              # Never overwrite an existing application schema.
+              existing=$(psql "$TIDB_DATABASE_URL" -X -v ON_ERROR_STOP=1 -At -c "
+                SELECT count(*) FROM information_schema.tables
+                WHERE table_schema = '''public'''
+                  AND table_type = '''BASE TABLE'''
+                  AND table_name NOT LIKE '''tidbcloud_com_cell_%'''
+              ")
+              if [ "$existing" != "0" ]; then
+                echo "Refusing import: TiDB already contains public base tables."
+                exit 1
+              fi
+
+              psql "$TIDB_DATABASE_URL" -X -v ON_ERROR_STOP=1 -f schema.sql
+              pg_dump --data-only --schema=public --no-owner --no-privileges "$NEON_DATABASE_URL" |
+                psql "$TIDB_DATABASE_URL" -X -v ON_ERROR_STOP=1
+
+              echo "Data transfer finished. Comparing row counts..."
+              while IFS="|" read -r schema table expected; do
+                actual=$(psql "$TIDB_DATABASE_URL" -X -v ON_ERROR_STOP=1 -At -c "SELECT count(*) FROM \"$schema\".\"$table\"")
+                if [ "$actual" != "$expected" ]; then
+                  echo "COUNT MISMATCH $schema.$table source=$expected target=$actual"
+                  exit 1
+                fi
+                printf "OK %s.%s %s rows\\n" "$schema" "$table" "$actual"
+              done < source-row-counts.txt
+              echo "All public table row counts match."
+            '
