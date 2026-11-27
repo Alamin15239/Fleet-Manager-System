@@ -3,7 +3,7 @@ import { PrismaClient } from '@prisma/client'
 import jwt from 'jsonwebtoken'
 import { headers } from 'next/headers'
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto'
-import { getPrimaryDatabaseUrl } from '@/lib/primary-database'
+import { getPrimaryDatabaseUrl, isSamePostgresDatabase } from '@/lib/primary-database'
 
 export type OrganizationRecord = {
   id: string
@@ -347,20 +347,15 @@ export async function getOrganizationPrismaClient(organization: OrganizationReco
   if (!organization.encryptedDatabaseUrl) throw new Error('Organization database is not configured')
 
   const databaseUrl = decryptOrganizationDatabaseUrl(organization.encryptedDatabaseUrl)
-  if (process.env.DATABASE_URL) {
-    try {
-      const tenantTarget = new URL(databaseUrl)
-      const primaryTarget = new URL(primaryDatabaseUrl)
-      const tenantHost = tenantTarget.hostname.toLowerCase().replace(/-pooler(?=\.)/, '')
-      const primaryHost = primaryTarget.hostname.toLowerCase().replace(/-pooler(?=\.)/, '')
-      if (tenantHost === primaryHost && tenantTarget.pathname === primaryTarget.pathname) {
-        throw new Error('An organization must use a database separate from the primary organization.')
-      }
-    } catch (error) {
-      if (error instanceof Error && error.message.startsWith('An organization must use')) throw error
-      // Let Prisma report malformed PostgreSQL URLs through its normal connection error.
+  try {
+    if (isSamePostgresDatabase(databaseUrl, primaryDatabaseUrl)) {
+      throw new Error('An organization must use a database separate from the primary organization.')
     }
+  } catch (error) {
+    if (error instanceof Error && error.message.startsWith('An organization must use')) throw error
+    // Let Prisma report malformed PostgreSQL URLs through its normal connection error.
   }
+
   const cached = tenantClients.get(organization.id)
   if (cached) return cached
 
