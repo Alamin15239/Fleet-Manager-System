@@ -40,9 +40,9 @@ export function getPrimaryDatabaseProvider(env: PrimaryDatabaseEnvironment = pro
 export function isSamePostgresDatabase(firstUrl: string, secondUrl: string): boolean {
   const first = new URL(firstUrl)
   const second = new URL(secondUrl)
-  const normalizeHost = (host: string) => host.toLowerCase().replace(/-pooler(?=\\.)/, '')
+  const normalizeHost = (host: string) => host.toLowerCase().replace(/^pooled\\./, '').replace(/-pooler(?=\\.)/, '')
   return normalizeHost(first.hostname) === normalizeHost(second.hostname) &&
-    first.pathname === second.pathname &&
+    (first.pathname === second.pathname || (first.pathname === '/' && second.pathname === '/postgres') || (first.pathname === '/postgres' && second.pathname === '/')) &&
     first.username === second.username &&
     first.port === second.port
 }
