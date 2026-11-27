@@ -162,11 +162,21 @@ export function FileUpload({
     }
   }
 
-  const removeFile = (fileId: string) => {
-    const newFiles = files.filter(f => f.id !== fileId)
-    setFiles(newFiles)
-    onFilesChange?.(newFiles)
-    toast.success('File removed')
+  const removeFile = async (fileId: string) => {
+    try {
+      const response = await fetch('/api/upload/' + encodeURIComponent(fileId), {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` },
+      })
+      const body = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(body.error || 'Could not delete file')
+      const newFiles = files.filter(f => f.id !== fileId)
+      setFiles(newFiles)
+      onFilesChange?.(newFiles)
+      toast.success('File removed')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not delete file')
+    }
   }
 
   const getFileIcon = (fileType: string) => {
