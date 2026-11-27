@@ -1,4 +1,4 @@
-﻿import { getPrimaryDatabaseUrl } from '@/lib/primary-database'
+import { getPrimaryDatabaseProvider, getPrimaryDatabaseUrl } from '@/lib/primary-database'
 
 describe('getPrimaryDatabaseUrl', () => {
   const prismaPooled = 'postgresql://pooled.prisma.example/db?sslmode=require'
@@ -46,5 +46,21 @@ describe('getPrimaryDatabaseUrl', () => {
     expect(() => getPrimaryDatabaseUrl({
       DATABASE_URL: 'mysql://db.example/database',
     })).toThrow('PostgreSQL connection URL')
+  })
+})
+
+
+describe('getPrimaryDatabaseProvider', () => {
+  it('reports the provider selected by the same URL precedence as PrismaClient', () => {
+    expect(getPrimaryDatabaseProvider({
+      STORAGE_DATABASE_URL_POOLED: 'postgresql://pool.prisma-data.net/db',
+      DATABASE_URL: 'postgresql://old.neon.tech/db',
+    })).toBe('PRISMA')
+  })
+
+  it('reports Neon only when Neon is the selected connection', () => {
+    expect(getPrimaryDatabaseProvider({
+      DATABASE_URL: 'postgresql://ep-example.neon.tech/db',
+    })).toBe('NEON')
   })
 })
