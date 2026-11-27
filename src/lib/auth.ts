@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs'
 import { db, findOrganizationById, getPrimaryOrganization, OrganizationRecord } from '@/lib/db'
 import { logUserLogin } from '@/lib/activity-tracking'
 import { NextRequest } from 'next/server'
+import { profileImageDisplayUrl } from '@/lib/object-storage'
 
 function getJwtSecret(): string {
   const secret = process.env.JWT_SECRET
@@ -124,7 +125,7 @@ export async function authenticateUser(email: string, password: string, request?
         isActive: user.isActive,
         isApproved: user.isApproved,
         isEmailVerified: user.isEmailVerified,
-        profileImage: user.profileImage,
+        profileImage: profileImageDisplayUrl(user.profileImage),
         permissions: user.permissions,
         phone: user.phone,
         department: user.department,
