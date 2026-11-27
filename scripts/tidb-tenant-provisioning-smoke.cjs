@@ -7,19 +7,17 @@ const { PrismaClient } = require('@prisma/client')
 function getAdminUrl() {
   const value = process.env.TIDB_DATABASE_URL?.trim()
   if (!value) throw new Error('TIDB_DATABASE_URL is required')
-
-  // Diagnose malformed Actions secrets without ever printing credentials or the URL.
   if (value.startsWith('\\')) {
-    throw new Error('TIDB_DATABASE_URL begins with a literal backslash. Store the raw postgresql:// URL without a leading backslash.')
+    throw new Error('TIDB_DATABASE_URL begins with a literal backslash. Store the raw PostgreSQL URL without a leading backslash.')
   }
-  if (value.startsWith('\\')) {
+  if ((value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))) {
     throw new Error('TIDB_DATABASE_URL is wrapped in quotes. Store the raw URL without surrounding quotes.')
   }
   if (!/^postgres(?:ql)?:\/\//i.test(value)) {
     const safePrefix = value.slice(0, 16).replace(/[^a-zA-Z:/._-]/g, '?')
     throw new Error('TIDB_DATABASE_URL is not a PostgreSQL URL (safe prefix: ' + safePrefix + '). Expected postgresql:// or postgres://.')
   }
-
   let url
   try {
     url = new URL(value)
@@ -53,6 +51,15 @@ async function main() {
     adminConnected = true
     await admin.query('CREATE ROLE "' + roleName + '" LOGIN PASSWORD \'' + password + '\'')
     roleCreated = true
+
+    const roleResult = await admin.query(
+      'SELECT rolname, rolcanlogin FROM pg_roles WHERE rolname = $1',
+      [roleName]
+    )
+    if (roleResult.rowCount !== 1 || roleResult.rows[0].rolcanlogin !== true) {
+      throw new Error('TiDB created the tenant role without the expected LOGIN attribute')
+    }
+
     await admin.query('CREATE DATABASE "' + databaseName + '"')
     databaseCreated = true
     const schemaAdminUrl = new URL(adminUrl)
@@ -70,8 +77,25 @@ async function main() {
     tenantUrl.username = roleName
     tenantUrl.password = password
 
-    tenant = new Client({ connectionString: tenantUrl.toString(), connectionTimeoutMillis: 5000 })
-    await tenant.connect()
+    // Use explicit pg fields for the role-authentication test, avoiding URL credential parsing.
+    tenant = new Client({
+      host: adminUrl.hostname,
+      port: Number(adminUrl.port || 5432),
+      database: databaseName,
+      user: roleName,
+      password,
+      ssl: { rejectUnauthorized: true },
+      connectionTimeoutMillis: 5000
+    })
+    try {
+      await tenant.connect()
+    } catch (error) {
+      throw new Error(
+        'TiDB reports the tenant role exists with LOGIN=true, but direct PostgreSQL authentication failed (' +
+        (error.code || 'no SQLSTATE') + '). This isolates the failure to TiDB role-password authentication, not URL parsing or role creation.'
+      )
+    }
+
     const schemaSql = await readFile(path.join(process.cwd(), 'prisma', 'organization-bootstrap.sql'), 'utf8')
     await tenant.query('BEGIN')
     try {
