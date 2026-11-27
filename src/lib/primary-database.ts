@@ -24,3 +24,13 @@ export function getPrimaryDatabaseUrl(env: PrimaryDatabaseEnvironment = process.
 
   return url
 }
+
+
+/** Identify the provider for the exact connection URL used by the control PrismaClient. */
+export function getPrimaryDatabaseProvider(env: PrimaryDatabaseEnvironment = process.env): 'PRISMA' | 'NEON' | 'POSTGRESQL' {
+  const url = getPrimaryDatabaseUrl(env)
+  const hostname = new URL(url).hostname.toLowerCase()
+  if (hostname.includes('prisma')) return 'PRISMA'
+  if (hostname.includes('neon.tech')) return 'NEON'
+  return 'POSTGRESQL'
+}
