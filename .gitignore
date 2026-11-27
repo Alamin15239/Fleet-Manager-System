@@ -81,3 +81,5 @@ sync-config.json
 .env.*.local
 .env.migration
 .env.migration.local
+.prisma-composer/
+.alchemy/
