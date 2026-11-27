@@ -9,7 +9,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireRolePermission(request, 'trucks', 'read')
+    const user = await requireRolePermission(request, 'trucks', 'read')
     const { id } = await params;
     const truck = await db.truck.findUnique({
       where: { 
@@ -42,7 +42,10 @@ export async function GET(
 
     return NextResponse.json({
       success: true,
-      data: truck
+      data: {
+        ...truck,
+        image: truck.image?.startsWith('s3://') ? '/api/trucks/' + id + '/image' : truck.image,
+      }
     })
 
   } catch (error) {
