@@ -131,7 +131,8 @@
     "z-ai-web-dev-sdk": "^0.0.10",
     "zod": "^4.0.2",
     "zustand": "^5.0.6",
-    "canvg": "^4.0.3"
+    "canvg": "^4.0.3",
+    "@aws-sdk/client-s3": "^3.850.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
