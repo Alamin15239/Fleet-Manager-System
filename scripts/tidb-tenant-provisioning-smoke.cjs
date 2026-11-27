@@ -9,13 +9,13 @@ function getAdminUrl() {
   if (!value) throw new Error('TIDB_DATABASE_URL is required')
 
   // Diagnose malformed Actions secrets without ever printing credentials or the URL.
-  if (value.startsWith('\\\\')) {
+  if (value.startsWith('\\')) {
     throw new Error('TIDB_DATABASE_URL begins with a literal backslash. Store the raw postgresql:// URL without a leading backslash.')
   }
-  if (value.startsWith('"') || value.startsWith("'")) {
+  if (value.startsWith('\\')) {
     throw new Error('TIDB_DATABASE_URL is wrapped in quotes. Store the raw URL without surrounding quotes.')
   }
-  if (!/^postgres(?:ql)?:\\/\\//i.test(value)) {
+  if (!/^postgres(?:ql)?:\/\//i.test(value)) {
     const safePrefix = value.slice(0, 16).replace(/[^a-zA-Z:/._-]/g, '?')
     throw new Error('TIDB_DATABASE_URL is not a PostgreSQL URL (safe prefix: ' + safePrefix + '). Expected postgresql:// or postgres://.')
   }
