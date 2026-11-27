@@ -32,6 +32,8 @@ interface FileUploadProps {
   maxFiles?: number
   acceptedTypes?: string[]
   maxSize?: number // in MB
+  canUpload?: boolean
+  canDelete?: boolean
 }
 
 export function FileUpload({
@@ -42,7 +44,9 @@ export function FileUpload({
   multiple = true,
   maxFiles = 10,
   acceptedTypes,
-  maxSize = 10
+  maxSize = 10,
+  canUpload = true,
+  canDelete = true
 }: FileUploadProps) {
   const { token } = useAuth()
   const [files, setFiles] = useState<UploadedFile[]>(existingFiles)
@@ -220,7 +224,7 @@ export function FileUpload({
   return (
     <div className="space-y-4">
       {/* Upload Area */}
-      <Card>
+      {canUpload && <Card>
         <CardContent className="p-6">
           <div
             className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
@@ -255,7 +259,7 @@ export function FileUpload({
                 <div className="flex justify-center">
                   <Button
                     variant="outline"
-                    onClick={() => document.getElementById('file-input')?.click()}
+                    onClick={() => document.getElementById('file-input-' + type + '-' + entityId)?.click()}
                     disabled={files.length >= maxFiles}
                   >
                     Choose Files
@@ -263,7 +267,7 @@ export function FileUpload({
                 </div>
                 
                 <input
-                  id="file-input"
+                  id={'file-input-' + type + '-' + entityId}
                   type="file"
                   multiple={multiple}
                   accept={acceptedTypes?.join(',') || defaultAcceptedTypes.join(',')}
@@ -281,7 +285,7 @@ export function FileUpload({
             )}
           </div>
         </CardContent>
-      </Card>
+      </Card>}
 
       {/* File List */}
       {files.length > 0 && (
@@ -326,13 +330,13 @@ export function FileUpload({
                       <Download className="h-4 w-4" />
                     </Button>
                     
-                    <Button
+                    {canDelete && <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => removeFile(file.id)}
                     >
                       <X className="h-4 w-4" />
-                    </Button>
+                    </Button>}
                   </div>
                 </div>
               ))}

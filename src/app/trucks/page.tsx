@@ -16,6 +16,7 @@ import { usePermissions } from '@/contexts/permissions-context'
 import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api'
 import { useLanguage } from '@/contexts/language-context'
 import { ProtectionCardDocuments } from '@/components/protection-card-documents'
+import { FileUpload } from '@/components/file-upload'
 
 interface Truck {
   id: string
@@ -840,6 +841,13 @@ export default function TrucksPage() {
                 </div>
               </div>
               <ProtectionCardDocuments sourceType="TRUCK" sourceId={selectedTruck.id} canUpload={canCreate('trucks') || canUpdate('trucks')} canDelete={canDelete('trucks')} />
+              <section className="space-y-3 border-t pt-5">
+                <div>
+                  <h3 className="text-sm font-semibold"><LocalizedText>Truck attachments</LocalizedText></h3>
+                  <p className="text-xs text-muted-foreground"><LocalizedText>Upload and manage inspection reports, invoices, photos and other truck files.</LocalizedText></p>
+                </div>
+                <FileUpload type="truck" entityId={selectedTruck.id} canUpload={canUpdate('trucks')} canDelete={canDelete('trucks')} />
+              </section>
             </div>
           )}
           <DialogFooter>
