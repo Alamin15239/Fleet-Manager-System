@@ -23,7 +23,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       ? Boolean(await db.truck.findFirst({ where: { id: String(storageMeta.entityId), isDeleted: false }, select: { id: true } }))
       : Boolean(
           (await db.maintenanceRecord.findFirst({ where: { id: String(storageMeta.entityId), isDeleted: false }, select: { id: true } })) ||
-          (await db.trailerMaintenanceRecord.findFirst({ where: { id: String(storageMeta.entityId), isDeleted: false }, select: { id: true } }))
+          (await db.trailerMaintenanceRecord.findFirst({ where: { id: String(storageMeta.entityId), isDeleted: false }, select: { id: true } })) ||
+          (await db.workshopJobCard.findFirst({ where: { id: String(storageMeta.entityId) }, select: { id: true } }))
         )
     if (!parentExists) return NextResponse.json({ error: 'File not found' }, { status: 404 })
     const object = await getOrganizationObject(key)
@@ -59,7 +60,8 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
       ? Boolean(await db.truck.findFirst({ where: { id: String(storageMeta.entityId), isDeleted: false }, select: { id: true } }))
       : Boolean(
           (await db.maintenanceRecord.findFirst({ where: { id: String(storageMeta.entityId), isDeleted: false }, select: { id: true } })) ||
-          (await db.trailerMaintenanceRecord.findFirst({ where: { id: String(storageMeta.entityId), isDeleted: false }, select: { id: true } }))
+          (await db.trailerMaintenanceRecord.findFirst({ where: { id: String(storageMeta.entityId), isDeleted: false }, select: { id: true } })) ||
+          (await db.workshopJobCard.findFirst({ where: { id: String(storageMeta.entityId) }, select: { id: true } }))
         )
     if (!parentExists) return NextResponse.json({ error: 'File not found' }, { status: 404 })
     await db.document.delete({ where: { id } })

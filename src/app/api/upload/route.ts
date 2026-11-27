@@ -39,7 +39,8 @@ async function attachmentParentExists(type: string, entityId: string) {
   }
   return Boolean(
     (await db.maintenanceRecord.findFirst({ where: { id: entityId, isDeleted: false }, select: { id: true } })) ||
-    (await db.trailerMaintenanceRecord.findFirst({ where: { id: entityId, isDeleted: false }, select: { id: true } }))
+    (await db.trailerMaintenanceRecord.findFirst({ where: { id: entityId, isDeleted: false }, select: { id: true } })) ||
+    (await db.workshopJobCard.findFirst({ where: { id: entityId }, select: { id: true } }))
   )
 }
 
