@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { requireAuth } from '@/lib/auth'
 import { requireRolePermission } from '@/lib/permission-middleware'
 import { deleteOrganizationObject, getOrganizationObject, putOrganizationObject } from '@/lib/object-storage'
 
