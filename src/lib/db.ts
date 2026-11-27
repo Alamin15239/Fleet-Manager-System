@@ -314,30 +314,49 @@ export async function releaseOneDriveAccountClaim(organizationId: string) {
   })
 }
 
+function getRequestToken(authorization: string | null, cookieHeader: string | null): string | null {
+  const bearerToken = authorization?.startsWith('Bearer ') ? authorization.slice(7).trim() : ''
+  if (bearerToken) return bearerToken
+
+  const cookieToken = cookieHeader
+    ?.split(';')
+    .map(part => part.trim())
+    .find(part => part.startsWith('auth-token='))
+    ?.slice('auth-token='.length)
+  if (!cookieToken) return null
+  try {
+    return decodeURIComponent(cookieToken)
+  } catch {
+    throw new Error('Invalid token')
+  }
+}
+
 /** Resolve the organization selected by this authenticated request or active tenant scope. */
 export async function getRequestOrganization(): Promise<OrganizationRecord> {
   const scoped = databaseScope.getStore()
   if (scoped) return findOrganizationById(scoped.organizationId)
 
   let authorization: string | null = null
+  let cookieHeader: string | null = null
   let organizationSlug: string | null = null
   try {
     const requestHeaders = await headers()
     authorization = requestHeaders.get('authorization')
+    cookieHeader = requestHeaders.get('cookie')
     organizationSlug = requestHeaders.get('x-organization-slug')
   } catch {
     return getPrimaryOrganization()
   }
 
-  const bearerToken = authorization?.startsWith('Bearer ') ? authorization.slice(7) : null
-  if (!bearerToken) {
+  const token = getRequestToken(authorization, cookieHeader)
+  if (!token) {
     if (organizationSlug) throw new Error('Organization selection requires an authenticated login flow')
     return getPrimaryOrganization()
   }
 
   const secret = process.env.JWT_SECRET
   if (!secret) throw new Error('JWT_SECRET environment variable is required')
-  const decoded = jwt.verify(bearerToken, secret) as { organizationId?: string }
+  const decoded = jwt.verify(token, secret) as { organizationId?: string }
   return decoded.organizationId ? findOrganizationById(decoded.organizationId) : getPrimaryOrganization()
 }
 
@@ -378,25 +397,27 @@ async function getRequestDatabaseClient(): Promise<PrismaClient> {
   if (scoped) return scoped.client
 
   let authorization: string | null = null
+  let cookieHeader: string | null = null
   let organizationSlug: string | null = null
   try {
     const requestHeaders = await headers()
     authorization = requestHeaders.get('authorization')
+    cookieHeader = requestHeaders.get('cookie')
     organizationSlug = requestHeaders.get('x-organization-slug')
   } catch {
     // Non-request contexts such as process shutdown use the primary database.
     return controlDb
   }
 
-  const bearerToken = authorization?.startsWith('Bearer ') ? authorization.slice(7) : null
-  if (!bearerToken) {
+  const token = getRequestToken(authorization, cookieHeader)
+  if (!token) {
     if (organizationSlug) throw new Error('Organization selection requires an authenticated login flow')
     return controlDb
   }
 
   const secret = process.env.JWT_SECRET
   if (!secret) throw new Error('JWT_SECRET environment variable is required')
-  const decoded = jwt.verify(bearerToken, secret) as { organizationId?: string }
+  const decoded = jwt.verify(token, secret) as { organizationId?: string }
   if (!decoded.organizationId) return controlDb
 
   const organization = await findOrganizationById(decoded.organizationId)
