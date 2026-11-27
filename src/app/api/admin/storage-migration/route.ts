@@ -164,7 +164,15 @@ async function migrateDatabase(organization: OrganizationRecord, execute: boolea
     } catch (error) { recordFailure('vehicleDocument.fileData', row.id, error) }
   }
 
-  return { organization: organization.slug, counters, failures }
+  const remaining = {
+    profileImages: await client.user.count({ where: { profileImage: { startsWith: 'data:image/' } } }),
+    truckImages: await client.truck.count({ where: { image: { startsWith: 'data:image/' }, isDeleted: false } }),
+    vehicleDocuments: Number((await client.$queryRaw<Array<{ count: bigint }>>`
+      SELECT COUNT(*) AS count FROM "vehicle_documents"
+      WHERE "fileData" IS NOT NULL AND left(encode("fileData", 'escape'), 5) <> 's3://'
+    `))[0]?.count || 0),
+  }
+  return { organization: organization.slug, counters, failures, remaining }
 }
 
 export async function POST(request: NextRequest) {
