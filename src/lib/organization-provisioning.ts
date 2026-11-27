@@ -626,18 +626,37 @@ export async function provisionOrganization(organizationId: string) {
         })
       }
     } else if (provider === 'TIDB') {
-      // Persist the provider marker before external DDL so failed provisioning
-      // can still clean up a partially created database or login role.
+      // Claim and persist one tenant credential before external DDL. Concurrent
+      // retries then converge on the same role password instead of racing it.
       encryptOrganizationDatabaseUrl('configuration-check')
-      await organizationModel.update({
-        where: { id: organization.id },
-        data: { databaseProvider: provider, neonProjectId: null, prismaDatabaseId: null }
+      const adminUrl = tidbAdminConnectionUrl()
+      const databaseName = buildTidbTenantDatabaseName(organization.id, organization.slug)
+      const roleName = buildTidbTenantRoleName(organization.id, organization.slug)
+      const candidateUri = buildTidbTenantConnectionUrl(
+        adminUrl.toString(),
+        databaseName,
+        roleName,
+        randomBytes(32).toString('base64url')
+      )
+      const claim = await organizationModel.updateMany({
+        where: { id: organization.id, encryptedDatabaseUrl: null },
+        data: {
+          databaseProvider: provider,
+          neonProjectId: null,
+          prismaDatabaseId: null,
+          encryptedDatabaseUrl: encryptOrganizationDatabaseUrl(candidateUri)
+        }
       })
-      connectionUri = await ensureTidbOrganizationDatabase(organization)
-      await organizationModel.update({
-        where: { id: organization.id },
-        data: { encryptedDatabaseUrl: encryptOrganizationDatabaseUrl(connectionUri) }
-      })
+      const claimedOrganization = claim.count === 1
+        ? { ...organization, databaseProvider: provider, encryptedDatabaseUrl: encryptOrganizationDatabaseUrl(candidateUri) }
+        : await organizationModel.findUnique({ where: { id: organization.id } }) as ProvisioningOrganization | null
+      if (!claimedOrganization?.encryptedDatabaseUrl || claimedOrganization.databaseProvider !== 'TIDB') {
+        throw new Error('Could not safely claim TiDB tenant provisioning credentials. Retry organization setup.')
+      }
+      connectionUri = await ensureTidbOrganizationDatabase(
+        organization,
+        decryptOrganizationDatabaseUrl(claimedOrganization.encryptedDatabaseUrl)
+      )
     } else if (provider === 'PRISMA') {
       // Validate before creating billable external resources so missing crypto
       // configuration cannot leave an untracked database behind.
