@@ -1,129 +1,109 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireRolePermission } from '@/lib/permission-middleware'
 import { db } from '@/lib/db'
+import { requireAuth } from '@/lib/auth'
+import { requireRolePermission } from '@/lib/permission-middleware'
+import { deleteOrganizationObject, getOrganizationObject, putOrganizationObject } from '@/lib/object-storage'
+
+export const runtime = 'nodejs'
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024
+const IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp'])
+
+function validImage(buffer: Buffer, type: string) {
+  const starts = (bytes: number[]) => buffer.length >= bytes.length && buffer.subarray(0, bytes.length).equals(Buffer.from(bytes))
+  if (type === 'image/jpeg') return starts([0xff, 0xd8, 0xff])
+  if (type === 'image/png') return starts([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+  if (type === 'image/gif') return ['GIF87a', 'GIF89a'].includes(buffer.subarray(0, 6).toString('ascii'))
+  if (type === 'image/webp') return buffer.length >= 12 && buffer.subarray(0, 4).toString('ascii') === 'RIFF' && buffer.subarray(8, 12).toString('ascii') === 'WEBP'
+  return false
+}
+
+async function saveProfileImage(request: NextRequest, fieldName: string) {
+  const user = await requireRolePermission(request, 'profile', 'update')
+  const form = await request.formData()
+  const submitted = form.get(fieldName)
+  if (!(submitted instanceof File) || submitted.size <= 0) return NextResponse.json({ error: 'No image uploaded' }, { status: 400 })
+  const file = submitted
+  if (!IMAGE_TYPES.has(file.type)) return NextResponse.json({ error: 'Only JPEG, PNG, GIF, and WebP images are allowed' }, { status: 415 })
+  if (file.size > MAX_IMAGE_BYTES) return NextResponse.json({ error: 'Image must be 5 MB or smaller' }, { status: 413 })
+  const body = Buffer.from(await file.arrayBuffer())
+  if (!validImage(body, file.type)) return NextResponse.json({ error: 'Image content does not match its declared file type' }, { status: 415 })
+
+  const previous = await db.user.findUnique({ where: { id: user.id }, select: { profileImage: true } })
+  const stored = await putOrganizationObject({
+    organizationId: user.organizationId || user.organizationSlug || 'primary',
+    module: 'profile-images',
+    entityId: user.id,
+    fileName: file.name,
+    contentType: file.type,
+    body,
+  })
+  try {
+    await db.user.update({ where: { id: user.id }, data: { profileImage: 's3://' + stored.key } })
+  } catch (error) {
+    await deleteOrganizationObject(stored.key).catch(cleanup => console.error('Untracked profile image cleanup failed:', cleanup))
+    throw error
+  }
+
+  if (previous?.profileImage?.startsWith('s3://')) {
+    await deleteOrganizationObject(previous.profileImage.slice(5)).catch(error => console.error('Previous profile image cleanup failed:', error))
+  }
+  return NextResponse.json({
+    success: true,
+    message: 'Profile picture updated successfully',
+    url: '/api/profile/picture',
+    user: { id: user.id, profileImage: '/api/profile/picture' },
+  }, { headers: { 'Cache-Control': 'private, no-store' } })
+}
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('Profile picture upload started')
-    
-    let user
-    try {
-      user = await requireRolePermission(request, 'profile', 'update')
-      console.log('User authenticated:', user?.id)
-    } catch (authError) {
-      console.error('Auth error:', authError)
-      const message = authError instanceof Error ? authError.message : ''
-      return NextResponse.json(
-        { error: message === 'Insufficient permissions' ? 'You do not have permission to edit your profile' : 'Authentication failed' },
-        { status: message === 'Insufficient permissions' ? 403 : 401 }
-      )
-    }
-    
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    let formData
-    let file
-    try {
-      formData = await request.formData()
-      file = formData.get('profilePicture') as File
-      console.log('File received:', file?.name, file?.size, file?.type)
-    } catch (formError) {
-      console.error('Form data error:', formError)
-      return NextResponse.json({ error: 'Invalid form data' }, { status: 400 })
-    }
-    
-    if (!file) {
-      return NextResponse.json({ error: 'No file provided' }, { status: 400 })
-    }
-
-    // Accept only raster image formats. SVG and other active content are not allowed.
-    const allowedImageTypes = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp'])
-    if (!(file instanceof File) || !allowedImageTypes.has(file.type)) {
-      return NextResponse.json({ error: 'Only JPEG, PNG, GIF, and WebP images are allowed' }, { status: 415 })
-    }
-
-    // Validate file size (5MB max) and reject empty uploads.
-    if (file.size <= 0 || file.size > 5 * 1024 * 1024) {
-      return NextResponse.json({ error: 'Image must be between 1 byte and 5MB' }, { status: 413 })
-    }
-
-    try {
-      // Convert file to base64
-      const bytes = await file.arrayBuffer()
-      const buffer = Buffer.from(bytes)
-      const startsWith = (signature: number[]) => buffer.length >= signature.length && buffer.subarray(0, signature.length).equals(Buffer.from(signature))
-      const validSignature =
-        (file.type === 'image/jpeg' && startsWith([0xff, 0xd8, 0xff])) ||
-        (file.type === 'image/png' && startsWith([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])) ||
-        (file.type === 'image/gif' && (buffer.subarray(0, 6).toString('ascii') === 'GIF87a' || buffer.subarray(0, 6).toString('ascii') === 'GIF89a')) ||
-        (file.type === 'image/webp' && buffer.length >= 12 && buffer.subarray(0, 4).toString('ascii') === 'RIFF' && buffer.subarray(8, 12).toString('ascii') === 'WEBP')
-      if (!validSignature) {
-        return NextResponse.json({ error: 'Image content does not match the declared file type' }, { status: 415 })
-      }
-      const base64 = buffer.toString('base64')
-      const dataUrl = `data:${file.type};base64,${base64}`
-
-      console.log('File converted to base64, length:', dataUrl.length)
-
-      // Update user profile picture in database
-      const updatedUser = await db.user.update({
-        where: { id: user.id },
-        data: { profileImage: dataUrl },
-        select: { id: true, name: true, email: true, profileImage: true, role: true }
-      })
-      
-      return NextResponse.json({ 
-        message: 'Profile picture updated successfully',
-        user: updatedUser
-      })
-    } catch (dbError) {
-      console.error('Database error:', dbError)
-      return NextResponse.json(
-        { error: 'Database error occurred' },
-        { status: 500 }
-      )
-    }
+    return await saveProfileImage(request, 'profilePicture')
   } catch (error) {
-    console.error('Error uploading profile picture:', error)
-    return NextResponse.json(
-      { error: `Failed to upload profile picture: ${error instanceof Error ? error.message : 'Unknown error'}` },
-      { status: 500 }
-    )
+    const message = error instanceof Error ? error.message : ''
+    const status = ['No token provided', 'Invalid token', 'User not found or inactive'].includes(message) ? 401 : message === 'Insufficient permissions' ? 403 : 500
+    return NextResponse.json({ error: status === 500 ? 'Failed to upload profile picture' : 'Access denied' }, { status, headers: { 'Cache-Control': 'no-store' } })
+  }
+}
+
+export async function GET(request: NextRequest) {
+  try {
+    const user = await requireAuth(request)
+    const record = await db.user.findUnique({ where: { id: user.id }, select: { profileImage: true } })
+    const value = record?.profileImage || ''
+    if (!value) return NextResponse.json({ error: 'Profile image not found' }, { status: 404 })
+    if (value.startsWith('s3://')) {
+      const object = await getOrganizationObject(value.slice(5))
+      return new NextResponse(object.body, { headers: {
+        'Content-Type': object.contentType, 'Content-Length': String(object.contentLength),
+        'Cache-Control': 'private, no-store', 'X-Content-Type-Options': 'nosniff',
+      } })
+    }
+    const match = value.match(/^data:(image\/(?:jpeg|png|gif|webp));base64,([A-Za-z0-9+/=]+)$/)
+    if (!match) return NextResponse.json({ error: 'Profile image is unavailable' }, { status: 404 })
+    const bytes = Buffer.from(match[2], 'base64')
+    return new NextResponse(bytes, { headers: {
+      'Content-Type': match[1], 'Content-Length': String(bytes.byteLength),
+      'Cache-Control': 'private, no-store', 'X-Content-Type-Options': 'nosniff',
+    } })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : ''
+    const status = ['No token provided', 'Invalid token'].includes(message) ? 401 : 500
+    return NextResponse.json({ error: 'Could not retrieve profile image' }, { status })
   }
 }
 
 export async function DELETE(request: NextRequest) {
   try {
     const user = await requireRolePermission(request, 'profile', 'update')
-    
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const previous = await db.user.findUnique({ where: { id: user.id }, select: { profileImage: true } })
+    await db.user.update({ where: { id: user.id }, data: { profileImage: null } })
+    if (previous?.profileImage?.startsWith('s3://')) {
+      await deleteOrganizationObject(previous.profileImage.slice(5)).catch(error => console.error('Profile image cleanup failed:', error))
     }
-
-    // Remove profile picture from database
-    const updatedUser = await db.user.update({
-      where: { id: user.id },
-      data: { profileImage: null },
-      select: { id: true, name: true, email: true, profileImage: true, role: true }
-    })
-
-    return NextResponse.json({ 
-      message: 'Profile picture removed successfully',
-      user: updatedUser
-    })
+    return NextResponse.json({ message: 'Profile picture removed successfully', user: { id: user.id, profileImage: null } }, { headers: { 'Cache-Control': 'private, no-store' } })
   } catch (error) {
-    if (error instanceof Error && ['No token provided', 'Invalid token'].includes(error.message)) {
-      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
-    }
-    if (error instanceof Error && error.message === 'Insufficient permissions') {
-      return NextResponse.json({ error: 'You do not have permission to edit your profile' }, { status: 403 })
-    }
-    console.error('Error removing profile picture:', error)
-    return NextResponse.json(
-      { error: 'Failed to remove profile picture' },
-      { status: 500 }
-    )
+    const message = error instanceof Error ? error.message : ''
+    const status = ['No token provided', 'Invalid token'].includes(message) ? 401 : message === 'Insufficient permissions' ? 403 : 500
+    return NextResponse.json({ error: status === 500 ? 'Failed to remove profile picture' : 'Access denied' }, { status })
   }
 }
