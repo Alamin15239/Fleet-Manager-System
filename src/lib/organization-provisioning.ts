@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto'
-import { buildTidbTenantConnectionUrl, buildTidbTenantDatabaseName } from '@/lib/tidb-tenant-database'
+import { buildTidbTenantConnectionUrl, buildTidbTenantDatabaseName, buildTidbTenantRoleName } from '@/lib/tidb-tenant-database'
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { Client } from 'pg'
@@ -353,9 +353,23 @@ function tidbAdminConnectionUrl() {
  * tenant tables physically namespaced instead of sharing public tables.
  * The deterministic name makes retries safe if provisioning stops after DDL.
  */
-async function ensureTidbOrganizationDatabase(organization: ProvisioningOrganization) {
+async function ensureTidbOrganizationDatabase(
+  organization: ProvisioningOrganization,
+  existingConnectionUri?: string
+) {
   const adminUrl = tidbAdminConnectionUrl()
   const databaseName = buildTidbTenantDatabaseName(organization.id, organization.slug)
+  const roleName = buildTidbTenantRoleName(organization.id, organization.slug)
+  const previousUrl = existingConnectionUri ? new URL(existingConnectionUri) : null
+  if (previousUrl && (
+    previousUrl.hostname !== adminUrl.hostname ||
+    previousUrl.pathname !== `/${databaseName}` ||
+    previousUrl.username !== roleName ||
+    !previousUrl.password
+  )) {
+    throw new Error('Stored TiDB tenant connection does not match this organization.')
+  }
+  const tenantPassword = previousUrl?.password || randomBytes(32).toString('base64url')
   const client = new Client({
     connectionString: adminUrl.toString(),
     connectionTimeoutMillis: 5_000
@@ -363,27 +377,60 @@ async function ensureTidbOrganizationDatabase(organization: ProvisioningOrganiza
 
   await client.connect()
   try {
-    const existing = await client.query('SELECT 1 FROM pg_database WHERE datname = $1', [databaseName])
-    if (existing.rowCount === 0) {
+    const role = await client.query('SELECT 1 FROM pg_roles WHERE rolname = $1', [roleName])
+    if (role.rowCount === 0) {
       try {
-        // databaseName is generated from a strict lowercase identifier allowlist.
-        await client.query(`CREATE DATABASE "${databaseName}"`)
+        await client.query(`CREATE ROLE "${roleName}" LOGIN PASSWORD '${tenantPassword}'`)
       } catch (error) {
-        // Another request may have created the same deterministic database.
-        if ((error as { code?: string })?.code !== '42P04') throw error
+        // Another request may have created this deterministic role first.
+        if ((error as { code?: string })?.code !== '42710') throw error
+        await client.query(`ALTER ROLE "${roleName}" WITH LOGIN PASSWORD '${tenantPassword}'`)
       }
+    } else if (!previousUrl) {
+      // Recover safely if a prior attempt created the role but failed before
+      // saving its encrypted connection URL.
+      await client.query(`ALTER ROLE "${roleName}" WITH LOGIN PASSWORD '${tenantPassword}'`)
     }
+
+    const database = await client.query('SELECT 1 FROM pg_database WHERE datname = $1', [databaseName])
+    if (database.rowCount === 0) {
+      try {
+        await client.query(`CREATE DATABASE "${databaseName}" OWNER "${roleName}"`)
+      } catch (error) {
+        if ((error as { code?: string })?.code !== '42P04') throw error
+        await client.query(`ALTER DATABASE "${databaseName}" OWNER TO "${roleName}"`)
+      }
+    } else {
+      await client.query(`ALTER DATABASE "${databaseName}" OWNER TO "${roleName}"`)
+    }
+    await client.query(`GRANT ALL PRIVILEGES ON DATABASE "${databaseName}" TO "${roleName}"`)
   } finally {
     await client.end().catch(() => undefined)
   }
 
-  return buildTidbTenantConnectionUrl(adminUrl.toString(), databaseName)
+  // The database's public schema may pre-exist with the admin owner. Grant the
+  // isolated tenant login the privileges needed to bootstrap and evolve it.
+  const schemaClient = new Client({
+    connectionString: adminUrl.toString().replace(/\/[^/?]+(?=\?|$)/, `/${databaseName}`),
+    connectionTimeoutMillis: 5_000
+  })
+  await schemaClient.connect()
+  try {
+    await schemaClient.query(`GRANT ALL PRIVILEGES ON SCHEMA public TO "${roleName}"`)
+    await schemaClient.query(`GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO "${roleName}"`)
+    await schemaClient.query(`GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO "${roleName}"`)
+  } finally {
+    await schemaClient.end().catch(() => undefined)
+  }
+
+  return buildTidbTenantConnectionUrl(adminUrl.toString(), databaseName, roleName, tenantPassword)
 }
 
-/** Delete only the deterministic database owned by this organization. */
+/** Delete only the deterministic database and login role owned by this organization. */
 export async function deleteTidbOrganizationDatabase(organization: { id: string; slug: string }) {
   const adminUrl = tidbAdminConnectionUrl()
   const databaseName = buildTidbTenantDatabaseName(organization.id, organization.slug)
+  const roleName = buildTidbTenantRoleName(organization.id, organization.slug)
   const client = new Client({
     connectionString: adminUrl.toString(),
     connectionTimeoutMillis: 5_000
@@ -393,8 +440,11 @@ export async function deleteTidbOrganizationDatabase(organization: { id: string;
   try {
     const existing = await client.query('SELECT 1 FROM pg_database WHERE datname = $1', [databaseName])
     if (existing.rowCount > 0) {
-      // Only the deterministic fleet_<slug>_<id-hash> identifier is accepted.
       await client.query(`DROP DATABASE "${databaseName}"`)
+    }
+    const role = await client.query('SELECT 1 FROM pg_roles WHERE rolname = $1', [roleName])
+    if (role.rowCount > 0) {
+      await client.query(`DROP ROLE "${roleName}"`)
     }
   } finally {
     await client.end().catch(() => undefined)
@@ -562,9 +612,10 @@ export async function provisionOrganization(organizationId: string) {
     let connectionUri: string
     let schemaConnectionUri: string | null = null
     if (organization.encryptedDatabaseUrl) {
+      const storedConnectionUri = decryptOrganizationDatabaseUrl(organization.encryptedDatabaseUrl)
       connectionUri = provider === 'TIDB'
-        ? await ensureTidbOrganizationDatabase(organization)
-        : decryptOrganizationDatabaseUrl(organization.encryptedDatabaseUrl)
+        ? await ensureTidbOrganizationDatabase(organization, storedConnectionUri)
+        : storedConnectionUri
       if (provider === 'PRISMA') schemaConnectionUri = directConnectionUrl(provider, connectionUri)
       if (provider === 'TIDB') {
         // Refresh the encrypted URL from the current instance secret so a TiDB

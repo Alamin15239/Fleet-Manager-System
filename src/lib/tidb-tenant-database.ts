@@ -3,6 +3,10 @@ import { createHash } from 'node:crypto'
 const TENANT_DATABASE_PATTERN = /^fleet_[a-z0-9_]+_[a-f0-9]{12}$/
 
 /** Stable, SQL-identifier-safe database name for one organization. */
+export function buildTidbTenantRoleName(organizationId: string, organizationSlug: string): string {
+  return `${buildTidbTenantDatabaseName(organizationId, organizationSlug)}_app`.slice(0, 63)
+}
+
 export function buildTidbTenantDatabaseName(organizationId: string, organizationSlug: string): string {
   const slug = organizationSlug
     .toLowerCase()
@@ -16,7 +20,7 @@ export function buildTidbTenantDatabaseName(organizationId: string, organization
 }
 
 /** Build a tenant URL from the TiDB control connection without changing credentials or TLS. */
-export function buildTidbTenantConnectionUrl(baseConnectionUrl: string, databaseName: string): string {
+export function buildTidbTenantConnectionUrl(baseConnectionUrl: string, databaseName: string, username: string, password: string): string {
   if (!TENANT_DATABASE_PATTERN.test(databaseName)) {
     throw new Error('Invalid TiDB tenant database identifier')
   }
@@ -36,6 +40,12 @@ export function buildTidbTenantConnectionUrl(baseConnectionUrl: string, database
     throw new Error('TIDB_DATABASE_URL must include sslmode=require')
   }
 
+  if (!/^fleet_[a-z0-9_]+_[a-f0-9]{12}_app$/.test(username) || !password) {
+    throw new Error('Invalid TiDB tenant database credentials')
+  }
+
   url.pathname = `/${databaseName}`
+  url.username = username
+  url.password = password
   return url.toString()
 }
