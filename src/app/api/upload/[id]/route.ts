@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireAuth } from '@/lib/auth'
 import { requireRolePermission } from '@/lib/permission-middleware'
-import { getOrganizationObject, isOrganizationObjectKey } from '@/lib/object-storage'
+import { deleteOrganizationObject, getOrganizationObject, isOrganizationObjectKey } from '@/lib/object-storage'
 
 export const runtime = 'nodejs'
 
