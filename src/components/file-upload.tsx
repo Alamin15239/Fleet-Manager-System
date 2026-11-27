@@ -1,7 +1,7 @@
 'use client'
 import { LocalizedText } from '@/components/localized-text'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
@@ -49,6 +49,25 @@ export function FileUpload({
   const [uploading, setUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(0)
   const [dragOver, setDragOver] = useState(false)
+
+  useEffect(() => {
+    if (!token || !entityId) return
+    let active = true
+    fetch('/api/upload?type=' + encodeURIComponent(type) + '&entityId=' + encodeURIComponent(entityId), {
+      headers: { Authorization: 'Bearer ' + token },
+      cache: 'no-store',
+    }).then(async response => {
+      if (!response.ok) throw new Error('Could not load attachments')
+      const payload = await response.json()
+      if (active && Array.isArray(payload.files)) {
+        setFiles(payload.files)
+        onFilesChange?.(payload.files)
+      }
+    }).catch(error => {
+      console.error('Could not load existing attachments:', error)
+    })
+    return () => { active = false }
+  }, [type, entityId, token])
 
   const defaultAcceptedTypes = [
     'image/jpeg',

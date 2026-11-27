@@ -16,9 +16,16 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const key = document.fileUrl.slice(5)
     const storageMeta = (document.editorState as any)?.storage
     const expectedOrganizationId = user.organizationId || user.organizationSlug || 'primary'
-    if (!isOrganizationObjectKey(key, expectedOrganizationId) || storageMeta?.organizationId !== expectedOrganizationId || storageMeta?.entityId == null) {
+    if (!isOrganizationObjectKey(key, expectedOrganizationId) || storageMeta?.organizationId !== expectedOrganizationId || storageMeta?.entityId == null || storageMeta?.module !== (document.type === 'truck' ? 'truck-documents' : 'maintenance-documents')) {
       return NextResponse.json({ error: 'File not found' }, { status: 404 })
     }
+    const parentExists = document.type === 'truck'
+      ? Boolean(await db.truck.findFirst({ where: { id: String(storageMeta.entityId), isDeleted: false }, select: { id: true } }))
+      : Boolean(
+          (await db.maintenanceRecord.findFirst({ where: { id: String(storageMeta.entityId), isDeleted: false }, select: { id: true } })) ||
+          (await db.trailerMaintenanceRecord.findFirst({ where: { id: String(storageMeta.entityId), isDeleted: false }, select: { id: true } }))
+        )
+    if (!parentExists) return NextResponse.json({ error: 'File not found' }, { status: 404 })
     const object = await getOrganizationObject(key)
     const safeName = (document.title || 'download').replace(/[\r\n"\\]/g, '_')
     return new NextResponse(object.body, { headers: {
@@ -48,6 +55,13 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     if (!isOrganizationObjectKey(key, expectedOrganizationId) || storageMeta?.organizationId !== expectedOrganizationId || storageMeta?.entityId == null) {
       return NextResponse.json({ error: 'File not found' }, { status: 404 })
     }
+    const parentExists = document.type === 'truck'
+      ? Boolean(await db.truck.findFirst({ where: { id: String(storageMeta.entityId), isDeleted: false }, select: { id: true } }))
+      : Boolean(
+          (await db.maintenanceRecord.findFirst({ where: { id: String(storageMeta.entityId), isDeleted: false }, select: { id: true } })) ||
+          (await db.trailerMaintenanceRecord.findFirst({ where: { id: String(storageMeta.entityId), isDeleted: false }, select: { id: true } }))
+        )
+    if (!parentExists) return NextResponse.json({ error: 'File not found' }, { status: 404 })
     await db.document.delete({ where: { id } })
     await deleteOrganizationObject(key).catch(error => console.error('Stored upload cleanup failed:', error))
     return NextResponse.json({ success: true }, { headers: { 'Cache-Control': 'no-store' } })

@@ -33,6 +33,55 @@ const ALLOWED_UPLOAD_TYPES: Record<string, string> = {
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': '.xlsx',
 }
 
+async function attachmentParentExists(type: string, entityId: string) {
+  if (type === 'truck') {
+    return Boolean(await db.truck.findFirst({ where: { id: entityId, isDeleted: false }, select: { id: true } }))
+  }
+  return Boolean(
+    (await db.maintenanceRecord.findFirst({ where: { id: entityId, isDeleted: false }, select: { id: true } })) ||
+    (await db.trailerMaintenanceRecord.findFirst({ where: { id: entityId, isDeleted: false }, select: { id: true } }))
+  )
+}
+
+export async function GET(request: NextRequest) {
+  try {
+    const authUser = await requireAuth(request)
+    const { searchParams } = new URL(request.url)
+    const type = String(searchParams.get('type') || '').toLowerCase()
+    const entityId = String(searchParams.get('entityId') || '').trim()
+    if (!['truck', 'maintenance'].includes(type) || !entityId || entityId.length > 128) {
+      return NextResponse.json({ error: 'A valid fleet record is required' }, { status: 400 })
+    }
+    await requireRolePermission(request, type === 'truck' ? 'trucks' : 'maintenance', 'read')
+    if (!await attachmentParentExists(type, entityId)) return NextResponse.json({ error: 'The selected fleet record was not found' }, { status: 404 })
+    const documents = await db.document.findMany({
+      where: { type, editorState: { path: ['storage', 'entityId'], equals: entityId } },
+      select: { id: true, title: true, editorState: true, createdAt: true, createdById: true },
+      orderBy: { createdAt: 'desc' },
+    })
+    const files = documents.flatMap(document => {
+      const meta = (document.editorState as any)?.storage
+      const organizationId = authUser.organizationId || authUser.organizationSlug || 'primary'
+      if (meta?.organizationId !== organizationId || meta?.entityId !== entityId || meta?.module !== (type === 'truck' ? 'truck-documents' : 'maintenance-documents')) return []
+      return [{
+        id: document.id,
+        name: meta.fileName || document.title,
+        originalName: meta.fileName || document.title,
+        size: Number(meta.size) || 0,
+        type: meta.contentType || 'application/octet-stream',
+        url: '/api/upload/' + document.id,
+        uploadedAt: document.createdAt.toISOString(),
+        uploadedBy: document.createdById || '',
+      }]
+    })
+    return NextResponse.json({ files }, { headers: { 'Cache-Control': 'private, no-store' } })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : ''
+    const status = ['No token provided', 'Invalid token', 'User not found or inactive'].includes(message) ? 401 : message === 'Insufficient permissions' ? 403 : 500
+    return NextResponse.json({ error: status === 500 ? 'Could not load attachments' : 'Access denied' }, { status, headers: { 'Cache-Control': 'no-store' } })
+  }
+}
+
 export async function POST(request: NextRequest) {
   let uploadedKey: string | undefined
   try {
@@ -48,12 +97,7 @@ export async function POST(request: NextRequest) {
     }
     const permissionResource = type === 'truck' ? 'trucks' : 'maintenance'
     const user = await requireRolePermission(request, permissionResource, 'update')
-    const parentExists = type === 'truck'
-      ? Boolean(await db.truck.findFirst({ where: { id: entityId, isDeleted: false }, select: { id: true } }))
-      : Boolean(
-          (await db.maintenanceRecord.findFirst({ where: { id: entityId, isDeleted: false }, select: { id: true } })) ||
-          (await db.trailerMaintenanceRecord.findFirst({ where: { id: entityId, isDeleted: false }, select: { id: true } }))
-        )
+    const parentExists = await attachmentParentExists(type, entityId)
     if (!parentExists) return NextResponse.json({ error: 'The selected fleet record was not found' }, { status: 404 })
 
     const submittedFile = data.get('file')
@@ -90,6 +134,9 @@ export async function POST(request: NextRequest) {
               organizationId: user.organizationId || user.organizationSlug || 'primary',
               module: type === 'truck' ? 'truck-documents' : 'maintenance-documents',
               entityId,
+              fileName: originalName,
+              contentType: file.type,
+              size: file.size,
             },
           },
         },
