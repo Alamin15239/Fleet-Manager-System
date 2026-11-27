@@ -7,7 +7,25 @@ const { PrismaClient } = require('@prisma/client')
 function getAdminUrl() {
   const value = process.env.TIDB_DATABASE_URL?.trim()
   if (!value) throw new Error('TIDB_DATABASE_URL is required')
-  const url = new URL(value)
+
+  // Diagnose malformed Actions secrets without ever printing credentials or the URL.
+  if (value.startsWith('\\\\')) {
+    throw new Error('TIDB_DATABASE_URL begins with a literal backslash. Store the raw postgresql:// URL without a leading backslash.')
+  }
+  if (value.startsWith('"') || value.startsWith("'")) {
+    throw new Error('TIDB_DATABASE_URL is wrapped in quotes. Store the raw URL without surrounding quotes.')
+  }
+  if (!/^postgres(?:ql)?:\\/\\//i.test(value)) {
+    const safePrefix = value.slice(0, 16).replace(/[^a-zA-Z:/._-]/g, '?')
+    throw new Error('TIDB_DATABASE_URL is not a PostgreSQL URL (safe prefix: ' + safePrefix + '). Expected postgresql:// or postgres://.')
+  }
+
+  let url
+  try {
+    url = new URL(value)
+  } catch {
+    throw new Error('TIDB_DATABASE_URL has a PostgreSQL scheme but is not a valid URL. Check URI encoding of username/password and URL delimiters; credentials were not logged.')
+  }
   if (!['postgres:', 'postgresql:'].includes(url.protocol) ||
       !url.hostname.toLowerCase().endsWith('.tidbcloud.com') ||
       url.searchParams.get('sslmode') !== 'require') {
