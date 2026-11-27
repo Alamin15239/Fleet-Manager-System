@@ -158,34 +158,6 @@ async function migrateDatabase(organization: OrganizationRecord, execute: boolea
     } catch (error) { recordFailure('vehicleDocument.fileData', row.id, error) }
   }
 
-  const docs = await client.document.findMany({
-    where: { fileUrl: { startsWith: 'data:image/' } },
-    select: { id: true, title: true, fileUrl: true },
-    take: 500,
-    orderBy: { id: 'asc' },
-  })
-  for (const row of docs) {
-    counters.scanned++
-    try {
-      const parsed = dataUri(row.fileUrl || '')
-      if (!parsed) { counters.skipped++; continue }
-      if (!execute) { counters.skipped++; continue }
-      const key = await storeAndVerify({
-        organizationId: orgId, module: 'document-files', entityId: row.id,
-        fileName: row.title || 'document.' + extensionFor(parsed.contentType, 'jpg'),
-        contentType: parsed.contentType, body: parsed.body,
-      })
-      const updated = await client.document.updateMany({
-        where: { id: row.id, fileUrl: row.fileUrl },
-        data: { fileUrl: 's3://' + key },
-      })
-      if (!updated.count) {
-        await deleteOrganizationObject(key).catch(() => undefined)
-        counters.skipped++
-      } else counters.migrated++
-    } catch (error) { recordFailure('document.fileUrl', row.id, error) }
-  }
-
   return { organization: organization.slug, counters, failures }
 }
 
