@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireRolePermission } from '@/lib/permission-middleware'
 import { db } from '@/lib/db'
 import { z } from 'zod'
+import { profileImageDisplayUrl } from '@/lib/object-storage'
 
 const privateNoStore = { 'Cache-Control': 'private, no-store, max-age=0' }
 
@@ -50,7 +51,7 @@ export async function PUT(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      user: updatedUser,
+      user: { ...updatedUser, profileImage: profileImageDisplayUrl(updatedUser.profileImage) },
       message: 'Profile updated successfully'
     }, { headers: privateNoStore })
 
@@ -120,7 +121,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      user: fullUser
+      user: { ...fullUser, profileImage: profileImageDisplayUrl(fullUser.profileImage) }
     }, { headers: privateNoStore })
 
   } catch (error) {
