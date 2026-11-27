@@ -24,6 +24,7 @@ async function main() {
   const password = randomBytes(32).toString('base64url')
   const admin = new Client({ connectionString: adminUrl.toString(), connectionTimeoutMillis: 5000 })
   let adminConnected = false
+  let cleanupFailed = false
   let roleCreated = false
   let databaseCreated = false
   let tenant = null
@@ -85,16 +86,19 @@ async function main() {
     if (adminConnected) {
       if (databaseCreated) {
         await admin.query('DROP DATABASE "' + databaseName + '"').catch((error) => {
+          cleanupFailed = true
           console.error('Cleanup warning: could not drop temporary smoke database:', error.message)
         })
       }
       if (roleCreated) {
         await admin.query('DROP ROLE "' + roleName + '"').catch((error) => {
+          cleanupFailed = true
           console.error('Cleanup warning: could not drop temporary smoke role:', error.message)
         })
       }
     }
     await admin.end().catch(() => undefined)
+    if (cleanupFailed) process.exitCode = 1
   }
 }
 
