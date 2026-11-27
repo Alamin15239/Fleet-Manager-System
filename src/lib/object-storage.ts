@@ -100,3 +100,7 @@ export async function deleteOrganizationObject(key: string) {
 export function isOrganizationObjectKey(value: string | null | undefined): value is string {
   return typeof value === 'string' && value.startsWith('organizations/')
 }
+
+export function profileImageDisplayUrl(value: string | null | undefined) {
+  return value?.startsWith('s3://') ? '/api/profile/picture' : value ?? null
+}
