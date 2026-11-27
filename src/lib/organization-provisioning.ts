@@ -378,7 +378,7 @@ async function ensureTidbOrganizationDatabase(
   await client.connect()
   try {
     const role = await client.query('SELECT 1 FROM pg_roles WHERE rolname = $1', [roleName])
-    if (role.rowCount === 0) {
+    if (role.rows.length === 0) {
       try {
         await client.query(`CREATE ROLE "${roleName}" LOGIN PASSWORD '${tenantPassword}'`)
       } catch (error) {
@@ -393,7 +393,7 @@ async function ensureTidbOrganizationDatabase(
     }
 
     const database = await client.query('SELECT 1 FROM pg_database WHERE datname = $1', [databaseName])
-    if (database.rowCount === 0) {
+    if (database.rows.length === 0) {
       try {
         await client.query(`CREATE DATABASE "${databaseName}" OWNER "${roleName}"`)
       } catch (error) {
@@ -410,8 +410,10 @@ async function ensureTidbOrganizationDatabase(
 
   // The database's public schema may pre-exist with the admin owner. Grant the
   // isolated tenant login the privileges needed to bootstrap and evolve it.
+  const schemaAdminUrl = new URL(adminUrl)
+  schemaAdminUrl.pathname = `/${databaseName}`
   const schemaClient = new Client({
-    connectionString: adminUrl.toString().replace(/\/[^/?]+(?=\?|$)/, `/${databaseName}`),
+    connectionString: schemaAdminUrl.toString(),
     connectionTimeoutMillis: 5_000
   })
   await schemaClient.connect()
@@ -439,11 +441,11 @@ export async function deleteTidbOrganizationDatabase(organization: { id: string;
   await client.connect()
   try {
     const existing = await client.query('SELECT 1 FROM pg_database WHERE datname = $1', [databaseName])
-    if (existing.rowCount > 0) {
+    if (existing.rows.length > 0) {
       await client.query(`DROP DATABASE "${databaseName}"`)
     }
     const role = await client.query('SELECT 1 FROM pg_roles WHERE rolname = $1', [roleName])
-    if (role.rowCount > 0) {
+    if (role.rows.length > 0) {
       await client.query(`DROP ROLE "${roleName}"`)
     }
   } finally {
