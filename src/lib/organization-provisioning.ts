@@ -1,4 +1,5 @@
 import { randomBytes } from 'node:crypto'
+import { buildTidbTenantConnectionUrl, buildTidbTenantDatabaseName } from '@/lib/tidb-tenant-database'
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { Client } from 'pg'
@@ -25,7 +26,7 @@ type NeonProjectResponse = {
   connection_uris?: Array<{ connection_uri?: string }>
 }
 
-export type OrganizationDatabaseProvider = 'NEON' | 'PRISMA'
+export type OrganizationDatabaseProvider = 'NEON' | 'PRISMA' | 'TIDB'
 
 type PrismaConnection = {
   endpoints?: {
@@ -71,8 +72,8 @@ function prismaProjectId() {
 
 export function configuredOrganizationDatabaseProvider(): OrganizationDatabaseProvider {
   const provider = (process.env.ORGANIZATION_DATABASE_PROVIDER || 'NEON').trim().toUpperCase()
-  if (provider !== 'NEON' && provider !== 'PRISMA') {
-    throw new Error('ORGANIZATION_DATABASE_PROVIDER must be NEON or PRISMA')
+  if (provider !== 'NEON' && provider !== 'PRISMA' && provider !== 'TIDB') {
+    throw new Error('ORGANIZATION_DATABASE_PROVIDER must be NEON, PRISMA, or TIDB')
   }
   return provider
 }
@@ -330,6 +331,76 @@ export async function deletePrismaOrganizationDatabase(databaseId: string) {
   }
 }
 
+function tidbAdminConnectionUrl() {
+  const configured = process.env.TIDB_DATABASE_URL?.trim()
+  if (!configured) throw new Error('TiDB tenant provisioning is not configured (TIDB_DATABASE_URL)')
+  try {
+    const url = new URL(configured)
+    if (!['postgres:', 'postgresql:'].includes(url.protocol) ||
+        !url.hostname.toLowerCase().endsWith('.tidbcloud.com') ||
+        url.searchParams.get('sslmode') !== 'require') {
+      throw new Error('TIDB_DATABASE_URL must be a TLS-enabled TiDB Cloud PostgreSQL connection URL')
+    }
+    return url
+  } catch (error) {
+    if (error instanceof Error && error.message.startsWith('TIDB_DATABASE_URL')) throw error
+    throw new Error('TIDB_DATABASE_URL must be a valid PostgreSQL connection URL')
+  }
+}
+
+/**
+ * Create one database per organization inside the TiDB instance. This keeps
+ * tenant tables physically namespaced instead of sharing public tables.
+ * The deterministic name makes retries safe if provisioning stops after DDL.
+ */
+async function ensureTidbOrganizationDatabase(organization: ProvisioningOrganization) {
+  const adminUrl = tidbAdminConnectionUrl()
+  const databaseName = buildTidbTenantDatabaseName(organization.id, organization.slug)
+  const client = new Client({
+    connectionString: adminUrl.toString(),
+    connectionTimeoutMillis: 5_000
+  })
+
+  await client.connect()
+  try {
+    const existing = await client.query('SELECT 1 FROM pg_database WHERE datname = $1', [databaseName])
+    if (existing.rowCount === 0) {
+      try {
+        // databaseName is generated from a strict lowercase identifier allowlist.
+        await client.query(`CREATE DATABASE "${databaseName}"`)
+      } catch (error) {
+        // Another request may have created the same deterministic database.
+        if ((error as { code?: string })?.code !== '42P04') throw error
+      }
+    }
+  } finally {
+    await client.end().catch(() => undefined)
+  }
+
+  return buildTidbTenantConnectionUrl(adminUrl.toString(), databaseName)
+}
+
+/** Delete only the deterministic database owned by this organization. */
+export async function deleteTidbOrganizationDatabase(organization: { id: string; slug: string }) {
+  const adminUrl = tidbAdminConnectionUrl()
+  const databaseName = buildTidbTenantDatabaseName(organization.id, organization.slug)
+  const client = new Client({
+    connectionString: adminUrl.toString(),
+    connectionTimeoutMillis: 5_000
+  })
+
+  await client.connect()
+  try {
+    const existing = await client.query('SELECT 1 FROM pg_database WHERE datname = $1', [databaseName])
+    if (existing.rowCount > 0) {
+      // Only the deterministic fleet_<slug>_<id-hash> identifier is accepted.
+      await client.query(`DROP DATABASE "${databaseName}"`)
+    }
+  } finally {
+    await client.end().catch(() => undefined)
+  }
+}
+
 function directConnectionUrl(provider: OrganizationDatabaseProvider, connectionUri: string) {
   if (provider !== 'PRISMA') return connectionUri
   const url = new URL(connectionUri)
@@ -484,13 +555,38 @@ export async function provisionOrganization(organizationId: string) {
       : organization.neonProjectId
         ? 'NEON'
         : organization.encryptedDatabaseUrl
-          ? (organization.databaseProvider === 'PRISMA' ? 'PRISMA' : 'NEON')
+          ? (organization.databaseProvider === 'PRISMA' || organization.databaseProvider === 'TIDB'
+            ? organization.databaseProvider
+            : 'NEON')
           : configuredOrganizationDatabaseProvider()
     let connectionUri: string
     let schemaConnectionUri: string | null = null
     if (organization.encryptedDatabaseUrl) {
-      connectionUri = decryptOrganizationDatabaseUrl(organization.encryptedDatabaseUrl)
+      connectionUri = provider === 'TIDB'
+        ? await ensureTidbOrganizationDatabase(organization)
+        : decryptOrganizationDatabaseUrl(organization.encryptedDatabaseUrl)
       if (provider === 'PRISMA') schemaConnectionUri = directConnectionUrl(provider, connectionUri)
+      if (provider === 'TIDB') {
+        // Refresh the encrypted URL from the current instance secret so a TiDB
+        // password rotation is applied the next time this organization is provisioned.
+        await organizationModel.update({
+          where: { id: organization.id },
+          data: { databaseProvider: provider, encryptedDatabaseUrl: encryptOrganizationDatabaseUrl(connectionUri) }
+        })
+      }
+    } else if (provider === 'TIDB') {
+      // Validate encryption configuration before creating a database.
+      encryptOrganizationDatabaseUrl('configuration-check')
+      connectionUri = await ensureTidbOrganizationDatabase(organization)
+      await organizationModel.update({
+        where: { id: organization.id },
+        data: {
+          databaseProvider: provider,
+          neonProjectId: null,
+          prismaDatabaseId: null,
+          encryptedDatabaseUrl: encryptOrganizationDatabaseUrl(connectionUri)
+        }
+      })
     } else if (provider === 'PRISMA') {
       // Validate before creating billable external resources so missing crypto
       // configuration cannot leave an untracked database behind.

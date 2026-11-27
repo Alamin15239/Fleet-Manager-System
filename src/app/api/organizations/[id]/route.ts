@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { PrismaClient } from '@prisma/client'
 import { requireAuth } from '@/lib/auth'
 import { controlDb, decryptOrganizationDatabaseUrl } from '@/lib/db'
-import { deletePrismaOrganizationDatabase } from '@/lib/organization-provisioning'
+import { deletePrismaOrganizationDatabase, deleteTidbOrganizationDatabase } from '@/lib/organization-provisioning'
 
 const ownerSchema = z.object({
   ownerName: z.string().trim().min(1).max(100),
@@ -123,6 +123,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
       where: { id },
       select: {
         id: true,
+        slug: true,
         isPrimary: true,
         status: true,
         schemaReady: true,
@@ -143,7 +144,16 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     }
 
     const provider = organization.databaseProvider || 'NEON'
-    if (provider === 'PRISMA') {
+    if (provider === 'TIDB') {
+      try {
+        await deleteTidbOrganizationDatabase({ id: organization.id, slug: organization.slug })
+      } catch (error) {
+        const message = error instanceof Error ? error.message : ''
+        return NextResponse.json({
+          error: message || 'TiDB did not confirm deletion of this organization database. The organization remains listed.'
+        }, { status: 502 })
+      }
+    } else if (provider === 'PRISMA') {
       if (!organization.prismaDatabaseId && (organization.schemaReady || organization.encryptedDatabaseUrl)) {
         return NextResponse.json({
           error: 'This organization has database details but no Prisma database ID. Restore its database ID before deleting it.'
