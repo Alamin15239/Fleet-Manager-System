@@ -69,15 +69,15 @@ describe('getPrimaryDatabaseProvider', () => {
 describe('isSamePostgresDatabase', () => {
   it('recognizes the same database across pooled and direct hostnames', () => {
     expect(isSamePostgresDatabase(
-      'postgresql://db_user:secret@db-pooler.prisma-data.net:5432/postgres',
-      'postgresql://db_user:secret@db.prisma-data.net:5432/postgres',
+      'postgresql://db_user:secret@pooled.db.prisma.io:5432/',
+      'postgresql://db_user:secret@db.prisma.io:5432/postgres',
     )).toBe(true)
   })
 
   it('does not confuse separate Prisma databases sharing a gateway and database path', () => {
     expect(isSamePostgresDatabase(
-      'postgresql://primary_db:secret@db.prisma-data.net:5432/postgres',
-      'postgresql://tenant_db:secret@db.prisma-data.net:5432/postgres',
+      'postgresql://primary_db:secret@db.prisma.io:5432/postgres',
+      'postgresql://tenant_db:secret@db.prisma.io:5432/postgres',
     )).toBe(false)
   })
 })
