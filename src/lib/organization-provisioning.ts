@@ -1,5 +1,4 @@
 import { randomBytes } from 'node:crypto'
-import { buildTidbTenantConnectionUrl, buildTidbTenantDatabaseName, buildTidbTenantRoleName } from '@/lib/tidb-tenant-database'
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { Client } from 'pg'
@@ -26,7 +25,7 @@ type NeonProjectResponse = {
   connection_uris?: Array<{ connection_uri?: string }>
 }
 
-export type OrganizationDatabaseProvider = 'NEON' | 'PRISMA' | 'TIDB'
+export type OrganizationDatabaseProvider = 'NEON' | 'PRISMA'
 
 type PrismaConnection = {
   endpoints?: {
@@ -72,8 +71,8 @@ function prismaProjectId() {
 
 export function configuredOrganizationDatabaseProvider(): OrganizationDatabaseProvider {
   const provider = (process.env.ORGANIZATION_DATABASE_PROVIDER || 'NEON').trim().toUpperCase()
-  if (provider !== 'NEON' && provider !== 'PRISMA' && provider !== 'TIDB') {
-    throw new Error('ORGANIZATION_DATABASE_PROVIDER must be NEON, PRISMA, or TIDB')
+  if (provider !== 'NEON' && provider !== 'PRISMA') {
+    throw new Error('ORGANIZATION_DATABASE_PROVIDER must be NEON or PRISMA')
   }
   return provider
 }
@@ -331,126 +330,6 @@ export async function deletePrismaOrganizationDatabase(databaseId: string) {
   }
 }
 
-function tidbAdminConnectionUrl() {
-  const configured = process.env.TIDB_DATABASE_URL?.trim()
-  if (!configured) throw new Error('TiDB tenant provisioning is not configured (TIDB_DATABASE_URL)')
-  try {
-    const url = new URL(configured)
-    if (!['postgres:', 'postgresql:'].includes(url.protocol) ||
-        !url.hostname.toLowerCase().endsWith('.tidbcloud.com') ||
-        url.searchParams.get('sslmode') !== 'require') {
-      throw new Error('TIDB_DATABASE_URL must be a TLS-enabled TiDB Cloud PostgreSQL connection URL')
-    }
-    return url
-  } catch (error) {
-    if (error instanceof Error && error.message.startsWith('TIDB_DATABASE_URL')) throw error
-    throw new Error('TIDB_DATABASE_URL must be a valid PostgreSQL connection URL')
-  }
-}
-
-/**
- * Create one database per organization inside the TiDB instance. This keeps
- * tenant tables physically namespaced instead of sharing public tables.
- * The deterministic name makes retries safe if provisioning stops after DDL.
- */
-async function ensureTidbOrganizationDatabase(
-  organization: ProvisioningOrganization,
-  existingConnectionUri?: string
-) {
-  const adminUrl = tidbAdminConnectionUrl()
-  const databaseName = buildTidbTenantDatabaseName(organization.id, organization.slug)
-  const roleName = buildTidbTenantRoleName(organization.id, organization.slug)
-  const previousUrl = existingConnectionUri ? new URL(existingConnectionUri) : null
-  if (previousUrl && (
-    previousUrl.hostname !== adminUrl.hostname ||
-    previousUrl.pathname !== `/${databaseName}` ||
-    previousUrl.username !== roleName ||
-    !previousUrl.password
-  )) {
-    throw new Error('Stored TiDB tenant connection does not match this organization.')
-  }
-  const tenantPassword = previousUrl?.password || randomBytes(32).toString('base64url')
-  const client = new Client({
-    connectionString: adminUrl.toString(),
-    connectionTimeoutMillis: 5_000
-  })
-
-  await client.connect()
-  try {
-    const role = await client.query('SELECT 1 FROM pg_roles WHERE rolname = $1', [roleName])
-    if (role.rows.length === 0) {
-      try {
-        await client.query(`CREATE ROLE "${roleName}" LOGIN PASSWORD '${tenantPassword}'`)
-      } catch (error) {
-        // Another request may have created this deterministic role first.
-        if ((error as { code?: string })?.code !== '42710') throw error
-        await client.query(`ALTER ROLE "${roleName}" WITH LOGIN PASSWORD '${tenantPassword}'`)
-      }
-    } else if (!previousUrl) {
-      // Recover safely if a prior attempt created the role but failed before
-      // saving its encrypted connection URL.
-      await client.query(`ALTER ROLE "${roleName}" WITH LOGIN PASSWORD '${tenantPassword}'`)
-    }
-
-    const database = await client.query('SELECT 1 FROM pg_database WHERE datname = $1', [databaseName])
-    if (database.rows.length === 0) {
-      try {
-        await client.query(`CREATE DATABASE "${databaseName}"`)
-      } catch (error) {
-        if ((error as { code?: string })?.code !== '42P04') throw error
-      }
-    } else {
-    }
-    await client.query(`GRANT ALL PRIVILEGES ON DATABASE "${databaseName}" TO "${roleName}"`)
-  } finally {
-    await client.end().catch(() => undefined)
-  }
-
-  // The database's public schema may pre-exist with the admin owner. Grant the
-  // isolated tenant login the privileges needed to bootstrap and evolve it.
-  const schemaAdminUrl = new URL(adminUrl)
-  schemaAdminUrl.pathname = `/${databaseName}`
-  const schemaClient = new Client({
-    connectionString: schemaAdminUrl.toString(),
-    connectionTimeoutMillis: 5_000
-  })
-  await schemaClient.connect()
-  try {
-    await schemaClient.query(`GRANT ALL PRIVILEGES ON SCHEMA public TO "${roleName}"`)
-    await schemaClient.query(`GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO "${roleName}"`)
-    await schemaClient.query(`GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO "${roleName}"`)
-  } finally {
-    await schemaClient.end().catch(() => undefined)
-  }
-
-  return buildTidbTenantConnectionUrl(adminUrl.toString(), databaseName, roleName, tenantPassword)
-}
-
-/** Delete only the deterministic database and login role owned by this organization. */
-export async function deleteTidbOrganizationDatabase(organization: { id: string; slug: string }) {
-  const adminUrl = tidbAdminConnectionUrl()
-  const databaseName = buildTidbTenantDatabaseName(organization.id, organization.slug)
-  const roleName = buildTidbTenantRoleName(organization.id, organization.slug)
-  const client = new Client({
-    connectionString: adminUrl.toString(),
-    connectionTimeoutMillis: 5_000
-  })
-
-  await client.connect()
-  try {
-    const existing = await client.query('SELECT 1 FROM pg_database WHERE datname = $1', [databaseName])
-    if (existing.rows.length > 0) {
-      await client.query(`DROP DATABASE "${databaseName}"`)
-    }
-    const role = await client.query('SELECT 1 FROM pg_roles WHERE rolname = $1', [roleName])
-    if (role.rows.length > 0) {
-      await client.query(`DROP ROLE "${roleName}"`)
-    }
-  } finally {
-    await client.end().catch(() => undefined)
-  }
-}
-
 function directConnectionUrl(provider: OrganizationDatabaseProvider, connectionUri: string) {
   if (provider !== 'PRISMA') return connectionUri
   const url = new URL(connectionUri)
@@ -604,59 +483,20 @@ export async function provisionOrganization(organizationId: string) {
       ? 'PRISMA'
       : organization.neonProjectId
         ? 'NEON'
-        : organization.encryptedDatabaseUrl
-          ? (organization.databaseProvider === 'PRISMA' || organization.databaseProvider === 'TIDB'
-            ? organization.databaseProvider
-            : 'NEON')
+        : (organization.databaseProvider === 'NEON' || organization.databaseProvider === 'PRISMA') &&
+            organization.encryptedDatabaseUrl
+          ? organization.databaseProvider
           : configuredOrganizationDatabaseProvider()
     let connectionUri: string
     let schemaConnectionUri: string | null = null
-    if (organization.encryptedDatabaseUrl) {
-      const storedConnectionUri = decryptOrganizationDatabaseUrl(organization.encryptedDatabaseUrl)
-      connectionUri = provider === 'TIDB'
-        ? await ensureTidbOrganizationDatabase(organization, storedConnectionUri)
-        : storedConnectionUri
+    const canReuseStoredConnection = Boolean(
+      organization.encryptedDatabaseUrl &&
+      (organization.databaseProvider === 'NEON' || organization.databaseProvider === 'PRISMA')
+    )
+
+    if (canReuseStoredConnection) {
+      connectionUri = decryptOrganizationDatabaseUrl(organization.encryptedDatabaseUrl!)
       if (provider === 'PRISMA') schemaConnectionUri = directConnectionUrl(provider, connectionUri)
-      if (provider === 'TIDB') {
-        // Refresh the encrypted URL from the current instance secret so a TiDB
-        // password rotation is applied the next time this organization is provisioned.
-        await organizationModel.update({
-          where: { id: organization.id },
-          data: { databaseProvider: provider, encryptedDatabaseUrl: encryptOrganizationDatabaseUrl(connectionUri) }
-        })
-      }
-    } else if (provider === 'TIDB') {
-      // Claim and persist one tenant credential before external DDL. Concurrent
-      // retries then converge on the same role password instead of racing it.
-      encryptOrganizationDatabaseUrl('configuration-check')
-      const adminUrl = tidbAdminConnectionUrl()
-      const databaseName = buildTidbTenantDatabaseName(organization.id, organization.slug)
-      const roleName = buildTidbTenantRoleName(organization.id, organization.slug)
-      const candidateUri = buildTidbTenantConnectionUrl(
-        adminUrl.toString(),
-        databaseName,
-        roleName,
-        randomBytes(32).toString('base64url')
-      )
-      const claim = await organizationModel.updateMany({
-        where: { id: organization.id, encryptedDatabaseUrl: null },
-        data: {
-          databaseProvider: provider,
-          neonProjectId: null,
-          prismaDatabaseId: null,
-          encryptedDatabaseUrl: encryptOrganizationDatabaseUrl(candidateUri)
-        }
-      })
-      const claimedOrganization = claim.count === 1
-        ? { ...organization, databaseProvider: provider, encryptedDatabaseUrl: encryptOrganizationDatabaseUrl(candidateUri) }
-        : await organizationModel.findUnique({ where: { id: organization.id } }) as ProvisioningOrganization | null
-      if (!claimedOrganization?.encryptedDatabaseUrl || claimedOrganization.databaseProvider !== 'TIDB') {
-        throw new Error('Could not safely claim TiDB tenant provisioning credentials. Retry organization setup.')
-      }
-      connectionUri = await ensureTidbOrganizationDatabase(
-        organization,
-        decryptOrganizationDatabaseUrl(claimedOrganization.encryptedDatabaseUrl)
-      )
     } else if (provider === 'PRISMA') {
       // Validate before creating billable external resources so missing crypto
       // configuration cannot leave an untracked database behind.
@@ -684,7 +524,7 @@ export async function provisionOrganization(organizationId: string) {
       await organizationModel.update({
         where: { id: organization.id },
         data: {
-          databaseProvider: provider,
+          databaseProvider: 'NEON',
           neonProjectId: project.projectId,
           prismaDatabaseId: null,
           encryptedDatabaseUrl: encryptOrganizationDatabaseUrl(connectionUri)
