@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db, controlDb, getOrganizationPrismaClient, getRequestOrganization } from '@/lib/db'
 import { requireAdmin } from '@/lib/auth'
 import { getPrismaWorkspaceStorageUsage } from '@/lib/organization-provisioning'
+import { getPrimaryDatabaseProvider } from '@/lib/primary-database'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -22,18 +23,6 @@ function formatBytes(bytes: number) {
   return `${(bytes / Math.pow(1024, index)).toFixed(2)} ${units[index]}`
 }
 
-function primaryProvider() {
-  const configuredUrl = process.env.DATABASE_URL
-  if (!configuredUrl) return 'POSTGRESQL'
-  try {
-    const host = new URL(configuredUrl).hostname.toLowerCase()
-    if (host.includes('neon.tech')) return 'NEON'
-    if (host.includes('prisma')) return 'PRISMA'
-  } catch {
-    // Keep the generic PostgreSQL label if the connection URL is not parseable.
-  }
-  return 'POSTGRESQL'
-}
 
 function numericEnv(name: string): number | null {
   const raw = process.env[name]
@@ -121,7 +110,7 @@ export async function GET(request: NextRequest) {
     }
 
     const provider = organization.isPrimary
-      ? primaryProvider()
+      ? getPrimaryDatabaseProvider()
       : (organization as typeof organization & { databaseProvider?: string }).databaseProvider || 'POSTGRESQL'
     const providerId = organization.isPrimary
       ? null
@@ -145,7 +134,7 @@ export async function GET(request: NextRequest) {
       for (let offset = 0; offset < registered.length; offset += 5) {
         const batch = registered.slice(offset, offset + 5)
         const batchResults = await Promise.all(batch.map(async (item: any) => {
-          const itemProvider = item.isPrimary ? primaryProvider() : (item.databaseProvider || 'POSTGRESQL')
+          const itemProvider = item.isPrimary ? getPrimaryDatabaseProvider() : (item.databaseProvider || 'POSTGRESQL')
           const result: Record<string, unknown> = {
             id: item.id, name: item.name, slug: item.slug, status: item.status,
             provider: itemProvider,
