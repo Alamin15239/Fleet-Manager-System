@@ -271,6 +271,7 @@ model MaintenanceRecord {
   jobCard           WorkshopJobCard?  @relation(fields: [jobCardId], references: [id], onDelete: SetNull)
 
   @@index([jobCardId])
+  @@index([vehiclePlateNumber])
   @@map("maintenance_records")
 }
 
@@ -491,21 +492,6 @@ model OrganizationBillingPayment {
   @@index([organizationId, createdAt])
   @@index([status, createdAt])
   @@map("organization_billing_payments")
-}
-
-model StripeWebhookEvent {
-  id          String   @id @default(cuid())
-  eventId     String   @unique
-  eventType   String
-  status      String   @default("PROCESSING")
-  attempts    Int      @default(1)
-  error       String?
-  processedAt DateTime?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@index([status, createdAt])
-  @@map("stripe_webhook_events")
 }
 
 model Vendor {
@@ -931,6 +917,8 @@ model Tire {
   @@index([driverName])
   @@index([serialNumber])
   @@index([createdAt])
+  @@index([supplierName])
+  @@index([truckId])
   @@map("tires")
 }
 
@@ -967,7 +955,7 @@ model TireLifecycleEvent {
   tire                Tire     @relation(fields: [tireId], references: [id], onDelete: Cascade)
   jobCard             WorkshopJobCard? @relation(fields: [jobCardId], references: [id], onDelete: SetNull)
 
-  @@index([tireId, eventAt])
+  @@index([tireId, eventAt(sort: Desc)])
   @@index([jobCardId])
   @@map("tire_lifecycle_events")
 }
@@ -1008,11 +996,7 @@ model Document {
 
 model EmailLog {
   id        String   @id @default(cuid())
-  // One email can generate multiple distinct Resend webhook events.
-  // Nullable preserves compatibility with historical rows created before
-  // Svix event IDs were recorded.
-  eventId   String?  @unique
-  emailId   String
+  emailId   String   @unique
   type      String
   from      String
   to        String
@@ -1129,6 +1113,8 @@ model InventoryTransaction {
   notes           String?
   createdById     String?
   createdAt       DateTime @default(now()) @db.Timestamp(3)
+  sourceType      String?
+  sourceId        String?
   item            InventoryItem @relation(fields: [itemId], references: [id], onDelete: Restrict)
 
   @@index([itemId, transactionDate(sort: Desc)], map: "inventory_transactions_itemId_date_idx")
@@ -1175,4 +1161,3 @@ model WebsiteVisitorSession {
   @@index([country, startedAt])
   @@map("website_visitor_sessions")
 }
-

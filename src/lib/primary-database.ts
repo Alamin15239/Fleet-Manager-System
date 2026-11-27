@@ -1,12 +1,15 @@
 export type PrimaryDatabaseEnvironment = Record<string, string | undefined>
 
 /**
- * The central/control database is PostgreSQL on Neon.
- * DATABASE_URL is supplied by the Vercel Neon integration.
+ * The central/control database is PostgreSQL on Prisma Postgres.
+ * DATABASE_URL supplies the primary Prisma Postgres connection.
  */
 export function getPrimaryDatabaseUrl(env: PrimaryDatabaseEnvironment = process.env): string {
-  const url = env.DATABASE_URL?.trim()
-  if (!url) throw new Error('DATABASE_URL is required for the primary Neon database')
+  const url =
+    env.STORAGE_DATABASE_URL_POOLED?.trim() ||
+    env.STORAGE_DATABASE_URL?.trim() ||
+    env.DATABASE_URL?.trim()
+  if (!url) throw new Error('A Prisma Postgres connection is required (STORAGE_DATABASE_URL_POOLED or DATABASE_URL)')
 
   let parsed: URL
   try {

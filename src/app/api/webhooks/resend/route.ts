@@ -64,20 +64,23 @@ export async function POST(request: NextRequest) {
     // Store email event in database
     try {
       await db.emailLog.upsert({
-        where: { eventId: svixId },
+        where: { emailId: event.data.email_id },
         create: {
-          eventId: svixId,
           emailId: event.data.email_id,
           type: event.type,
           from: event.data.from,
           to: event.data.to.join(','),
           subject: event.data.subject,
-          eventData: JSON.stringify(event.data),
-          createdAt: new Date(event.created_at)
+          eventData: event.data,
+          createdAt: new Date(event.created_at),
         },
-        // Resend may retry the same webhook. The unique Svix event ID makes
-        // processing idempotent without collapsing different events for one email.
-        update: {}
+        update: {
+          type: event.type,
+          from: event.data.from,
+          to: event.data.to.join(','),
+          subject: event.data.subject,
+          eventData: event.data,
+        },
       })
     } catch (dbError) {
       console.error('Failed to store email event:', dbError)

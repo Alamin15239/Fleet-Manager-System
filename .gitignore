@@ -73,3 +73,11 @@ sync-config.json
 
 # Docker
 .dockerignore
+
+
+# Local environment and database migration secrets
+.env
+.env.local
+.env.*.local
+.env.migration
+.env.migration.local
