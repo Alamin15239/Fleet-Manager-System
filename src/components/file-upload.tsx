@@ -67,7 +67,7 @@ export function FileUpload({
       console.error('Could not load existing attachments:', error)
     })
     return () => { active = false }
-  }, [type, entityId, token])
+  }, [type, entityId, token, onFilesChange])
 
   const defaultAcceptedTypes = [
     'image/jpeg',

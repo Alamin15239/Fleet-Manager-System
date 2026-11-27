@@ -52,7 +52,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     const key = document.fileUrl.slice(5)
     const storageMeta = (document.editorState as any)?.storage
     const expectedOrganizationId = user.organizationId || user.organizationSlug || 'primary'
-    if (!isOrganizationObjectKey(key, expectedOrganizationId) || storageMeta?.organizationId !== expectedOrganizationId || storageMeta?.entityId == null) {
+    if (!isOrganizationObjectKey(key, expectedOrganizationId) || storageMeta?.organizationId !== expectedOrganizationId || storageMeta?.entityId == null || storageMeta?.module !== (document.type === 'truck' ? 'truck-documents' : document.type === 'maintenance' ? 'maintenance-documents' : '')) {
       return NextResponse.json({ error: 'File not found' }, { status: 404 })
     }
     const parentExists = document.type === 'truck'

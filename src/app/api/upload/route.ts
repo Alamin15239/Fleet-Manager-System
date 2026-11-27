@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto'
 import { db } from '@/lib/db'
 import { requireAuth } from '@/lib/auth'
 import { requireRolePermission } from '@/lib/permission-middleware'
-import { deleteOrganizationObject, getOrganizationObject, isOrganizationObjectKey, putOrganizationObject } from '@/lib/object-storage'
+import { deleteOrganizationObject, putOrganizationObject } from '@/lib/object-storage'
 
 export const runtime = 'nodejs'
 
@@ -131,7 +131,7 @@ export async function POST(request: NextRequest) {
           createdById: user.id,
           editorState: {
             storage: {
-              organizationId: user.organizationId || user.organizationSlug || 'primary',
+              organizationId: authUser.organizationId || authUser.organizationSlug || 'primary',
               module: type === 'truck' ? 'truck-documents' : 'maintenance-documents',
               entityId,
               fileName: originalName,
