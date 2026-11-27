@@ -1,25 +1,50 @@
-import { getPrimaryDatabaseUrl } from '@/lib/primary-database'
+﻿import { getPrimaryDatabaseUrl } from '@/lib/primary-database'
 
 describe('getPrimaryDatabaseUrl', () => {
-  const neon = 'postgresql://neon.example/db?sslmode=require'
+  const prismaPooled = 'postgresql://pooled.prisma.example/db?sslmode=require'
+  const prismaDirect = 'postgresql://direct.prisma.example/db?sslmode=require'
+  const databaseUrl = 'postgresql://database.prisma.example/db?sslmode=require'
 
-  it('uses the Neon DATABASE_URL by default', () => {
-    expect(getPrimaryDatabaseUrl({ DATABASE_URL: neon })).toBe(neon)
-  })
-
-  it('accepts a PostgreSQL URL when an obsolete provider variable is present', () => {
+  it('prefers the pooled Prisma Postgres connection', () => {
     expect(getPrimaryDatabaseUrl({
-      DATABASE_URL: neon,
-      PRIMARY_DATABASE_PROVIDER: 'NEON'
-    })).toBe(neon)
+      STORAGE_DATABASE_URL_POOLED: prismaPooled,
+      STORAGE_DATABASE_URL: prismaDirect,
+      DATABASE_URL: databaseUrl,
+    })).toBe(prismaPooled)
   })
 
-  it('requires DATABASE_URL', () => {
-    expect(() => getPrimaryDatabaseUrl({})).toThrow('DATABASE_URL is required')
+  it('falls back to the direct Prisma integration connection', () => {
+    expect(getPrimaryDatabaseUrl({
+      STORAGE_DATABASE_URL: prismaDirect,
+      DATABASE_URL: databaseUrl,
+    })).toBe(prismaDirect)
+  })
+
+  it('falls back to DATABASE_URL', () => {
+    expect(getPrimaryDatabaseUrl({
+      DATABASE_URL: databaseUrl,
+    })).toBe(databaseUrl)
+  })
+
+  it('ignores obsolete provider variables', () => {
+    expect(getPrimaryDatabaseUrl({
+      DATABASE_URL: databaseUrl,
+      PRIMARY_DATABASE_PROVIDER: 'NEON',
+    })).toBe(databaseUrl)
+  })
+
+  it('requires a Prisma Postgres connection', () => {
+    expect(() => getPrimaryDatabaseUrl({}))
+      .toThrow('Prisma Postgres connection is required')
   })
 
   it('rejects malformed and non-PostgreSQL URLs', () => {
-    expect(() => getPrimaryDatabaseUrl({ DATABASE_URL: 'not-a-url' })).toThrow('valid PostgreSQL connection URL')
-    expect(() => getPrimaryDatabaseUrl({ DATABASE_URL: 'mysql://db.example/database' })).toThrow('PostgreSQL connection URL')
+    expect(() => getPrimaryDatabaseUrl({
+      DATABASE_URL: 'not-a-url',
+    })).toThrow('valid PostgreSQL connection URL')
+
+    expect(() => getPrimaryDatabaseUrl({
+      DATABASE_URL: 'mysql://db.example/database',
+    })).toThrow('PostgreSQL connection URL')
   })
 })
