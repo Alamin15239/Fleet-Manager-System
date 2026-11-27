@@ -10,11 +10,15 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   try {
     await requireAuth(request)
     const { id } = await params
-    const document = await db.document.findUnique({ where: { id }, select: { type: true, fileUrl: true, title: true } })
+    const document = await db.document.findUnique({ where: { id }, select: { type: true, fileUrl: true, title: true, editorState: true } })
     if (!document?.fileUrl?.startsWith('s3://')) return NextResponse.json({ error: 'File not found' }, { status: 404 })
     await requireRolePermission(request, document.type === 'truck' ? 'trucks' : 'maintenance', 'read')
     const key = document.fileUrl.slice(5)
-    if (!isOrganizationObjectKey(key)) return NextResponse.json({ error: 'File not found' }, { status: 404 })
+    const storageMeta = (document.editorState as any)?.storage
+    const expectedOrganizationId = user.organizationId || user.organizationSlug || 'primary'
+    if (!isOrganizationObjectKey(key, expectedOrganizationId) || storageMeta?.organizationId !== expectedOrganizationId || storageMeta?.entityId == null) {
+      return NextResponse.json({ error: 'File not found' }, { status: 404 })
+    }
     const object = await getOrganizationObject(key)
     const safeName = (document.title || 'download').replace(/[\r\n"\\]/g, '_')
     return new NextResponse(object.body, { headers: {
@@ -35,11 +39,16 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
   try {
     await requireAuth(request)
     const { id } = await params
-    const document = await db.document.findUnique({ where: { id }, select: { type: true, fileUrl: true } })
+    const user = await requireAuth(request)
+    const document = await db.document.findUnique({ where: { id }, select: { type: true, fileUrl: true, editorState: true } })
     if (!document?.fileUrl?.startsWith('s3://')) return NextResponse.json({ error: 'File not found or is not stored in object storage' }, { status: 404 })
     await requireRolePermission(request, document.type === 'truck' ? 'trucks' : 'maintenance', 'delete')
     const key = document.fileUrl.slice(5)
-    if (!isOrganizationObjectKey(key)) return NextResponse.json({ error: 'File not found' }, { status: 404 })
+    const storageMeta = (document.editorState as any)?.storage
+    const expectedOrganizationId = user.organizationId || user.organizationSlug || 'primary'
+    if (!isOrganizationObjectKey(key, expectedOrganizationId) || storageMeta?.organizationId !== expectedOrganizationId || storageMeta?.entityId == null) {
+      return NextResponse.json({ error: 'File not found' }, { status: 404 })
+    }
     await db.document.delete({ where: { id } })
     await deleteOrganizationObject(key).catch(error => console.error('Stored upload cleanup failed:', error))
     return NextResponse.json({ success: true }, { headers: { 'Cache-Control': 'no-store' } })

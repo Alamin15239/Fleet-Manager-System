@@ -80,7 +80,19 @@ export async function POST(request: NextRequest) {
     let documentRecord
     try {
       documentRecord = await db.document.create({
-        data: { title: originalName, type, fileUrl: 's3://' + stored.key, createdById: user.id },
+        data: {
+          title: originalName,
+          type,
+          fileUrl: 's3://' + stored.key,
+          createdById: user.id,
+          editorState: {
+            storage: {
+              organizationId: user.organizationId || user.organizationSlug || 'primary',
+              module: type === 'truck' ? 'truck-documents' : 'maintenance-documents',
+              entityId,
+            },
+          },
+        },
         select: { id: true },
       })
     } catch (dbError) {

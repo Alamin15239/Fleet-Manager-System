@@ -97,8 +97,14 @@ export async function deleteOrganizationObject(key: string) {
   await getClient().send(new DeleteObjectCommand({ Bucket: config.bucket, Key: key }))
 }
 
-export function isOrganizationObjectKey(value: string | null | undefined): value is string {
-  return typeof value === 'string' && value.startsWith('organizations/')
+export function isOrganizationObjectKey(value: string | null | undefined, organizationId?: string | null): value is string {
+  if (typeof value !== 'string' || !value.startsWith('organizations/')) return false
+  if (!organizationId) return false
+  try {
+    return value.startsWith('organizations/' + safeSegment(organizationId) + '/')
+  } catch {
+    return false
+  }
 }
 
 export function profileImageDisplayUrl(value: string | null | undefined) {

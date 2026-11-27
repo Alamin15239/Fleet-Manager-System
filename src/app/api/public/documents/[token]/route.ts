@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db, findOrganizationBySlug, withOrganization } from '@/lib/db'
-import { getOrganizationObject } from '@/lib/object-storage'
+import { getOrganizationObject, isOrganizationObjectKey } from '@/lib/object-storage'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -35,7 +35,11 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
       const allowed = new Set(['application/pdf', 'image/jpeg', 'image/png', 'image/webp'])
       const pointer = Buffer.from(document.fileData).toString('utf8')
-      const object = pointer.startsWith('s3://') ? await getOrganizationObject(pointer.slice(5)) : null
+      const objectKey = pointer.startsWith('s3://') ? pointer.slice(5) : null
+      if (objectKey && !isOrganizationObjectKey(objectKey, organization.id)) {
+        return new NextResponse('This document link is no longer available.', { status: 404, headers: { 'Cache-Control': 'no-store' } })
+      }
+      const object = objectKey ? await getOrganizationObject(objectKey) : null
       const mimeType = object?.contentType || (document.mimeType && allowed.has(document.mimeType) ? document.mimeType : 'application/octet-stream')
       const bytes = object ? object.body : Buffer.from(document.fileData)
       return new NextResponse(bytes, { headers: {

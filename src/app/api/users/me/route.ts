@@ -11,8 +11,7 @@ const updateProfileSchema = z.object({
   phone: z.string().optional(),
   department: z.string().optional(),
   title: z.string().optional(),
-  bio: z.string().optional(),
-  profileImage: z.string().optional()
+  bio: z.string().optional()
 })
 
 export async function PUT(request: NextRequest) {

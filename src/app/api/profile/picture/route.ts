@@ -72,7 +72,10 @@ export async function GET(request: NextRequest) {
     const value = record?.profileImage || ''
     if (!value) return NextResponse.json({ error: 'Profile image not found' }, { status: 404 })
     if (value.startsWith('s3://')) {
-      const object = await getOrganizationObject(value.slice(5))
+      const key = value.slice(5)
+      const expectedOrganizationId = user.organizationId || user.organizationSlug || 'primary'
+      if (!isOrganizationObjectKey(key, expectedOrganizationId)) return NextResponse.json({ error: 'Profile image is unavailable' }, { status: 404 })
+      const object = await getOrganizationObject(key)
       return new NextResponse(object.body, { headers: {
         'Content-Type': object.contentType, 'Content-Length': String(object.contentLength),
         'Cache-Control': 'private, no-store', 'X-Content-Type-Options': 'nosniff',
