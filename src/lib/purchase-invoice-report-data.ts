@@ -1,4 +1,4 @@
-import { Prisma } from '@prisma/client'
+import { Prisma } from '@/lib/prisma-compat'
 import { db } from '@/lib/db'
 
 export class PurchaseInvoiceReportInputError extends Error {

@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken'
 import type { NextRequest, NextResponse } from 'next/server'
+import { getJwtSecret } from '@/lib/db'
 
 export const PASSKEY_AUTH_OPTIONS_COOKIE = 'passkey-auth-options'
 export const PASSKEY_REGISTER_OPTIONS_COOKIE = 'passkey-register-options'
@@ -22,13 +23,13 @@ export function getPasskeyRelyingParty(request: NextRequest) {
 }
 
 export function signPasskeyChallenge(payload: Pick<PasskeyChallenge, 'purpose' | 'challenge' | 'userId' | 'organizationId' | 'organizationSlug'>) {
-  const secret = process.env.JWT_SECRET
+  const secret = getJwtSecret()
   if (!secret) throw new Error('JWT_SECRET environment variable is required')
   return jwt.sign(payload, secret, { expiresIn: PASSKEY_CHALLENGE_SECONDS })
 }
 
 export function verifyPasskeyChallenge(token: string, purpose: PasskeyChallenge['purpose']): PasskeyChallenge {
-  const secret = process.env.JWT_SECRET
+  const secret = getJwtSecret()
   if (!secret) throw new Error('JWT_SECRET environment variable is required')
   const payload = jwt.verify(token, secret) as PasskeyChallenge
   if (payload.purpose !== purpose || !payload.challenge || !payload.userId || !payload.organizationId || !payload.organizationSlug) {

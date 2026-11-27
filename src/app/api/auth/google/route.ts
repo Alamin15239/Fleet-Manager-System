@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from 'node:crypto'
 import jwt from 'jsonwebtoken'
 import { NextRequest, NextResponse } from 'next/server'
-import { findOrganizationBySlug } from '@/lib/db'
+import { findOrganizationBySlug, getJwtSecret } from '@/lib/db'
 
 export const runtime = 'nodejs'
 
@@ -31,7 +31,7 @@ function returnToLogin(request: NextRequest, organizationSlug: string | undefine
 
 export async function GET(request: NextRequest) {
   const clientId = process.env.GOOGLE_CLIENT_ID?.trim()
-  const jwtSecret = process.env.JWT_SECRET
+  const jwtSecret = getJwtSecret()
   const requestedSlug = request.nextUrl.searchParams.get('org')?.trim().toLowerCase() || undefined
 
   if (!clientId || !process.env.GOOGLE_CLIENT_SECRET?.trim() || !jwtSecret) {

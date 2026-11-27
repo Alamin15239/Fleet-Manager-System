@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireAuth } from '@/lib/auth'
 import { PermissionManager } from '@/lib/permissions'
-import { Prisma } from '@prisma/client'
+import { Prisma } from '@/lib/prisma-compat'
 
 const notificationKeys = ['email', 'upcomingMaintenance', 'overdueMaintenance', 'lowStock'] as const
 

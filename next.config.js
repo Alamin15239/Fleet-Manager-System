@@ -1,9 +1,15 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Standalone output ONLY for the Docker build (NexoraEdge sets
-  // DOCKER_BUILD=1 in its builder stage). Vercel builds without it.
-  ...(process.env.DOCKER_BUILD === '1' ? { output: 'standalone' } : {}),
-  serverExternalPackages: ['puppeteer-core'],
+  // The standalone output is the build Prisma Compute ships; it is also what
+  // `next start` and the Docker build run.
+  output: 'standalone',
+  serverExternalPackages: [
+    'puppeteer-core',
+    '@prisma/composer',
+    '@prisma/composer-prisma-cloud',
+    '@prisma/orm-postgres',
+    'pg',
+  ],
   typescript: {
     ignoreBuildErrors: true
   },

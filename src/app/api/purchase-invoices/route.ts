@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { Prisma, PurchaseExpenseCategory } from '@prisma/client'
+import { Prisma, PurchaseExpenseCategory } from '@/lib/prisma-compat'
 import { randomUUID } from 'crypto'
 import { db } from '@/lib/db'
 import { requireRolePermission } from '@/lib/permission-middleware'

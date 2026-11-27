@@ -1,12 +1,12 @@
 import jwt from 'jsonwebtoken'
 import bcrypt from 'bcryptjs'
-import { db, findOrganizationById, getPrimaryOrganization, OrganizationRecord } from '@/lib/db'
+import { db, findOrganizationById, getPrimaryOrganization, getJwtSecret as platformJwtSecret, OrganizationRecord } from '@/lib/db'
 import { logUserLogin } from '@/lib/activity-tracking'
 import { NextRequest } from 'next/server'
 import { profileImageDisplayUrl } from '@/lib/object-storage'
 
 function getJwtSecret(): string {
-  const secret = process.env.JWT_SECRET
+  const secret = platformJwtSecret()
   if (!secret) {
     throw new Error('JWT_SECRET environment variable is required')
   }
