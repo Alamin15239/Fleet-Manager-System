@@ -4,6 +4,7 @@ import { Resend } from 'resend'
 import { db } from '@/lib/db'
 import { requireAuth } from '@/lib/auth'
 import { requireRolePermission } from '@/lib/permission-middleware'
+import { deleteOrganizationObject, putOrganizationObject } from '@/lib/object-storage'
 
 const allowedFiles = new Set(['application/pdf', 'image/jpeg', 'image/png', 'image/webp'])
 const expiryDocumentTypes = ['Fire extinguisher', 'Operation card', 'Istimara', 'Insurance', 'Fahas'] as const
@@ -111,8 +112,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  let uploadedKey: string | undefined
   try {
-    await requireAuth(request)
+    const authUser = await requireAuth(request)
     const form = await request.formData()
     const sourceType = String(form.get('sourceType') || '')
     const sourceId = String(form.get('sourceId') || '').trim()
@@ -153,7 +155,7 @@ export async function POST(request: NextRequest) {
       : sourceType === 'TRUCK'
         ? { truckId_documentType: { truckId: sourceId, documentType } }
         : { trailerId_documentType: { trailerId: sourceId, documentType } }
-    const existingDocument = await db.vehicleDocument.findUnique({ where: uniqueWhere as any, select: { id: true, title: true, notes: true, fileName: true, validUntil: true, shareToken: true, shareExpiresAt: true } })
+    const existingDocument = await db.vehicleDocument.findUnique({ where: uniqueWhere as any, select: { id: true, title: true, notes: true, fileName: true, fileData: true, validUntil: true, shareToken: true, shareExpiresAt: true } })
     const user = await requireRolePermission(request, sourceType === 'TRAILER' ? 'trailers' : 'trucks', existingDocument ? 'update' : 'create')
     // Expiry records can be stored without a file. Protection Card creation is
     // itself a file upload, so only that document type requires a file payload.
@@ -176,12 +178,28 @@ export async function POST(request: NextRequest) {
     if (validFrom && validUntil && validUntil < validFrom) {
       return NextResponse.json({ error: 'Expiry date must be after the valid-from date.' }, { status: 400 })
     }
-    const fileFields = file ? {
-      fileName: file.name.replace(/[\r\n"\\/]/g, '_').slice(0, 180),
-      mimeType: file.type,
-      fileSize: file.size,
-      fileData: Buffer.from(await file.arrayBuffer()),
-    } : { fileName: null, mimeType: null, fileSize: null, fileData: null }
+    let fileFields: { fileName: string | null; mimeType: string | null; fileSize: number | null; fileData: Buffer | null }
+    if (file) {
+      const stored = await putOrganizationObject({
+        organizationId: authUser.organizationId || authUser.organizationSlug || 'primary',
+        module: 'vehicle-documents',
+        entityId: sourceId,
+        fileName: file.name,
+        contentType: file.type,
+        body: Buffer.from(await file.arrayBuffer()),
+      })
+      uploadedKey = stored.key
+      fileFields = {
+        fileName: file.name.replace(/[\r\n"\\/]/g, '_').slice(0, 180),
+        mimeType: file.type,
+        fileSize: file.size,
+        // Keep the storage pointer in the existing nullable Bytes column so
+        // this can roll out without a destructive tenant schema migration.
+        fileData: Buffer.from('s3://' + stored.key, 'utf8'),
+      }
+    } else {
+      fileFields = { fileName: null, mimeType: null, fileSize: null, fileData: null }
+    }
     const submittedTitle = String(form.get('title') || '').trim().slice(0, 120)
     const data = {
       truckId: sourceType === 'TRUCK' ? sourceId : null,
@@ -211,6 +229,13 @@ export async function POST(request: NextRequest) {
           update: { ...data, truckId: undefined, trailerId: undefined, driverId: undefined, vehicleId: undefined, ...(file ? fileFields : {}) },
           select,
         })
+    if (uploadedKey) {
+      const oldPointer = existingDocument?.fileData ? Buffer.from(existingDocument.fileData).toString('utf8') : ''
+      if (oldPointer.startsWith('s3://')) {
+        await deleteOrganizationObject(oldPointer.slice(5)).catch(error => console.error('Old vehicle document cleanup failed:', error))
+      }
+      uploadedKey = undefined
+    }
     const expiryDateChanged = !!existingDocument && existingDocument.validUntil?.toISOString().slice(0, 10) !== validUntil?.toISOString().slice(0, 10)
     // Send an event-driven email whenever an expiry-tracked document is created,
     // its expiry date changes, or a replacement file is uploaded (even if the
@@ -250,6 +275,7 @@ export async function POST(request: NextRequest) {
     }
     return NextResponse.json({ document })
   } catch (error) {
+    if (uploadedKey) await deleteOrganizationObject(uploadedKey).catch(cleanupError => console.error('Failed to clean up untracked vehicle document:', cleanupError))
     const status = statusFor(error)
     return safeError(status, 'Could not save the vehicle document.')
   }
