@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth'
 import { db } from '@/lib/db'
+import { profileImageDisplayUrl } from '@/lib/object-storage'
 
 const privateNoStore = { 'Cache-Control': 'private, no-store, max-age=0' }
 
@@ -45,6 +46,7 @@ export async function GET(request: NextRequest) {
       success: true,
       user: {
         ...fullUser,
+        profileImage: profileImageDisplayUrl(fullUser.profileImage),
         organizationId: user.organizationId,
         organizationSlug: user.organizationSlug,
         organizationName: user.organizationName,
