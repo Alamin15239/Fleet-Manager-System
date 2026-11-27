@@ -34,7 +34,7 @@ async function main() {
     adminConnected = true
     await admin.query('CREATE ROLE "' + roleName + '" LOGIN PASSWORD \'' + password + '\'')
     roleCreated = true
-    await admin.query('CREATE DATABASE "' + databaseName + '" OWNER "' + roleName + '"')
+    await admin.query('CREATE DATABASE "' + databaseName + '"')
     databaseCreated = true
     await admin.query('GRANT ALL PRIVILEGES ON DATABASE "' + databaseName + '" TO "' + roleName + '"')
 

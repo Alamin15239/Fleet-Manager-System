@@ -395,13 +395,11 @@ async function ensureTidbOrganizationDatabase(
     const database = await client.query('SELECT 1 FROM pg_database WHERE datname = $1', [databaseName])
     if (database.rows.length === 0) {
       try {
-        await client.query(`CREATE DATABASE "${databaseName}" OWNER "${roleName}"`)
+        await client.query(`CREATE DATABASE "${databaseName}"`)
       } catch (error) {
         if ((error as { code?: string })?.code !== '42P04') throw error
-        await client.query(`ALTER DATABASE "${databaseName}" OWNER TO "${roleName}"`)
       }
     } else {
-      await client.query(`ALTER DATABASE "${databaseName}" OWNER TO "${roleName}"`)
     }
     await client.query(`GRANT ALL PRIVILEGES ON DATABASE "${databaseName}" TO "${roleName}"`)
   } finally {
