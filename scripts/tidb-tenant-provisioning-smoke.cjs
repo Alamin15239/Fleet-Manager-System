@@ -55,14 +55,12 @@ async function main() {
     roleCreated = true
     await admin.query('CREATE DATABASE "' + databaseName + '"')
     databaseCreated = true
-    await admin.query('GRANT ALL PRIVILEGES ON DATABASE "' + databaseName + '" TO "' + roleName + '"')
-
     const schemaAdminUrl = new URL(adminUrl)
     schemaAdminUrl.pathname = '/' + databaseName
     const schemaAdmin = new Client({ connectionString: schemaAdminUrl.toString(), connectionTimeoutMillis: 5000 })
     await schemaAdmin.connect()
     try {
-      await schemaAdmin.query('GRANT ALL PRIVILEGES ON SCHEMA public TO "' + roleName + '"')
+      await schemaAdmin.query('GRANT USAGE, CREATE ON SCHEMA public TO "' + roleName + '"')
     } finally {
       await schemaAdmin.end()
     }
