@@ -29,4 +29,4 @@ jobs:
       - name: Test isolated TiDB tenant provisioning and schema bootstrap
         run: node scripts/tidb-tenant-provisioning-smoke.cjs
         env:
-          TIDB_DATABASE_URL: \${{ secrets.TIDB_DATABASE_URL }}
+          TIDB_DATABASE_URL: ${{ secrets.TIDB_DATABASE_URL }}
