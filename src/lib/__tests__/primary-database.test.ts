@@ -1,4 +1,4 @@
-import { getPrimaryDatabaseProvider, getPrimaryDatabaseUrl } from '@/lib/primary-database'
+import { getPrimaryDatabaseProvider, getPrimaryDatabaseUrl, isSamePostgresDatabase } from '@/lib/primary-database'
 
 describe('getPrimaryDatabaseUrl', () => {
   const prismaPooled = 'postgresql://pooled.prisma.example/db?sslmode=require'
@@ -62,5 +62,22 @@ describe('getPrimaryDatabaseProvider', () => {
     expect(getPrimaryDatabaseProvider({
       DATABASE_URL: 'postgresql://ep-example.neon.tech/db',
     })).toBe('NEON')
+  })
+})
+
+
+describe('isSamePostgresDatabase', () => {
+  it('recognizes the same database across pooled and direct hostnames', () => {
+    expect(isSamePostgresDatabase(
+      'postgresql://db_user:secret@db-pooler.prisma-data.net:5432/postgres',
+      'postgresql://db_user:secret@db.prisma-data.net:5432/postgres',
+    )).toBe(true)
+  })
+
+  it('does not confuse separate Prisma databases sharing a gateway and database path', () => {
+    expect(isSamePostgresDatabase(
+      'postgresql://primary_db:secret@db.prisma-data.net:5432/postgres',
+      'postgresql://tenant_db:secret@db.prisma-data.net:5432/postgres',
+    )).toBe(false)
   })
 })
