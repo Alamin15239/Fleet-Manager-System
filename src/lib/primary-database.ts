@@ -34,3 +34,15 @@ export function getPrimaryDatabaseProvider(env: PrimaryDatabaseEnvironment = pro
   if (hostname.includes('neon.tech')) return 'NEON'
   return 'POSTGRESQL'
 }
+
+
+/** Compare database identity across direct and pooled endpoints without exposing credentials. */
+export function isSamePostgresDatabase(firstUrl: string, secondUrl: string): boolean {
+  const first = new URL(firstUrl)
+  const second = new URL(secondUrl)
+  const normalizeHost = (host: string) => host.toLowerCase().replace(/-pooler(?=\\.)/, '')
+  return normalizeHost(first.hostname) === normalizeHost(second.hostname) &&
+    first.pathname === second.pathname &&
+    first.username === second.username &&
+    first.port === second.port
+}
