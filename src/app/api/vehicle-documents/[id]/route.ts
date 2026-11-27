@@ -2,11 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireAuth } from '@/lib/auth'
 import { requireRolePermission } from '@/lib/permission-middleware'
-import { deleteOrganizationObject, getOrganizationObject } from '@/lib/object-storage'
+import { deleteOrganizationObject, getOrganizationObject, isOrganizationObjectKey } from '@/lib/object-storage'
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    await requireAuth(request)
+    const user = await requireAuth(request)
     const { id } = await params
     const owner = await db.vehicleDocument.findUnique({ where: { id }, select: { truckId: true, trailerId: true, driverId: true } })
     if (!owner) return NextResponse.json({ error: 'Document not found' }, { status: 404 })
@@ -15,7 +15,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     if (!document) return NextResponse.json({ error: 'Document not found' }, { status: 404 })
     if (!document.fileData || !document.fileName) return NextResponse.json({ error: 'This record does not have an uploaded file.' }, { status: 404 })
     const pointer = Buffer.from(document.fileData).toString('utf8')
-    const object = pointer.startsWith('s3://') ? await getOrganizationObject(pointer.slice(5)) : null
+    const objectKey = pointer.startsWith('s3://') ? pointer.slice(5) : null
+    const expectedOrganizationId = user.organizationId || user.organizationSlug || 'primary'
+    if (objectKey && !isOrganizationObjectKey(objectKey, expectedOrganizationId)) return NextResponse.json({ error: 'Document not found' }, { status: 404 })
+    const object = objectKey ? await getOrganizationObject(objectKey) : null
     const bytes = object ? object.body : Buffer.from(document.fileData)
     return new NextResponse(bytes, { headers: {
       'Content-Type': object?.contentType || document.mimeType || 'application/octet-stream',
@@ -40,7 +43,12 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     await requireRolePermission(request, owner.trailerId ? 'trailers' : 'trucks', 'delete')
     await db.vehicleDocument.delete({ where: { id } })
     const pointer = owner.fileData ? Buffer.from(owner.fileData).toString('utf8') : ''
-    if (pointer.startsWith('s3://')) await deleteOrganizationObject(pointer.slice(5))
+    if (pointer.startsWith('s3://')) {
+      const key = pointer.slice(5)
+      const expectedOrganizationId = user.organizationId || user.organizationSlug || 'primary'
+      if (!isOrganizationObjectKey(key, expectedOrganizationId)) return NextResponse.json({ error: 'Document not found' }, { status: 404 })
+      await deleteOrganizationObject(key)
+    }
     return NextResponse.json({ success: true })
   } catch (error) {
     const message = error instanceof Error ? error.message : ''
