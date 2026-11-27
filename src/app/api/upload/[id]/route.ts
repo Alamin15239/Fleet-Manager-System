@@ -8,7 +8,7 @@ export const runtime = 'nodejs'
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    await requireAuth(request)
+    const user = await requireAuth(request)
     const { id } = await params
     const document = await db.document.findUnique({ where: { id }, select: { type: true, fileUrl: true, title: true, editorState: true } })
     if (!document?.fileUrl?.startsWith('s3://')) return NextResponse.json({ error: 'File not found' }, { status: 404 })
@@ -37,9 +37,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    await requireAuth(request)
-    const { id } = await params
     const user = await requireAuth(request)
+    const { id } = await params
     const document = await db.document.findUnique({ where: { id }, select: { type: true, fileUrl: true, editorState: true } })
     if (!document?.fileUrl?.startsWith('s3://')) return NextResponse.json({ error: 'File not found or is not stored in object storage' }, { status: 404 })
     await requireRolePermission(request, document.type === 'truck' ? 'trucks' : 'maintenance', 'delete')
