@@ -40,8 +40,8 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     await requireRolePermission(request, document.type === 'truck' ? 'trucks' : 'maintenance', 'delete')
     const key = document.fileUrl.slice(5)
     if (!isOrganizationObjectKey(key)) return NextResponse.json({ error: 'File not found' }, { status: 404 })
-    await deleteOrganizationObject(key)
     await db.document.delete({ where: { id } })
+    await deleteOrganizationObject(key).catch(error => console.error('Stored upload cleanup failed:', error))
     return NextResponse.json({ success: true }, { headers: { 'Cache-Control': 'no-store' } })
   } catch (error) {
     const message = error instanceof Error ? error.message : ''
