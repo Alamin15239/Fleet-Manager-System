@@ -178,7 +178,7 @@ export async function POST(request: NextRequest) {
     if (validFrom && validUntil && validUntil < validFrom) {
       return NextResponse.json({ error: 'Expiry date must be after the valid-from date.' }, { status: 400 })
     }
-    let fileFields: { fileName: string | null; mimeType: string | null; fileSize: number | null; fileData: Buffer | null }
+    let fileFields: { fileName: string | null; mimeType: string | null; fileSize: number | null; fileData: Uint8Array<ArrayBuffer> | null }
     if (file) {
       const stored = await putOrganizationObject({
         organizationId: authUser.organizationId || authUser.organizationSlug || 'primary',
@@ -195,7 +195,7 @@ export async function POST(request: NextRequest) {
         fileSize: file.size,
         // Keep the storage pointer in the existing nullable Bytes column so
         // this can roll out without a destructive tenant schema migration.
-        fileData: Buffer.from('s3://' + stored.key, 'utf8'),
+        fileData: new Uint8Array(Buffer.from('s3://' + stored.key, 'utf8')),
       }
     } else {
       fileFields = { fileName: null, mimeType: null, fileSize: null, fileData: null }
