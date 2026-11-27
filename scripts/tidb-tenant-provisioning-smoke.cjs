@@ -23,6 +23,7 @@ async function main() {
   const roleName = databaseName + '_app'
   const password = randomBytes(32).toString('base64url')
   const admin = new Client({ connectionString: adminUrl.toString(), connectionTimeoutMillis: 5000 })
+  let adminConnected = false
   let roleCreated = false
   let databaseCreated = false
   let tenant = null
@@ -30,6 +31,7 @@ async function main() {
 
   try {
     await admin.connect()
+    adminConnected = true
     await admin.query('CREATE ROLE "' + roleName + '" LOGIN PASSWORD \'' + password + '\'')
     roleCreated = true
     await admin.query('CREATE DATABASE "' + databaseName + '" OWNER "' + roleName + '"')
@@ -80,7 +82,7 @@ async function main() {
   } finally {
     await prisma?.$disconnect().catch(() => undefined)
     await tenant?.end().catch(() => undefined)
-    if (admin.connected) {
+    if (adminConnected) {
       if (databaseCreated) {
         await admin.query('DROP DATABASE "' + databaseName + '"').catch((error) => {
           console.error('Cleanup warning: could not drop temporary smoke database:', error.message)
