@@ -626,17 +626,17 @@ export async function provisionOrganization(organizationId: string) {
         })
       }
     } else if (provider === 'TIDB') {
-      // Validate encryption configuration before creating a database.
+      // Persist the provider marker before external DDL so failed provisioning
+      // can still clean up a partially created database or login role.
       encryptOrganizationDatabaseUrl('configuration-check')
+      await organizationModel.update({
+        where: { id: organization.id },
+        data: { databaseProvider: provider, neonProjectId: null, prismaDatabaseId: null }
+      })
       connectionUri = await ensureTidbOrganizationDatabase(organization)
       await organizationModel.update({
         where: { id: organization.id },
-        data: {
-          databaseProvider: provider,
-          neonProjectId: null,
-          prismaDatabaseId: null,
-          encryptedDatabaseUrl: encryptOrganizationDatabaseUrl(connectionUri)
-        }
+        data: { encryptedDatabaseUrl: encryptOrganizationDatabaseUrl(connectionUri) }
       })
     } else if (provider === 'PRISMA') {
       // Validate before creating billable external resources so missing crypto
