@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/auth'
-import { controlDb, getOrganizationPrismaClient, getPrimaryOrganization, type OrganizationRecord } from '@/lib/db'
+import { controlDb, db, getOrganizationPrismaClient, getPrimaryOrganization, withOrganization, type OrganizationRecord } from '@/lib/db'
 import { deleteOrganizationObject, getOrganizationObject, putOrganizationObject } from '@/lib/object-storage'
 
 export const runtime = 'nodejs'
@@ -57,6 +57,9 @@ async function storeAndVerify(input: {
 
 async function migrateDatabase(organization: OrganizationRecord, execute: boolean) {
   const client = organization.isPrimary ? controlDb : await getOrganizationPrismaClient(organization)
+  if (!organization.isPrimary) {
+    await withOrganization(organization, () => db.vehicleDocument.findMany({ select: { id: true }, take: 0 }).then(() => undefined))
+  }
   const counters: Counters = { scanned: 0, migrated: 0, skipped: 0, failed: 0 }
   const failures: Failure[] = []
   const orgId = organization.id || organization.slug
@@ -126,12 +129,14 @@ async function migrateDatabase(organization: OrganizationRecord, execute: boolea
     } catch (error) { recordFailure('truck.image', row.id, error) }
   }
 
-  const vehicleDocuments = await client.vehicleDocument.findMany({
-    where: { fileData: { not: null } },
-    select: { id: true, fileName: true, mimeType: true, fileData: true },
-    take: 1000,
-    orderBy: { id: 'asc' },
-  })
+  const vehicleDocuments = await client.$queryRaw<Array<{ id: string; fileName: string | null; mimeType: string | null; fileData: Uint8Array }>>`
+    SELECT "id", "fileName", "mimeType", "fileData"
+    FROM "vehicle_documents"
+    WHERE "fileData" IS NOT NULL
+      AND left(encode("fileData", 'escape'), 5) <> 's3://'
+    ORDER BY "id"
+    LIMIT 1000
+  `
   for (const row of vehicleDocuments) {
     const oldBytes = row.fileData ? Buffer.from(row.fileData) : Buffer.alloc(0)
     if (!oldBytes.length) continue
@@ -147,11 +152,12 @@ async function migrateDatabase(organization: OrganizationRecord, execute: boolea
         fileName: row.fileName || 'vehicle-document.' + extensionFor(contentType, 'bin'),
         contentType, body: oldBytes,
       })
-      const updated = await client.vehicleDocument.updateMany({
-        where: { id: row.id, fileData: oldBytes },
-        data: { fileData: Buffer.from('s3://' + key) },
-      })
-      if (!updated.count) {
+      const updated = await client.$executeRaw`
+        UPDATE "vehicle_documents"
+        SET "fileData" = ${Buffer.from('s3://' + key)}
+        WHERE "id" = ${row.id} AND "fileData" = ${oldBytes}
+      `
+      if (!updated) {
         await deleteOrganizationObject(key).catch(() => undefined)
         counters.skipped++
       } else counters.migrated++
@@ -202,7 +208,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: totals.failed === 0,
       mode: execute ? 'migrate' : 'scan',
-      note: 'Only embedded profile images, truck images, vehicle-document bytes, and embedded image document URLs are included. Existing external links and other JSON attachments are deliberately left unchanged until their display routes are migrated.',
+      note: 'This batch migrates embedded profile images, embedded truck images, and legacy vehicle-document bytes. External links and other JSON attachment/signature fields are not changed.',
       totals,
       organizations: results,
     }, { headers: { 'Cache-Control': 'no-store' } })
