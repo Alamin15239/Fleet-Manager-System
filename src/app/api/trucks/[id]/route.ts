@@ -9,7 +9,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = await requireRolePermission(request, 'trucks', 'read')
+    await requireRolePermission(request, 'trucks', 'read')
     const { id } = await params;
     const truck = await db.truck.findUnique({
       where: { 
