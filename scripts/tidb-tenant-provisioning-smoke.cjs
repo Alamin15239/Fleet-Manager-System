@@ -37,7 +37,7 @@ async function main() {
   const suffix = randomBytes(6).toString('hex')
   const databaseName = 'fleet_smoke_' + suffix
   const roleName = databaseName + '_app'
-  const password = randomBytes(32).toString('base64url')
+  const password = randomBytes(24).toString('hex')
   const admin = new Client({ connectionString: adminUrl.toString(), connectionTimeoutMillis: 5000 })
   let adminConnected = false
   let cleanupFailed = false
@@ -49,8 +49,9 @@ async function main() {
   try {
     await admin.connect()
     adminConnected = true
-    await admin.query('CREATE ROLE "' + roleName + '" LOGIN PASSWORD \'' + password + '\'')
+    await admin.query('CREATE ROLE "' + roleName + '" LOGIN')
     roleCreated = true
+    await admin.query('ALTER ROLE "' + roleName + '" PASSWORD \'' + password + '\'')
 
     const roleResult = await admin.query(
       'SELECT rolname, rolcanlogin FROM pg_roles WHERE rolname = $1',
