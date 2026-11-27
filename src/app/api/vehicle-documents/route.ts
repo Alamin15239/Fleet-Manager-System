@@ -4,7 +4,7 @@ import { Resend } from 'resend'
 import { db } from '@/lib/db'
 import { requireAuth } from '@/lib/auth'
 import { requireRolePermission } from '@/lib/permission-middleware'
-import { deleteOrganizationObject, putOrganizationObject } from '@/lib/object-storage'
+import { deleteOrganizationObject, isOrganizationObjectKey, putOrganizationObject } from '@/lib/object-storage'
 
 const allowedFiles = new Set(['application/pdf', 'image/jpeg', 'image/png', 'image/webp'])
 const expiryDocumentTypes = ['Fire extinguisher', 'Operation card', 'Istimara', 'Insurance', 'Fahas'] as const
@@ -232,7 +232,11 @@ export async function POST(request: NextRequest) {
     if (uploadedKey) {
       const oldPointer = existingDocument?.fileData ? Buffer.from(existingDocument.fileData).toString('utf8') : ''
       if (oldPointer.startsWith('s3://')) {
-        await deleteOrganizationObject(oldPointer.slice(5)).catch(error => console.error('Old vehicle document cleanup failed:', error))
+        const oldKey = oldPointer.slice(5)
+        const organizationId = authUser.organizationId || authUser.organizationSlug || 'primary'
+        if (isOrganizationObjectKey(oldKey, organizationId)) {
+          await deleteOrganizationObject(oldKey).catch(error => console.error('Old vehicle document cleanup failed:', error))
+        }
       }
       uploadedKey = undefined
     }

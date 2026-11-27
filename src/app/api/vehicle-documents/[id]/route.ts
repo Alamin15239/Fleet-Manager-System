@@ -36,19 +36,17 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    await requireAuth(request)
+    const user = await requireAuth(request)
     const { id } = await params
     const owner = await db.vehicleDocument.findUnique({ where: { id }, select: { truckId: true, trailerId: true, driverId: true, fileData: true } })
     if (!owner) return NextResponse.json({ error: 'Document not found' }, { status: 404 })
     await requireRolePermission(request, owner.trailerId ? 'trailers' : 'trucks', 'delete')
-    await db.vehicleDocument.delete({ where: { id } })
     const pointer = owner.fileData ? Buffer.from(owner.fileData).toString('utf8') : ''
-    if (pointer.startsWith('s3://')) {
-      const key = pointer.slice(5)
-      const expectedOrganizationId = user.organizationId || user.organizationSlug || 'primary'
-      if (!isOrganizationObjectKey(key, expectedOrganizationId)) return NextResponse.json({ error: 'Document not found' }, { status: 404 })
-      await deleteOrganizationObject(key)
-    }
+    const key = pointer.startsWith('s3://') ? pointer.slice(5) : null
+    const expectedOrganizationId = user.organizationId || user.organizationSlug || 'primary'
+    if (key && !isOrganizationObjectKey(key, expectedOrganizationId)) return NextResponse.json({ error: 'Document not found' }, { status: 404 })
+    await db.vehicleDocument.delete({ where: { id } })
+    if (key) await deleteOrganizationObject(key).catch(error => console.error('Vehicle document object cleanup failed:', error))
     return NextResponse.json({ success: true })
   } catch (error) {
     const message = error instanceof Error ? error.message : ''

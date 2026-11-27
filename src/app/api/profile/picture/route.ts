@@ -45,7 +45,11 @@ async function saveProfileImage(request: NextRequest, fieldName: string) {
   }
 
   if (previous?.profileImage?.startsWith('s3://')) {
-    await deleteOrganizationObject(previous.profileImage.slice(5)).catch(error => console.error('Previous profile image cleanup failed:', error))
+    const previousKey = previous.profileImage.slice(5)
+    const organizationId = user.organizationId || user.organizationSlug || 'primary'
+    if (isOrganizationObjectKey(previousKey, organizationId)) {
+      await deleteOrganizationObject(previousKey).catch(error => console.error('Previous profile image cleanup failed:', error))
+    }
   }
   return NextResponse.json({
     success: true,
@@ -101,7 +105,11 @@ export async function DELETE(request: NextRequest) {
     const previous = await db.user.findUnique({ where: { id: user.id }, select: { profileImage: true } })
     await db.user.update({ where: { id: user.id }, data: { profileImage: null } })
     if (previous?.profileImage?.startsWith('s3://')) {
-      await deleteOrganizationObject(previous.profileImage.slice(5)).catch(error => console.error('Profile image cleanup failed:', error))
+      const previousKey = previous.profileImage.slice(5)
+      const organizationId = user.organizationId || user.organizationSlug || 'primary'
+      if (isOrganizationObjectKey(previousKey, organizationId)) {
+        await deleteOrganizationObject(previousKey).catch(error => console.error('Profile image cleanup failed:', error))
+      }
     }
     return NextResponse.json({ message: 'Profile picture removed successfully', user: { id: user.id, profileImage: null } }, { headers: { 'Cache-Control': 'private, no-store' } })
   } catch (error) {
