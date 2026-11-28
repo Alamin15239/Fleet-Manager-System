@@ -132,8 +132,10 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   let uploadedKey: string | undefined
+  let failureStage = 'authentication'
   try {
     const authUser = await requireAuth(request)
+    failureStage = 'multipart form parsing'
     const form = await request.formData()
     const sourceType = String(form.get('sourceType') || '')
     const sourceId = String(form.get('sourceId') || '').trim()
@@ -164,6 +166,7 @@ export async function POST(request: NextRequest) {
     }
     const safeFileName = file ? safeDocumentFileName(file.name) : null
 
+    failureStage = 'owner validation'
     if (sourceType === 'TRUCK' && !await db.truck.findFirst({ where: { id: sourceId, isDeleted: false }, select: { id: true } })) {
       return NextResponse.json({ error: 'Active truck not found.' }, { status: 404 })
     }
@@ -179,7 +182,9 @@ export async function POST(request: NextRequest) {
       : sourceType === 'TRUCK'
         ? { truckId_documentType: { truckId: sourceId, documentType } }
         : { trailerId_documentType: { trailerId: sourceId, documentType } }
+    failureStage = 'existing document lookup'
     const existingDocument = await db.vehicleDocument.findUnique({ where: uniqueWhere as any, select: { id: true, title: true, notes: true, fileName: true, fileData: true, validUntil: true, shareToken: true, shareExpiresAt: true } })
+    failureStage = 'permission check'
     const user = await requireRolePermission(request, sourceType === 'TRAILER' ? 'trailers' : 'trucks', existingDocument ? 'update' : 'create')
     // Expiry records can be stored without a file. Protection Card creation is
     // itself a file upload, so only that document type requires a file payload.
@@ -204,6 +209,7 @@ export async function POST(request: NextRequest) {
     }
     let fileFields: { fileName: string | null; mimeType: string | null; fileSize: number | null; fileData: Uint8Array<ArrayBuffer> | null }
     if (file) {
+      failureStage = 'object storage upload'
       const stored = await putOrganizationObject({
         organizationId: authUser.organizationId || authUser.organizationSlug || 'primary',
         module: 'vehicle-documents',
@@ -239,6 +245,7 @@ export async function POST(request: NextRequest) {
       ...((!existingDocument || file || existingDocument.validUntil?.toISOString().slice(0, 10) !== validUntil?.toISOString().slice(0, 10) || !existingDocument.shareToken || !existingDocument.shareExpiresAt || existingDocument.shareExpiresAt <= new Date()) && (file || existingDocument?.fileName) ? makeShareAccess() : {}),
     }
     const select = { id: true, title: true, documentType: true, fileName: true, mimeType: true, fileSize: true, validFrom: true, validUntil: true, reminderStartDate: true, notes: true, shareToken: true, shareExpiresAt: true, createdAt: true }
+    failureStage = 'database document write'
     const document = existingDocument && file
       ? await db.$transaction(async transaction => {
           // Remove the previous document row and its stored bytes before saving
@@ -269,6 +276,7 @@ export async function POST(request: NextRequest) {
     // its expiry date changes, or a replacement file is uploaded (even if the
     // expiry date remains the same). Email failure must not roll back the save.
     if (validUntil && (file || expiryDateChanged || !existingDocument)) {
+      failureStage = 'expiry notification'
       try {
         const settings = await db.settings.findFirst()
         const prefs = settings?.notifications && typeof settings.notifications === 'object' ? settings.notifications as Record<string, unknown> : {}
@@ -303,6 +311,19 @@ export async function POST(request: NextRequest) {
     }
     return NextResponse.json({ document })
   } catch (error) {
+    const diagnostic = error as { name?: string; code?: string; message?: string; meta?: { code?: string; modelName?: string; column?: string; table?: string; constraint?: string } }
+    console.error('[vehicle-documents] POST failed', {
+      stage: failureStage,
+      errorName: diagnostic?.name || 'UnknownError',
+      errorCode: diagnostic?.code || diagnostic?.meta?.code || null,
+      errorMessage: typeof diagnostic?.message === 'string' ? diagnostic.message.slice(0, 500) : 'Unknown error',
+      errorMeta: diagnostic?.meta ? {
+        modelName: diagnostic.meta.modelName,
+        column: diagnostic.meta.column,
+        table: diagnostic.meta.table,
+        constraint: diagnostic.meta.constraint,
+      } : undefined,
+    })
     if (uploadedKey) await deleteOrganizationObject(uploadedKey).catch(cleanupError => console.error('Failed to clean up untracked vehicle document:', cleanupError))
     const status = statusFor(error)
     return safeError(status, 'Could not save the vehicle document.')
