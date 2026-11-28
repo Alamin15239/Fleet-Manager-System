@@ -128,7 +128,7 @@ async function migrateDatabase(organization: OrganizationRecord, execute: boolea
     try {
       const parsed = dataUri(row.image || '')
       if (!parsed) { counters.skipped++; continue }
-      if (!execute) { counters.skipped++; continue }
+      if (!execute) { counters.planned++; continue }
       const key = await storeAndVerify({
         organizationId: orgId, module: 'truck-images', entityId: row.id,
         fileName: 'truck.' + extensionFor(parsed.contentType, 'jpg'),
@@ -162,7 +162,7 @@ async function migrateDatabase(organization: OrganizationRecord, execute: boolea
     try {
       if (oldBytes.length > MAX_FILE_BYTES) throw new Error('File exceeds the 25 MB migration limit')
       const contentType = row.mimeType || 'application/octet-stream'
-      if (!execute) { counters.skipped++; continue }
+      if (!execute) { counters.planned++; continue }
       const key = await storeAndVerify({
         organizationId: orgId, module: 'vehicle-documents', entityId: row.id,
         fileName: row.fileName || 'vehicle-document.' + extensionFor(contentType, 'bin'),
@@ -199,7 +199,7 @@ async function migrateDatabase(organization: OrganizationRecord, execute: boolea
         : {}
       const entityId = typeof oldStorage.entityId === 'string' ? oldStorage.entityId : ''
       if (!entityId) { counters.skipped++; continue }
-      if (!execute) { counters.skipped++; continue }
+      if (!execute) { counters.planned++; continue }
       const module = row.type === 'truck' ? 'truck-documents' : 'maintenance-documents'
       const extension = extensionFor(parsed.contentType, 'bin')
       const fileName = /\.[a-z0-9]{1,10}$/i.test(row.title) ? row.title : 'uploaded-document.' + extension
