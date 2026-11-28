@@ -243,6 +243,23 @@ export async function PUT(
         const nowOilChange = body.isOilChange !== undefined ? body.isOilChange : existingRecord.isOilChange
         const wasOilService = Boolean(existingRecord.isOilChange || String(existingRecord.serviceType || '').toLowerCase().includes('oil'))
         const isOilService = Boolean(nowOilChange || String(body.serviceType ?? existingRecord.serviceType).toLowerCase().includes('oil'))
+        const jobCardId = await syncMaintenanceRecordJobCard(tx, {
+          recordId: id,
+          previousJobCardId: existingRecord.jobCardId,
+          previousPartsCost: existingRecord.partsCost,
+          previousLaborCost: existingRecord.laborCost,
+          vehicle: targetTruckId ? { vehicleType: 'truck', vehicleId: targetTruckId } : null,
+          eventAt: body.datePerformed ? new Date(body.datePerformed) : existingRecord.datePerformed,
+          serviceType: body.serviceType ?? existingRecord.serviceType,
+          description: body.description ?? existingRecord.description,
+          odometerKm: body.currentMileage !== undefined ? Number(body.currentMileage) : existingRecord.currentMileage,
+          driverName: body.driverName ?? existingRecord.driverName,
+          mechanicName: body.mechanicName ?? existingRecord.mechanicName,
+          partsCost,
+          laborCost,
+          userId: user.id,
+          creationSource: (nowOilChange || isOilService) ? 'OIL' : 'UNKNOWN'
+        })
         if (wasOilService || isOilService) {
           let linkedItemId = isOilService ? body.oilInventoryItemId : null
           if (isOilService && linkedItemId === undefined) {
@@ -264,23 +281,6 @@ export async function PUT(
             jobCardId
           })
         }
-        const jobCardId = await syncMaintenanceRecordJobCard(tx, {
-          recordId: id,
-          previousJobCardId: existingRecord.jobCardId,
-          previousPartsCost: existingRecord.partsCost,
-          previousLaborCost: existingRecord.laborCost,
-          vehicle: targetTruckId ? { vehicleType: 'truck', vehicleId: targetTruckId } : null,
-          eventAt: body.datePerformed ? new Date(body.datePerformed) : existingRecord.datePerformed,
-          serviceType: body.serviceType ?? existingRecord.serviceType,
-          description: body.description ?? existingRecord.description,
-          odometerKm: body.currentMileage !== undefined ? Number(body.currentMileage) : existingRecord.currentMileage,
-          driverName: body.driverName ?? existingRecord.driverName,
-          mechanicName: body.mechanicName ?? existingRecord.mechanicName,
-          partsCost,
-          laborCost,
-          userId: user.id,
-          creationSource: (nowOilChange || isOilService) ? 'OIL' : 'UNKNOWN'
-        })
         return tx.maintenanceRecord.update({ where: { id }, data: { jobCardId } })
       })
     } else {
