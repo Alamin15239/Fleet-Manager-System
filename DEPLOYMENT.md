@@ -45,6 +45,19 @@ vercel.json configures two daily jobs:
 
 Both routes require Authorization: Bearer <CRON_SECRET>. The notification schedule targets 07:00 in Riyadh. Hosting plans can execute a scheduled job within a time window, so this should not be treated as an exact-time or real-time alert.
 
+## Private file storage
+
+Uploaded documents, attachments, profile pictures and truck images are stored in the configured private S3-compatible bucket. Set `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY_ID` and `S3_SECRET_ACCESS_KEY` in Vercel for every environment. The bucket must not be public; the application streams files through authenticated routes and stores only an `s3://` pointer in Prisma.
+
+The current upload routes write to object storage automatically. Existing database-embedded files require a one-time migration:
+
+1. Deploy the storage-enabled build and confirm the four storage variables are present.
+2. As a primary-organization administrator, call `POST /api/admin/storage-migration` with `{"execute":false}` and review the report.
+3. Run the same endpoint with `{"execute":true}` only after the dry-run counts are expected.
+4. Repeat the execute call until every `remaining` counter is zero, then verify representative downloads and the bucket object count.
+
+The migration verifies each uploaded object by SHA-256 before replacing the original database value. It is resumable and uses compare-and-set updates, so a retry does not overwrite a record that changed during migration. Keep the old database backup until verification is complete.
+
 ## OneDrive setup
 
 Connect OneDrive from Settings → Excel Sync after the Microsoft app registration and environment variables are set. See [Personal OneDrive Excel sync](docs/onedrive-excel-sync.md) for the delegated scopes, redirect URI, and user workflow. Workbook changes are staged for review and checked against the applying user’s permissions; see [Workbook imports](docs/onedrive-workbook-imports.md).
