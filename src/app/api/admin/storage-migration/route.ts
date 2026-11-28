@@ -23,6 +23,24 @@ function dataUri(value: string) {
   return { contentType: match[1].toLowerCase(), body }
 }
 
+function fileDataUri(value: string) {
+  const match = value.match(/^data:(image\/(?:jpeg|png|gif|webp)|application\/(?:pdf|msword|vnd\.openxmlformats-officedocument\.wordprocessingml\.document|vnd\.ms-excel|vnd\.openxmlformats-officedocument\.spreadsheetml\.sheet));base64,([A-Za-z0-9+/]+={0,2})$/i)
+  if (!match) return null
+  const body = Buffer.from(match[2], 'base64')
+  if (!body.length || body.length > MAX_FILE_BYTES) throw new Error('Embedded document is empty or exceeds the 25 MB migration limit')
+  const contentType = match[1].toLowerCase()
+  const starts = (bytes: number[]) => body.length >= bytes.length && body.subarray(0, bytes.length).equals(Buffer.from(bytes))
+  const valid = contentType === 'image/jpeg' ? starts([0xff, 0xd8, 0xff])
+    : contentType === 'image/png' ? starts([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+    : contentType === 'image/gif' ? ['GIF87a', 'GIF89a'].includes(body.subarray(0, 6).toString('ascii'))
+    : contentType === 'image/webp' ? body.length >= 12 && body.toString('ascii', 0, 4) === 'RIFF' && body.toString('ascii', 8, 12) === 'WEBP'
+    : contentType === 'application/pdf' ? body.subarray(0, 5).toString('ascii') === '%PDF-'
+    : ['application/msword', 'application/vnd.ms-excel'].includes(contentType) ? starts([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1])
+    : starts([0x50, 0x4b, 0x03, 0x04])
+  if (!valid) throw new Error('Embedded document content does not match its declared format')
+  return { contentType, body }
+}
+
 function extensionFor(contentType: string, fallback: string) {
   const extensions: Record<string, string> = {
     'image/jpeg': 'jpg', 'image/png': 'png', 'image/gif': 'gif', 'image/webp': 'webp',
@@ -164,6 +182,34 @@ async function migrateDatabase(organization: OrganizationRecord, execute: boolea
     } catch (error) { recordFailure('vehicleDocument.fileData', row.id, error) }
   }
 
+  const documents = await client.document.findMany({
+    where: { fileUrl: { startsWith: 'data:' } },
+    select: { id: true, title: true, fileUrl: true },
+    take: 500,
+    orderBy: { id: 'asc' },
+  })
+  for (const row of documents) {
+    counters.scanned++
+    try {
+      const parsed = fileDataUri(row.fileUrl || '')
+      if (!parsed) { counters.skipped++; continue }
+      if (!execute) { counters.skipped++; continue }
+      const key = await storeAndVerify({
+        organizationId: orgId, module: 'maintenance-documents', entityId: row.id,
+        fileName: row.title || 'uploaded-document.' + extensionFor(parsed.contentType, 'bin'),
+        contentType: parsed.contentType, body: parsed.body,
+      })
+      const updated = await client.document.updateMany({
+        where: { id: row.id, fileUrl: row.fileUrl },
+        data: { fileUrl: 's3://' + key },
+      })
+      if (!updated.count) {
+        await deleteOrganizationObject(key).catch(() => undefined)
+        counters.skipped++
+      } else counters.migrated++
+    } catch (error) { recordFailure('document.fileUrl', row.id, error) }
+  }
+
   const remaining = {
     profileImages: await client.user.count({ where: { profileImage: { startsWith: 'data:image/' } } }),
     truckImages: await client.truck.count({ where: { image: { startsWith: 'data:image/' }, isDeleted: false } }),
@@ -171,6 +217,7 @@ async function migrateDatabase(organization: OrganizationRecord, execute: boolea
       SELECT COUNT(*) AS count FROM "vehicle_documents"
       WHERE "fileData" IS NOT NULL AND left(encode("fileData", 'escape'), 5) <> 's3://'
     `)[0]?.count || 0),
+    documentFiles: await client.document.count({ where: { fileUrl: { startsWith: 'data:' } } }),
   }
   return { organization: organization.slug, counters, failures, remaining }
 }
@@ -219,7 +266,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: totals.failed === 0,
       mode: execute ? 'migrate' : 'scan',
-      note: 'This batch migrates embedded profile images, embedded truck images, and legacy vehicle-document bytes. External links and other JSON attachment/signature fields are not changed.',
+      note: 'This batch migrates embedded profile images, embedded truck images, legacy vehicle-document bytes, and validated embedded Document.fileUrl files. External links and JSON attachment/signature fields are not changed.',
       totals,
       organizations: results,
     }, { headers: { 'Cache-Control': 'no-store' } })
