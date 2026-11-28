@@ -71,6 +71,82 @@ async function storeAndVerify(input: {
   }
 }
 
+
+type EmbeddedMigration = { value: unknown; files: number; migrated: number }
+
+async function migrateEmbeddedValue(input: {
+  value: unknown
+  organizationId: string
+  module: string
+  entityId: string
+  execute: boolean
+}): Promise<EmbeddedMigration> {
+  let files = 0
+  let migrated = 0
+  const visit = async (value: unknown, path: string): Promise<unknown> => {
+    if (typeof value === 'string' && value.startsWith('data:')) {
+      const parsed = fileDataUri(value)
+      if (!parsed) return value
+      files++
+      if (!input.execute) return value
+      const extension = extensionFor(parsed.contentType, 'bin')
+      const leaf = path.split('.').pop()?.replace(/[^a-z0-9_-]/gi, '').slice(0, 48) || 'attachment'
+      const key = await storeAndVerify({
+        organizationId: input.organizationId,
+        module: input.module,
+        entityId: input.entityId,
+        fileName: leaf + '.' + extension,
+        contentType: parsed.contentType,
+        body: parsed.body,
+      })
+      migrated++
+      return 's3://' + key
+    }
+    if (Array.isArray(value)) {
+      const result = []
+      for (let index = 0; index < value.length; index++) result.push(await visit(value[index], path + '.' + index))
+      return result
+    }
+    if (value && typeof value === 'object') {
+      const result: Record<string, unknown> = {}
+      for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
+        result[key] = await visit(child, path ? path + '.' + key : key)
+      }
+      return result
+    }
+    return value
+  }
+  return { value: await visit(input.value, ''), files, migrated }
+}
+
+async function migrateJsonColumn(input: {
+  client: any
+  table: 'workshop_job_cards' | 'maintenance_records' | 'trailer_maintenance_records'
+  column: 'items' | 'checklist' | 'attachments'
+  id: string
+  oldValue: unknown
+  organizationId: string
+  module: string
+  execute: boolean
+}) {
+  const result = await migrateEmbeddedValue({
+    value: input.oldValue,
+    organizationId: input.organizationId,
+    module: input.module,
+    entityId: input.id,
+    execute: input.execute,
+  })
+  if (result.files && input.execute && result.migrated) {
+    const updated = await input.client.$executeRawUnsafe(
+      `UPDATE "${input.table}" SET "${input.column}" = $1::jsonb, "updatedAt" = NOW()
+       WHERE "id" = $2 AND "${input.column}" IS NOT DISTINCT FROM $3::jsonb`,
+      JSON.stringify(result.value), input.id, JSON.stringify(input.oldValue)
+    )
+    if (!updated) throw new Error('Record changed during migration; original data was preserved')
+  }
+  return result
+}
+
 async function migrateDatabase(organization: OrganizationRecord, execute: boolean) {
   const client = organization.isPrimary ? controlDb : await getOrganizationPrismaClient(organization)
   if (!organization.isPrimary) {
@@ -231,6 +307,129 @@ async function migrateDatabase(organization: OrganizationRecord, execute: boolea
     } catch (error) { recordFailure('document.fileUrl', row.id, error) }
   }
 
+
+  // Existing workshop job-card signatures and JSON attachments are migrated
+  // only when they contain a validated, supported data URI. Ordinary typed
+  // signature names and other text remain unchanged.
+  const jobCards = await client.workshopJobCard.findMany({
+    where: {
+      OR: [
+        { technicianSignature: { startsWith: 'data:' } },
+        { supervisorSignature: { startsWith: 'data:' } },
+        { driverSignature: { startsWith: 'data:' } },
+        { items: { not: null } },
+        { checklist: { not: null } },
+      ],
+    },
+    select: { id: true, jobNumber: true, items: true, checklist: true, technicianSignature: true, supervisorSignature: true, driverSignature: true },
+    take: 500,
+    orderBy: { id: 'asc' },
+  })
+  for (const row of jobCards) {
+    const signatureFields = [
+      ['technicianSignature', row.technicianSignature],
+      ['supervisorSignature', row.supervisorSignature],
+      ['driverSignature', row.driverSignature],
+    ] as const
+    for (const [field, oldValue] of signatureFields) {
+      if (typeof oldValue !== 'string' || !oldValue.startsWith('data:')) continue
+      counters.scanned++
+      try {
+        const parsed = fileDataUri(oldValue)
+        if (!parsed) { counters.skipped++; continue }
+        if (!execute) { counters.planned++; continue }
+        const key = await storeAndVerify({
+          organizationId: orgId, module: 'job-card-signatures', entityId: row.id,
+          fileName: field + '.' + extensionFor(parsed.contentType, 'bin'),
+          contentType: parsed.contentType, body: parsed.body,
+        })
+        const updated = await client.workshopJobCard.updateMany({
+          where: { id: row.id, [field]: oldValue },
+          data: { [field]: 's3://' + key },
+        })
+        if (!updated.count) {
+          await deleteOrganizationObject(key).catch(() => undefined)
+          counters.skipped++
+        } else counters.migrated++
+      } catch (error) { recordFailure('workshopJobCard.' + field, row.id, error) }
+    }
+    for (const [column, oldValue] of [['items', row.items], ['checklist', row.checklist]] as const) {
+      try {
+        const result = await migrateJsonColumn({
+          client, table: 'workshop_job_cards', column, id: row.id, oldValue,
+          organizationId: orgId, module: 'job-card-attachments', execute,
+        })
+        counters.scanned += result.files
+        if (!execute) counters.planned += result.files
+        else counters.migrated += result.migrated
+      } catch (error) { recordFailure('workshopJobCard.' + column, row.id, error) }
+    }
+  }
+
+  const maintenanceAttachments = await client.maintenanceRecord.findMany({
+    where: { attachments: { not: null } },
+    select: { id: true, attachments: true },
+    take: 500,
+    orderBy: { id: 'asc' },
+  })
+  for (const row of maintenanceAttachments) {
+    try {
+      const result = await migrateJsonColumn({
+        client, table: 'maintenance_records', column: 'attachments', id: row.id, oldValue: row.attachments,
+        organizationId: orgId, module: 'maintenance-attachments', execute,
+      })
+      counters.scanned += result.files
+      if (!execute) counters.planned += result.files
+      else counters.migrated += result.migrated
+    } catch (error) { recordFailure('maintenanceRecord.attachments', row.id, error) }
+  }
+
+  const trailerMaintenanceAttachments = await client.trailerMaintenanceRecord.findMany({
+    where: { attachments: { not: null } },
+    select: { id: true, attachments: true },
+    take: 500,
+    orderBy: { id: 'asc' },
+  })
+  for (const row of trailerMaintenanceAttachments) {
+    try {
+      const result = await migrateJsonColumn({
+        client, table: 'trailer_maintenance_records', column: 'attachments', id: row.id, oldValue: row.attachments,
+        organizationId: orgId, module: 'trailer-maintenance-attachments', execute,
+      })
+      counters.scanned += result.files
+      if (!execute) counters.planned += result.files
+      else counters.migrated += result.migrated
+    } catch (error) { recordFailure('trailerMaintenanceRecord.attachments', row.id, error) }
+  }
+
+  const tireEvidence = await client.tireLifecycleEvent.findMany({
+    where: { evidenceUrl: { startsWith: 'data:' } },
+    select: { id: true, tireId: true, evidenceUrl: true },
+    take: 500,
+    orderBy: { id: 'asc' },
+  })
+  for (const row of tireEvidence) {
+    counters.scanned++
+    try {
+      const parsed = fileDataUri(row.evidenceUrl || '')
+      if (!parsed) { counters.skipped++; continue }
+      if (!execute) { counters.planned++; continue }
+      const key = await storeAndVerify({
+        organizationId: orgId, module: 'tire-evidence', entityId: row.tireId,
+        fileName: 'evidence-' + row.id + '.' + extensionFor(parsed.contentType, 'bin'),
+        contentType: parsed.contentType, body: parsed.body,
+      })
+      const updated = await client.tireLifecycleEvent.updateMany({
+        where: { id: row.id, evidenceUrl: row.evidenceUrl },
+        data: { evidenceUrl: 's3://' + key },
+      })
+      if (!updated.count) {
+        await deleteOrganizationObject(key).catch(() => undefined)
+        counters.skipped++
+      } else counters.migrated++
+    } catch (error) { recordFailure('tireLifecycleEvent.evidenceUrl', row.id, error) }
+  }
+
   const remaining = {
     profileImages: await client.user.count({ where: { profileImage: { startsWith: 'data:image/' } } }),
     truckImages: await client.truck.count({ where: { image: { startsWith: 'data:image/' }, isDeleted: false } }),
@@ -239,6 +438,8 @@ async function migrateDatabase(organization: OrganizationRecord, execute: boolea
       WHERE "fileData" IS NOT NULL AND left(encode("fileData", 'escape'), 5) <> 's3://'
     `)[0]?.count || 0),
     documentFiles: await client.document.count({ where: { fileUrl: { startsWith: 'data:' }, type: { in: ['truck', 'maintenance'] } } }),
+    jobCardSignatures: await client.workshopJobCard.count({ where: { OR: [{ technicianSignature: { startsWith: 'data:' } }, { supervisorSignature: { startsWith: 'data:' } }, { driverSignature: { startsWith: 'data:' } }] } }),
+    tireEvidence: await client.tireLifecycleEvent.count({ where: { evidenceUrl: { startsWith: 'data:' } } }),
   }
   return { organization: organization.slug, counters, failures, remaining }
 }
@@ -288,7 +489,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: totals.failed === 0,
       mode: execute ? 'migrate' : 'scan',
-      note: 'This batch migrates embedded profile images, embedded truck images, legacy vehicle-document bytes, and validated embedded Document.fileUrl files. External links and JSON attachment/signature fields are not changed.',
+      note: 'This batch migrates embedded profile images, embedded truck images, legacy vehicle-document bytes, and validated embedded Document.fileUrl files. External links and ordinary text fields are unchanged. Validated embedded files in job-card signatures/items/checklists, truck/trailer maintenance attachments, and tire evidence are also migrated.',
       totals,
       organizations: results,
     }, { headers: { 'Cache-Control': 'no-store' } })
