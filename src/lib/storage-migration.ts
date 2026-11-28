@@ -173,22 +173,24 @@ export async function migrateOrganizationStorage(client: any, organizationId: st
 
   const signatureRows = await client.$queryRaw`SELECT "id", 'technicianSignature' AS field, "technicianSignature" AS value FROM "workshop_job_cards" WHERE "technicianSignature" LIKE ${'data:%'} UNION ALL SELECT "id", 'supervisorSignature', "supervisorSignature" FROM "workshop_job_cards" WHERE "supervisorSignature" LIKE ${'data:%'} UNION ALL SELECT "id", 'driverSignature', "driverSignature" FROM "workshop_job_cards" WHERE "driverSignature" LIKE ${'data:%'}` as Array<{ id: string; field: string; value: string }>
   for (const row of signatureRows) {
+    let uploadedKey: string | undefined
     try {
       const parsed = parseDataUri(row.value)
       if (!parsed) { result.skipped++; continue }
       result.scanned++
       if (!execute) { result.planned++; continue }
-      const key = await storeAndVerify({ organizationId, module: 'job-card-signatures', entityId: row.id, fileName: `${row.field}.${extensionFor(parsed.contentType)}`, contentType: parsed.contentType, body: parsed.body })
+      uploadedKey = await storeAndVerify({ organizationId, module: 'job-card-signatures', entityId: row.id, fileName: `${row.field}.${extensionFor(parsed.contentType)}`, contentType: parsed.contentType, body: parsed.body })
       let updated = 0
-      if (row.field === 'technicianSignature') updated = await client.$executeRaw`UPDATE "workshop_job_cards" SET "technicianSignature" = ${`s3://${key}`} WHERE "id" = ${row.id} AND "technicianSignature" = ${row.value}`
-      else if (row.field === 'supervisorSignature') updated = await client.$executeRaw`UPDATE "workshop_job_cards" SET "supervisorSignature" = ${`s3://${key}`} WHERE "id" = ${row.id} AND "supervisorSignature" = ${row.value}`
-      else if (row.field === 'driverSignature') updated = await client.$executeRaw`UPDATE "workshop_job_cards" SET "driverSignature" = ${`s3://${key}`} WHERE "id" = ${row.id} AND "driverSignature" = ${row.value}`
-      if (updated !== 1) {
-        await deleteOrganizationObject(key).catch(() => undefined)
-        throw new Error('Database record changed during signature migration; original value was preserved')
-      }
+      if (row.field === 'technicianSignature') updated = await client.$executeRaw`UPDATE "workshop_job_cards" SET "technicianSignature" = ${`s3://${uploadedKey}`} WHERE "id" = ${row.id} AND "technicianSignature" = ${row.value}`
+      else if (row.field === 'supervisorSignature') updated = await client.$executeRaw`UPDATE "workshop_job_cards" SET "supervisorSignature" = ${`s3://${uploadedKey}`} WHERE "id" = ${row.id} AND "supervisorSignature" = ${row.value}`
+      else if (row.field === 'driverSignature') updated = await client.$executeRaw`UPDATE "workshop_job_cards" SET "driverSignature" = ${`s3://${uploadedKey}`} WHERE "id" = ${row.id} AND "driverSignature" = ${row.value}`
+      if (updated !== 1) throw new Error('Database record changed during signature migration; original value was preserved')
       result.migrated++
-    } catch (error) { fail(`workshopJobCard.${row.field}`, row.id, error) }
+      uploadedKey = undefined
+    } catch (error) {
+      if (uploadedKey) await deleteOrganizationObject(uploadedKey).catch(() => undefined)
+      fail(`workshopJobCard.${row.field}`, row.id, error)
+    }
   }
 
   try {
