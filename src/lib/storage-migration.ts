@@ -84,27 +84,29 @@ export async function migrateOrganizationStorage(client: any, organizationId: st
   const result: StorageMigrationResult = { scanned: 0, planned: 0, migrated: 0, skipped: 0, failed: 0, failures: [], remaining: {} }
   const fail = (type: string, id: string, error: unknown) => { result.failed++; result.failures.push({ type, id, reason: error instanceof Error ? error.message.slice(0, 200) : 'Migration failed' }) }
 
-  for (const row of await client.user.findMany({ where: { profileImage: { startsWith: 'data:image/' } }, select: { id: true, profileImage: true } })) {
+  const profiles = await client.$queryRawUnsafe('SELECT "id", "profileImage" FROM "users" WHERE "profileImage" LIKE \'data:image%\'') as Array<{ id: string; profileImage: string | null }>
+  for (const row of profiles) {
     try {
       const parsed = parseDataUri(row.profileImage)
       if (!parsed) { result.skipped++; continue }
       result.scanned++
       if (!execute) { result.planned++; continue }
       const key = await storeAndVerify({ organizationId, module: 'profile-images', entityId: row.id, fileName: `profile.${extensionFor(parsed.contentType, 'jpg')}`, contentType: parsed.contentType, body: parsed.body })
-      const updated = await client.user.updateMany({ where: { id: row.id, profileImage: row.profileImage }, data: { profileImage: `s3://${key}` } })
-      if (!updated.count) await deleteOrganizationObject(key).catch(() => undefined); else result.migrated++
+      const updated = await client.$executeRawUnsafe('UPDATE "users" SET "profileImage" = $1 WHERE "id" = $2 AND "profileImage" = $3', `s3://${key}`, row.id, row.profileImage)
+      if (!updated) await deleteOrganizationObject(key).catch(() => undefined); else result.migrated++
     } catch (error) { fail('profileImage', row.id, error) }
   }
 
-  for (const row of await client.truck.findMany({ where: { image: { startsWith: 'data:image/' }, isDeleted: false }, select: { id: true, image: true } })) {
+  const trucks = await client.$queryRawUnsafe('SELECT "id", "image" FROM "trucks" WHERE "image" LIKE \'data:image%\' AND "isDeleted" = FALSE') as Array<{ id: string; image: string | null }>
+  for (const row of trucks) {
     try {
       const parsed = parseDataUri(row.image)
       if (!parsed) { result.skipped++; continue }
       result.scanned++
       if (!execute) { result.planned++; continue }
       const key = await storeAndVerify({ organizationId, module: 'truck-images', entityId: row.id, fileName: `truck.${extensionFor(parsed.contentType, 'jpg')}`, contentType: parsed.contentType, body: parsed.body })
-      const updated = await client.truck.updateMany({ where: { id: row.id, image: row.image }, data: { image: `s3://${key}` } })
-      if (!updated.count) await deleteOrganizationObject(key).catch(() => undefined); else result.migrated++
+      const updated = await client.$executeRawUnsafe('UPDATE "trucks" SET "image" = $1 WHERE "id" = $2 AND "image" = $3', `s3://${key}`, row.id, row.image)
+      if (!updated) await deleteOrganizationObject(key).catch(() => undefined); else result.migrated++
     } catch (error) { fail('truck.image', row.id, error) }
   }
 
@@ -122,7 +124,8 @@ export async function migrateOrganizationStorage(client: any, organizationId: st
     } catch (error) { fail('vehicleDocument.fileData', row.id, error) }
   }
 
-  for (const row of await client.document.findMany({ where: { fileUrl: { startsWith: 'data:' } }, select: { id: true, title: true, type: true, fileUrl: true, editorState: true } })) {
+  const documents = await client.$queryRawUnsafe('SELECT "id", "title", "type", "fileUrl", "editorState" FROM "documents" WHERE "fileUrl" LIKE \'data:%\'') as Array<{ id: string; title: string; type: string; fileUrl: string | null; editorState: unknown }>
+  for (const row of documents) {
     try {
       const parsed = parseDataUri(row.fileUrl)
       const metadata = row.editorState && typeof row.editorState === 'object' ? row.editorState as Record<string, any> : {}
@@ -134,8 +137,8 @@ export async function migrateOrganizationStorage(client: any, organizationId: st
       const module = row.type === 'truck' ? 'truck-documents' : row.type === 'purchase-invoice' ? 'purchase-invoice-documents' : 'maintenance-documents'
       const fileName = row.title || `document.${extensionFor(parsed.contentType)}`
       const key = await storeAndVerify({ organizationId, module, entityId, fileName, contentType: parsed.contentType, body: parsed.body })
-      const updated = await client.document.updateMany({ where: { id: row.id, fileUrl: row.fileUrl }, data: { fileUrl: `s3://${key}`, editorState: { ...metadata, storage: { organizationId, module, entityId, fileName, contentType: parsed.contentType, size: parsed.body.byteLength } } } })
-      if (!updated.count) await deleteOrganizationObject(key).catch(() => undefined); else result.migrated++
+      const updated = await client.$executeRawUnsafe('UPDATE "documents" SET "fileUrl" = $1, "editorState" = $2::jsonb, "updatedAt" = NOW() WHERE "id" = $3 AND "fileUrl" = $4', `s3://${key}`, JSON.stringify({ ...metadata, storage: { organizationId, module, entityId, fileName, contentType: parsed.contentType, size: parsed.body.byteLength } }), row.id, row.fileUrl)
+      if (!updated) await deleteOrganizationObject(key).catch(() => undefined); else result.migrated++
     } catch (error) { fail('document.fileUrl', row.id, error) }
   }
 
