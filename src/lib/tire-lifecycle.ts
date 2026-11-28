@@ -191,6 +191,115 @@ export async function getOrCreateOpenJobCard(tx: any, vehicle: VehicleRef, detai
   return id
 }
 
+/**
+ * Attach a maintenance record to the vehicle's central open Job Card.
+ * Replaces the source-linked line on edits and keeps card cost totals in sync.
+ */
+export async function syncMaintenanceRecordJobCard(tx: any, input: {
+  recordId: string
+  previousJobCardId?: string | null
+  previousPartsCost?: number | null
+  previousLaborCost?: number | null
+  vehicle?: VehicleRef | null
+  eventAt: Date
+  serviceType: string
+  description?: string | null
+  odometerKm?: number | null
+  driverName?: string | null
+  mechanicName?: string | null
+  partsCost: number
+  laborCost: number
+  userId: string
+  creationSource?: "OIL" | "UNKNOWN"
+}) {
+  const previousCardId = input.previousJobCardId || null
+  const previousParts = Number(input.previousPartsCost || 0)
+  const previousLabor = Number(input.previousLaborCost || 0)
+
+  if (!input.vehicle) {
+    if (previousCardId) {
+      const previousCard = await tx.workshopJobCard.findUnique({ where: { id: previousCardId } })
+      if (previousCard) {
+        const items = Array.isArray(previousCard.items) ? previousCard.items as any[] : []
+        await tx.workshopJobCard.update({
+          where: { id: previousCardId },
+          data: {
+            items: items.filter(item => item?.sourceId !== input.recordId),
+            partsCost: Math.max(0, Number(previousCard.partsCost || 0) - previousParts),
+            laborCost: Math.max(0, Number(previousCard.laborCost || 0) - previousLabor),
+            totalCost: Math.max(0, Number(previousCard.totalCost || 0) - previousParts - previousLabor),
+          },
+        })
+      }
+    }
+    return null
+  }
+
+  let jobCardId: string
+  const previousCard = previousCardId
+    ? await tx.workshopJobCard.findUnique({ where: { id: previousCardId } })
+    : null
+  const sameVehicle = previousCard && (
+    input.vehicle.vehicleType === 'truck'
+      ? previousCard.truckId === input.vehicle.vehicleId
+      : previousCard.trailerId === input.vehicle.vehicleId
+  )
+
+  if (previousCard && sameVehicle) {
+    jobCardId = previousCard.id
+  } else {
+    jobCardId = await getOrCreateOpenJobCard(tx, input.vehicle, {
+      eventAt: input.eventAt,
+      odometerKm: input.odometerKm,
+      driverName: input.driverName,
+      userId: input.userId,
+      serviceType: input.serviceType || 'MAINTENANCE',
+      reportedIssue: input.description || input.serviceType || 'Maintenance activity',
+      creationSource: input.creationSource || 'UNKNOWN',
+    })
+  }
+
+  if (previousCardId && previousCardId !== jobCardId && previousCard) {
+    const oldItems = Array.isArray(previousCard.items) ? previousCard.items as any[] : []
+    await tx.workshopJobCard.update({
+      where: { id: previousCardId },
+      data: {
+        items: oldItems.filter(item => item?.sourceId !== input.recordId),
+        partsCost: Math.max(0, Number(previousCard.partsCost || 0) - previousParts),
+        laborCost: Math.max(0, Number(previousCard.laborCost || 0) - previousLabor),
+        totalCost: Math.max(0, Number(previousCard.totalCost || 0) - previousParts - previousLabor),
+      },
+    })
+  }
+
+  const card = await tx.workshopJobCard.findUnique({ where: { id: jobCardId } })
+  if (!card) throw new Error('Job Card could not be found after linking maintenance activity')
+  const items = Array.isArray(card.items) ? card.items as any[] : []
+  const wasAlreadyOnThisCard = previousCardId === jobCardId
+  const item = {
+    type: 'SERVICE',
+    description: input.serviceType || 'Maintenance',
+    quantity: 1,
+    unitCost: Math.round((Number(input.partsCost || 0) + Number(input.laborCost || 0)) * 100) / 100,
+    remarks: [input.description, input.mechanicName ? 'Mechanic: ' + input.mechanicName : null].filter(Boolean).join(' · '),
+    sourceId: input.recordId,
+    sourceType: 'MAINTENANCE',
+  }
+  await tx.workshopJobCard.update({
+    where: { id: jobCardId },
+    data: {
+      items: [...items.filter(existing => existing?.sourceId !== input.recordId), item],
+      partsCost: Math.max(0, Number(card.partsCost || 0) - (wasAlreadyOnThisCard ? previousParts : 0) + Number(input.partsCost || 0)),
+      laborCost: Math.max(0, Number(card.laborCost || 0) - (wasAlreadyOnThisCard ? previousLabor : 0) + Number(input.laborCost || 0)),
+      totalCost: Math.max(0, Number(card.totalCost || 0) - (wasAlreadyOnThisCard ? previousParts + previousLabor : 0) + Number(input.partsCost || 0) + Number(input.laborCost || 0)),
+      driverName: input.driverName || card.driverName,
+      technicianName: input.mechanicName || card.technicianName,
+      odometerKm: input.odometerKm == null ? card.odometerKm : Math.max(Number(card.odometerKm || 0), input.odometerKm),
+    },
+  })
+  return jobCardId
+}
+
 export async function recordTireLifecycleEvent(tx: any, input: {
   tireId: string; eventType: string; eventAt: Date; vehicle?: VehicleRef | null;
   position?: string | null; driverName?: string | null; odometerKm?: number | null;
