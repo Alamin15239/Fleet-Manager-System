@@ -77,6 +77,39 @@ export async function putOrganizationObject(input: UploadOptions) {
   return { key, size: input.body.byteLength, contentType: input.contentType }
 }
 
+export async function putOrganizationImageDataUri(input: {
+  organizationId: string
+  module: string
+  entityId: string
+  dataUri: string
+  maxBytes?: number
+}) {
+  const match = input.dataUri.match(/^data:(image\\/(?:jpeg|png|gif|webp));base64,([A-Za-z0-9+/]+={0,2})$/i)
+  if (!match) throw new Error('Truck image must be a JPEG, PNG, GIF, or WEBP data image')
+  const body = Buffer.from(match[2], 'base64')
+  if (!body.length || body.byteLength > (input.maxBytes ?? 25 * 1024 * 1024)) {
+    throw new Error('Truck image is empty or exceeds the 25 MB limit')
+  }
+  const signatures: Record<string, (bytes: Buffer) => boolean> = {
+    'image/jpeg': bytes => bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff,
+    'image/png': bytes => bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])),
+    'image/gif': bytes => bytes.subarray(0, 6).toString('ascii').match(/^GIF8[79]a$/) !== null,
+    'image/webp': bytes => bytes.length >= 12 && bytes.toString('ascii', 0, 4) === 'RIFF' && bytes.toString('ascii', 8, 12) === 'WEBP',
+  }
+  const contentType = match[1].toLowerCase()
+  if (!signatures[contentType](body)) throw new Error('Truck image content does not match its declared format')
+  const extension = ({ 'image/jpeg': 'jpg', 'image/png': 'png', 'image/gif': 'gif', 'image/webp': 'webp' } as Record<string, string>)[contentType]
+  const stored = await putOrganizationObject({
+    organizationId: input.organizationId,
+    module: input.module,
+    entityId: input.entityId,
+    fileName: 'image.' + extension,
+    contentType,
+    body,
+  })
+  return { ...stored, pointer: 's3://' + stored.key }
+}
+
 export async function getOrganizationObject(key: string) {
   const config = getStorageConfig()
   if (!key.startsWith('organizations/')) throw new Error('Invalid object storage key')
