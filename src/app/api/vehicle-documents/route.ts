@@ -214,7 +214,7 @@ export async function POST(request: NextRequest) {
       })
       uploadedKey = stored.key
       fileFields = {
-        fileName: file.name.replace(/[\r\n"\\/]/g, '_').slice(0, 180),
+        fileName: safeFileName || 'vehicle-document',
         mimeType: file.type,
         fileSize: file.size,
         // Keep the storage pointer in the existing nullable Bytes column so
