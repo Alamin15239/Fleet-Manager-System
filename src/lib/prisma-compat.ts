@@ -19,70 +19,29 @@
  * supply a precise result type where needed.
  */
 export interface PrismaModelDelegate {
-  findMany<T = any>(args?: any): Promise<T[]>
-  findFirst<T = any>(args?: any): Promise<T | null>
-  findUnique<T = any>(args?: any): Promise<T | null>
-  findFirstOrThrow<T = any>(args?: any): Promise<T>
-  findUniqueOrThrow<T = any>(args?: any): Promise<T>
-  create<T = any>(args: any): Promise<T>
+  findMany(args?: any): Promise<any[]>
+  findFirst(args?: any): Promise<any | null>
+  findUnique(args?: any): Promise<any | null>
+  findFirstOrThrow(args?: any): Promise<any>
+  findUniqueOrThrow(args?: any): Promise<any>
+  create(args: any): Promise<any>
   createMany(args?: any): Promise<{ count: number }>
-  update<T = any>(args: any): Promise<T>
+  update(args: any): Promise<any>
   updateMany(args?: any): Promise<{ count: number }>
-  upsert<T = any>(args: any): Promise<T>
-  delete<T = any>(args: any): Promise<T>
+  upsert(args: any): Promise<any>
+  delete(args: any): Promise<any>
   deleteMany(args?: any): Promise<{ count: number }>
-  count<T = number>(args?: any): Promise<T>
-  aggregate<T = any>(args?: any): Promise<T>
-  groupBy<T = any>(args?: any): Promise<T[]>
+  count(args?: any): Promise<any>
+  aggregate(args?: any): Promise<any>
+  groupBy(args?: any): Promise<any[]>
 }
 
 export interface PrismaClient {
-  user: PrismaModelDelegate
-  passkeyCredential: PrismaModelDelegate
-  mechanic: PrismaModelDelegate
-  driver: PrismaModelDelegate
-  truck: PrismaModelDelegate
-  trailer: PrismaModelDelegate
-  maintenanceJob: PrismaModelDelegate
-  predictiveAlert: PrismaModelDelegate
-  trailerPredictiveAlert: PrismaModelDelegate
-  maintenanceRecord: PrismaModelDelegate
-  trailerMaintenanceRecord: PrismaModelDelegate
-  workshopJobCard: PrismaModelDelegate
-  settings: PrismaModelDelegate
-  organization: PrismaModelDelegate
-  organizationPurchaseRequest: PrismaModelDelegate
-  organizationBillingPayment: PrismaModelDelegate
-  vendor: PrismaModelDelegate
-  purchaseInvoice: PrismaModelDelegate
-  purchaseInvoiceLine: PrismaModelDelegate
-  fleetLedgerAccount: PrismaModelDelegate
-  purchaseJournalEntry: PrismaModelDelegate
-  purchaseJournalLine: PrismaModelDelegate
-  oneDriveIntegration: PrismaModelDelegate
-  excelWorkbookChange: PrismaModelDelegate
-  notification: PrismaModelDelegate
-  trailerNotification: PrismaModelDelegate
-  auditLog: PrismaModelDelegate
-  userActivity: PrismaModelDelegate
-  loginHistory: PrismaModelDelegate
-  vehicle: PrismaModelDelegate
-  vehicleType: PrismaModelDelegate
-  fleetVehicle: PrismaModelDelegate
-  vehicleDocument: PrismaModelDelegate
-  maintenanceType: PrismaModelDelegate
-  tire: PrismaModelDelegate
-  tireLifecycleEvent: PrismaModelDelegate
-  tireUsagePeriod: PrismaModelDelegate
-  document: PrismaModelDelegate
-  storageObjectDeletionQueue: PrismaModelDelegate
-  emailLog: PrismaModelDelegate
-  inventoryItem: PrismaModelDelegate
-  inventoryTransaction: PrismaModelDelegate
-  websiteVisitorSession: PrismaModelDelegate
-  $transaction<T>(operation: (transaction: PrismaClient) => Promise<T>): Promise<T>
-  $queryRaw<T = unknown>(strings: TemplateStringsArray, ...values: unknown[]): Promise<T>
-  $queryRawUnsafe<T = unknown>(query: string, ...values: unknown[]): Promise<T>
+
+  $transaction<T>(operation: (transaction: PrismaClient) => Promise<T>, options?: any): Promise<T>
+  $transaction<T extends readonly Promise<any>[]>(operations: [...T], options?: any): Promise<{ [K in keyof T]: Awaited<T[K]> }>
+  $queryRaw<T = any>(strings: TemplateStringsArray, ...values: unknown[]): Promise<T>
+  $queryRawUnsafe<T = any>(query: string, ...values: unknown[]): Promise<T>
   $executeRaw(strings: TemplateStringsArray, ...values: unknown[]): Promise<number>
   $executeRawUnsafe(query: string, ...values: unknown[]): Promise<number>
   $connect(): Promise<void>
@@ -132,12 +91,12 @@ export class Decimal {
   }
 }
 
-export type InputJsonValue = unknown
-export type PurchaseInvoiceWhereInput = unknown
-export type PurchaseInvoiceLineWhereInput = unknown
-export type DateTimeFilter = unknown
-export type TireCreateManyInput = unknown
-export type PurchaseJournalLineCreateWithoutEntryInput = unknown
+export type InputJsonValue = any
+export type PurchaseInvoiceWhereInput = Record<string, any>
+export type PurchaseInvoiceLineWhereInput = Record<string, any>
+export type DateTimeFilter = { equals?: Date; gt?: Date; gte?: Date; lt?: Date; lte?: Date; not?: Date | null }
+export type TireCreateManyInput = Record<string, any>
+export type PurchaseJournalLineCreateWithoutEntryInput = Record<string, any>
 
 export enum PurchaseExpenseCategory {
   MAINTENANCE = 'MAINTENANCE',
@@ -148,7 +107,31 @@ export enum PurchaseExpenseCategory {
   OTHER = 'OTHER',
 }
 
-export const Prisma = {
-  PrismaClientKnownRequestError,
-  Decimal,
+export namespace Prisma {
+  export const PrismaClientKnownRequestError = class extends Error {
+    code: string
+    clientVersion: string
+    constructor(message: string, options: { code: string; clientVersion?: string }) {
+      super(message)
+      this.name = 'PrismaClientKnownRequestError'
+      this.code = options.code
+      this.clientVersion = options.clientVersion ?? '0.0.0'
+    }
+  }
+  export const Decimal = class {
+    readonly value: string
+    constructor(value: unknown) {
+      this.value = typeof value === 'string' ? value : value instanceof this.constructor ? (value as { value: string }).value : String(value)
+    }
+    toString(): string { return this.value }
+    valueOf(): string { return this.value }
+    toJSON(): string { return this.value }
+    toNumber(): number { return Number(this.value) }
+  }
+  export type InputJsonValue = any
+  export type PurchaseInvoiceWhereInput = Record<string, any>
+  export type PurchaseInvoiceLineWhereInput = Record<string, any>
+  export type DateTimeFilter = { equals?: Date; gt?: Date; gte?: Date; lt?: Date; lte?: Date; not?: Date | null }
+  export type TireCreateManyInput = Record<string, any>
+  export type PurchaseJournalLineCreateWithoutEntryInput = Record<string, any>
 }
