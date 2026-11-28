@@ -170,7 +170,7 @@ async function migrateDatabase(organization: OrganizationRecord, execute: boolea
     vehicleDocuments: Number((await client.$queryRaw<Array<{ count: bigint }>>`
       SELECT COUNT(*) AS count FROM "vehicle_documents"
       WHERE "fileData" IS NOT NULL AND left(encode("fileData", 'escape'), 5) <> 's3://'
-    `))[0]?.count || 0),
+    `)[0]?.count || 0),
   }
   return { organization: organization.slug, counters, failures, remaining }
 }
