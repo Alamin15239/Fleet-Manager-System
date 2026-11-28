@@ -11,6 +11,25 @@ const expiryDocumentTypes = ['Fire extinguisher', 'Operation card', 'Istimara', 
 const driverCardType = 'Driver card'
 const protectionCardType = 'Protection Card'
 const maxFileBytes = 4 * 1024 * 1024
+
+function hasAllowedFileSignature(buffer: Buffer, mimeType: string) {
+  switch (mimeType) {
+    case 'application/pdf':
+      return buffer.subarray(0, 5).toString('ascii') === '%PDF-'
+    case 'image/jpeg':
+      return buffer.length >= 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff
+    case 'image/png':
+      return buffer.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))
+    case 'image/webp':
+      return buffer.length >= 12 && buffer.toString('ascii', 0, 4) === 'RIFF' && buffer.toString('ascii', 8, 12) === 'WEBP'
+    default:
+      return false
+  }
+}
+
+function safeDocumentFileName(value: string) {
+  return value.replace(/[\\u0000-\\u001f\\u007f\\r\\n"\\\\/]/g, '_').trim().slice(0, 180) || 'vehicle-document'
+}
 const SHARE_LINK_DAYS = 90
 
 function makeShareAccess() {
@@ -139,6 +158,11 @@ export async function POST(request: NextRequest) {
     const file = submittedFile instanceof File && submittedFile.size > 0 ? submittedFile : null
     if (file && file.size > maxFileBytes) return NextResponse.json({ error: 'Vehicle documents must be 4 MB or smaller.' }, { status: 400 })
     if (file && !allowedFiles.has(file.type)) return NextResponse.json({ error: 'Upload a PDF, JPG, PNG, or WEBP file.' }, { status: 400 })
+    const fileBytes = file ? Buffer.from(await file.arrayBuffer()) : null
+    if (file && fileBytes && !hasAllowedFileSignature(fileBytes, file.type)) {
+      return NextResponse.json({ error: 'The uploaded file content does not match its declared file type.' }, { status: 415 })
+    }
+    const safeFileName = file ? safeDocumentFileName(file.name) : null
 
     if (sourceType === 'TRUCK' && !await db.truck.findFirst({ where: { id: sourceId, isDeleted: false }, select: { id: true } })) {
       return NextResponse.json({ error: 'Active truck not found.' }, { status: 404 })
@@ -184,9 +208,9 @@ export async function POST(request: NextRequest) {
         organizationId: authUser.organizationId || authUser.organizationSlug || 'primary',
         module: 'vehicle-documents',
         entityId: sourceId,
-        fileName: file.name,
+        fileName: safeFileName || 'vehicle-document',
         contentType: file.type,
-        body: Buffer.from(await file.arrayBuffer()),
+        body: fileBytes!,
       })
       uploadedKey = stored.key
       fileFields = {
@@ -206,7 +230,7 @@ export async function POST(request: NextRequest) {
       trailerId: sourceType === 'TRAILER' ? sourceId : null,
       driverId: sourceType === 'DRIVER' ? sourceId : null,
       vehicleId: null,
-      title: submittedTitle || file?.name || existingDocument?.title || documentType,
+      title: submittedTitle || safeFileName || existingDocument?.title || documentType,
       documentType,
       validFrom: tracksExpiry ? validFrom : null,
       validUntil: tracksExpiry ? validUntil : null,
