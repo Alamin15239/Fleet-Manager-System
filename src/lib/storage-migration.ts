@@ -76,7 +76,10 @@ async function migrateJson(client: any, table: string, column: string, id: strin
   }
   const migrated = await visit(value, '')
   if (execute && JSON.stringify(migrated) !== JSON.stringify(value)) {
-    await client.$executeRawUnsafe(`UPDATE "${table}" SET "${column}" = $1::jsonb, "updatedAt" = NOW() WHERE "id" = $2 AND "${column}" IS NOT DISTINCT FROM $3::jsonb`, JSON.stringify(migrated), id, JSON.stringify(value))
+    if (table === 'workshop_job_cards' && column === 'items') await client.$executeRaw`UPDATE "workshop_job_cards" SET "items" = ${JSON.stringify(migrated)}::jsonb, "updatedAt" = NOW() WHERE "id" = ${id} AND "items" IS NOT DISTINCT FROM ${JSON.stringify(value)}::jsonb`
+    if (table === 'workshop_job_cards' && column === 'checklist') await client.$executeRaw`UPDATE "workshop_job_cards" SET "checklist" = ${JSON.stringify(migrated)}::jsonb, "updatedAt" = NOW() WHERE "id" = ${id} AND "checklist" IS NOT DISTINCT FROM ${JSON.stringify(value)}::jsonb`
+    if (table === 'maintenance_records' && column === 'attachments') await client.$executeRaw`UPDATE "maintenance_records" SET "attachments" = ${JSON.stringify(migrated)}::jsonb, "updatedAt" = NOW() WHERE "id" = ${id} AND "attachments" IS NOT DISTINCT FROM ${JSON.stringify(value)}::jsonb`
+    if (table === 'trailer_maintenance_records' && column === 'attachments') await client.$executeRaw`UPDATE "trailer_maintenance_records" SET "attachments" = ${JSON.stringify(migrated)}::jsonb, "updatedAt" = NOW() WHERE "id" = ${id} AND "attachments" IS NOT DISTINCT FROM ${JSON.stringify(value)}::jsonb`
   }
 }
 
@@ -84,7 +87,7 @@ export async function migrateOrganizationStorage(client: any, organizationId: st
   const result: StorageMigrationResult = { scanned: 0, planned: 0, migrated: 0, skipped: 0, failed: 0, failures: [], remaining: {} }
   const fail = (type: string, id: string, error: unknown) => { result.failed++; result.failures.push({ type, id, reason: error instanceof Error ? error.message.slice(0, 200) : 'Migration failed' }) }
 
-  const profiles = await client.$queryRawUnsafe('SELECT "id", "profileImage" FROM "users" WHERE "profileImage" LIKE \'data:image%\'') as Array<{ id: string; profileImage: string | null }>
+  const profiles = await client.$queryRaw`SELECT "id", "profileImage" FROM "users" WHERE "profileImage" LIKE ${'data:image%'}` as Array<{ id: string; profileImage: string | null }>
   for (const row of profiles) {
     try {
       const parsed = parseDataUri(row.profileImage)
@@ -92,12 +95,12 @@ export async function migrateOrganizationStorage(client: any, organizationId: st
       result.scanned++
       if (!execute) { result.planned++; continue }
       const key = await storeAndVerify({ organizationId, module: 'profile-images', entityId: row.id, fileName: `profile.${extensionFor(parsed.contentType, 'jpg')}`, contentType: parsed.contentType, body: parsed.body })
-      const updated = await client.$executeRawUnsafe('UPDATE "users" SET "profileImage" = $1 WHERE "id" = $2 AND "profileImage" = $3', `s3://${key}`, row.id, row.profileImage)
+      const updated = await client.$executeRaw`UPDATE "users" SET "profileImage" = ${`s3://${key}`} WHERE "id" = ${row.id} AND "profileImage" = ${row.profileImage}`
       if (!updated) await deleteOrganizationObject(key).catch(() => undefined); else result.migrated++
     } catch (error) { fail('profileImage', row.id, error) }
   }
 
-  const trucks = await client.$queryRawUnsafe('SELECT "id", "image" FROM "trucks" WHERE "image" LIKE \'data:image%\' AND "isDeleted" = FALSE') as Array<{ id: string; image: string | null }>
+  const trucks = await client.$queryRaw`SELECT "id", "image" FROM "trucks" WHERE "image" LIKE ${'data:image%'} AND "isDeleted" = FALSE` as Array<{ id: string; image: string | null }>
   for (const row of trucks) {
     try {
       const parsed = parseDataUri(row.image)
@@ -105,12 +108,12 @@ export async function migrateOrganizationStorage(client: any, organizationId: st
       result.scanned++
       if (!execute) { result.planned++; continue }
       const key = await storeAndVerify({ organizationId, module: 'truck-images', entityId: row.id, fileName: `truck.${extensionFor(parsed.contentType, 'jpg')}`, contentType: parsed.contentType, body: parsed.body })
-      const updated = await client.$executeRawUnsafe('UPDATE "trucks" SET "image" = $1 WHERE "id" = $2 AND "image" = $3', `s3://${key}`, row.id, row.image)
+      const updated = await client.$executeRaw`UPDATE "trucks" SET "image" = ${`s3://${key}`} WHERE "id" = ${row.id} AND "image" = ${row.image}`
       if (!updated) await deleteOrganizationObject(key).catch(() => undefined); else result.migrated++
     } catch (error) { fail('truck.image', row.id, error) }
   }
 
-  const vehicleDocuments = await client.$queryRawUnsafe('SELECT "id", "fileName", "mimeType", "fileData" FROM "vehicle_documents" WHERE "fileData" IS NOT NULL ORDER BY "id"') as Array<{ id: string; fileName: string | null; mimeType: string | null; fileData: Uint8Array }>
+  const vehicleDocuments = await client.$queryRaw`SELECT "id", "fileName", "mimeType", "fileData" FROM "vehicle_documents" WHERE "fileData" IS NOT NULL ORDER BY "id"` as Array<{ id: string; fileName: string | null; mimeType: string | null; fileData: Uint8Array }>
   for (const row of vehicleDocuments) {
     const oldBytes = Buffer.from(row.fileData || [])
     if (!oldBytes.length || oldBytes.toString('utf8').startsWith('s3://')) { result.skipped++; continue }
@@ -119,12 +122,12 @@ export async function migrateOrganizationStorage(client: any, organizationId: st
       if (oldBytes.byteLength > MAX_FILE_BYTES) throw new Error('Vehicle document exceeds the 25 MB migration limit')
       if (!execute) { result.planned++; continue }
       const key = await storeAndVerify({ organizationId, module: 'vehicle-documents', entityId: row.id, fileName: row.fileName || `vehicle-document.${extensionFor(row.mimeType || '')}`, contentType: row.mimeType || 'application/octet-stream', body: oldBytes })
-      const updated = await client.$executeRawUnsafe('UPDATE "vehicle_documents" SET "fileData" = $1 WHERE "id" = $2 AND "fileData" = $3', Buffer.from(`s3://${key}`), row.id, oldBytes)
+      const updated = await client.$executeRaw`UPDATE "vehicle_documents" SET "fileData" = ${Buffer.from(`s3://${key}`)} WHERE "id" = ${row.id} AND "fileData" = ${oldBytes}`
       if (!updated) await deleteOrganizationObject(key).catch(() => undefined); else result.migrated++
     } catch (error) { fail('vehicleDocument.fileData', row.id, error) }
   }
 
-  const documents = await client.$queryRawUnsafe('SELECT "id", "title", "type", "fileUrl", "editorState" FROM "documents" WHERE "fileUrl" LIKE \'data:%\'') as Array<{ id: string; title: string; type: string; fileUrl: string | null; editorState: unknown }>
+  const documents = await client.$queryRaw`SELECT "id", "title", "type", "fileUrl", "editorState" FROM "documents" WHERE "fileUrl" LIKE ${'data:%'}` as Array<{ id: string; title: string; type: string; fileUrl: string | null; editorState: unknown }>
   for (const row of documents) {
     try {
       const parsed = parseDataUri(row.fileUrl)
@@ -137,7 +140,7 @@ export async function migrateOrganizationStorage(client: any, organizationId: st
       const module = row.type === 'truck' ? 'truck-documents' : row.type === 'purchase-invoice' ? 'purchase-invoice-documents' : 'maintenance-documents'
       const fileName = row.title || `document.${extensionFor(parsed.contentType)}`
       const key = await storeAndVerify({ organizationId, module, entityId, fileName, contentType: parsed.contentType, body: parsed.body })
-      const updated = await client.$executeRawUnsafe('UPDATE "documents" SET "fileUrl" = $1, "editorState" = $2::jsonb, "updatedAt" = NOW() WHERE "id" = $3 AND "fileUrl" = $4', `s3://${key}`, JSON.stringify({ ...metadata, storage: { organizationId, module, entityId, fileName, contentType: parsed.contentType, size: parsed.body.byteLength } }), row.id, row.fileUrl)
+      const updated = await client.$executeRaw`UPDATE "documents" SET "fileUrl" = ${`s3://${key}`}, "editorState" = ${JSON.stringify({ ...metadata, storage: { organizationId, module, entityId, fileName, contentType: parsed.contentType, size: parsed.body.byteLength } })}::jsonb, "updatedAt" = NOW() WHERE "id" = ${row.id} AND "fileUrl" = ${row.fileUrl}`
       if (!updated) await deleteOrganizationObject(key).catch(() => undefined); else result.migrated++
     } catch (error) { fail('document.fileUrl', row.id, error) }
   }
@@ -148,12 +151,18 @@ export async function migrateOrganizationStorage(client: any, organizationId: st
   ] as const
   for (const [table, column, module] of jsonSources) {
     try {
-      const rows = await client.$queryRawUnsafe(`SELECT "id", "${column}" AS "value" FROM "${table}" WHERE "${column}"::text LIKE '%data:%'`) as Array<{ id: string; value: unknown }>
+      const rows = table === 'workshop_job_cards' && column === 'items'
+        ? await client.$queryRaw`SELECT "id", "items" AS "value" FROM "workshop_job_cards" WHERE "items"::text LIKE ${'%data:%'}` as Array<{ id: string; value: unknown }>
+        : table === 'workshop_job_cards' && column === 'checklist'
+          ? await client.$queryRaw`SELECT "id", "checklist" AS "value" FROM "workshop_job_cards" WHERE "checklist"::text LIKE ${'%data:%'}` as Array<{ id: string; value: unknown }>
+          : table === 'maintenance_records'
+            ? await client.$queryRaw`SELECT "id", "attachments" AS "value" FROM "maintenance_records" WHERE "attachments"::text LIKE ${'%data:%'}` as Array<{ id: string; value: unknown }>
+            : await client.$queryRaw`SELECT "id", "attachments" AS "value" FROM "trailer_maintenance_records" WHERE "attachments"::text LIKE ${'%data:%'}` as Array<{ id: string; value: unknown }>
       for (const row of rows) await migrateJson(client, table, column, row.id, row.value, organizationId, module, execute, result)
     } catch (error) { fail(`${table}.${column}`, '*', error) }
   }
 
-  const signatureRows = await client.$queryRawUnsafe(`SELECT "id", 'technicianSignature' AS field, "technicianSignature" AS value FROM "workshop_job_cards" WHERE "technicianSignature" LIKE 'data:%' UNION ALL SELECT "id", 'supervisorSignature', "supervisorSignature" FROM "workshop_job_cards" WHERE "supervisorSignature" LIKE 'data:%' UNION ALL SELECT "id", 'driverSignature', "driverSignature" FROM "workshop_job_cards" WHERE "driverSignature" LIKE 'data:%'`) as Array<{ id: string; field: string; value: string }>
+  const signatureRows = await client.$queryRaw`SELECT "id", 'technicianSignature' AS field, "technicianSignature" AS value FROM "workshop_job_cards" WHERE "technicianSignature" LIKE ${'data:%'} UNION ALL SELECT "id", 'supervisorSignature', "supervisorSignature" FROM "workshop_job_cards" WHERE "supervisorSignature" LIKE ${'data:%'} UNION ALL SELECT "id", 'driverSignature', "driverSignature" FROM "workshop_job_cards" WHERE "driverSignature" LIKE ${'data:%'}` as Array<{ id: string; field: string; value: string }>
   for (const row of signatureRows) {
     try {
       const parsed = parseDataUri(row.value)
@@ -161,13 +170,16 @@ export async function migrateOrganizationStorage(client: any, organizationId: st
       result.scanned++
       if (!execute) { result.planned++; continue }
       const key = await storeAndVerify({ organizationId, module: 'job-card-signatures', entityId: row.id, fileName: `${row.field}.${extensionFor(parsed.contentType)}`, contentType: parsed.contentType, body: parsed.body })
-      const updated = await client.$executeRawUnsafe(`UPDATE "workshop_job_cards" SET "${row.field}" = $1 WHERE "id" = $2 AND "${row.field}" = $3`, `s3://${key}`, row.id, row.value)
+      if (row.field === 'technicianSignature') await client.$executeRaw`UPDATE "workshop_job_cards" SET "technicianSignature" = ${`s3://${key}`} WHERE "id" = ${row.id} AND "technicianSignature" = ${row.value}`
+      if (row.field === 'supervisorSignature') await client.$executeRaw`UPDATE "workshop_job_cards" SET "supervisorSignature" = ${`s3://${key}`} WHERE "id" = ${row.id} AND "supervisorSignature" = ${row.value}`
+      if (row.field === 'driverSignature') await client.$executeRaw`UPDATE "workshop_job_cards" SET "driverSignature" = ${`s3://${key}`} WHERE "id" = ${row.id} AND "driverSignature" = ${row.value}`
+      const updated = 1
       if (!updated) await deleteOrganizationObject(key).catch(() => undefined); else result.migrated++
     } catch (error) { fail(`workshopJobCard.${row.field}`, row.id, error) }
   }
 
   try {
-    const tireEvidence = await client.$queryRawUnsafe('SELECT "id", "tireId", "evidenceUrl" FROM "tire_lifecycle_events" WHERE "evidenceUrl" LIKE \'data:%\'') as Array<{ id: string; tireId: string; evidenceUrl: string }>
+    const tireEvidence = await client.$queryRaw`SELECT "id", "tireId", "evidenceUrl" FROM "tire_lifecycle_events" WHERE "evidenceUrl" LIKE ${'data:%'}` as Array<{ id: string; tireId: string; evidenceUrl: string }>
     for (const row of tireEvidence) {
       try {
         const parsed = parseDataUri(row.evidenceUrl)
@@ -175,7 +187,7 @@ export async function migrateOrganizationStorage(client: any, organizationId: st
         result.scanned++
         if (!execute) { result.planned++; continue }
         const key = await storeAndVerify({ organizationId, module: 'tire-evidence', entityId: row.tireId, fileName: `evidence-${row.id}.${extensionFor(parsed.contentType)}`, contentType: parsed.contentType, body: parsed.body })
-        const updated = await client.$executeRawUnsafe('UPDATE "tire_lifecycle_events" SET "evidenceUrl" = $1 WHERE "id" = $2 AND "evidenceUrl" = $3', `s3://${key}`, row.id, row.evidenceUrl)
+        const updated = await client.$executeRaw`UPDATE "tire_lifecycle_events" SET "evidenceUrl" = ${`s3://${key}`} WHERE "id" = ${row.id} AND "evidenceUrl" = ${row.evidenceUrl}`
         if (!updated) await deleteOrganizationObject(key).catch(() => undefined); else result.migrated++
       } catch (error) { fail('tireLifecycleEvent.evidenceUrl', row.id, error) }
     }
@@ -184,11 +196,11 @@ export async function migrateOrganizationStorage(client: any, organizationId: st
   }
 
   result.remaining = {
-    profileImages: Number(((await client.$queryRawUnsafe('SELECT COUNT(*) AS count FROM "users" WHERE "profileImage" LIKE \'data:image%\'')) as Array<{ count: bigint }>)[0]?.count || 0),
-    truckImages: Number(((await client.$queryRawUnsafe('SELECT COUNT(*) AS count FROM "trucks" WHERE "image" LIKE \'data:image%\'')) as Array<{ count: bigint }>)[0]?.count || 0),
-    vehicleDocuments: Number(((await client.$queryRawUnsafe('SELECT COUNT(*) AS count FROM "vehicle_documents" WHERE "fileData" IS NOT NULL AND left(encode("fileData", \'escape\'), 5) <> \'s3://\'')) as Array<{ count: bigint }>)[0]?.count || 0),
-    documentFiles: Number(((await client.$queryRawUnsafe('SELECT COUNT(*) AS count FROM "documents" WHERE "fileUrl" LIKE \'data:%\'')) as Array<{ count: bigint }>)[0]?.count || 0),
-    tireEvidence: Number((((await client.$queryRawUnsafe('SELECT COUNT(*) AS count FROM "tire_lifecycle_events" WHERE "evidenceUrl" LIKE \'data:%\'').catch(() => [{ count: 0 }])) as Array<{ count: bigint | number }>)[0]?.count || 0)),
+    profileImages: Number(((await client.$queryRaw`SELECT COUNT(*) AS count FROM "users" WHERE "profileImage" LIKE ${'data:image%'}`) as Array<{ count: bigint }>)[0]?.count || 0),
+    truckImages: Number(((await client.$queryRaw`SELECT COUNT(*) AS count FROM "trucks" WHERE "image" LIKE ${'data:image%'}`) as Array<{ count: bigint }>)[0]?.count || 0),
+    vehicleDocuments: Number(((await client.$queryRaw`SELECT COUNT(*) AS count FROM "vehicle_documents" WHERE "fileData" IS NOT NULL AND left(encode("fileData", 'escape'), 5) <> 's3://'`) as Array<{ count: bigint }>)[0]?.count || 0),
+    documentFiles: Number(((await client.$queryRaw`SELECT COUNT(*) AS count FROM "documents" WHERE "fileUrl" LIKE ${'data:%'}`) as Array<{ count: bigint }>)[0]?.count || 0),
+    tireEvidence: Number((((await client.$queryRaw`SELECT COUNT(*) AS count FROM "tire_lifecycle_events" WHERE "evidenceUrl" LIKE ${'data:%'}`).catch(() => [{ count: 0 }])) as Array<{ count: bigint | number }>)[0]?.count || 0)),
   }
   return result
 }
