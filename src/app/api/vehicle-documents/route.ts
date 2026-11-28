@@ -177,13 +177,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Active driver not found.' }, { status: 404 })
     }
 
-    const uniqueWhere = sourceType === 'DRIVER'
-      ? { driverId_documentType: { driverId: sourceId, documentType } }
+    const ownerWhere = sourceType === 'DRIVER'
+      ? { driverId: sourceId, documentType }
       : sourceType === 'TRUCK'
-        ? { truckId_documentType: { truckId: sourceId, documentType } }
-        : { trailerId_documentType: { trailerId: sourceId, documentType } }
+        ? { truckId: sourceId, documentType }
+        : { trailerId: sourceId, documentType }
     failureStage = 'existing document lookup'
-    const existingDocument = await db.vehicleDocument.findUnique({ where: uniqueWhere as any, select: { id: true, title: true, notes: true, fileName: true, fileData: true, validUntil: true, shareToken: true, shareExpiresAt: true } })
+    // The Prisma 8 compatibility client supports scalar predicates, not
+    // Prisma's generated composite-unique selector names (for example
+    // truckId_documentType). Query by the actual owner and document fields.
+    const existingDocument = await db.vehicleDocument.findFirst({ where: ownerWhere, select: { id: true, title: true, notes: true, fileName: true, fileData: true, validUntil: true, shareToken: true, shareExpiresAt: true } })
     failureStage = 'permission check'
     const user = await requireRolePermission(request, sourceType === 'TRAILER' ? 'trailers' : 'trucks', existingDocument ? 'update' : 'create')
     // Expiry records can be stored without a file. Protection Card creation is
@@ -248,18 +251,17 @@ export async function POST(request: NextRequest) {
     failureStage = 'database document write'
     const document = existingDocument && file
       ? await db.$transaction(async transaction => {
-          // Remove the previous document row and its stored bytes before saving
-          // the replacement. The transaction keeps the existing document safe
-          // if creating the new row fails.
+          // Replace the row and its stored bytes atomically.
           await transaction.vehicleDocument.delete({ where: { id: existingDocument.id } })
           return transaction.vehicleDocument.create({ data: { ...data, ...fileFields }, select })
         })
-      : await db.vehicleDocument.upsert({
-          where: uniqueWhere as any,
-          create: { ...data, ...fileFields },
-          update: { ...data, truckId: undefined, trailerId: undefined, driverId: undefined, vehicleId: undefined, ...(file ? fileFields : {}) },
-          select,
-        })
+      : existingDocument
+        ? await db.vehicleDocument.update({
+            where: { id: existingDocument.id },
+            data: { ...data, truckId: undefined, trailerId: undefined, driverId: undefined, vehicleId: undefined, ...(file ? fileFields : {}) },
+            select,
+          })
+        : await db.vehicleDocument.create({ data: { ...data, ...fileFields }, select })
     if (uploadedKey) {
       const oldPointer = existingDocument?.fileData ? Buffer.from(existingDocument.fileData).toString('utf8') : ''
       if (oldPointer.startsWith('s3://')) {
