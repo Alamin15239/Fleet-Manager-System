@@ -1,3 +1,10 @@
+jest.mock('@aws-sdk/client-s3', () => ({
+  S3Client: jest.fn(),
+  DeleteObjectCommand: jest.fn(),
+  GetObjectCommand: jest.fn(),
+  PutObjectCommand: jest.fn(),
+}))
+
 import { createOrganizationObjectKey, isOrganizationObjectKey } from '@/lib/object-storage'
 
 describe('organization-scoped object storage keys', () => {
