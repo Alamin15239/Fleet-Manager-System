@@ -4,13 +4,10 @@ import { deleteOrganizationObject, isOrganizationObjectKey } from '@/lib/object-
 
 type CleanupRow = { id: string; objectKey: string; attempts: number }
 
-let schemaReady = false
-let schemaPromise: Promise<void> | null = null
-
 async function ensureStorageCleanupSchema() {
-  if (schemaReady) return
-  if (!schemaPromise) {
-    schemaPromise = (async () => {
+  // Run idempotent DDL against the active request/tenant database. A single
+  // process-wide flag would incorrectly skip setup for other tenant databases.
+  {
       await db.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "storage_object_deletion_queue" (
         "id" TEXT NOT NULL,
         "objectKey" TEXT NOT NULL,
@@ -26,10 +23,7 @@ async function ensureStorageCleanupSchema() {
       )`)
       await db.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "storage_object_deletion_queue_status_availableAt_idx" ON "storage_object_deletion_queue" ("status", "availableAt")`)
       await db.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "storage_object_deletion_queue_lockedAt_idx" ON "storage_object_deletion_queue" ("lockedAt")`)
-      schemaReady = true
-    })()
   }
-  try { await schemaPromise } catch (error) { schemaPromise = null; throw error }
 }
 
 /**
@@ -74,8 +68,8 @@ export async function processPendingStorageObjectDeletions(limit = 20, allowedOr
         WHERE ("status" = 'PENDING' AND "availableAt" <= NOW())
            OR ("status" = 'PROCESSING' AND "lockedAt" < NOW() - INTERVAL '10 minutes')
         ORDER BY "createdAt" ASC
-        FOR UPDATE SKIP LOCKED
         LIMIT $1
+        FOR UPDATE SKIP LOCKED
       )
       UPDATE "storage_object_deletion_queue" AS queue
       SET "status" = 'PROCESSING',
