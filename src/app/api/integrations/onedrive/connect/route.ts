@@ -14,13 +14,14 @@ const CALLBACK_COOKIE_PATH = '/api/integrations/onedrive/callback'
 export async function POST(request: NextRequest) {
   try {
     const user = await requireAdmin(request)
-    if (!isOneDriveConfigured() || !getJwtSecret()) {
+    const jwtSecret = getJwtSecret()
+    if (!isOneDriveConfigured() || !jwtSecret) {
       return NextResponse.json({ error: 'OneDrive is not configured. Add the Microsoft app ID, app secret, token encryption key, and public app URL to the deployment environment.' }, { status: 503 })
     }
 
     const verifier = randomBytes(32).toString('base64url')
     const challenge = createHash('sha256').update(verifier).digest('base64url')
-    const state = jwt.sign({ purpose: 'onedrive-oauth', userId: user.id, organizationId: user.organizationId, organizationSlug: user.organizationSlug, nonce: randomBytes(16).toString('base64url') }, getJwtSecret(), { expiresIn: '10m' })
+    const state = jwt.sign({ purpose: 'onedrive-oauth', userId: user.id, organizationId: user.organizationId, organizationSlug: user.organizationSlug, nonce: randomBytes(16).toString('base64url') }, jwtSecret, { expiresIn: '10m' })
     const authorization = new URL('https://login.microsoftonline.com/consumers/oauth2/v2.0/authorize')
     authorization.search = new URLSearchParams({
       client_id: process.env.MICROSOFT_CLIENT_ID!,
