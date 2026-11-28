@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db, controlDb } from '@/lib/db'
-import { Prisma } from '@prisma/client'
+import { Prisma } from '@/lib/prisma-compat'
 import { PermissionManager, defaultPermissions, adminPermissions, managerPermissions } from '@/lib/permissions'
 import { requireAuth } from '@/lib/auth'
 import { requireRolePermission } from '@/lib/permission-middleware'

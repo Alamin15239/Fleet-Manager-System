@@ -955,7 +955,7 @@ model TireLifecycleEvent {
   tire                Tire     @relation(fields: [tireId], references: [id], onDelete: Cascade)
   jobCard             WorkshopJobCard? @relation(fields: [jobCardId], references: [id], onDelete: SetNull)
 
-  @@index([tireId, eventAt(sort: Desc)])
+  @@index([tireId, eventAt])
   @@index([jobCardId])
   @@map("tire_lifecycle_events")
 }
@@ -1135,7 +1135,7 @@ model InventoryTransaction {
   sourceId        String?
   item            InventoryItem @relation(fields: [itemId], references: [id], onDelete: Restrict)
 
-  @@index([itemId, transactionDate(sort: Desc)], map: "inventory_transactions_itemId_date_idx")
+  @@index([itemId, transactionDate], map: "inventory_transactions_itemId_date_idx")
   @@index([vehicleType, vehicleId], map: "inventory_transactions_vehicle_idx")
   @@map("inventory_transactions")
 }

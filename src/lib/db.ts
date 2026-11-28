@@ -1,9 +1,14 @@
 import { AsyncLocalStorage } from 'node:async_hooks'
-import { PrismaClient } from '@prisma/client'
+import postgres from '@prisma/orm-postgres/runtime'
+import { contractFromJson } from '@prisma/orm-postgres/static'
 import jwt from 'jsonwebtoken'
 import { headers } from 'next/headers'
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto'
 import { getPrimaryDatabaseUrl, isSamePostgresDatabase } from '@/lib/primary-database'
+import { makeCompatClient } from '@/lib/prisma-client-compat'
+import type { PrismaClient } from '@/lib/prisma-compat'
+import serviceModule, { contractJson } from '../../service.mjs'
+import type { Contract } from '../prisma/contract'
 
 export type OrganizationRecord = {
   id: string
@@ -18,19 +23,115 @@ export type OrganizationRecord = {
 
 type DatabaseScope = { organizationId: string; client: PrismaClient }
 
+type LoadedComposerService = {
+  load: () => { db?: { client?: unknown } }
+  input: () => unknown
+}
+
 const globalForPrisma = globalThis as typeof globalThis & {
   fleetControlPrisma?: PrismaClient
   fleetOrganizationPrismas?: Map<string, PrismaClient>
 }
 
-const primaryDatabaseUrl = getPrimaryDatabaseUrl(process.env)
+function makeContract() {
+  return contractFromJson<Contract>(contractJson as object)
+}
 
-const controlDb = globalForPrisma.fleetControlPrisma ?? new PrismaClient({
-  log: process.env.NODE_ENV === 'development' ? ['error'] : ['error'],
-  datasources: { db: { url: primaryDatabaseUrl } },
-  errorFormat: 'pretty',
-  transactionOptions: { timeout: 10000, maxWait: 5000 }
-})
+/**
+ * The Prisma ORM 8 client the platform provides through the service
+ * declaration (`service.load().db.client`). Read lazily, never at module
+ * scope: `next build` imports route modules without the runtime environment.
+ */
+let platformPrimaryClient: unknown
+function getPlatformClient(): unknown | null {
+  if (platformPrimaryClient !== undefined) return platformPrimaryClient
+  platformPrimaryClient = null
+  try {
+    const loaded = (serviceModule as LoadedComposerService).load()
+    const client = (loaded as { db?: { client?: unknown } })?.db?.client
+    if (client) platformPrimaryClient = client
+  } catch {
+    // Not running under the platform (for example `next build` or plain dev).
+  }
+  return platformPrimaryClient
+}
+
+let fallbackPrimaryClient: unknown
+function getPrimaryOrmClient(): unknown {
+  const platform = getPlatformClient()
+  if (platform) return platform
+  if (!fallbackPrimaryClient) {
+    fallbackPrimaryClient = postgres({
+      contract: makeContract(),
+      url: getPrimaryDatabaseUrl(process.env) as string,
+    })
+  }
+  return fallbackPrimaryClient
+}
+
+/**
+ * Values the operator sets as platform variables. Read once, lazily, from
+ * `service.input()`; local runs keep reading the environment they were given.
+ */
+let platformInputCache: { jwtSecret?: string; organizationDatabaseEncryptionKey?: string } | undefined
+function platformInput() {
+  if (platformInputCache !== undefined) return platformInputCache
+  platformInputCache = {}
+  try {
+    const input = (serviceModule as LoadedComposerService).input() as AnyPlatformInput | null
+    const expose = (value: unknown) =>
+      value && typeof (value as { expose?: unknown }).expose === 'function'
+        ? (value as { expose: () => unknown }).expose()
+        : undefined
+    const jwtSecret = expose(input?.jwtSecret)
+    const encryptionKey = expose(input?.organizationDatabaseEncryptionKey)
+    if (typeof jwtSecret === 'string' && jwtSecret) platformInputCache.jwtSecret = jwtSecret
+    if (typeof encryptionKey === 'string' && encryptionKey) platformInputCache.organizationDatabaseEncryptionKey = encryptionKey
+  } catch {
+    // Not running under the platform: keep the previous environment behaviour.
+  }
+  return platformInputCache
+}
+
+type AnyPlatformInput = {
+  jwtSecret?: { expose?: () => unknown }
+  organizationDatabaseEncryptionKey?: { expose?: () => unknown }
+}
+
+/** The secret that signs auth tokens and share links. */
+export function getJwtSecret(): string | null {
+  return platformInput().jwtSecret ?? process.env.JWT_SECRET ?? null
+}
+
+function getEncryptionKey(): Buffer {
+  const configured = platformInput().organizationDatabaseEncryptionKey ?? process.env.ORGANIZATION_DATABASE_ENCRYPTION_KEY
+  if (!configured) throw new Error('Organization database encryption is not configured')
+  const key = Buffer.from(configured, 'base64')
+  if (key.length !== 32) throw new Error('Organization database encryption key must be 32 bytes (base64)')
+  return key
+}
+
+/** Build the compatibility client for an arbitrary Postgres connection string. */
+export function createPrismaClientForUrl(url: string): PrismaClient {
+  return makeCompatClient(postgres({ contract: makeContract(), url }))
+}
+
+/** A client that resolves its Prisma 8 client on first use, never at import time. */
+function lazyCompatClient(resolve: () => unknown): PrismaClient {
+  const cache: { client?: PrismaClient } = {}
+  return new Proxy({} as Record<string | symbol, unknown>, {
+    get(_target, prop) {
+      if (prop === 'then') return undefined
+      if (!cache.client) cache.client = makeCompatClient(resolve())
+      return (cache.client as Record<string | symbol, unknown>)[prop]
+    },
+    has() {
+      return true
+    },
+  }) as PrismaClient
+}
+
+const controlDb = globalForPrisma.fleetControlPrisma ?? lazyCompatClient(getPrimaryOrmClient)
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.fleetControlPrisma = controlDb
 
@@ -96,14 +197,6 @@ async function ensureFleetPlanningSchema(client: PrismaClient) {
 
 const databaseScope = new AsyncLocalStorage<DatabaseScope>()
 const passkeySchemaMigrations = new WeakMap<PrismaClient, Promise<void>>()
-
-function getEncryptionKey(): Buffer {
-  const configured = process.env.ORGANIZATION_DATABASE_ENCRYPTION_KEY
-  if (!configured) throw new Error('Organization database encryption is not configured')
-  const key = Buffer.from(configured, 'base64')
-  if (key.length !== 32) throw new Error('Organization database encryption key must be 32 bytes (base64)')
-  return key
-}
 
 export function encryptOrganizationDatabaseUrl(value: string): string {
   const key = getEncryptionKey()
@@ -255,7 +348,7 @@ export async function claimOneDriveAccount(
     }
   }
 
-  return controlDb.$transaction(async (transaction) => {
+  return controlDb.$transaction(async (transaction: any) => {
     // Serialize account reservations by locking a stable registry row. The
     // advisory-lock function returns PostgreSQL `void`, which Prisma cannot
     // decode through $queryRaw; selecting the row ID keeps the lock result typed.
@@ -354,7 +447,7 @@ export async function getRequestOrganization(): Promise<OrganizationRecord> {
     return getPrimaryOrganization()
   }
 
-  const secret = process.env.JWT_SECRET
+  const secret = getJwtSecret()
   if (!secret) throw new Error('JWT_SECRET environment variable is required')
   const decoded = jwt.verify(token, secret) as { organizationId?: string }
   return decoded.organizationId ? findOrganizationById(decoded.organizationId) : getPrimaryOrganization()
@@ -367,22 +460,18 @@ export async function getOrganizationPrismaClient(organization: OrganizationReco
 
   const databaseUrl = decryptOrganizationDatabaseUrl(organization.encryptedDatabaseUrl)
   try {
-    if (isSamePostgresDatabase(databaseUrl, primaryDatabaseUrl)) {
+    if (isSamePostgresDatabase(databaseUrl, getPrimaryDatabaseUrl(process.env))) {
       throw new Error('An organization must use a database separate from the primary organization.')
     }
   } catch (error) {
     if (error instanceof Error && error.message.startsWith('An organization must use')) throw error
-    // Let Prisma report malformed PostgreSQL URLs through its normal connection error.
+    // Let the client report malformed PostgreSQL URLs through its normal connection error.
   }
 
   const cached = tenantClients.get(organization.id)
   if (cached) return cached
 
-  const client = new PrismaClient({
-    log: process.env.NODE_ENV === 'development' ? ['error'] : ['error'],
-    datasources: { db: { url: databaseUrl } },
-    transactionOptions: { timeout: 10000, maxWait: 5000 }
-  })
+  const client = createPrismaClientForUrl(databaseUrl)
   tenantClients.set(organization.id, client)
   return client
 }
@@ -415,7 +504,7 @@ async function getRequestDatabaseClient(): Promise<PrismaClient> {
     return controlDb
   }
 
-  const secret = process.env.JWT_SECRET
+  const secret = getJwtSecret()
   if (!secret) throw new Error('JWT_SECRET environment variable is required')
   const decoded = jwt.verify(token, secret) as { organizationId?: string }
   if (!decoded.organizationId) return controlDb
@@ -463,7 +552,7 @@ export async function ensurePasskeySchema() {
 
 // Existing code uses db.model.method throughout the API. This request-aware
 // proxy routes those calls to the database selected by the verified JWT while
-// preserving the generated PrismaClient type for existing consumers.
+// preserving the compatibility client type for existing consumers.
 export const db = new Proxy({} as PrismaClient, {
   get(_target, property) {
     if (property === 'then') return undefined

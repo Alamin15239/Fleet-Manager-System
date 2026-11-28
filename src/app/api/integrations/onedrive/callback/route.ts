@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import jwt from 'jsonwebtoken'
-import { claimOneDriveAccount, db, findOrganizationById, getPrimaryOrganization, OneDriveAccountAlreadyConnectedError, OneDriveAccountRegistryCheckError, restoreOneDriveAccountClaim, withOrganization } from '@/lib/db'
+import { claimOneDriveAccount, db, findOrganizationById, getJwtSecret, getPrimaryOrganization, OneDriveAccountAlreadyConnectedError, OneDriveAccountRegistryCheckError, restoreOneDriveAccountClaim, withOrganization } from '@/lib/db'
 import { ensureOneDriveChangeSubscription, getOneDriveRedirectUri, saveOneDriveConnection, syncOneDriveWorkbook } from '@/lib/onedrive-excel-sync'
 
 export const runtime = 'nodejs'
@@ -60,13 +60,13 @@ export async function GET(request: NextRequest) {
 
   const cookieState = request.cookies.get(STATE_COOKIE)?.value
   const verifier = request.cookies.get(VERIFIER_COOKIE)?.value
-  if (!code || !state || !cookieState || state !== cookieState || !verifier || !process.env.JWT_SECRET) {
+  if (!code || !state || !cookieState || state !== cookieState || !verifier || !getJwtSecret()) {
     return clearOAuthCookies(settingsRedirect(request, 'error', 'The sign-in session expired or its browser cookies were unavailable. Start Connect OneDrive again.'))
   }
 
   let failureStage = 'validating the Microsoft sign-in'
   try {
-    const claims = jwt.verify(state, process.env.JWT_SECRET) as { purpose?: string; userId?: string; organizationId?: string }
+    const claims = jwt.verify(state, getJwtSecret()) as { purpose?: string; userId?: string; organizationId?: string }
     if (claims.purpose !== 'onedrive-oauth' || !claims.userId) throw new Error('Invalid authorization state')
     failureStage = 'loading the selected workspace'
     const organization = claims.organizationId ? await findOrganizationById(claims.organizationId) : await getPrimaryOrganization()

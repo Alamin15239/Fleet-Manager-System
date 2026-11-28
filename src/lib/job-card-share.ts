@@ -1,7 +1,8 @@
 import { createHmac, timingSafeEqual } from 'node:crypto'
+import { getJwtSecret } from '@/lib/db'
 
 function getSigningSecret() {
-  const secret = process.env.JWT_SECRET
+  const secret = getJwtSecret()
   if (!secret) throw new Error('JWT_SECRET environment variable is required')
   return secret
 }

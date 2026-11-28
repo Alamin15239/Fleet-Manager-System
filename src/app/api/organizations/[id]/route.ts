@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { PrismaClient } from '@prisma/client'
 import { requireAuth } from '@/lib/auth'
-import { controlDb, decryptOrganizationDatabaseUrl } from '@/lib/db'
+import { controlDb, createPrismaClientForUrl, decryptOrganizationDatabaseUrl } from '@/lib/db'
+import type { PrismaClient } from '@/lib/prisma-compat'
 import { deletePrismaOrganizationDatabase } from '@/lib/organization-provisioning'
 
 const ownerSchema = z.object({
@@ -38,10 +38,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     let tenantAdminId: string | null = null
 
     if (organization.schemaReady && organization.encryptedDatabaseUrl && organization.ownerEmail) {
-      tenantDb = new PrismaClient({
-        log: ['error'],
-        datasources: { db: { url: decryptOrganizationDatabaseUrl(organization.encryptedDatabaseUrl) } }
-      })
+      tenantDb = createPrismaClientForUrl(decryptOrganizationDatabaseUrl(organization.encryptedDatabaseUrl))
       const existingOwner = await tenantDb.user.findFirst({
         where: { email: { equals: organization.ownerEmail.trim().toLowerCase(), mode: 'insensitive' } },
         select: { id: true }

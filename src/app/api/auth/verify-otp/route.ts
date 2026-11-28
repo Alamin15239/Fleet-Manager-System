@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { resendEmailService } from '@/lib/resend-email';
-import { db, findOrganizationBySlug, withOrganization } from '@/lib/db';
+import { db, findOrganizationBySlug, getJwtSecret, withOrganization } from '@/lib/db';
 import jwt from 'jsonwebtoken';
 import { logUserLogin } from '@/lib/activity-tracking';
 
@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
           organizationName: organization.name,
           isPrimaryOrganization: organization.isPrimary
         },
-        process.env.JWT_SECRET!,
+        getJwtSecret()!,
         { expiresIn: '7d' }
       );
 

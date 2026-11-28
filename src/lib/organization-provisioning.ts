@@ -2,9 +2,10 @@ import { randomBytes } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { Client } from 'pg'
-import { PrismaClient } from '@prisma/client'
+import { createPrismaClientForUrl, controlDb, decryptOrganizationDatabaseUrl, encryptOrganizationDatabaseUrl } from '@/lib/db'
 import { hashPassword } from '@/lib/auth'
-import { controlDb, decryptOrganizationDatabaseUrl, encryptOrganizationDatabaseUrl } from '@/lib/db'
+import type { PrismaClient } from '@/lib/prisma-compat'
+import type { PrismaClient } from '@/lib/prisma-compat'
 import { defaultSettingsPermissions } from '@/lib/permissions'
 
 type ProvisioningOrganization = {
@@ -423,11 +424,7 @@ async function applyDatabaseSchema(connectionUri: string) {
 }
 
 async function seedOrganizationDatabase(organization: ProvisioningOrganization, connectionUri: string) {
-  const tenantDb = new PrismaClient({
-    log: ['error'],
-    datasources: { db: { url: connectionUri } },
-    transactionOptions: { timeout: 10_000, maxWait: 5_000 }
-  })
+  const tenantDb = createPrismaClientForUrl(connectionUri)
 
   try {
     const settings = await tenantDb.settings.findFirst({ select: { id: true } })

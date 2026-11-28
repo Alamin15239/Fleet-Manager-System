@@ -2,7 +2,7 @@ import { createPublicKey, randomBytes, verify as verifySignature } from 'node:cr
 import jwt from 'jsonwebtoken'
 import { NextRequest, NextResponse } from 'next/server'
 import { createUser, generateToken, hashPassword } from '@/lib/auth'
-import { db, findOrganizationBySlug, withOrganization } from '@/lib/db'
+import { db, findOrganizationBySlug, getJwtSecret, withOrganization } from '@/lib/db'
 import { logUserLogin } from '@/lib/activity-tracking'
 import { trackRegistration } from '@/lib/activity-tracker'
 
@@ -131,7 +131,7 @@ export async function GET(request: NextRequest) {
   let oauthState: OAuthState | null = null
 
   try {
-    const secret = process.env.JWT_SECRET
+    const secret = getJwtSecret()
     const clientId = process.env.GOOGLE_CLIENT_ID?.trim()
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET?.trim()
     if (!secret || !clientId || !clientSecret || !stateCookie || !queryState) {
