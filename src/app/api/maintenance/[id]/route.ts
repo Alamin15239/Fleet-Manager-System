@@ -3,7 +3,7 @@ import { db } from '@/lib/db'
 import { requireRolePermission } from '@/lib/permission-middleware'
 import { syncOneDriveWorkbookAfterChange } from '@/lib/onedrive-excel-sync'
 import { reconcileOilChangeInventory } from '@/lib/job-card-inventory'
-import { ensureMaintenanceJobCardColumns } from '@/lib/tire-lifecycle'
+import { ensureMaintenanceJobCardColumns, syncMaintenanceRecordJobCard } from '@/lib/tire-lifecycle'
 
 // GET single maintenance record by ID
 export async function GET(
@@ -204,7 +204,6 @@ export async function PUT(
           ...(body.oilQuantityLiters !== undefined && { oilQuantityLiters: body.oilQuantityLiters ? parseFloat(body.oilQuantityLiters) : null }),
           ...(body.currentMileage !== undefined && { currentMileage: body.currentMileage ? parseInt(body.currentMileage) : null }),
           ...(body.maintenanceJobId !== undefined && { maintenanceJobId: body.maintenanceJobId || null }),
-          jobCardId: null
         },
         include: {
           truck: {
@@ -260,20 +259,37 @@ export async function PUT(
             transactionDate: body.datePerformed ? new Date(body.datePerformed) : existingRecord.datePerformed,
             vehicleId: targetTruckId || existingRecord.truckId || 'unassigned',
             userId: user.id,
-            previousJobCardId: null,
+            previousJobCardId: existingRecord.jobCardId || null,
             previousVehicleId: existingRecord.truckId || null,
-            jobCardId: null
+            jobCardId
           })
         }
-        return updated
+        const jobCardId = await syncMaintenanceRecordJobCard(tx, {
+          recordId: id,
+          previousJobCardId: existingRecord.jobCardId,
+          previousPartsCost: existingRecord.partsCost,
+          previousLaborCost: existingRecord.laborCost,
+          vehicle: targetTruckId ? { vehicleType: 'truck', vehicleId: targetTruckId } : null,
+          eventAt: body.datePerformed ? new Date(body.datePerformed) : existingRecord.datePerformed,
+          serviceType: body.serviceType ?? existingRecord.serviceType,
+          description: body.description ?? existingRecord.description,
+          odometerKm: body.currentMileage !== undefined ? Number(body.currentMileage) : existingRecord.currentMileage,
+          driverName: body.driverName ?? existingRecord.driverName,
+          mechanicName: body.mechanicName ?? existingRecord.mechanicName,
+          partsCost,
+          laborCost,
+          userId: user.id,
+          creationSource: (nowOilChange || isOilService) ? 'OIL' : 'UNKNOWN'
+        })
+        return tx.maintenanceRecord.update({ where: { id }, data: { jobCardId } })
       })
     } else {
       updatedRecord = await db.$transaction(async tx => {
         await ensureMaintenanceJobCardColumns(tx)
-        return tx.trailerMaintenanceRecord.update({
+        const targetTrailerId = body.truckId !== undefined ? body.truckId || null : existingRecord.trailerId
+        const updated = await tx.trailerMaintenanceRecord.update({
         where: { id: id },
         data: {
-          jobCardId: null,
           ...(body.truckId !== undefined && { trailerId: body.truckId }),
           ...(body.serviceType !== undefined && { serviceType: body.serviceType }),
           ...(body.description !== undefined && { description: body.description }),
@@ -322,6 +338,23 @@ export async function PUT(
           }
         }
         })
+        const jobCardId = await syncMaintenanceRecordJobCard(tx, {
+          recordId: id,
+          previousJobCardId: existingRecord.jobCardId,
+          previousPartsCost: existingRecord.partsCost,
+          previousLaborCost: existingRecord.laborCost,
+          vehicle: targetTrailerId ? { vehicleType: 'trailer', vehicleId: targetTrailerId } : null,
+          eventAt: body.datePerformed ? new Date(body.datePerformed) : existingRecord.datePerformed,
+          serviceType: body.serviceType ?? existingRecord.serviceType,
+          description: body.description ?? existingRecord.description,
+          driverName: body.driverName ?? existingRecord.driverName,
+          mechanicName: body.mechanicName ?? existingRecord.mechanicName,
+          partsCost,
+          laborCost,
+          userId: user.id,
+          creationSource: 'UNKNOWN'
+        })
+        return tx.trailerMaintenanceRecord.update({ where: { id }, data: { jobCardId } })
       })
     }
 
