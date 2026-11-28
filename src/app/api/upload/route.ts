@@ -64,7 +64,7 @@ export async function GET(request: NextRequest) {
     const files = documents.flatMap(document => {
       const meta = (document.editorState as any)?.storage
       const organizationId = authUser.organizationId || authUser.organizationSlug || 'primary'
-      if (meta?.organizationId !== organizationId || meta?.entityId !== entityId || meta?.module !== (type === 'truck' ? 'truck-documents' : 'maintenance-documents')) return []
+      if (meta?.organizationId !== organizationId || meta?.entityId !== entityId || meta?.module !== (type === 'truck' ? 'truck-documents' : type === 'purchase-invoice' ? 'purchase-invoice-documents' : 'maintenance-documents')) return []
       return [{
         id: document.id,
         name: meta.fileName || document.title,
@@ -90,7 +90,7 @@ export async function POST(request: NextRequest) {
     const authUser = await requireAuth(request)
     const data = await request.formData()
     const type = String(data.get('type') || '').toLowerCase()
-    if (type !== 'truck' && type !== 'maintenance') {
+    if (!['truck', 'maintenance', 'purchase-invoice'].includes(type)) {
       return NextResponse.json({ error: 'Unsupported upload section' }, { status: 400 })
     }
     const entityId = String(data.get('entityId') || '').trim()
