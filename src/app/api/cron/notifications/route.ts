@@ -238,7 +238,7 @@ async function runDocumentAndDriverChangeEmailAlerts() {
     ...(ccRecipients.length ? { cc: ccRecipients } : {}),
     ...(bccRecipients.length ? { bcc: bccRecipients } : {}),
     subject: 'Fleet Manager: ' + changes.length + ' fleet record change' + (changes.length === 1 ? '' : 's'),
-    html: '<div style="font-family:Arial,sans-serif;max-width:1000px;margin:auto;color:#172033"><h2>Fleet record change summary</h2><p>The system detected vehicle document and driver record changes since the previous scheduled check.</p><p><b>Changes detected:</b> ' + changes.length + '</p><table style="width:100%;border-collapse:collapse;text-align:left"><thead><tr><th style="padding:8px">Change</th><th style="padding:8px">Record / details</th><th style="padding:8px">Owner</th><th style="padding:8px">Updated (UTC)</th><th style="padding:8px">File</th></tr></thead><tbody>' + rows + '</tbody></table><p>This is an automatic hourly summary from Fleet Manager.</p></div>',
+    html: '<div style="font-family:Arial,sans-serif;max-width:1000px;margin:auto;color:#172033"><h2>Fleet record change summary</h2><p>The system detected vehicle document and driver record changes since the previous scheduled check.</p><p><b>Changes detected:</b> ' + changes.length + '</p><table style="width:100%;border-collapse:collapse;text-align:left"><thead><tr><th style="padding:8px">Change</th><th style="padding:8px">Record / details</th><th style="padding:8px">Owner</th><th style="padding:8px">Updated (UTC)</th><th style="padding:8px">File</th></tr></thead><tbody>' + rows + '</tbody></table><p>This is an automatic scheduled summary from Fleet Manager.</p></div>',
   })
   if (error) {
     console.error('Resend rejected driver/document change summary')
