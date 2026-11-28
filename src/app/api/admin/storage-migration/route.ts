@@ -317,11 +317,11 @@ async function migrateDatabase(organization: OrganizationRecord, execute: boolea
   }>>`
     SELECT "id", "jobNumber", "items", "checklist", "technicianSignature", "supervisorSignature", "driverSignature"
     FROM "workshop_job_cards"
-    WHERE "technicianSignature" LIKE 'data:%'
-       OR "supervisorSignature" LIKE 'data:%'
-       OR "driverSignature" LIKE 'data:%'
-       OR "items"::text LIKE '%data:%'
-       OR "checklist"::text LIKE '%data:%'
+    WHERE "technicianSignature" ~ '^data:(image/(jpeg|png|gif|webp)|application/(pdf|msword|vnd.openxmlformats-officedocument.wordprocessingml.document|vnd.ms-excel|vnd.openxmlformats-officedocument.spreadsheetml.sheet));base64,'
+       OR "supervisorSignature" ~ '^data:(image/(jpeg|png|gif|webp)|application/(pdf|msword|vnd.openxmlformats-officedocument.wordprocessingml.document|vnd.ms-excel|vnd.openxmlformats-officedocument.spreadsheetml.sheet));base64,'
+       OR "driverSignature" ~ '^data:(image/(jpeg|png|gif|webp)|application/(pdf|msword|vnd.openxmlformats-officedocument.wordprocessingml.document|vnd.ms-excel|vnd.openxmlformats-officedocument.spreadsheetml.sheet));base64,'
+       OR "items"::text ~ 'data:(image/(jpeg|png|gif|webp)|application/(pdf|msword|vnd.openxmlformats-officedocument.wordprocessingml.document|vnd.ms-excel|vnd.openxmlformats-officedocument.spreadsheetml.sheet));base64,'
+       OR "checklist"::text ~ 'data:(image/(jpeg|png|gif|webp)|application/(pdf|msword|vnd.openxmlformats-officedocument.wordprocessingml.document|vnd.ms-excel|vnd.openxmlformats-officedocument.spreadsheetml.sheet));base64,'
     ORDER BY "id"
     LIMIT 500
   `
@@ -368,7 +368,7 @@ async function migrateDatabase(organization: OrganizationRecord, execute: boolea
 
   const maintenanceAttachments = await client.$queryRaw<Array<{ id: string; attachments: unknown }>>`
     SELECT "id", "attachments" FROM "maintenance_records"
-    WHERE "attachments"::text LIKE '%data:%' ORDER BY "id" LIMIT 500
+    WHERE "attachments"::text ~ 'data:(image/(jpeg|png|gif|webp)|application/(pdf|msword|vnd.openxmlformats-officedocument.wordprocessingml.document|vnd.ms-excel|vnd.openxmlformats-officedocument.spreadsheetml.sheet));base64,' ORDER BY "id" LIMIT 500
   `
   for (const row of maintenanceAttachments) {
     try {
@@ -384,7 +384,7 @@ async function migrateDatabase(organization: OrganizationRecord, execute: boolea
 
   const trailerMaintenanceAttachments = await client.$queryRaw<Array<{ id: string; attachments: unknown }>>`
     SELECT "id", "attachments" FROM "trailer_maintenance_records"
-    WHERE "attachments"::text LIKE '%data:%' ORDER BY "id" LIMIT 500
+    WHERE "attachments"::text ~ 'data:(image/(jpeg|png|gif|webp)|application/(pdf|msword|vnd.openxmlformats-officedocument.wordprocessingml.document|vnd.ms-excel|vnd.openxmlformats-officedocument.spreadsheetml.sheet));base64,' ORDER BY "id" LIMIT 500
   `
   for (const row of trailerMaintenanceAttachments) {
     try {
@@ -436,17 +436,17 @@ async function migrateDatabase(organization: OrganizationRecord, execute: boolea
     documentFiles: await client.document.count({ where: { fileUrl: { startsWith: 'data:' }, type: { in: ['truck', 'maintenance'] } } }),
     jobCardSignatures: Number((await client.$queryRaw<Array<{ count: bigint }>>`
       SELECT COUNT(*) AS count FROM "workshop_job_cards"
-      WHERE "technicianSignature" LIKE 'data:%' OR "supervisorSignature" LIKE 'data:%' OR "driverSignature" LIKE 'data:%'
+      WHERE "technicianSignature" ~ '^data:(image/(jpeg|png|gif|webp)|application/(pdf|msword|vnd.openxmlformats-officedocument.wordprocessingml.document|vnd.ms-excel|vnd.openxmlformats-officedocument.spreadsheetml.sheet));base64,' OR "supervisorSignature" ~ '^data:(image/(jpeg|png|gif|webp)|application/(pdf|msword|vnd.openxmlformats-officedocument.wordprocessingml.document|vnd.ms-excel|vnd.openxmlformats-officedocument.spreadsheetml.sheet));base64,' OR "driverSignature" ~ '^data:(image/(jpeg|png|gif|webp)|application/(pdf|msword|vnd.openxmlformats-officedocument.wordprocessingml.document|vnd.ms-excel|vnd.openxmlformats-officedocument.spreadsheetml.sheet));base64,'
     `)[0]?.count || 0),
     jobCardEmbeddedJson: Number((await client.$queryRaw<Array<{ count: bigint }>>`
       SELECT COUNT(*) AS count FROM "workshop_job_cards"
-      WHERE "items"::text LIKE '%data:%' OR "checklist"::text LIKE '%data:%'
+      WHERE "items"::text ~ 'data:(image/(jpeg|png|gif|webp)|application/(pdf|msword|vnd.openxmlformats-officedocument.wordprocessingml.document|vnd.ms-excel|vnd.openxmlformats-officedocument.spreadsheetml.sheet));base64,' OR "checklist"::text ~ 'data:(image/(jpeg|png|gif|webp)|application/(pdf|msword|vnd.openxmlformats-officedocument.wordprocessingml.document|vnd.ms-excel|vnd.openxmlformats-officedocument.spreadsheetml.sheet));base64,'
     `)[0]?.count || 0),
     maintenanceAttachments: Number((await client.$queryRaw<Array<{ count: bigint }>>`
-      SELECT COUNT(*) AS count FROM "maintenance_records" WHERE "attachments"::text LIKE '%data:%'
+      SELECT COUNT(*) AS count FROM "maintenance_records" WHERE "attachments"::text ~ 'data:(image/(jpeg|png|gif|webp)|application/(pdf|msword|vnd.openxmlformats-officedocument.wordprocessingml.document|vnd.ms-excel|vnd.openxmlformats-officedocument.spreadsheetml.sheet));base64,'
     `)[0]?.count || 0),
     trailerMaintenanceAttachments: Number((await client.$queryRaw<Array<{ count: bigint }>>`
-      SELECT COUNT(*) AS count FROM "trailer_maintenance_records" WHERE "attachments"::text LIKE '%data:%'
+      SELECT COUNT(*) AS count FROM "trailer_maintenance_records" WHERE "attachments"::text ~ 'data:(image/(jpeg|png|gif|webp)|application/(pdf|msword|vnd.openxmlformats-officedocument.wordprocessingml.document|vnd.ms-excel|vnd.openxmlformats-officedocument.spreadsheetml.sheet));base64,'
     `)[0]?.count || 0),
     tireEvidence: await client.tireLifecycleEvent.count({ where: { evidenceUrl: { startsWith: 'data:' } } }),
   }
