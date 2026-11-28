@@ -302,11 +302,11 @@ async function migrateDatabase(organization: OrganizationRecord, execute: boolea
       const entityId = typeof oldStorage.entityId === 'string' ? oldStorage.entityId : ''
       if (!entityId) { counters.skipped++; continue }
       if (!execute) { counters.planned++; continue }
-      const module = row.type === 'truck' ? 'truck-documents' : row.type === 'purchase-invoice' ? 'purchase-invoice-documents' : 'maintenance-documents'
+      const storageModule = row.type === 'truck' ? 'truck-documents' : row.type === 'purchase-invoice' ? 'purchase-invoice-documents' : 'maintenance-documents'
       const extension = extensionFor(parsed.contentType, 'bin')
       const fileName = /\.[a-z0-9]{1,10}$/i.test(row.title) ? row.title : 'uploaded-document.' + extension
       const key = await storeAndVerify({
-        organizationId: orgId, module, entityId,
+        organizationId: orgId, module: storageModule, entityId,
         fileName, contentType: parsed.contentType, body: parsed.body,
       })
       const updated = await client.document.updateMany({
