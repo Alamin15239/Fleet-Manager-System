@@ -447,7 +447,8 @@ export async function DELETE(
           data: {
             isDeleted: true,
             deletedAt: new Date(),
-            deletedBy: user.id
+            deletedBy: user.id,
+            jobCardId: null
           }
         })
       })
@@ -470,7 +471,8 @@ export async function DELETE(
           data: {
             isDeleted: true,
             deletedAt: new Date(),
-            deletedBy: 'system'
+            deletedBy: 'system',
+            jobCardId: null
           }
         })
       })
