@@ -28,7 +28,7 @@ function hasAllowedFileSignature(buffer: Buffer, mimeType: string) {
 }
 
 function safeDocumentFileName(value: string) {
-  return value.replace(/[\\u0000-\\u001f\\u007f\\r\\n"\\\\/]/g, '_').trim().slice(0, 180) || 'vehicle-document'
+  return value.replace(/[\u0000-\u001f\u007f\r\n"\\/]/g, '_').trim().slice(0, 180) || 'vehicle-document'
 }
 const SHARE_LINK_DAYS = 90
 
