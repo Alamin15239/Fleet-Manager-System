@@ -3,7 +3,7 @@ import { db } from '@/lib/db'
 import { requireRolePermission } from '@/lib/permission-middleware'
 import { syncOneDriveWorkbookAfterChange } from '@/lib/onedrive-excel-sync'
 import { reconcileOilChangeInventory } from '@/lib/job-card-inventory'
-import { ensureMaintenanceJobCardColumns } from '@/lib/tire-lifecycle'
+import { ensureMaintenanceJobCardColumns, syncMaintenanceRecordJobCard } from '@/lib/tire-lifecycle'
 
 export async function GET(request: NextRequest) {
   try {
@@ -100,22 +100,38 @@ export async function POST(request: NextRequest) {
       // Create trailer maintenance record
       record = await db.$transaction(async tx => {
         await ensureMaintenanceJobCardColumns(tx)
+        const datePerformed = new Date(body.datePerformed)
+        const partsCost = parseFloat(body.partsCost) || 0
+        const laborCost = parseFloat(body.laborCost) || 0
         const created = await tx.trailerMaintenanceRecord.create({
           data: {
             trailerId: body.truckId,
             serviceType: body.serviceType,
             description: body.description,
-            datePerformed: new Date(body.datePerformed),
-            partsCost: parseFloat(body.partsCost) || 0,
-            laborCost: parseFloat(body.laborCost) || 0,
-            totalCost: (parseFloat(body.partsCost) || 0) + (parseFloat(body.laborCost) || 0),
+            datePerformed,
+            partsCost,
+            laborCost,
+            totalCost: partsCost + laborCost,
             mechanicId: body.mechanicId || null,
             mechanicName: body.mechanicName || null,
             driverName: body.driverName || null,
             status: body.status || 'COMPLETED'
           }
         })
-        return created
+        const jobCardId = await syncMaintenanceRecordJobCard(tx, {
+          recordId: created.id,
+          vehicle: { vehicleType: 'trailer', vehicleId: body.truckId },
+          eventAt: datePerformed,
+          serviceType: body.serviceType || 'MAINTENANCE',
+          description: body.description,
+          driverName: body.driverName,
+          mechanicName: body.mechanicName,
+          partsCost,
+          laborCost,
+          userId: user.id,
+          creationSource: 'UNKNOWN'
+        })
+        return tx.trailerMaintenanceRecord.update({ where: { id: created.id }, data: { jobCardId } })
       })
     } else {
       // Create truck maintenance record
@@ -132,7 +148,7 @@ export async function POST(request: NextRequest) {
         mechanicId: body.mechanicId || null,
         mechanicName: body.mechanicName || null,
         driverName: body.driverName || null,
-        isOilChange: body.isOilChange || false,
+        isOilChange: body.isOilChange === true || /oil/i.test(String(body.serviceType || '')),
         oilQuantityLiters: body.oilQuantityLiters ? parseFloat(body.oilQuantityLiters) : null,
         oilChangeInterval: body.oilChangeInterval ? parseInt(body.oilChangeInterval) : null,
         currentMileage: body.currentMileage ? parseInt(body.currentMileage) : null,
@@ -142,15 +158,34 @@ export async function POST(request: NextRequest) {
       record = await db.$transaction(async tx => {
         await ensureMaintenanceJobCardColumns(tx)
         const created = await tx.maintenanceRecord.create({ data })
-        if (body.isOilChange && body.oilInventoryItemId && body.truckId) {
+        const datePerformed = new Date(body.datePerformed)
+        const partsCost = Number(data.partsCost || 0)
+        const laborCost = Number(data.laborCost || 0)
+        const isOilService = Boolean(data.isOilChange || /oil/i.test(String(data.serviceType || '')))
+        const jobCardId = await syncMaintenanceRecordJobCard(tx, {
+          recordId: created.id,
+          vehicle: body.truckId ? { vehicleType: 'truck', vehicleId: body.truckId } : null,
+          eventAt: datePerformed,
+          serviceType: data.serviceType || (isOilService ? 'OIL CHANGE' : 'MAINTENANCE'),
+          description: data.description,
+          odometerKm: data.currentMileage,
+          driverName: data.driverName,
+          mechanicName: data.mechanicName,
+          partsCost,
+          laborCost,
+          userId: user.id,
+          creationSource: isOilService ? 'OIL' : 'UNKNOWN'
+        })
+        const linkedRecord = await tx.maintenanceRecord.update({ where: { id: created.id }, data: { jobCardId } })
+        if (isOilService && body.oilInventoryItemId && body.truckId) {
           await reconcileOilChangeInventory(tx, {
             maintenanceId: created.id,
             inventoryItemId: body.oilInventoryItemId,
             quantityLiters: body.oilQuantityLiters,
-            transactionDate: new Date(body.datePerformed),
+            transactionDate: datePerformed,
             vehicleId: body.truckId,
             userId: user.id,
-            jobCardId: null
+            jobCardId
           })
         }
         if (body.truckId) {
@@ -166,7 +201,7 @@ export async function POST(request: NextRequest) {
             body.truckId, mileage, isOilChange, new Date(body.datePerformed)
           )
         }
-        return created
+        return linkedRecord
       })
     }
 
