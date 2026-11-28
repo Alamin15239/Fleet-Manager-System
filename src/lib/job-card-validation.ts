@@ -20,6 +20,8 @@ export function cleanJobCardPayload(body: any) {
     description: String(item.description || '').trim().slice(0, 300),
     quantity: Math.min(999999, Math.max(0, Number.isFinite(Number(item.quantity)) ? Number(item.quantity) : 0)),
     inventoryItemId: typeof item.inventoryItemId === 'string' && item.inventoryItemId ? item.inventoryItemId : null,
+    sourceId: typeof item.sourceId === 'string' && item.sourceId ? item.sourceId.slice(0, 160) : undefined,
+    sourceType: typeof item.sourceType === 'string' && item.sourceType ? item.sourceType.slice(0, 60) : undefined,
     unitCost: Number.isFinite(Number(item.unitCost)) && Number(item.unitCost) >= 0 ? Math.round(Number(item.unitCost) * 100) / 100 : null,
     remarks: String(item.remarks || '').trim().slice(0, 300)
   })).filter((item: any) => item.description && item.quantity > 0) : []
