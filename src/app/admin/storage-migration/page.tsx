@@ -8,10 +8,11 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { HardDrive, RefreshCw, ShieldCheck, AlertTriangle } from 'lucide-react'
 
+type Totals = { scanned: number; planned: number; migrated: number; skipped: number; failed: number }
 type Result = {
   mode: string
-  totals: { scanned: number; planned: number; migrated: number; skipped: number; failed: number }
-  organizations: Array<{ organization: string; counters: Result['totals']; failures?: Array<{ type: string; id: string; reason: string }>; remaining?: Record<string, number> }>
+  totals: Totals
+  organizations: Array<{ organization: string; counters: Totals; failures?: Array<{ type: string; id: string; reason: string }>; remaining?: Record<string, number> }>
 }
 
 export default function StorageMigrationPage() {
