@@ -34,6 +34,7 @@ const ALLOWED_UPLOAD_TYPES: Record<string, string> = {
 }
 
 async function attachmentParentExists(type: string, entityId: string) {
+  if (type === 'purchase-invoice') return Boolean(await db.purchaseInvoice.findUnique({ where: { id: entityId }, select: { id: true } }))
   if (type === 'truck') {
     return Boolean(await db.truck.findFirst({ where: { id: entityId, isDeleted: false }, select: { id: true } }))
   }
@@ -50,10 +51,10 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const type = String(searchParams.get('type') || '').toLowerCase()
     const entityId = String(searchParams.get('entityId') || '').trim()
-    if (!['truck', 'maintenance'].includes(type) || !entityId || entityId.length > 128) {
+    if (!['truck', 'maintenance', 'purchase-invoice'].includes(type) || !entityId || entityId.length > 128) {
       return NextResponse.json({ error: 'A valid fleet record is required' }, { status: 400 })
     }
-    await requireRolePermission(request, type === 'truck' ? 'trucks' : 'maintenance', 'read')
+    await requireRolePermission(request, type === 'truck' ? 'trucks' : type === 'purchase-invoice' ? 'purchase-invoices' : 'maintenance', 'read')
     if (!await attachmentParentExists(type, entityId)) return NextResponse.json({ error: 'The selected fleet record was not found' }, { status: 404 })
     const documents = await db.document.findMany({
       where: { type, editorState: { path: ['storage', 'entityId'], equals: entityId } },
@@ -96,7 +97,7 @@ export async function POST(request: NextRequest) {
     if (!entityId || entityId.length > 128) {
       return NextResponse.json({ error: 'A valid truck or maintenance record is required' }, { status: 400 })
     }
-    const permissionResource = type === 'truck' ? 'trucks' : 'maintenance'
+    const permissionResource = type === 'truck' ? 'trucks' : type === 'purchase-invoice' ? 'purchase-invoices' : 'maintenance'
     const user = await requireRolePermission(request, permissionResource, 'update')
     const parentExists = await attachmentParentExists(type, entityId)
     if (!parentExists) return NextResponse.json({ error: 'The selected fleet record was not found' }, { status: 404 })
@@ -114,7 +115,7 @@ export async function POST(request: NextRequest) {
 
     const stored = await putOrganizationObject({
       organizationId: authUser.organizationId || authUser.organizationSlug || 'primary',
-      module: type === 'truck' ? 'truck-documents' : 'maintenance-documents',
+      module: type === 'truck' ? 'truck-documents' : type === 'purchase-invoice' ? 'purchase-invoice-documents' : 'maintenance-documents',
       entityId,
       fileName: originalName,
       contentType: file.type,
@@ -133,7 +134,7 @@ export async function POST(request: NextRequest) {
           editorState: {
             storage: {
               organizationId: authUser.organizationId || authUser.organizationSlug || 'primary',
-              module: type === 'truck' ? 'truck-documents' : 'maintenance-documents',
+              module: type === 'truck' ? 'truck-documents' : type === 'purchase-invoice' ? 'purchase-invoice-documents' : 'maintenance-documents',
               entityId,
               fileName: originalName,
               contentType: file.type,
