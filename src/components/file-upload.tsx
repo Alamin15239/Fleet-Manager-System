@@ -24,7 +24,7 @@ interface UploadedFile {
 }
 
 interface FileUploadProps {
-  type: 'truck' | 'maintenance'
+  type: 'truck' | 'maintenance' | 'purchase-invoice'
   entityId: string
   existingFiles?: UploadedFile[]
   onFilesChange?: (files: UploadedFile[]) => void
