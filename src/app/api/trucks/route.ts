@@ -220,6 +220,9 @@ export async function POST(request: NextRequest) {
       )
     ]) as any
 
+    // The database row now owns the uploaded object; do not clean it up if later audit/sync work fails.
+    uploadedImageKey = undefined
+
     // Log audit event (this also logs user activity)
     await logEntityChange(
       'CREATE',
