@@ -123,12 +123,12 @@ function lazyCompatClient(resolve: () => unknown): PrismaClient {
     get(_target, prop) {
       if (prop === 'then') return undefined
       if (!cache.client) cache.client = makeCompatClient(resolve())
-      return (cache.client as Record<string | symbol, unknown>)[prop]
+      return (cache.client as unknown as Record<string | symbol, unknown>)[prop]
     },
     has() {
       return true
     },
-  }) as PrismaClient
+  }) as unknown as PrismaClient
 }
 
 const controlDb = globalForPrisma.fleetControlPrisma ?? lazyCompatClient(getPrimaryOrmClient)
