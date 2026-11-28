@@ -148,8 +148,7 @@ async function migrateJsonColumn(input: {
 }
 
 async function ensureTireLifecycleSchema(client: any): Promise<string[]> {
-  return client.$transaction(async (tx: any) => {
-            await tx.$queryRawUnsafe("WITH lock_result AS MATERIALIZED (SELECT pg_advisory_xact_lock(hashtext('fleet-manager:tire-lifecycle-schema:v1'))) SELECT 1 AS locked FROM lock_result")
+  return (async (tx: any) => {
     const dependencyRows = await tx.$queryRawUnsafe("SELECT to_regclass('public.tires') IS NOT NULL AS tires, to_regclass('public.workshop_job_cards') IS NOT NULL AS \"jobCards\"") as Array<{ tires: boolean; jobCards: boolean }>
     const [dependencies] = dependencyRows
     if (!dependencies?.tires || !dependencies?.jobCards) throw new Error('Cannot repair tire lifecycle schema: required base tables tires and workshop_job_cards must exist')
@@ -169,7 +168,7 @@ async function ensureTireLifecycleSchema(client: any): Promise<string[]> {
     await tx.$executeRawUnsafe('CREATE INDEX IF NOT EXISTS "tire_usage_periods_tireId_installedAt_idx" ON "tire_usage_periods"("tireId", "installedAt")')
     await tx.$executeRawUnsafe('CREATE INDEX IF NOT EXISTS "tire_usage_periods_vehicleType_vehicleId_idx" ON "tire_usage_periods"("vehicleType", "vehicleId")')
     return created
-  })
+  })(client)
 }
 
 async function migrateDatabase(organization: OrganizationRecord, execute: boolean) {
