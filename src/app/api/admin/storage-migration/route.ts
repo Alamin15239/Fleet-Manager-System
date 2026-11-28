@@ -177,7 +177,10 @@ async function migrateDatabase(organization: OrganizationRecord, execute: boolea
 
 export async function POST(request: NextRequest) {
   try {
-    await requireAdmin(request)
+    const administrator = await requireAdmin(request)
+    if (!administrator.isPrimaryOrganization) {
+      throw new Error('Primary organization administrator access required')
+    }
     const body = await request.json().catch(() => ({}))
     const execute = body?.execute === true
     const primary = await getPrimaryOrganization()
@@ -223,7 +226,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     const message = error instanceof Error ? error.message : ''
     const unauthorized = ['No token provided', 'Invalid token'].includes(message)
-    const forbidden = message === 'Insufficient permissions'
+    const forbidden = message === 'Insufficient permissions' || message === 'Primary organization administrator access required'
     return NextResponse.json({
       error: unauthorized ? 'Authentication required' : forbidden ? 'Administrator access required' : 'Storage migration scan failed',
     }, { status: unauthorized ? 401 : forbidden ? 403 : 503, headers: { 'Cache-Control': 'no-store' } })
