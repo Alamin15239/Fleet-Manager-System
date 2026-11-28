@@ -317,7 +317,7 @@ async function migrateDatabase(organization: OrganizationRecord, execute: boolea
             ...metadata,
             storage: {
               organizationId: orgId,
-              module,
+              module: storageModule,
               entityId,
               fileName,
               contentType: parsed.contentType,
