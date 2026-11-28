@@ -183,8 +183,8 @@ async function migrateDatabase(organization: OrganizationRecord, execute: boolea
   }
 
   const documents = await client.document.findMany({
-    where: { fileUrl: { startsWith: 'data:' } },
-    select: { id: true, title: true, fileUrl: true },
+    where: { fileUrl: { startsWith: 'data:' }, type: { in: ['truck', 'maintenance'] } },
+    select: { id: true, title: true, type: true, fileUrl: true, editorState: true },
     take: 500,
     orderBy: { id: 'asc' },
   })
@@ -193,15 +193,31 @@ async function migrateDatabase(organization: OrganizationRecord, execute: boolea
     try {
       const parsed = fileDataUri(row.fileUrl || '')
       if (!parsed) { counters.skipped++; continue }
+      const metadata = row.editorState && typeof row.editorState === 'object'
+        ? row.editorState as Record<string, any>
+        : {}
+      const oldStorage = metadata.storage && typeof metadata.storage === 'object'
+        ? metadata.storage as Record<string, unknown>
+        : {}
+      const entityId = typeof oldStorage.entityId === 'string' ? oldStorage.entityId : ''
+      if (!entityId) { counters.skipped++; continue }
       if (!execute) { counters.skipped++; continue }
+      const module = row.type === 'truck' ? 'truck-documents' : 'maintenance-documents'
+      const extension = extensionFor(parsed.contentType, 'bin')
+      const fileName = /\.[a-z0-9]{1,10}$/i.test(row.title) ? row.title : 'uploaded-document.' + extension
       const key = await storeAndVerify({
-        organizationId: orgId, module: 'maintenance-documents', entityId: row.id,
-        fileName: row.title || 'uploaded-document.' + extensionFor(parsed.contentType, 'bin'),
-        contentType: parsed.contentType, body: parsed.body,
+        organizationId: orgId, module, entityId,
+        fileName, contentType: parsed.contentType, body: parsed.body,
       })
       const updated = await client.document.updateMany({
         where: { id: row.id, fileUrl: row.fileUrl },
-        data: { fileUrl: 's3://' + key },
+        data: {
+          fileUrl: 's3://' + key,
+          editorState: {
+            ...metadata,
+            storage: { organizationId: orgId, module, entityId },
+          },
+        },
       })
       if (!updated.count) {
         await deleteOrganizationObject(key).catch(() => undefined)
