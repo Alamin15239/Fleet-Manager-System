@@ -213,7 +213,14 @@ async function migrateDatabase(organization: OrganizationRecord, execute: boolea
           fileUrl: 's3://' + key,
           editorState: {
             ...metadata,
-            storage: { organizationId: orgId, module, entityId },
+            storage: {
+              organizationId: orgId,
+              module,
+              entityId,
+              fileName,
+              contentType: parsed.contentType,
+              size: parsed.body.byteLength,
+            },
           },
         },
       })
@@ -231,7 +238,7 @@ async function migrateDatabase(organization: OrganizationRecord, execute: boolea
       SELECT COUNT(*) AS count FROM "vehicle_documents"
       WHERE "fileData" IS NOT NULL AND left(encode("fileData", 'escape'), 5) <> 's3://'
     `)[0]?.count || 0),
-    documentFiles: await client.document.count({ where: { fileUrl: { startsWith: 'data:' } } }),
+    documentFiles: await client.document.count({ where: { fileUrl: { startsWith: 'data:' }, type: { in: ['truck', 'maintenance'] } } }),
   }
   return { organization: organization.slug, counters, failures, remaining }
 }
