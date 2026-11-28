@@ -283,7 +283,7 @@ async function migrateDatabase(organization: OrganizationRecord, execute: boolea
   }
 
   const documents = await client.document.findMany({
-    where: { fileUrl: { startsWith: 'data:' }, type: { in: ['truck', 'maintenance'] } },
+    where: { fileUrl: { startsWith: 'data:' }, type: { in: ['truck', 'maintenance', 'purchase-invoice'] } },
     select: { id: true, title: true, type: true, fileUrl: true, editorState: true },
     take: 500,
     orderBy: { id: 'asc' },
@@ -302,7 +302,7 @@ async function migrateDatabase(organization: OrganizationRecord, execute: boolea
       const entityId = typeof oldStorage.entityId === 'string' ? oldStorage.entityId : ''
       if (!entityId) { counters.skipped++; continue }
       if (!execute) { counters.planned++; continue }
-      const module = row.type === 'truck' ? 'truck-documents' : 'maintenance-documents'
+      const module = row.type === 'truck' ? 'truck-documents' : row.type === 'purchase-invoice' ? 'purchase-invoice-documents' : 'maintenance-documents'
       const extension = extensionFor(parsed.contentType, 'bin')
       const fileName = /\.[a-z0-9]{1,10}$/i.test(row.title) ? row.title : 'uploaded-document.' + extension
       const key = await storeAndVerify({
@@ -459,7 +459,7 @@ async function migrateDatabase(organization: OrganizationRecord, execute: boolea
       SELECT COUNT(*) AS count FROM "vehicle_documents"
       WHERE "fileData" IS NOT NULL AND left(encode("fileData", 'escape'), 5) <> 's3://'
     `)[0]?.count || 0),
-    documentFiles: await client.document.count({ where: { fileUrl: { startsWith: 'data:' }, type: { in: ['truck', 'maintenance'] } } }),
+    documentFiles: await client.document.count({ where: { fileUrl: { startsWith: 'data:' }, type: { in: ['truck', 'maintenance', 'purchase-invoice'] } } }),
     jobCardSignatures: Number((await client.$queryRaw<Array<{ count: bigint }>>`
       SELECT COUNT(*) AS count FROM "workshop_job_cards"
       WHERE "technicianSignature" ~ '^data:(image/(jpeg|png|gif|webp)|application/(pdf|msword|vnd.openxmlformats-officedocument.wordprocessingml.document|vnd.ms-excel|vnd.openxmlformats-officedocument.spreadsheetml.sheet));base64,' OR "supervisorSignature" ~ '^data:(image/(jpeg|png|gif|webp)|application/(pdf|msword|vnd.openxmlformats-officedocument.wordprocessingml.document|vnd.ms-excel|vnd.openxmlformats-officedocument.spreadsheetml.sheet));base64,' OR "driverSignature" ~ '^data:(image/(jpeg|png|gif|webp)|application/(pdf|msword|vnd.openxmlformats-officedocument.wordprocessingml.document|vnd.ms-excel|vnd.openxmlformats-officedocument.spreadsheetml.sheet));base64,'
@@ -524,7 +524,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: totals.failed === 0,
       mode: execute ? 'migrate' : 'scan',
-      note: 'Before scanning a tenant, missing tire lifecycle tables and indexes are added without changing existing rows. File migration remains scan-only unless execute is true. Embedded profile images, truck images, vehicle-document bytes, Document.fileUrl files, job-card signatures/items/checklists, maintenance attachments, and tire evidence are supported; external links and ordinary text fields are unchanged.',
+      note: 'Before scanning a tenant, missing tire lifecycle tables and indexes are added without changing existing rows. File migration remains scan-only unless execute is true. Embedded profile images, truck images, vehicle-document bytes, Document.fileUrl files including purchase-invoice attachments, job-card signatures/items/checklists, maintenance attachments, and tire evidence are supported; external links and ordinary text fields are unchanged.',
       totals,
       organizations: results,
     }, { headers: { 'Cache-Control': 'no-store' } })
