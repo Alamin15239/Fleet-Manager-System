@@ -405,7 +405,7 @@ export async function PATCH(request: NextRequest) {
           description: `Reversal of ${invoice.internalNumber}`,
           isReversal: true,
           lines: {
-            create: original.lines.map((line) => ({
+            create: original.lines.map((line: any) => ({
               accountId: line.accountId,
               invoiceLineId: line.invoiceLineId,
               category: line.category,
