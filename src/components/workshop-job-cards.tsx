@@ -201,7 +201,7 @@ export default function WorkshopJobCards() {
           <p className="mt-2 text-sm leading-6 text-muted-foreground">One maintenance visit, one central job card. Oil changes, tire work and spare-parts issues remain available in their own workspaces and are linked to the vehicle's open job card.</p>
           <div className="mt-3 flex flex-wrap gap-2 text-xs">
             <Badge variant="outline" className="bg-background/70">Live register</Badge>
-            <Badge variant="outline" className="bg-background/70">Separate module activity totals</Badge>
+            <Badge variant="outline" className="bg-background/70">Linked module activities</Badge>
             <Badge variant="outline" className="bg-background/70">Bilingual A4 report</Badge>
           </div>
         </div>
@@ -242,7 +242,7 @@ export default function WorkshopJobCards() {
           {label:'Tire events',total:activitySummary.tires.total},
           {label:'Spare-parts issues',total:activitySummary.spareParts.total},
           {label:'All module activities',total:activitySummary.total}
-        ].map(item => <div key={item.label} className="rounded-xl border bg-muted/20 p-3"><p className="text-xs font-medium text-muted-foreground">{item.label}</p><p className="mt-2 text-2xl font-bold tabular-nums">{item.total}</p><p className="mt-1 text-[11px] text-muted-foreground">Managed separately</p></div>)}
+        ].map(item => <div key={item.label} className="rounded-xl border bg-muted/20 p-3"><p className="text-xs font-medium text-muted-foreground">{item.label}</p><p className="mt-2 text-2xl font-bold tabular-nums">{item.total}</p><p className="mt-1 text-[11px] text-muted-foreground">Linked to Job Card</p></div>)}
       </CardContent>
     </Card>
 
