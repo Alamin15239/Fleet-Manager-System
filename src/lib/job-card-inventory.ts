@@ -1,6 +1,6 @@
 import { randomUUID } from 'crypto'
 
-type InventoryLine = { type?: string; inventoryItemId?: string | null; description?: string; quantity?: number; unitCost?: number | null }
+type InventoryLine = { type?: string; inventoryItemId?: string | null; description?: string; quantity?: number; unitCost?: number | null; sourceId?: string; sourceType?: string }
 
 export async function ensureInventoryTables(tx: any) {
   await tx.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "inventory_items" (
@@ -52,11 +52,12 @@ export async function reconcileJobCardInventory(tx: any, args: {
         line.inventoryItemId
       )
       if (Number(balance[0]?.qty || 0) + 0.000001 < qty) throw new Error(`Insufficient stock for ${line.description || 'selected part'}`)
-      await tx.$executeRawUnsafe(`INSERT INTO "inventory_transactions" ("id","itemId","type","quantity","transactionDate","reference","vehicleType","vehicleId","jobCardId","unitCost","notes","createdById")
-         VALUES ($1,$2,'ISSUE',$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+      await tx.$executeRawUnsafe(`INSERT INTO "inventory_transactions" ("id","itemId","type","quantity","transactionDate","reference","vehicleType","vehicleId","jobCardId","unitCost","notes","createdById","sourceType","sourceId")
+         VALUES ($1,$2,'ISSUE',$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
         `itx_${randomUUID()}`, line.inventoryItemId, qty, args.transactionDate,
         `Job card ${args.jobCardId}`, args.vehicleType, args.vehicleId, args.jobCardId,
-        line.unitCost == null ? null : Number(line.unitCost), line.description || 'Job card part issue', args.userId
+        line.unitCost == null ? null : Number(line.unitCost), line.description || 'Job card part issue', args.userId,
+        line.sourceType || null, line.sourceId || null
       )
     }
   }
