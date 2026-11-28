@@ -93,7 +93,7 @@ async function runDocumentExpiryEmailAlerts(organizationSlug: string) {
 
   const missingDocuments = [
     ...trucks.flatMap((truck) => requiredTruckDocumentTypes
-      .filter((type) => !truck.vehicleDocuments.some((document) => document.documentType === type))
+      .filter((type) => !truck.vehicleDocuments.some((document: any) => document.documentType === type))
       .map((type) => ({
         title: type, documentType: type,
         owner: 'Truck ' + truck.licensePlate + ' (' + [truck.make, truck.model].filter(Boolean).join(' ') + ')',
