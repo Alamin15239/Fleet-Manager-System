@@ -63,7 +63,7 @@ export async function deleteVehicleDocumentWithCleanup(input: {
 }
 
 /** Process a bounded batch; stale locks are reclaimed after a crashed invocation. */
-export async function processPendingStorageObjectDeletions(limit = 20) {
+export async function processPendingStorageObjectDeletions(limit = 20, allowedOrganizationIds: string[] = []) {
   await ensureStorageCleanupSchema()
   const safeLimit = Math.max(1, Math.min(50, Math.floor(limit)))
   const claimed = await db.$transaction(async (transaction) =>
@@ -93,7 +93,7 @@ export async function processPendingStorageObjectDeletions(limit = 20) {
   let retried = 0
   for (const item of claimed) {
     try {
-      if (!item.objectKey.startsWith('organizations/')) throw new Error('Invalid queued object key')
+      if (!allowedOrganizationIds.some((organizationId) => isOrganizationObjectKey(item.objectKey, organizationId))) throw new Error('Queued object does not belong to this organization')
       await deleteOrganizationObject(item.objectKey)
       await db.$executeRawUnsafe('DELETE FROM "storage_object_deletion_queue" WHERE "id" = $1', item.id)
       deleted++
