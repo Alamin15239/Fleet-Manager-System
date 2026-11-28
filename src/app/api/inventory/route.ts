@@ -291,9 +291,11 @@ export async function PATCH(request: NextRequest) {
       if (Number(balance[0]?.qty || 0) + 0.000001 < quantity)
         throw new Error('Insufficient stock for the corrected issue')
 
-      if (old.jobCardId && old.sourceType !== 'OIL_CHANGE')
+      if (old.jobCardId && old.sourceType !== 'OIL_CHANGE') {
         const card = await tx.workshopJobCard.findUnique({ where: { id: old.jobCardId } })
         if (!card) throw new Error('Linked Workshop Job Card was not found')
+        const cardVehicleMatches = vehicleType === 'truck' ? card.truckId === vehicleId : card.trailerId === vehicleId
+        if (!cardVehicleMatches) throw new Error('This issue is linked to a Job Card for another vehicle. Reverse it and create a new issue for the correct vehicle.')
         const lines = Array.isArray(card.items) ? [...card.items as any[]] : []
         const matches = lines.map((line, index) => ({ line, index }))
           .filter(({ line }) => old.sourceId
@@ -313,16 +315,9 @@ export async function PATCH(request: NextRequest) {
           data: {
             items: lines,
             partsCost: Math.max(0, Number(card.partsCost || 0) - oldLineCost + nextLineCost),
-            totalCost: Math.max(0, Number(card.totalCost || 0) - oldLineCost + nextLineCost),
-            serviceDate: transactionDate
+            totalCost: Math.max(0, Number(card.totalCost || 0) - oldLineCost + nextLineCost)
           }
         })
-        // A Job Card is one maintenance visit; keep all of its inventory issue
-        // rows aligned with the corrected visit date and assigned vehicle.
-        await tx.$executeRawUnsafe(`
-          UPDATE "inventory_transactions" SET "transactionDate"=$2,"vehicleType"=$3,"vehicleId"=$4
-          WHERE "jobCardId"=$1 AND "type"='ISSUE'`,
-          card.id, transactionDate, vehicleType, vehicleId)
       }
 
       if (old.sourceType === 'OIL_CHANGE') {
