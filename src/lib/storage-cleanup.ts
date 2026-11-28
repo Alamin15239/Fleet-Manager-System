@@ -5,25 +5,23 @@ import { deleteOrganizationObject, isOrganizationObjectKey } from '@/lib/object-
 type CleanupRow = { id: string; objectKey: string; attempts: number }
 
 async function ensureStorageCleanupSchema() {
-  // Run idempotent DDL against the active request/tenant database. A single
+  // Run idempotent DDL against the active request/tenant database. A
   // process-wide flag would incorrectly skip setup for other tenant databases.
-  {
-      await db.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "storage_object_deletion_queue" (
-        "id" TEXT NOT NULL,
-        "objectKey" TEXT NOT NULL,
-        "status" TEXT NOT NULL DEFAULT 'PENDING',
-        "attempts" INTEGER NOT NULL DEFAULT 0,
-        "availableAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        "lockedAt" TIMESTAMP(3),
-        "lastError" TEXT,
-        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        CONSTRAINT "storage_object_deletion_queue_pkey" PRIMARY KEY ("id"),
-        CONSTRAINT "storage_object_deletion_queue_objectKey_key" UNIQUE ("objectKey")
-      )`)
-      await db.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "storage_object_deletion_queue_status_availableAt_idx" ON "storage_object_deletion_queue" ("status", "availableAt")`)
-      await db.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "storage_object_deletion_queue_lockedAt_idx" ON "storage_object_deletion_queue" ("lockedAt")`)
-  }
+  await db.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "storage_object_deletion_queue" (
+    "id" TEXT NOT NULL,
+    "objectKey" TEXT NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'PENDING',
+    "attempts" INTEGER NOT NULL DEFAULT 0,
+    "availableAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "lockedAt" TIMESTAMP(3),
+    "lastError" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "storage_object_deletion_queue_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "storage_object_deletion_queue_objectKey_key" UNIQUE ("objectKey")
+  )`)
+  await db.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "storage_object_deletion_queue_status_availableAt_idx" ON "storage_object_deletion_queue" ("status", "availableAt")`)
+  await db.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "storage_object_deletion_queue_lockedAt_idx" ON "storage_object_deletion_queue" ("lockedAt")`)
 }
 
 /**
@@ -57,7 +55,7 @@ export async function deleteVehicleDocumentWithCleanup(input: {
 }
 
 /** Process a bounded batch; stale locks are reclaimed after a crashed invocation. */
-export async function processPendingStorageObjectDeletions(limit = 20, allowedOrganizationIds: string[] = []) {
+export async function processPendingStorageObjectDeletions(limit = 50, allowedOrganizationIds: string[] = []) {
   await ensureStorageCleanupSchema()
   const safeLimit = Math.max(1, Math.min(50, Math.floor(limit)))
   const claimed = await db.$transaction(async (transaction) =>
@@ -87,7 +85,9 @@ export async function processPendingStorageObjectDeletions(limit = 20, allowedOr
   let retried = 0
   for (const item of claimed) {
     try {
-      if (!allowedOrganizationIds.some((organizationId) => isOrganizationObjectKey(item.objectKey, organizationId))) throw new Error('Queued object does not belong to this organization')
+      if (!allowedOrganizationIds.some((organizationId) => isOrganizationObjectKey(item.objectKey, organizationId))) {
+        throw new Error('Queued object does not belong to this organization')
+      }
       await deleteOrganizationObject(item.objectKey)
       await db.$executeRawUnsafe('DELETE FROM "storage_object_deletion_queue" WHERE "id" = $1', item.id)
       deleted++
