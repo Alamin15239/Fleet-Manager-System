@@ -76,15 +76,40 @@ export default function WorkshopJobCards() {
 
   const load = async () => {
     try {
-      const [cardsResponse, optionsResponse, inventoryResponse] = await Promise.all([apiGet('/api/job-cards'), apiGet('/api/job-cards/options'), apiGet('/api/inventory')])
-      if (!cardsResponse.ok || !optionsResponse.ok) throw new Error('Unable to load workshop job cards')
-      const [cardsData, options, inventory] = await Promise.all([cardsResponse.json(), optionsResponse.json(), inventoryResponse.ok ? inventoryResponse.json() : Promise.resolve({ items: [] })])
+      const [cardsResponse, optionsResponse, inventoryResponse] = await Promise.all([
+        apiGet('/api/job-cards'),
+        apiGet('/api/job-cards/options'),
+        apiGet('/api/inventory')
+      ])
+
+      if (!cardsResponse.ok) {
+        let details = ''
+        try {
+          const body = await cardsResponse.json()
+          details = body?.error ? `: ${body.error}` : ''
+        } catch {}
+        throw new Error(`Job Cards API failed (HTTP ${cardsResponse.status})${details}`)
+      }
+
+      const cardsData = await cardsResponse.json()
       setCards(cardsData.jobCards || [])
       setActivitySummary(cardsData.activitySummary || { oil: { total: 0 }, tires: { total: 0 }, spareParts: { total: 0 }, total: 0 })
       setCompany(cardsData.company || null)
+
+      // Vehicle options are needed to create/edit cards, but must not hide
+      // the saved register when this secondary endpoint is temporarily down.
+      if (optionsResponse.ok) {
+        const options = await optionsResponse.json()
+        setTrucks((options.trucks || []).map((truck: any) => ({ id: truck.id, label: `${truck.licensePlate} · ${truck.year} ${truck.make} ${truck.model}`, driverName: truck.driverName, mileage: truck.currentMileage })))
+        setTrailers((options.trailers || []).map((trailer: any) => ({ id: trailer.id, label: `Trailer ${trailer.number}`, driverName: trailer.driverName })))
+      } else {
+        setTrucks([])
+        setTrailers([])
+        console.warn(`Job card vehicle options unavailable (HTTP ${optionsResponse.status})`)
+      }
+
+      const inventory = inventoryResponse.ok ? await inventoryResponse.json() : { items: [] }
       setInventoryItems(inventory.items || [])
-      setTrucks((options.trucks || []).map((truck: any) => ({ id: truck.id, label: `${truck.licensePlate} · ${truck.year} ${truck.make} ${truck.model}`, driverName: truck.driverName, mileage: truck.currentMileage })))
-      setTrailers((options.trailers || []).map((trailer: any) => ({ id: trailer.id, label: `Trailer ${trailer.number}`, driverName: trailer.driverName })))
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Unable to load job cards')
     } finally { setLoading(false) }
