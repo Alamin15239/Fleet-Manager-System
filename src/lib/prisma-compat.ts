@@ -12,7 +12,83 @@
  * - The remaining `Prisma.*` names are type-only aliases used by call sites.
  */
 
-export type PrismaClient = any
+/**
+ * Typed surface for the Prisma 6-style delegates exposed by the runtime
+ * compatibility proxy. The adapter intentionally accepts Prisma-shaped
+ * arguments while keeping query results generic so existing call sites can
+ * supply a precise result type where needed.
+ */
+export interface PrismaModelDelegate {
+  findMany<T = any>(args?: any): Promise<T[]>
+  findFirst<T = any>(args?: any): Promise<T | null>
+  findUnique<T = any>(args?: any): Promise<T | null>
+  findFirstOrThrow<T = any>(args?: any): Promise<T>
+  findUniqueOrThrow<T = any>(args?: any): Promise<T>
+  create<T = any>(args: any): Promise<T>
+  createMany(args?: any): Promise<{ count: number }>
+  update<T = any>(args: any): Promise<T>
+  updateMany(args?: any): Promise<{ count: number }>
+  upsert<T = any>(args: any): Promise<T>
+  delete<T = any>(args: any): Promise<T>
+  deleteMany(args?: any): Promise<{ count: number }>
+  count<T = number>(args?: any): Promise<T>
+  aggregate<T = any>(args?: any): Promise<T>
+  groupBy<T = any>(args?: any): Promise<T[]>
+}
+
+export interface PrismaClient {
+  user: PrismaModelDelegate
+  passkeyCredential: PrismaModelDelegate
+  mechanic: PrismaModelDelegate
+  driver: PrismaModelDelegate
+  truck: PrismaModelDelegate
+  trailer: PrismaModelDelegate
+  maintenanceJob: PrismaModelDelegate
+  predictiveAlert: PrismaModelDelegate
+  trailerPredictiveAlert: PrismaModelDelegate
+  maintenanceRecord: PrismaModelDelegate
+  trailerMaintenanceRecord: PrismaModelDelegate
+  workshopJobCard: PrismaModelDelegate
+  settings: PrismaModelDelegate
+  organization: PrismaModelDelegate
+  organizationPurchaseRequest: PrismaModelDelegate
+  organizationBillingPayment: PrismaModelDelegate
+  vendor: PrismaModelDelegate
+  purchaseInvoice: PrismaModelDelegate
+  purchaseInvoiceLine: PrismaModelDelegate
+  fleetLedgerAccount: PrismaModelDelegate
+  purchaseJournalEntry: PrismaModelDelegate
+  purchaseJournalLine: PrismaModelDelegate
+  oneDriveIntegration: PrismaModelDelegate
+  excelWorkbookChange: PrismaModelDelegate
+  notification: PrismaModelDelegate
+  trailerNotification: PrismaModelDelegate
+  auditLog: PrismaModelDelegate
+  userActivity: PrismaModelDelegate
+  loginHistory: PrismaModelDelegate
+  vehicle: PrismaModelDelegate
+  vehicleType: PrismaModelDelegate
+  fleetVehicle: PrismaModelDelegate
+  vehicleDocument: PrismaModelDelegate
+  maintenanceType: PrismaModelDelegate
+  tire: PrismaModelDelegate
+  tireLifecycleEvent: PrismaModelDelegate
+  tireUsagePeriod: PrismaModelDelegate
+  document: PrismaModelDelegate
+  storageObjectDeletionQueue: PrismaModelDelegate
+  emailLog: PrismaModelDelegate
+  inventoryItem: PrismaModelDelegate
+  inventoryTransaction: PrismaModelDelegate
+  websiteVisitorSession: PrismaModelDelegate
+  $transaction<T>(operation: (transaction: PrismaClient) => Promise<T>): Promise<T>
+  $queryRaw<T = unknown>(strings: TemplateStringsArray, ...values: unknown[]): Promise<T>
+  $queryRawUnsafe<T = unknown>(query: string, ...values: unknown[]): Promise<T>
+  $executeRaw(strings: TemplateStringsArray, ...values: unknown[]): Promise<number>
+  $executeRawUnsafe(query: string, ...values: unknown[]): Promise<number>
+  $connect(): Promise<void>
+  $disconnect(): Promise<void>
+  $on(event: string, callback: (...args: any[]) => void): void
+}
 
 export class PrismaClientKnownRequestError extends Error {
   code: string
