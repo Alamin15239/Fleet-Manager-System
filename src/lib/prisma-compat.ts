@@ -149,6 +149,8 @@ export enum PurchaseExpenseCategory {
   OTHER = 'OTHER',
 }
 
+// The namespace merges runtime values and type aliases for Prisma-compatible imports.
+// eslint-disable-next-line @typescript-eslint/no-namespace
 export namespace Prisma {
   export const PrismaClientKnownRequestError = CompatPrismaClientKnownRequestError
   export const Decimal = CompatDecimal
