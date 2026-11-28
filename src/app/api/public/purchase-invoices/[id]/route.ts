@@ -63,7 +63,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
       subtotal: asNumber(invoice.subtotal),
       vatTotal: asNumber(invoice.vatTotal),
       grandTotal: asNumber(invoice.grandTotal),
-      lines: invoice.lines.map((line) => ({
+      lines: invoice.lines.map((line: any) => ({
         ...line,
         quantity: asNumber(line.quantity),
         unitPrice: asNumber(line.unitPrice),
