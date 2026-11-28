@@ -18,6 +18,8 @@ export async function ensureInventoryTables(tx: any) {
     "unitCost" DOUBLE PRECISION, "notes" TEXT, "createdById" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`)
+  await tx.$executeRawUnsafe(`ALTER TABLE "inventory_transactions" ADD COLUMN IF NOT EXISTS "sourceType" TEXT`)
+  await tx.$executeRawUnsafe(`ALTER TABLE "inventory_transactions" ADD COLUMN IF NOT EXISTS "sourceId" TEXT`)
 }
 
 export async function reconcileJobCardInventory(tx: any, args: {
