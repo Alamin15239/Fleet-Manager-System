@@ -151,7 +151,13 @@ describe('fleet maintenance synchronization', () => {
       workshopJobCard: {
         findMany: jest.fn().mockResolvedValue([{
           id: 'job-source', serviceDate: date, creationSource: 'MANUAL'
-        }])
+        }]),
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'job-source',
+          items: [],
+          totalCost: 0
+        }),
+        update: jest.fn().mockResolvedValue({ id: 'job-source' })
       }
     }
 
