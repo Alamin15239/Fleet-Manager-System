@@ -57,13 +57,14 @@ async function storeAndVerify(input: { organizationId: string; module: string; e
 }
 
 async function migrateJson(client: any, table: string, column: string, id: string, value: unknown, organizationId: string, module: string, execute: boolean, result: StorageMigrationResult) {
+  const uploadedKeys: string[] = []
   const visit = async (current: unknown, path: string): Promise<unknown> => {
     const parsed = parseDataUri(current)
     if (parsed) {
       result.scanned++
       if (!execute) { result.planned++; return current }
       const key = await storeAndVerify({ organizationId, module, entityId: id, fileName: `${path.replace(/[^a-z0-9_-]/gi, '_') || 'attachment'}.${extensionFor(parsed.contentType)}`, contentType: parsed.contentType, body: parsed.body })
-      result.migrated++
+      uploadedKeys.push(key)
       return `s3://${key}`
     }
     if (Array.isArray(current)) return Promise.all(current.map((item, index) => visit(item, `${path}.${index}`)))
@@ -74,12 +75,20 @@ async function migrateJson(client: any, table: string, column: string, id: strin
     }
     return current
   }
-  const migrated = await visit(value, '')
-  if (execute && JSON.stringify(migrated) !== JSON.stringify(value)) {
-    if (table === 'workshop_job_cards' && column === 'items') await client.$executeRaw`UPDATE "workshop_job_cards" SET "items" = ${JSON.stringify(migrated)}::jsonb, "updatedAt" = NOW() WHERE "id" = ${id} AND "items" IS NOT DISTINCT FROM ${JSON.stringify(value)}::jsonb`
-    if (table === 'workshop_job_cards' && column === 'checklist') await client.$executeRaw`UPDATE "workshop_job_cards" SET "checklist" = ${JSON.stringify(migrated)}::jsonb, "updatedAt" = NOW() WHERE "id" = ${id} AND "checklist" IS NOT DISTINCT FROM ${JSON.stringify(value)}::jsonb`
-    if (table === 'maintenance_records' && column === 'attachments') await client.$executeRaw`UPDATE "maintenance_records" SET "attachments" = ${JSON.stringify(migrated)}::jsonb, "updatedAt" = NOW() WHERE "id" = ${id} AND "attachments" IS NOT DISTINCT FROM ${JSON.stringify(value)}::jsonb`
-    if (table === 'trailer_maintenance_records' && column === 'attachments') await client.$executeRaw`UPDATE "trailer_maintenance_records" SET "attachments" = ${JSON.stringify(migrated)}::jsonb, "updatedAt" = NOW() WHERE "id" = ${id} AND "attachments" IS NOT DISTINCT FROM ${JSON.stringify(value)}::jsonb`
+
+  try {
+    const migrated = await visit(value, '')
+    if (!execute || JSON.stringify(migrated) === JSON.stringify(value)) return
+    let updated = 0
+    if (table === 'workshop_job_cards' && column === 'items') updated = await client.$executeRaw`UPDATE "workshop_job_cards" SET "items" = ${JSON.stringify(migrated)}::jsonb, "updatedAt" = NOW() WHERE "id" = ${id} AND "items" IS NOT DISTINCT FROM ${JSON.stringify(value)}::jsonb`
+    else if (table === 'workshop_job_cards' && column === 'checklist') updated = await client.$executeRaw`UPDATE "workshop_job_cards" SET "checklist" = ${JSON.stringify(migrated)}::jsonb, "updatedAt" = NOW() WHERE "id" = ${id} AND "checklist" IS NOT DISTINCT FROM ${JSON.stringify(value)}::jsonb`
+    else if (table === 'maintenance_records' && column === 'attachments') updated = await client.$executeRaw`UPDATE "maintenance_records" SET "attachments" = ${JSON.stringify(migrated)}::jsonb, "updatedAt" = NOW() WHERE "id" = ${id} AND "attachments" IS NOT DISTINCT FROM ${JSON.stringify(value)}::jsonb`
+    else if (table === 'trailer_maintenance_records' && column === 'attachments') updated = await client.$executeRaw`UPDATE "trailer_maintenance_records" SET "attachments" = ${JSON.stringify(migrated)}::jsonb, "updatedAt" = NOW() WHERE "id" = ${id} AND "attachments" IS NOT DISTINCT FROM ${JSON.stringify(value)}::jsonb`
+    if (updated !== 1) throw new Error('Database record changed during migration; original value was preserved')
+    result.migrated += uploadedKeys.length
+  } catch (error) {
+    await Promise.all(uploadedKeys.map(key => deleteOrganizationObject(key).catch(() => undefined)))
+    throw error
   }
 }
 
@@ -170,11 +179,15 @@ export async function migrateOrganizationStorage(client: any, organizationId: st
       result.scanned++
       if (!execute) { result.planned++; continue }
       const key = await storeAndVerify({ organizationId, module: 'job-card-signatures', entityId: row.id, fileName: `${row.field}.${extensionFor(parsed.contentType)}`, contentType: parsed.contentType, body: parsed.body })
-      if (row.field === 'technicianSignature') await client.$executeRaw`UPDATE "workshop_job_cards" SET "technicianSignature" = ${`s3://${key}`} WHERE "id" = ${row.id} AND "technicianSignature" = ${row.value}`
-      if (row.field === 'supervisorSignature') await client.$executeRaw`UPDATE "workshop_job_cards" SET "supervisorSignature" = ${`s3://${key}`} WHERE "id" = ${row.id} AND "supervisorSignature" = ${row.value}`
-      if (row.field === 'driverSignature') await client.$executeRaw`UPDATE "workshop_job_cards" SET "driverSignature" = ${`s3://${key}`} WHERE "id" = ${row.id} AND "driverSignature" = ${row.value}`
-      const updated = 1
-      if (!updated) await deleteOrganizationObject(key).catch(() => undefined); else result.migrated++
+      let updated = 0
+      if (row.field === 'technicianSignature') updated = await client.$executeRaw`UPDATE "workshop_job_cards" SET "technicianSignature" = ${`s3://${key}`} WHERE "id" = ${row.id} AND "technicianSignature" = ${row.value}`
+      else if (row.field === 'supervisorSignature') updated = await client.$executeRaw`UPDATE "workshop_job_cards" SET "supervisorSignature" = ${`s3://${key}`} WHERE "id" = ${row.id} AND "supervisorSignature" = ${row.value}`
+      else if (row.field === 'driverSignature') updated = await client.$executeRaw`UPDATE "workshop_job_cards" SET "driverSignature" = ${`s3://${key}`} WHERE "id" = ${row.id} AND "driverSignature" = ${row.value}`
+      if (updated !== 1) {
+        await deleteOrganizationObject(key).catch(() => undefined)
+        throw new Error('Database record changed during signature migration; original value was preserved')
+      }
+      result.migrated++
     } catch (error) { fail(`workshopJobCard.${row.field}`, row.id, error) }
   }
 
@@ -200,7 +213,7 @@ export async function migrateOrganizationStorage(client: any, organizationId: st
     truckImages: Number(((await client.$queryRaw`SELECT COUNT(*) AS count FROM "trucks" WHERE "image" LIKE ${'data:image%'}`) as Array<{ count: bigint }>)[0]?.count || 0),
     vehicleDocuments: Number(((await client.$queryRaw`SELECT COUNT(*) AS count FROM "vehicle_documents" WHERE "fileData" IS NOT NULL AND left(encode("fileData", 'escape'), 5) <> 's3://'`) as Array<{ count: bigint }>)[0]?.count || 0),
     documentFiles: Number(((await client.$queryRaw`SELECT COUNT(*) AS count FROM "documents" WHERE "fileUrl" LIKE ${'data:%'}`) as Array<{ count: bigint }>)[0]?.count || 0),
-    tireEvidence: Number((((await client.$queryRaw`SELECT COUNT(*) AS count FROM "tire_lifecycle_events" WHERE "evidenceUrl" LIKE ${'data:%'}`).catch(() => [{ count: 0 }])) as Array<{ count: bigint | number }>)[0]?.count || 0)),
+    tireEvidence: Number(((await client.$queryRaw`SELECT COUNT(*) AS count FROM "tire_lifecycle_events" WHERE "evidenceUrl" LIKE ${'data:%'}`).catch(() => [{ count: 0 }]) as Array<{ count: bigint | number }>)[0]?.count || 0),
   }
   return result
 }
