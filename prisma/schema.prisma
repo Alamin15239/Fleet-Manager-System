@@ -994,6 +994,24 @@ model Document {
   @@map("documents")
 }
 
+// Private object deletions are queued transactionally with their owning records.
+// The worker drains this table from each tenant database.
+model StorageObjectDeletionQueue {
+  id          String   @id
+  objectKey   String   @unique
+  status      String   @default("PENDING")
+  attempts    Int      @default(0)
+  availableAt DateTime @default(now()) @db.Timestamp(3)
+  lockedAt    DateTime? @db.Timestamp(3)
+  lastError   String?
+  createdAt   DateTime @default(now()) @db.Timestamp(3)
+  updatedAt   DateTime @default(now()) @db.Timestamp(3)
+
+  @@index([status, availableAt])
+  @@index([lockedAt])
+  @@map("storage_object_deletion_queue")
+}
+
 model EmailLog {
   id        String   @id @default(cuid())
   emailId   String   @unique
