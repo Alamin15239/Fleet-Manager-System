@@ -37,7 +37,49 @@ export interface PrismaModelDelegate {
 }
 
 export interface PrismaClient {
-
+  user: PrismaModelDelegate
+  passkeyCredential: PrismaModelDelegate
+  mechanic: PrismaModelDelegate
+  driver: PrismaModelDelegate
+  truck: PrismaModelDelegate
+  trailer: PrismaModelDelegate
+  maintenanceJob: PrismaModelDelegate
+  predictiveAlert: PrismaModelDelegate
+  trailerPredictiveAlert: PrismaModelDelegate
+  maintenanceRecord: PrismaModelDelegate
+  trailerMaintenanceRecord: PrismaModelDelegate
+  workshopJobCard: PrismaModelDelegate
+  settings: PrismaModelDelegate
+  organization: PrismaModelDelegate
+  organizationPurchaseRequest: PrismaModelDelegate
+  organizationBillingPayment: PrismaModelDelegate
+  vendor: PrismaModelDelegate
+  purchaseInvoice: PrismaModelDelegate
+  purchaseInvoiceLine: PrismaModelDelegate
+  fleetLedgerAccount: PrismaModelDelegate
+  purchaseJournalEntry: PrismaModelDelegate
+  purchaseJournalLine: PrismaModelDelegate
+  oneDriveIntegration: PrismaModelDelegate
+  excelWorkbookChange: PrismaModelDelegate
+  notification: PrismaModelDelegate
+  trailerNotification: PrismaModelDelegate
+  auditLog: PrismaModelDelegate
+  userActivity: PrismaModelDelegate
+  loginHistory: PrismaModelDelegate
+  vehicle: PrismaModelDelegate
+  vehicleType: PrismaModelDelegate
+  fleetVehicle: PrismaModelDelegate
+  vehicleDocument: PrismaModelDelegate
+  maintenanceType: PrismaModelDelegate
+  tire: PrismaModelDelegate
+  tireLifecycleEvent: PrismaModelDelegate
+  tireUsagePeriod: PrismaModelDelegate
+  document: PrismaModelDelegate
+  storageObjectDeletionQueue: PrismaModelDelegate
+  emailLog: PrismaModelDelegate
+  inventoryItem: PrismaModelDelegate
+  inventoryTransaction: PrismaModelDelegate
+  websiteVisitorSession: PrismaModelDelegate
   $transaction<T>(operation: (transaction: PrismaClient) => Promise<T>, options?: any): Promise<T>
   $transaction<T extends readonly Promise<any>[]>(operations: [...T], options?: any): Promise<{ [K in keyof T]: Awaited<T[K]> }>
   $queryRaw<T = any>(strings: TemplateStringsArray, ...values: unknown[]): Promise<T>
