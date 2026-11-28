@@ -84,7 +84,7 @@ export async function putOrganizationImageDataUri(input: {
   dataUri: string
   maxBytes?: number
 }) {
-  const match = input.dataUri.match(/^data:(image\\/(?:jpeg|png|gif|webp));base64,([A-Za-z0-9+/]+={0,2})$/i)
+  const match = input.dataUri.match(/^data:(image\/(?:jpeg|png|gif|webp));base64,([A-Za-z0-9+/]+={0,2})$/i)
   if (!match) throw new Error('Truck image must be a JPEG, PNG, GIF, or WEBP data image')
   const body = Buffer.from(match[2], 'base64')
   if (!body.length || body.byteLength > (input.maxBytes ?? 25 * 1024 * 1024)) {
