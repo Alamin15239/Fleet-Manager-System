@@ -146,7 +146,7 @@ const emptySummary = { invoiceCount: 0, subtotal: 0, vatTotal: 0, payableTotal: 
 function moneyCents(amount: number) { return Math.round((amount + Number.EPSILON) * 100) }
 
 export default function PurchaseInvoicesPage() {
-  const { canAccess, canCreate, canUpdate, loading: permissionsLoading } = usePermissions()
+  const { canAccess, canCreate, canUpdate, canDelete, loading: permissionsLoading } = usePermissions()
   const { t } = useLanguage()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -995,7 +995,7 @@ export default function PurchaseInvoicesPage() {
       <Dialog open={!!selectedInvoice} onOpenChange={(open) => { if (!open) setSelectedInvoice(null) }}>
         <DialogContent className="flex h-[95dvh] max-h-[95dvh] w-[calc(100vw-1rem)] max-w-[calc(100vw-1rem)] flex-col overflow-hidden p-3 sm:w-[96vw] sm:max-w-[96vw] sm:p-5"><DialogHeader className="shrink-0"><div className="flex items-center gap-2"><DialogTitle>{selectedInvoice?.internalNumber}</DialogTitle>{selectedInvoice && <StatusBadge status={selectedInvoice.status} />}</div><DialogDescription>{selectedInvoice?.vendor.name}{selectedInvoice?.vendorInvoiceNumber ? ` · ${selectedInvoice.vendorInvoiceNumber}` : ''}</DialogDescription></DialogHeader>
           <div className="min-h-0 flex-1 overflow-hidden rounded-lg border bg-slate-100">{invoicePdf.url ? <iframe ref={invoicePreviewRef} title={`${selectedInvoice?.internalNumber} invoice preview`} src={invoicePdf.url} className="h-full w-full bg-white" /> : <div className="flex h-full items-center justify-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin" /><LocalizedText>Preparing invoice PDF preview</LocalizedText></div>}</div>
-          {selectedInvoice && <div className="max-h-48 shrink-0 overflow-y-auto"><FileUpload type="purchase-invoice" entityId={selectedInvoice.id} canUpload={canWrite} canDelete={canReverse} /></div>}
+          {selectedInvoice && <div className="max-h-48 shrink-0 overflow-y-auto"><FileUpload type="purchase-invoice" entityId={selectedInvoice.id} canUpload={canUpdate('purchase-invoices')} canDelete={canDelete('purchase-invoices')} /></div>}
           <DialogFooter className="shrink-0 flex-wrap gap-2 sm:justify-between">{selectedInvoice?.status === 'POSTED' && canReverse ? <Button variant="destructive" onClick={() => selectedInvoice && void reverseInvoice(selectedInvoice)} disabled={saving}><Undo2 className="me-2 h-4 w-4" /><LocalizedText>Reverse invoice</LocalizedText></Button> : <span />}{selectedInvoice?.status === 'VOID' && <p className="me-auto text-xs text-muted-foreground"><LocalizedText>This invoice is reversed; its original and counter-entry remain in the ledger.</LocalizedText></p>}<div className="flex flex-wrap gap-2"><Button variant="outline" onClick={() => void copyInvoiceShareLink()} disabled={!invoiceShareUrl}><Copy className="me-2 h-4 w-4" /><LocalizedText>Copy QR link</LocalizedText></Button><Button variant="outline" onClick={printSelectedInvoice} disabled={!invoicePdf.url}><Printer className="me-2 h-4 w-4" /><LocalizedText>Print</LocalizedText></Button><Button onClick={() => void downloadSelectedInvoice()} disabled={!invoicePdf.url || saving}><Download className="me-2 h-4 w-4" /><LocalizedText>Download PDF</LocalizedText></Button><Button variant="ghost" onClick={() => setSelectedInvoice(null)}><LocalizedText>Close</LocalizedText></Button></div></DialogFooter>
         </DialogContent>
       </Dialog>
