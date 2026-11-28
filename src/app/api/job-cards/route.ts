@@ -9,11 +9,10 @@ import { ensureMaintenanceJobCardColumns, ensureTireLifecycleTables } from '@/li
 export async function GET(request: NextRequest) {
   try {
     await requireRolePermission(request, 'maintenance', 'read')
-    await db.$transaction(async tx => {
-      await ensureMaintenanceJobCardColumns(tx)
-      await ensureTireLifecycleTables(tx)
-      await ensureInventoryTables(tx)
-    }, { timeout: 60000, maxWait: 10000 })
+    // The read endpoint must not run tire/inventory schema migrations or
+    // backfill jobs. Those writes belong to the module setup/write paths.
+    // Keep only the central Job Card bootstrap required by legacy databases.
+    await ensureMaintenanceJobCardColumns(db)
     const trackingView = new URL(request.url).searchParams.get('tracking') === '1'
     const cardsQuery = trackingView
       ? db.workshopJobCard.findMany({
@@ -43,19 +42,29 @@ export async function GET(request: NextRequest) {
       const hasNoJobCardLines = !Array.isArray(card.items) || card.items.length === 0
       return !(legacyUnknownSource && oilOnlyService && hasNoJobCardLines)
     })
-    const activityRows = await db.$queryRawUnsafe<any[]>(`
-      SELECT
-        (SELECT COUNT(*) FROM "maintenance_records" WHERE "isDeleted"=false AND "isOilChange"=true)::int AS "oilTotal",
-        (SELECT COUNT(*) FROM "tire_lifecycle_events" WHERE "eventType"<>'RECEIVE')::int AS "tireTotal",
-        (SELECT COUNT(*) FROM "inventory_transactions" WHERE "type"='ISSUE')::int AS "partsTotal"
-    `)
-    const activity = activityRows[0] || {}
-    const oil = { total: Number(activity.oilTotal || 0) }
-    const tires = { total: Number(activity.tireTotal || 0) }
-    const spareParts = { total: Number(activity.partsTotal || 0) }
-    const activitySummary = { oil, tires, spareParts, total: oil.total + tires.total + spareParts.total }
+    let activitySummary = {
+      oil: { total: 0 }, tires: { total: 0 }, spareParts: { total: 0 }, total: 0
+    }
+    try {
+      const activityRows = await db.$queryRawUnsafe<any[]>(`
+        SELECT
+          (SELECT COUNT(*) FROM "maintenance_records" WHERE "isDeleted"=false AND "isOilChange"=true)::int AS "oilTotal",
+          (SELECT COUNT(*) FROM "tire_lifecycle_events" WHERE "eventType"<>'RECEIVE')::int AS "tireTotal",
+          (SELECT COUNT(*) FROM "inventory_transactions" WHERE "type"='ISSUE')::int AS "partsTotal"
+      `)
+      const activity = activityRows[0] || {}
+      const oil = { total: Number(activity.oilTotal || 0) }
+      const tires = { total: Number(activity.tireTotal || 0) }
+      const spareParts = { total: Number(activity.partsTotal || 0) }
+      activitySummary = { oil, tires, spareParts, total: oil.total + tires.total + spareParts.total }
+    } catch (activityError) {
+      // Optional module counters must never prevent the central Job Card
+      // register from loading. The underlying records remain untouched.
+      console.warn('Job card activity summary unavailable:', activityError)
+    }
     return NextResponse.json({ jobCards, company: settings, activitySummary })
   } catch (error) {
+    console.error('Job card list API failed:', error)
     const message = error instanceof Error ? error.message : 'Failed to fetch job cards'
     return NextResponse.json({ error: message }, { status: message.includes('token') ? 401 : message === 'Insufficient permissions' ? 403 : 500 })
   }
