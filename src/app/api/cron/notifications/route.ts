@@ -149,7 +149,7 @@ async function runDocumentExpiryEmailAlerts(organizationSlug: string) {
   return { status: 'completed', sent: 1, checked: documents.length, included: dueDocuments.length, missing: missingDocuments.length }
 }
 
-async function runDocumentAndDriverChangeEmailAlerts() {
+async function runDocumentAndDriverChangeEmailAlerts(organizationSlug: string) {
   const { db } = await import('@/lib/db')
   const settings = await db.settings.findFirst()
   const notificationSettings = settings?.notifications && typeof settings.notifications === 'object'
@@ -269,7 +269,7 @@ export async function GET(request: NextRequest) {
         const result = await withOrganization(organization, async () => {
           const notifications = await NotificationService.runNotificationChecks()
           const documentExpiry = await runDocumentExpiryEmailAlerts(organization.slug)
-          const documentAndDriverChanges = await runDocumentAndDriverChangeEmailAlerts()
+          const documentAndDriverChanges = await runDocumentAndDriverChangeEmailAlerts(organization.slug)
           return { ...notifications, documentExpiry, documentAndDriverChanges }
         })
         results.push({ organization: organization.slug, ...result })
