@@ -156,6 +156,12 @@ export async function POST(req: NextRequest) {
       for (const p of plan) {
         if (p.mode !== 'update') continue
         const c = p.card
+        const existingItems = Array.isArray(p.target.items) ? p.target.items as any[] : []
+        const incomingItems = Array.isArray(c.items) ? c.items as any[] : []
+        const incomingSourceIds = new Set(incomingItems.map(item => item?.sourceId).filter(Boolean))
+        // Workbook replacement must not erase activities linked from Oil Changes,
+        // Tire Management or Spare Parts after the original register import.
+        const linkedActivityItems = existingItems.filter(item => item?.sourceId && !incomingSourceIds.has(item.sourceId))
         await tx.workshopJobCard.update({
           where: { id: p.target.id },
           data: {
@@ -164,7 +170,7 @@ export async function POST(req: NextRequest) {
             serviceDate: c.serviceDate, odometerKm: c.odometerKm, serviceType: c.serviceType,
             reportedIssue: c.reportedIssue, technicianName: c.technicianName, status: c.status,
             nextServiceOdometer: c.nextServiceOdometer, nextServiceDate: c.nextServiceDate,
-            notes: c.notes, items: c.items
+            notes: c.notes, items: [...incomingItems, ...linkedActivityItems]
           }
         })
         updated++
