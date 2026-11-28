@@ -4,15 +4,12 @@ import { requireRolePermission } from '@/lib/permission-middleware'
 import { cleanJobCardPayload } from '@/lib/job-card-validation'
 import { syncOneDriveWorkbookAfterChange } from '@/lib/onedrive-excel-sync'
 import { reconcileJobCardInventory } from '@/lib/job-card-inventory'
-import { ensureMaintenanceJobCardColumns } from '@/lib/tire-lifecycle'
 
 export async function GET(request: NextRequest) {
   try {
     await requireRolePermission(request, 'maintenance', 'read')
-    // The read endpoint must not run tire/inventory schema migrations or
-    // backfill jobs. Those writes belong to the module setup/write paths.
-    // Keep only the central Job Card bootstrap required by legacy databases.
-    await ensureMaintenanceJobCardColumns(db)
+    // This endpoint is read-only: schema migrations and backfills must run
+    // in controlled setup/write paths, never during a page load.
     const trackingView = new URL(request.url).searchParams.get('tracking') === '1'
     const cardsQuery = trackingView
       ? db.workshopJobCard.findMany({
