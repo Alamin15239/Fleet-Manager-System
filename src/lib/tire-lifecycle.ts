@@ -412,6 +412,29 @@ export async function recordTireLifecycleEvent(tx: any, input: {
     input.damageLocation || null, input.evidenceUrl || null, input.supplierName || null,
     input.purchaseReference || null, input.purchaseCost ?? null, input.notes || null, jobCardId, input.userId
   )
+  if (jobCardId) {
+    const card = await tx.workshopJobCard.findUnique({ where: { id: jobCardId } })
+    if (!card) throw new Error('Job Card could not be found after linking tire activity')
+    const items = Array.isArray(card.items) ? card.items as any[] : []
+    const tireLabel = tire.internalCode || tire.serialNumber || input.tireId
+    const lineCost = Number(input.cost || 0)
+    await tx.workshopJobCard.update({
+      where: { id: jobCardId },
+      data: {
+        items: [...items, {
+          type: 'TIRE',
+          description: 'Tire ' + eventType + ' · ' + tireLabel,
+          quantity: 1,
+          unitCost: lineCost,
+          remarks: [input.reason, input.damageType, input.position ? 'Position: ' + input.position : null].filter(Boolean).join(' · '),
+          sourceId: eventId,
+          sourceType: 'TIRE'
+        }],
+        partsCost: Number(card.partsCost || 0) + lineCost,
+        totalCost: Number(card.totalCost || 0) + lineCost
+      }
+    })
+  }
 
   // ISSUE can reassign an installed tire without confirming its wheel position;
   // close any prior mounted usage period before marking it assigned-unverified.
