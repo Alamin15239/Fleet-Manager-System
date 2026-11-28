@@ -21,7 +21,7 @@ import { PdfPreviewDialog } from '@/components/pdf-preview-dialog'
 import { FileUpload } from '@/components/file-upload'
 
 type VehicleType = 'truck' | 'trailer'
-type LineItem = { type: string; description: string; quantity: number; remarks: string; inventoryItemId?: string | null; unitCost?: number | null }
+type LineItem = { type: string; description: string; quantity: number; remarks: string; inventoryItemId?: string | null; unitCost?: number | null; sourceId?: string; sourceType?: string }
 type InventoryItem = { id: string; name: string; partNumber?: string | null; unit: string; stockQty: number }
 type JobForm = {
   vehicleType: VehicleType; vehicleId: string; serviceDate: string; odometerKm: string; serviceType: string;
