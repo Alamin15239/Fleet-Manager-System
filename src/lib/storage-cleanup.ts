@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import { db } from '@/lib/db'
 import { deleteOrganizationObject, isOrganizationObjectKey } from '@/lib/object-storage'
 
@@ -53,7 +54,7 @@ export async function deleteVehicleDocumentWithCleanup(input: {
     if (input.objectKey) {
       await transaction.$executeRawUnsafe(
         `INSERT INTO "storage_object_deletion_queue" ("id", "objectKey") VALUES ($1, $2) ON CONFLICT ("objectKey") DO NOTHING`,
-        crypto.randomUUID(),
+        randomUUID(),
         input.objectKey,
       )
     }
