@@ -100,7 +100,7 @@ export async function POST(req: NextRequest) {
     const filePlates = new Set(rows.map(r => r.plateKey).filter(p => p && p !== 'MISSING'))
     const existing = await db.maintenanceRecord.findMany({
       where: { OR: [{ sourceImportKey: { in: [...rowKeySet] } }, { sourceImportKey: { startsWith: 'oil-upload-v1:' } }, { sourceImportKey: { startsWith: 'oil-upload-v2:' } }] },
-      select: { id: true, sourceImportKey: true, truckId: true, vehiclePlateNumber: true, datePerformed: true }
+      select: { id: true, sourceImportKey: true, truckId: true, vehiclePlateNumber: true, datePerformed: true, jobCardId: true }
     })
     type MatchedRecord = (typeof existing)[number]
     const matched = new Map<string, MatchedRecord>()
@@ -158,7 +158,6 @@ export async function POST(req: NextRequest) {
           where: { id: rec.id },
           data: {
             truckId: row.truckId,
-            jobCardId: null,
             vehiclePlateNumber: row.plate,
             sourceData: JSON.parse(JSON.stringify(row.sourceData)),
             sourceImportKey: row.importKey,
