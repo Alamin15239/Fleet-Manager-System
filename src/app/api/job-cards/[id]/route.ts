@@ -16,10 +16,20 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     if (!vehicleExists) return NextResponse.json({ error: 'Selected vehicle was not found or is inactive' }, { status: 400 })
     const jobCard = await db.$transaction(async tx => {
       await tx.$executeRaw`LOCK TABLE "workshop_job_cards" IN EXCLUSIVE MODE`
-      const existing = await tx.workshopJobCard.findUnique({ where: { id }, select: { id: true, truckId: true, trailerId: true, status: true } })
+      const existing = await tx.workshopJobCard.findUnique({ where: { id }, select: { id: true, truckId: true, trailerId: true, status: true, items: true } })
       if (!existing) throw new Error('Job card not found')
       const targetTruckId = data.truckId !== undefined ? data.truckId : existing.truckId
       const targetTrailerId = data.trailerId !== undefined ? data.trailerId : existing.trailerId
+      const existingItems = Array.isArray(existing.items) ? existing.items as any[] : []
+      const incomingItems = Array.isArray(data.items) ? data.items as any[] : []
+      const linkedItems = existingItems.filter(item => item?.sourceId)
+      const linkedSourceIds = new Set(linkedItems.map(item => item.sourceId))
+      const safeData = {
+        ...data,
+        // Source-linked Oil, Tire and Spare Parts activity lines are managed by
+        // their source modules and cannot be deleted or rewritten in Job Cards.
+        items: [...incomingItems.filter(item => !item?.sourceId || !linkedSourceIds.has(item.sourceId)), ...linkedItems]
+      }
       const targetStatus = data.status || existing.status
       if (['OPEN', 'IN_PROGRESS'].includes(targetStatus) && (targetTruckId || targetTrailerId)) {
         const vehicleWhere = targetTruckId ? { truckId: targetTruckId } : { trailerId: targetTrailerId! }
@@ -30,7 +40,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
         if (conflictingCard) throw new Error(`Another open job card (${conflictingCard.jobNumber}) already exists for this vehicle`)
       }
       const updated = await tx.workshopJobCard.update({
-        where: { id }, data,
+        where: { id }, data: safeData,
         include: {
           truck: { select: { id: true, make: true, model: true, year: true, vin: true, licensePlate: true, currentMileage: true } },
           trailer: { select: { id: true, number: true } }
@@ -44,7 +54,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
         )
       }
       await reconcileJobCardInventory(tx, {
-        jobCardId: id, lines: updated.status === 'CANCELLED' ? [] : data.items as any[],
+        jobCardId: id, lines: updated.status === 'CANCELLED' ? [] : safeData.items as any[],
         vehicleType: targetTruckId ? 'truck' : 'trailer', vehicleId: targetTruckId || targetTrailerId!,
         transactionDate: data.serviceDate, userId: user.id
       })
