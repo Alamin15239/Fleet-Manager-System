@@ -7,7 +7,7 @@ import { deleteOrganizationObject, getOrganizationObject, putOrganizationObject 
 export const runtime = 'nodejs'
 export const maxDuration = 300
 
-type Counters = { scanned: number; migrated: number; skipped: number; failed: number }
+type Counters = { scanned: number; planned: number; migrated: number; skipped: number; failed: number }
 type Failure = { organization: string; type: string; id: string; reason: string }
 const MAX_FILE_BYTES = 25 * 1024 * 1024
 
@@ -16,11 +16,9 @@ function digest(value: Uint8Array) {
 }
 
 function dataUri(value: string) {
-  const match = value.match(/^data:(image\/(?:jpeg|png|gif|webp));base64,([A-Za-z0-9+/]+={0,2})$/i)
-  if (!match) return null
-  const body = Buffer.from(match[2], 'base64')
-  if (!body.length || body.length > MAX_FILE_BYTES) throw new Error('Embedded image is empty or exceeds the 25 MB migration limit')
-  return { contentType: match[1].toLowerCase(), body }
+  const parsed = fileDataUri(value)
+  if (!parsed || !parsed.contentType.startsWith('image/')) return null
+  return parsed
 }
 
 function fileDataUri(value: string) {
@@ -78,7 +76,7 @@ async function migrateDatabase(organization: OrganizationRecord, execute: boolea
   if (!organization.isPrimary) {
     await withOrganization(organization, () => db.vehicleDocument.findMany({ select: { id: true }, take: 0 }).then(() => undefined))
   }
-  const counters: Counters = { scanned: 0, migrated: 0, skipped: 0, failed: 0 }
+  const counters: Counters = { scanned: 0, planned: 0, migrated: 0, skipped: 0, failed: 0 }
   const failures: Failure[] = []
   const orgId = organization.id || organization.slug
   const recordFailure = (type: string, id: string, error: unknown) => {
@@ -102,7 +100,7 @@ async function migrateDatabase(organization: OrganizationRecord, execute: boolea
     try {
       const parsed = dataUri(row.profileImage || '')
       if (!parsed) { counters.skipped++; continue }
-      if (!execute) { counters.skipped++; continue }
+      if (!execute) { counters.planned++; continue }
       const key = await storeAndVerify({
         organizationId: orgId, module: 'profile-images', entityId: row.id,
         fileName: 'profile.' + extensionFor(parsed.contentType, 'jpg'),
@@ -264,7 +262,7 @@ export async function POST(request: NextRequest) {
       } catch (error) {
         results.push({
           organization: organization.slug,
-          counters: { scanned: 0, migrated: 0, skipped: 0, failed: 1 },
+          counters: { scanned: 0, planned: 0, migrated: 0, skipped: 0, failed: 1 },
           failures: [{
             organization: organization.slug, type: 'organization-database', id: organization.id,
             reason: error instanceof Error ? error.message.slice(0, 180) : 'Database unavailable',
@@ -274,6 +272,7 @@ export async function POST(request: NextRequest) {
     }
     const totals = results.reduce((sum, result) => ({
       scanned: sum.scanned + result.counters.scanned,
+      planned: sum.planned + result.counters.planned,
       migrated: sum.migrated + result.counters.migrated,
       skipped: sum.skipped + result.counters.skipped,
       failed: sum.failed + result.counters.failed,
