@@ -3,8 +3,8 @@ import { db } from '@/lib/db'
 import { requireRolePermission } from '@/lib/permission-middleware'
 import { cleanJobCardPayload } from '@/lib/job-card-validation'
 import { syncOneDriveWorkbookAfterChange } from '@/lib/onedrive-excel-sync'
-import { ensureInventoryTables, reconcileJobCardInventory } from '@/lib/job-card-inventory'
-import { ensureMaintenanceJobCardColumns, ensureTireLifecycleTables } from '@/lib/tire-lifecycle'
+import { reconcileJobCardInventory } from '@/lib/job-card-inventory'
+import { ensureMaintenanceJobCardColumns } from '@/lib/tire-lifecycle'
 
 export async function GET(request: NextRequest) {
   try {
