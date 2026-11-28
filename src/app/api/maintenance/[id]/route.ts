@@ -417,6 +417,18 @@ export async function DELETE(
     // Soft delete maintenance record based on type
     if (recordType === 'truck') {
       await db.$transaction(async tx => {
+        await syncMaintenanceRecordJobCard(tx, {
+          recordId: id,
+          previousJobCardId: record.jobCardId,
+          previousPartsCost: record.partsCost,
+          previousLaborCost: record.laborCost,
+          vehicle: null,
+          eventAt: new Date(),
+          serviceType: record.serviceType,
+          partsCost: 0,
+          laborCost: 0,
+          userId: user.id
+        })
         if (record.isOilChange || String(record.serviceType || '').toLowerCase().includes('oil')) {
           await reconcileOilChangeInventory(tx, {
             maintenanceId: id,
@@ -425,7 +437,7 @@ export async function DELETE(
             transactionDate: new Date(),
             vehicleId: record.truckId || 'unassigned',
             userId: user.id,
-            previousJobCardId: null,
+            previousJobCardId: record.jobCardId || null,
             previousVehicleId: record.truckId || null,
             jobCardId: null
           })
@@ -441,6 +453,18 @@ export async function DELETE(
       })
     } else {
       await db.$transaction(async tx => {
+        await syncMaintenanceRecordJobCard(tx, {
+          recordId: id,
+          previousJobCardId: record.jobCardId,
+          previousPartsCost: record.partsCost,
+          previousLaborCost: record.laborCost,
+          vehicle: null,
+          eventAt: new Date(),
+          serviceType: record.serviceType,
+          partsCost: 0,
+          laborCost: 0,
+          userId: user.id
+        })
         await tx.trailerMaintenanceRecord.update({
           where: { id: id },
           data: {
