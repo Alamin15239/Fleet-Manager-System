@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireAuth } from '@/lib/auth'
 import { requireRolePermission } from '@/lib/permission-middleware'
-import { deleteOrganizationObject, getOrganizationObject, isOrganizationObjectKey } from '@/lib/object-storage'
+import { getOrganizationObject, isOrganizationObjectKey } from '@/lib/object-storage'
+import { deleteVehicleDocumentWithCleanup } from '@/lib/storage-cleanup'
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -45,9 +46,13 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     const key = pointer.startsWith('s3://') ? pointer.slice(5) : null
     const expectedOrganizationId = user.organizationId || user.organizationSlug || 'primary'
     if (key && !isOrganizationObjectKey(key, expectedOrganizationId)) return NextResponse.json({ error: 'Document not found' }, { status: 404 })
-    await db.vehicleDocument.delete({ where: { id } })
-    if (key) await deleteOrganizationObject(key).catch(error => console.error('Vehicle document object cleanup failed:', error))
-    return NextResponse.json({ success: true })
+    const result = await deleteVehicleDocumentWithCleanup({
+      documentId: id,
+      objectKey: key,
+      organizationId: expectedOrganizationId,
+    })
+    if (!result.deleted) return NextResponse.json({ error: 'Document not found' }, { status: 404 })
+    return NextResponse.json({ success: true, cleanup: result.queued ? 'queued' : 'not-required' })
   } catch (error) {
     const message = error instanceof Error ? error.message : ''
     const status = ['No token provided', 'Invalid token'].includes(message) ? 401 : message === 'Insufficient permissions' ? 403 : 500
