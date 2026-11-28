@@ -67,6 +67,7 @@ export async function GET(request: NextRequest) {
               licensePlate: true,
               currentMileage: true,
               status: true,
+              image: true,
               driverName: true,
               createdAt: true,
               updatedAt: true
@@ -82,7 +83,10 @@ export async function GET(request: NextRequest) {
 
       return NextResponse.json({
         success: true,
-        data: trucks,
+        data: trucks.map(truck => ({
+          ...truck,
+          image: truck.image?.startsWith('s3://') ? `/api/trucks/${truck.id}/image` : truck.image,
+        })),
         pagination: {
           page,
           limit,
