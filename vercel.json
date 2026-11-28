@@ -10,6 +10,10 @@
     {
       "path": "/api/cron/notifications",
       "schedule": "0 4 * * *"
+    },
+    {
+      "path": "/api/cron/storage-cleanup",
+      "schedule": "*/15 * * * *"
     }
   ],
   "functions": {
