@@ -180,11 +180,11 @@ export async function POST(request: NextRequest) {
       if (Number(balance[0]?.qty || 0) + delta < -0.000001) throw new Error('Insufficient stock for this transaction')
       const inserted = await tx.$queryRawUnsafe<any[]>(`
         INSERT INTO "inventory_transactions"
-        ("id","itemId","type","quantity","transactionDate","reference","vehicleType","vehicleId","jobCardId","unitCost","notes","createdById")
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
+        ("id","itemId","type","quantity","transactionDate","reference","vehicleType","vehicleId","jobCardId","unitCost","notes","createdById","sourceType","sourceId")
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING *`,
         id, body.itemId, type, quantity, transactionDate, body.reference || null,
         normalizedVehicleType || (body.vehicleType ? String(body.vehicleType).toLowerCase() : null) || null, vehicleId || body.vehicleId || null,
-        jobCardId, resolvedUnitCost, body.notes || null, user.id)
+        jobCardId, resolvedUnitCost, body.notes || null, user.id, type === 'ISSUE' ? 'SPARE_PARTS' : null, type === 'ISSUE' ? id : null)
       if (type === 'ISSUE' && jobCardId) {
         const card = await tx.workshopJobCard.findUnique({ where: { id: jobCardId } })
         if (!card) throw new Error('Job Card could not be found after linking spare-parts issue')
@@ -278,7 +278,7 @@ export async function PATCH(request: NextRequest) {
       ])
       if (!item.length) throw new Error('Inventory item not found')
       if (!vehicle) throw new Error('Selected vehicle not found or inactive')
-      if (old.sourceType && old.sourceType !== 'OIL_CHANGE')
+      if (old.sourceType && !['OIL_CHANGE', 'SPARE_PARTS'].includes(old.sourceType))
         throw new Error('This issue belongs to a source workflow that does not support direct editing yet')
 
       // Check the resulting balance while excluding this issue. This permits
@@ -291,23 +291,30 @@ export async function PATCH(request: NextRequest) {
       if (Number(balance[0]?.qty || 0) + 0.000001 < quantity)
         throw new Error('Insufficient stock for the corrected issue')
 
-      if (old.jobCardId) {
+      if (old.jobCardId && old.sourceType !== 'OIL_CHANGE')
         const card = await tx.workshopJobCard.findUnique({ where: { id: old.jobCardId } })
         if (!card) throw new Error('Linked Workshop Job Card was not found')
         const lines = Array.isArray(card.items) ? [...card.items as any[]] : []
         const matches = lines.map((line, index) => ({ line, index }))
-          .filter(({ line }) => line?.type === 'PART' && line?.inventoryItemId === old.itemId)
+          .filter(({ line }) => old.sourceId
+            ? line?.sourceId === old.sourceId
+            : line?.type === 'PART' && line?.inventoryItemId === old.itemId)
         if (matches.length !== 1)
-          throw new Error('The linked Job Card has multiple or missing lines for this part. Edit the part line in the Job Card instead.')
+          throw new Error('The linked Job Card has multiple or missing lines for this issue. Edit the part line in the Job Card instead.')
         const { index } = matches[0]
-        lines[index] = { ...lines[index], inventoryItemId: itemId, description: item[0].name, quantity, unitCost }
+        const oldLineCost = Number(lines[index].quantity || 0) * Number(lines[index].unitCost || 0)
+        const nextLineCost = quantity * Number(unitCost ?? lines[index].unitCost ?? 0)
+        lines[index] = {
+          ...lines[index], inventoryItemId: itemId, description: item[0].name, quantity, unitCost,
+          sourceId: old.sourceId || transactionId, sourceType: old.sourceType || 'SPARE_PARTS'
+        }
         await tx.workshopJobCard.update({
           where: { id: card.id },
           data: {
             items: lines,
-            serviceDate: transactionDate,
-            truckId: vehicleType === 'truck' ? vehicleId : null,
-            trailerId: vehicleType === 'trailer' ? vehicleId : null
+            partsCost: Math.max(0, Number(card.partsCost || 0) - oldLineCost + nextLineCost),
+            totalCost: Math.max(0, Number(card.totalCost || 0) - oldLineCost + nextLineCost),
+            serviceDate: transactionDate
           }
         })
         // A Job Card is one maintenance visit; keep all of its inventory issue
