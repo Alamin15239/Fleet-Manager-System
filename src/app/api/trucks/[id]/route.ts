@@ -173,7 +173,9 @@ export async function PUT(
       }
     })
 
-    if (uploadedImageKey && existingTruck.image?.startsWith('s3://')) {
+    const committedImageKey = uploadedImageKey
+    uploadedImageKey = undefined
+    if (committedImageKey && existingTruck.image?.startsWith('s3://')) {
       const oldKey = existingTruck.image.slice(5)
       if (isOrganizationObjectKey(oldKey, user.organizationId || user.organizationSlug || 'primary')) {
         await deleteOrganizationObject(oldKey).catch(error => console.error('Previous truck image cleanup failed:', error))
