@@ -271,6 +271,10 @@ export default function AdminDashboard() {
             <Activity className="h-4 w-4 mr-2" />
             Activity Monitor
           </Button>
+          <Button variant="outline" onClick={() => router.push('/admin/storage-migration')}>
+            <HardDrive className="h-4 w-4 mr-2" />
+            Storage Migration
+          </Button>
           <Button variant="outline" onClick={() => router.push('/settings')}>
             <Settings className="h-4 w-4 mr-2" />
             Settings
