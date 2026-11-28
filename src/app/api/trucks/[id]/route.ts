@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireRolePermission } from '@/lib/permission-middleware'
 import { syncOneDriveWorkbookAfterChange } from '@/lib/onedrive-excel-sync'
+import { deleteOrganizationObject, isOrganizationObjectKey, putOrganizationImageDataUri } from '@/lib/object-storage'
 
 // GET single truck by ID
 export async function GET(
@@ -64,8 +65,9 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  let uploadedImageKey: string | undefined
   try {
-    await requireRolePermission(request, 'trucks', 'update')
+    const user = await requireRolePermission(request, 'trucks', 'update')
     const { id } = await params;
     const body = await request.json()
 
@@ -118,6 +120,19 @@ export async function PUT(
       }
     }
 
+    // Convert embedded images to private object pointers before updating the row.
+    let imageValue: string | null | undefined = body.image
+    if (typeof body.image === 'string' && body.image.startsWith('data:')) {
+      const storedImage = await putOrganizationImageDataUri({
+        organizationId: user.organizationId || user.organizationSlug || 'primary',
+        module: 'truck-images',
+        entityId: id,
+        dataUri: body.image,
+      })
+      uploadedImageKey = storedImage.key
+      imageValue = storedImage.pointer
+    }
+
     // Update truck
     const updatedTruck = await db.truck.update({
       where: { id: id },
@@ -132,7 +147,7 @@ export async function PUT(
         ...(body.fuelEfficiency !== undefined && { fuelEfficiency: body.fuelEfficiency ? parseFloat(body.fuelEfficiency) : null }),
         ...(body.engineHours !== undefined && { engineHours: body.engineHours ? parseInt(body.engineHours) : null }),
         ...(body.driverName !== undefined && { driverName: body.driverName }),
-        ...(body.image !== undefined && { image: body.image }),
+        ...(body.image !== undefined && { image: imageValue }),
         ...(body.healthScore !== undefined && { healthScore: body.healthScore ? parseFloat(body.healthScore) : null }),
         ...(body.riskLevel !== undefined && { riskLevel: body.riskLevel }),
         ...(body.avgDailyMileage !== undefined && { avgDailyMileage: body.avgDailyMileage ? parseFloat(body.avgDailyMileage) : null }),
@@ -158,6 +173,13 @@ export async function PUT(
       }
     })
 
+    if (uploadedImageKey && existingTruck.image?.startsWith('s3://')) {
+      const oldKey = existingTruck.image.slice(5)
+      if (isOrganizationObjectKey(oldKey, user.organizationId || user.organizationSlug || 'primary')) {
+        await deleteOrganizationObject(oldKey).catch(error => console.error('Previous truck image cleanup failed:', error))
+      }
+    }
+
     const excelSync = await syncOneDriveWorkbookAfterChange()
 
     return NextResponse.json({
@@ -177,6 +199,7 @@ export async function PUT(
     })
 
   } catch (error) {
+    if (uploadedImageKey) await deleteOrganizationObject(uploadedImageKey).catch(() => undefined)
     console.error('Error updating truck:', error)
     const unauthorized = error instanceof Error && ['No token provided', 'Invalid token'].includes(error.message)
     const forbidden = error instanceof Error && error.message === 'Insufficient permissions'
