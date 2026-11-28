@@ -276,7 +276,7 @@ export async function POST(request: NextRequest) {
       migrated: sum.migrated + result.counters.migrated,
       skipped: sum.skipped + result.counters.skipped,
       failed: sum.failed + result.counters.failed,
-    }), { scanned: 0, migrated: 0, skipped: 0, failed: 0 })
+    }), { scanned: 0, planned: 0, migrated: 0, skipped: 0, failed: 0 })
 
     return NextResponse.json({
       success: totals.failed === 0,
