@@ -5,7 +5,6 @@ import { Client } from 'pg'
 import { createPrismaClientForUrl, controlDb, decryptOrganizationDatabaseUrl, encryptOrganizationDatabaseUrl } from '@/lib/db'
 import { hashPassword } from '@/lib/auth'
 import type { PrismaClient } from '@/lib/prisma-compat'
-import type { PrismaClient } from '@/lib/prisma-compat'
 import { defaultSettingsPermissions } from '@/lib/permissions'
 
 type ProvisioningOrganization = {
