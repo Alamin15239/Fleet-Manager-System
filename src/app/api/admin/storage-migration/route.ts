@@ -147,8 +147,32 @@ async function migrateJsonColumn(input: {
   return result
 }
 
+async function ensureTireLifecycleSchema(client: any): Promise<string[]> {
+  return client.$transaction(async (tx: any) => {
+    await tx.$queryRawUnsafe("SELECT pg_advisory_xact_lock(hashtext('fleet-manager:tire-lifecycle-schema:v1'))")
+    const [dependencies] = await tx.$queryRawUnsafe<Array<{ tires: boolean; jobCards: boolean }>>("SELECT to_regclass('public.tires') IS NOT NULL AS tires, to_regclass('public.workshop_job_cards') IS NOT NULL AS \"jobCards\"")
+    if (!dependencies?.tires || !dependencies?.jobCards) throw new Error('Cannot repair tire lifecycle schema: required base tables tires and workshop_job_cards must exist')
+    const [before] = await tx.$queryRawUnsafe<Array<{ lifecycleEvents: boolean; usagePeriods: boolean }>>("SELECT to_regclass('public.tire_lifecycle_events') IS NOT NULL AS \"lifecycleEvents\", to_regclass('public.tire_usage_periods') IS NOT NULL AS \"usagePeriods\"")
+    const created: string[] = []
+    if (!before?.lifecycleEvents) {
+      await tx.$executeRawUnsafe('CREATE TABLE IF NOT EXISTS "tire_lifecycle_events" ("id" TEXT NOT NULL, "tireId" TEXT NOT NULL, "eventType" TEXT NOT NULL, "eventAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "fromTruckId" TEXT, "fromTrailerId" TEXT, "toTruckId" TEXT, "toTrailerId" TEXT, "fromPosition" TEXT, "toPosition" TEXT, "driverNameSnapshot" TEXT, "odometerKm" INTEGER, "reason" TEXT, "damageType" TEXT, "repairable" BOOLEAN, "cost" DOUBLE PRECISION, "treadDepthMm" DOUBLE PRECISION, "pressurePsi" DOUBLE PRECISION, "condition" TEXT, "inspectionDueAt" TIMESTAMP(3), "damageLocation" TEXT, "evidenceUrl" TEXT, "supplierName" TEXT, "purchaseReference" TEXT, "purchaseCost" DOUBLE PRECISION, "notes" TEXT, "jobCardId" TEXT, "createdById" TEXT, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT "tire_lifecycle_events_pkey" PRIMARY KEY ("id"), CONSTRAINT "tire_lifecycle_events_tireId_fkey" FOREIGN KEY ("tireId") REFERENCES "tires"("id") ON DELETE CASCADE ON UPDATE CASCADE, CONSTRAINT "tire_lifecycle_events_jobCardId_fkey" FOREIGN KEY ("jobCardId") REFERENCES "workshop_job_cards"("id") ON DELETE SET NULL ON UPDATE CASCADE)')
+      created.push('tire_lifecycle_events')
+    }
+    if (!before?.usagePeriods) {
+      await tx.$executeRawUnsafe('CREATE TABLE IF NOT EXISTS "tire_usage_periods" ("id" TEXT NOT NULL, "tireId" TEXT NOT NULL, "vehicleType" TEXT NOT NULL, "vehicleId" TEXT NOT NULL, "installedAt" TIMESTAMP(3) NOT NULL, "removedAt" TIMESTAMP(3), "historicalEndUnknown" BOOLEAN NOT NULL DEFAULT FALSE, "startOdometer" INTEGER, "endOdometer" INTEGER, "driverNameSnapshot" TEXT, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT "tire_usage_periods_pkey" PRIMARY KEY ("id"), CONSTRAINT "tire_usage_periods_tireId_fkey" FOREIGN KEY ("tireId") REFERENCES "tires"("id") ON DELETE CASCADE ON UPDATE CASCADE)')
+      created.push('tire_usage_periods')
+    }
+    await tx.$executeRawUnsafe('CREATE INDEX IF NOT EXISTS "tire_lifecycle_events_tireId_eventAt_idx" ON "tire_lifecycle_events"("tireId", "eventAt" DESC)')
+    await tx.$executeRawUnsafe('CREATE INDEX IF NOT EXISTS "tire_lifecycle_events_jobCardId_idx" ON "tire_lifecycle_events"("jobCardId")')
+    await tx.$executeRawUnsafe('CREATE INDEX IF NOT EXISTS "tire_usage_periods_tireId_installedAt_idx" ON "tire_usage_periods"("tireId", "installedAt")')
+    await tx.$executeRawUnsafe('CREATE INDEX IF NOT EXISTS "tire_usage_periods_vehicleType_vehicleId_idx" ON "tire_usage_periods"("vehicleType", "vehicleId")')
+    return created
+  })
+}
+
 async function migrateDatabase(organization: OrganizationRecord, execute: boolean) {
   const client = organization.isPrimary ? controlDb : await getOrganizationPrismaClient(organization)
+  const schemaRepairs = organization.isPrimary ? [] : await ensureTireLifecycleSchema(client)
   if (!organization.isPrimary) {
     await withOrganization(organization, () => db.vehicleDocument.findMany({ select: { id: true }, take: 0 }).then(() => undefined))
   }
@@ -450,7 +474,7 @@ async function migrateDatabase(organization: OrganizationRecord, execute: boolea
     `)[0]?.count || 0),
     tireEvidence: await client.tireLifecycleEvent.count({ where: { evidenceUrl: { startsWith: 'data:' } } }),
   }
-  return { organization: organization.slug, counters, failures, remaining }
+  return { organization: organization.slug, schemaRepairs, counters, failures, remaining }
 }
 
 export async function POST(request: NextRequest) {
@@ -498,7 +522,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: totals.failed === 0,
       mode: execute ? 'migrate' : 'scan',
-      note: 'This batch migrates embedded profile images, embedded truck images, legacy vehicle-document bytes, and validated embedded Document.fileUrl files. External links and ordinary text fields are unchanged. Validated embedded files in job-card signatures/items/checklists, truck/trailer maintenance attachments, and tire evidence are also migrated.',
+      note: 'Before scanning a tenant, missing tire lifecycle tables and indexes are added without changing existing rows. File migration remains scan-only unless execute is true. Embedded profile images, truck images, vehicle-document bytes, Document.fileUrl files, job-card signatures/items/checklists, maintenance attachments, and tire evidence are supported; external links and ordinary text fields are unchanged.',
       totals,
       organizations: results,
     }, { headers: { 'Cache-Control': 'no-store' } })
