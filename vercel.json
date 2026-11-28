@@ -13,7 +13,7 @@
     },
     {
       "path": "/api/cron/storage-cleanup",
-      "schedule": "*/15 * * * *"
+      "schedule": "15 4 * * *"
     }
   ],
   "functions": {
