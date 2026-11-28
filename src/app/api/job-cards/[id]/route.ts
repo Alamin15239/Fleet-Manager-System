@@ -23,12 +23,11 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       const existingItems = Array.isArray(existing.items) ? existing.items as any[] : []
       const incomingItems = Array.isArray(data.items) ? data.items as any[] : []
       const linkedItems = existingItems.filter(item => item?.sourceId)
-      const linkedSourceIds = new Set(linkedItems.map(item => item.sourceId))
       const safeData = {
         ...data,
         // Source-linked Oil, Tire and Spare Parts activity lines are managed by
-        // their source modules and cannot be deleted or rewritten in Job Cards.
-        items: [...incomingItems.filter(item => !item?.sourceId || !linkedSourceIds.has(item.sourceId)), ...linkedItems]
+        // their source modules and cannot be forged, deleted or rewritten here.
+        items: [...incomingItems.filter(item => !item?.sourceId), ...linkedItems]
       }
       const targetStatus = data.status || existing.status
       if (['OPEN', 'IN_PROGRESS'].includes(targetStatus) && (targetTruckId || targetTrailerId)) {
