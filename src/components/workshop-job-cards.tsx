@@ -198,7 +198,7 @@ export default function WorkshopJobCards() {
         <div className="max-w-2xl">
           <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-primary"><FileText className="h-4 w-4"/> Workshop operations</div>
           <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Job Card Control Center</h2>
-          <p className="mt-2 text-sm leading-6 text-muted-foreground">One maintenance visit, one central job card. Oil changes, tire work and spare-parts issues stay in their own workspaces and appear here only as read-only activity totals.</p>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">One maintenance visit, one central job card. Oil changes, tire work and spare-parts issues remain available in their own workspaces and are linked to the vehicle's open job card.</p>
           <div className="mt-3 flex flex-wrap gap-2 text-xs">
             <Badge variant="outline" className="bg-background/70">Live register</Badge>
             <Badge variant="outline" className="bg-background/70">Separate module activity totals</Badge>
@@ -235,7 +235,7 @@ export default function WorkshopJobCards() {
     </Card>
 
     <Card className="shadow-sm">
-      <CardHeader className="pb-3"><div><CardTitle className="text-base">Activity Totals · Separate Modules</CardTitle><CardDescription className="mt-1">Read-only quantities from Oil Changes, Tire Management and Spare Parts. These records stay separate and never create or attach to Job Cards.</CardDescription></div></CardHeader>
+      <CardHeader className="pb-3"><div><CardTitle className="text-base">Activity Totals · Separate Modules</CardTitle><CardDescription className="mt-1">Activity totals from Oil Changes, Tire Management and Spare Parts. Each activity retains its own record and is linked to its vehicle's central Job Card.</CardDescription></div></CardHeader>
       <CardContent className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[
           {label:'Oil changes',total:activitySummary.oil.total},
