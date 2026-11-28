@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireRolePermission } from '@/lib/permission-middleware'
+import { getOrCreateOpenJobCard } from '@/lib/tire-lifecycle'
 
 async function ensureInventorySchema() {
   await db.$executeRawUnsafe(`
@@ -140,7 +141,7 @@ export async function POST(request: NextRequest) {
     const created = await db.$transaction(async tx => {
       const normalizedVehicleType = String(body.vehicleType || '').toLowerCase()
       const vehicleId = typeof body.vehicleId === 'string' ? body.vehicleId.trim() : ''
-      // Issues retain vehicle attribution, but never create or link a Workshop Job Card.
+      // Spare-part issues are attached to the vehicle's central open Job Card.
       if (type === 'ISSUE') {
         if (!vehicleId || !['truck', 'trailer'].includes(normalizedVehicleType))
           throw new Error('Select a valid truck or trailer for this issue')
@@ -149,9 +150,22 @@ export async function POST(request: NextRequest) {
           : await tx.trailer.findFirst({ where: { id: vehicleId, isDeleted: false }, select: { id: true } })
         if (!vehicle) throw new Error('Selected vehicle not found or inactive')
       }
-      // Spare-parts inventory is intentionally independent of Workshop Job Cards.
+      // Stock receipts and adjustments stay in Inventory; vehicle issues link to a Job Card.
       const item = await tx.$queryRawUnsafe<any[]>(`SELECT "id","name","unit" FROM "inventory_items" WHERE "id"=$1 FOR UPDATE`, body.itemId)
       if (!item.length) throw new Error('Inventory item not found')
+      const jobCardId = type === 'ISSUE'
+        ? await getOrCreateOpenJobCard(tx, {
+            vehicleType: normalizedVehicleType as 'truck' | 'trailer',
+            vehicleId
+          }, {
+            eventAt: transactionDate,
+            driverName: typeof body.driverName === 'string' ? body.driverName : null,
+            userId: user.id,
+            serviceType: 'SPARE PARTS',
+            reportedIssue: body.notes || ('Spare part issued: ' + item[0].name),
+            creationSource: 'SPARE_PARTS'
+          })
+        : null
       let resolvedUnitCost = suppliedUnitCost
       if (type === 'ISSUE' && resolvedUnitCost === null) {
         const recentCost = await tx.$queryRawUnsafe<any[]>(`SELECT "unitCost" FROM "inventory_transactions"
@@ -166,11 +180,30 @@ export async function POST(request: NextRequest) {
       if (Number(balance[0]?.qty || 0) + delta < -0.000001) throw new Error('Insufficient stock for this transaction')
       const inserted = await tx.$queryRawUnsafe<any[]>(`
         INSERT INTO "inventory_transactions"
-        ("id","itemId","type","quantity","transactionDate","reference","vehicleType","vehicleId","unitCost","notes","createdById")
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
+        ("id","itemId","type","quantity","transactionDate","reference","vehicleType","vehicleId","jobCardId","unitCost","notes","createdById")
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
         id, body.itemId, type, quantity, transactionDate, body.reference || null,
         normalizedVehicleType || (body.vehicleType ? String(body.vehicleType).toLowerCase() : null) || null, vehicleId || body.vehicleId || null,
-        resolvedUnitCost, body.notes || null, user.id)
+        jobCardId, resolvedUnitCost, body.notes || null, user.id)
+      if (type === 'ISSUE' && jobCardId) {
+        const card = await tx.workshopJobCard.findUnique({ where: { id: jobCardId } })
+        if (!card) throw new Error('Job Card could not be found after linking spare-parts issue')
+        const items = Array.isArray(card.items) ? card.items as any[] : []
+        const lineCost = quantity * Number(resolvedUnitCost || 0)
+        await tx.workshopJobCard.update({
+          where: { id: jobCardId },
+          data: {
+            items: [...items, {
+              type: 'PART', description: item[0].name, quantity,
+              inventoryItemId: body.itemId, unitCost: resolvedUnitCost,
+              remarks: body.notes || body.reference || 'Issued from Spare Parts',
+              sourceId: id, sourceType: 'SPARE_PARTS'
+            }],
+            partsCost: Number(card.partsCost || 0) + lineCost,
+            totalCost: Number(card.totalCost || 0) + lineCost
+          }
+        })
+      }
       return inserted
     })
     return NextResponse.json({ transaction: created[0] }, { status: 201 })
