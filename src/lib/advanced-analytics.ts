@@ -189,7 +189,7 @@ export class AdvancedAnalyticsEngine {
 
       // Cost per mile calculation
       const totalMaintenanceCost = trucks.reduce((sum, t) => 
-        sum + t.maintenanceRecords.reduce((recordSum, record) => 
+        sum + t.maintenanceRecords.reduce((recordSum: number, record: any) => 
           recordSum + (record.totalCost || 0), 0), 0)
       const costPerMile = totalMileage > 0 ? totalMaintenanceCost / totalMileage : 0
 
