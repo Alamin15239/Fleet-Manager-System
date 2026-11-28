@@ -11,7 +11,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const user = await requireAuth(request)
     const { id } = await params
     const document = await db.document.findUnique({ where: { id }, select: { type: true, fileUrl: true, title: true, editorState: true } })
-    if (!document?.fileUrl?.startsWith('s3://')) return NextResponse.json({ error: 'File not found' }, { status: 404 })
+    if (!document || !['truck', 'maintenance', 'purchase-invoice'].includes(document.type) || !document.fileUrl?.startsWith('s3://')) return NextResponse.json({ error: 'File not found' }, { status: 404 })
     const resource = document.type === 'truck' ? 'trucks' : document.type === 'purchase-invoice' ? 'purchase-invoices' : 'maintenance'
     await requireRolePermission(request, resource, 'read')
     const key = document.fileUrl.slice(5)
@@ -51,7 +51,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     const user = await requireAuth(request)
     const { id } = await params
     const document = await db.document.findUnique({ where: { id }, select: { type: true, fileUrl: true, editorState: true } })
-    if (!document?.fileUrl?.startsWith('s3://')) return NextResponse.json({ error: 'File not found or is not stored in object storage' }, { status: 404 })
+    if (!document || !['truck', 'maintenance', 'purchase-invoice'].includes(document.type) || !document.fileUrl?.startsWith('s3://')) return NextResponse.json({ error: 'File not found or is not stored in object storage' }, { status: 404 })
     const resource = document.type === 'truck' ? 'trucks' : document.type === 'purchase-invoice' ? 'purchase-invoices' : 'maintenance'
     await requireRolePermission(request, resource, 'delete')
     const key = document.fileUrl.slice(5)
