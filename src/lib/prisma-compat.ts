@@ -49,7 +49,7 @@ export interface PrismaClient {
   $on(event: string, callback: (...args: any[]) => void): void
 }
 
-export class PrismaClientKnownRequestError extends Error {
+class CompatPrismaClientKnownRequestError extends Error {
   code: string
   clientVersion: string
 
@@ -62,14 +62,14 @@ export class PrismaClientKnownRequestError extends Error {
 }
 
 /** Decimal values are decimal text under the Prisma 8 runtime. */
-export class Decimal {
+class CompatDecimal {
   readonly value: string
 
   constructor(value: unknown) {
     this.value =
       typeof value === 'string'
         ? value
-        : value instanceof Decimal
+        : value instanceof CompatDecimal
           ? value.value
           : String(value)
   }
@@ -108,26 +108,8 @@ export enum PurchaseExpenseCategory {
 }
 
 export namespace Prisma {
-  export const PrismaClientKnownRequestError = class extends Error {
-    code: string
-    clientVersion: string
-    constructor(message: string, options: { code: string; clientVersion?: string }) {
-      super(message)
-      this.name = 'PrismaClientKnownRequestError'
-      this.code = options.code
-      this.clientVersion = options.clientVersion ?? '0.0.0'
-    }
-  }
-  export const Decimal = class {
-    readonly value: string
-    constructor(value: unknown) {
-      this.value = typeof value === 'string' ? value : value instanceof this.constructor ? (value as { value: string }).value : String(value)
-    }
-    toString(): string { return this.value }
-    valueOf(): string { return this.value }
-    toJSON(): string { return this.value }
-    toNumber(): number { return Number(this.value) }
-  }
+  export const PrismaClientKnownRequestError = CompatPrismaClientKnownRequestError
+  export const Decimal = CompatDecimal
   export type InputJsonValue = any
   export type PurchaseInvoiceWhereInput = Record<string, any>
   export type PurchaseInvoiceLineWhereInput = Record<string, any>
