@@ -66,7 +66,9 @@ export async function GET(request: NextRequest) {
 
   let failureStage = 'validating the Microsoft sign-in'
   try {
-    const claims = jwt.verify(state, getJwtSecret()) as { purpose?: string; userId?: string; organizationId?: string }
+    const jwtSecret = getJwtSecret()
+    if (!jwtSecret) throw new Error('JWT signing is not configured')
+    const claims = jwt.verify(state, jwtSecret) as { purpose?: string; userId?: string; organizationId?: string }
     if (claims.purpose !== 'onedrive-oauth' || !claims.userId) throw new Error('Invalid authorization state')
     failureStage = 'loading the selected workspace'
     const organization = claims.organizationId ? await findOrganizationById(claims.organizationId) : await getPrimaryOrganization()
