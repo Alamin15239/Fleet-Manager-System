@@ -311,20 +311,20 @@ async function migrateDatabase(organization: OrganizationRecord, execute: boolea
   // Existing workshop job-card signatures and JSON attachments are migrated
   // only when they contain a validated, supported data URI. Ordinary typed
   // signature names and other text remain unchanged.
-  const jobCards = await client.workshopJobCard.findMany({
-    where: {
-      OR: [
-        { technicianSignature: { startsWith: 'data:' } },
-        { supervisorSignature: { startsWith: 'data:' } },
-        { driverSignature: { startsWith: 'data:' } },
-        { items: { not: null } },
-        { checklist: { not: null } },
-      ],
-    },
-    select: { id: true, jobNumber: true, items: true, checklist: true, technicianSignature: true, supervisorSignature: true, driverSignature: true },
-    take: 500,
-    orderBy: { id: 'asc' },
-  })
+  const jobCards = await client.$queryRaw<Array<{
+    id: string; jobNumber: string; items: unknown; checklist: unknown;
+    technicianSignature: string | null; supervisorSignature: string | null; driverSignature: string | null
+  }>>`
+    SELECT "id", "jobNumber", "items", "checklist", "technicianSignature", "supervisorSignature", "driverSignature"
+    FROM "workshop_job_cards"
+    WHERE "technicianSignature" LIKE 'data:%'
+       OR "supervisorSignature" LIKE 'data:%'
+       OR "driverSignature" LIKE 'data:%'
+       OR "items"::text LIKE '%data:%'
+       OR "checklist"::text LIKE '%data:%'
+    ORDER BY "id"
+    LIMIT 500
+  `
   for (const row of jobCards) {
     const signatureFields = [
       ['technicianSignature', row.technicianSignature],
@@ -366,12 +366,10 @@ async function migrateDatabase(organization: OrganizationRecord, execute: boolea
     }
   }
 
-  const maintenanceAttachments = await client.maintenanceRecord.findMany({
-    where: { attachments: { not: null } },
-    select: { id: true, attachments: true },
-    take: 500,
-    orderBy: { id: 'asc' },
-  })
+  const maintenanceAttachments = await client.$queryRaw<Array<{ id: string; attachments: unknown }>>`
+    SELECT "id", "attachments" FROM "maintenance_records"
+    WHERE "attachments"::text LIKE '%data:%' ORDER BY "id" LIMIT 500
+  `
   for (const row of maintenanceAttachments) {
     try {
       const result = await migrateJsonColumn({
@@ -384,12 +382,10 @@ async function migrateDatabase(organization: OrganizationRecord, execute: boolea
     } catch (error) { recordFailure('maintenanceRecord.attachments', row.id, error) }
   }
 
-  const trailerMaintenanceAttachments = await client.trailerMaintenanceRecord.findMany({
-    where: { attachments: { not: null } },
-    select: { id: true, attachments: true },
-    take: 500,
-    orderBy: { id: 'asc' },
-  })
+  const trailerMaintenanceAttachments = await client.$queryRaw<Array<{ id: string; attachments: unknown }>>`
+    SELECT "id", "attachments" FROM "trailer_maintenance_records"
+    WHERE "attachments"::text LIKE '%data:%' ORDER BY "id" LIMIT 500
+  `
   for (const row of trailerMaintenanceAttachments) {
     try {
       const result = await migrateJsonColumn({
@@ -438,7 +434,20 @@ async function migrateDatabase(organization: OrganizationRecord, execute: boolea
       WHERE "fileData" IS NOT NULL AND left(encode("fileData", 'escape'), 5) <> 's3://'
     `)[0]?.count || 0),
     documentFiles: await client.document.count({ where: { fileUrl: { startsWith: 'data:' }, type: { in: ['truck', 'maintenance'] } } }),
-    jobCardSignatures: await client.workshopJobCard.count({ where: { OR: [{ technicianSignature: { startsWith: 'data:' } }, { supervisorSignature: { startsWith: 'data:' } }, { driverSignature: { startsWith: 'data:' } }] } }),
+    jobCardSignatures: Number((await client.$queryRaw<Array<{ count: bigint }>>`
+      SELECT COUNT(*) AS count FROM "workshop_job_cards"
+      WHERE "technicianSignature" LIKE 'data:%' OR "supervisorSignature" LIKE 'data:%' OR "driverSignature" LIKE 'data:%'
+    `)[0]?.count || 0),
+    jobCardEmbeddedJson: Number((await client.$queryRaw<Array<{ count: bigint }>>`
+      SELECT COUNT(*) AS count FROM "workshop_job_cards"
+      WHERE "items"::text LIKE '%data:%' OR "checklist"::text LIKE '%data:%'
+    `)[0]?.count || 0),
+    maintenanceAttachments: Number((await client.$queryRaw<Array<{ count: bigint }>>`
+      SELECT COUNT(*) AS count FROM "maintenance_records" WHERE "attachments"::text LIKE '%data:%'
+    `)[0]?.count || 0),
+    trailerMaintenanceAttachments: Number((await client.$queryRaw<Array<{ count: bigint }>>`
+      SELECT COUNT(*) AS count FROM "trailer_maintenance_records" WHERE "attachments"::text LIKE '%data:%'
+    `)[0]?.count || 0),
     tireEvidence: await client.tireLifecycleEvent.count({ where: { evidenceUrl: { startsWith: 'data:' } } }),
   }
   return { organization: organization.slug, counters, failures, remaining }
