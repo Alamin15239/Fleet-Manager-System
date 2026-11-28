@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireRolePermission } from '@/lib/permission-middleware'
 
-// Job Cards and operational activity modules are intentionally independent.
-// This endpoint remains as a guarded compatibility response for older clients.
+// Activity modules now link to the vehicle's open Job Card as each record is saved.
+// Keep this route as a successful compatibility response for older clients.
 export async function POST(request: NextRequest) {
   try {
     await requireRolePermission(request, 'maintenance', 'update')
     return NextResponse.json({
-      error: 'Automatic linking is disabled. Oil changes, tire events and spare-parts issues remain in their own modules and do not create or attach to Job Cards.'
-    }, { status: 410 })
+      success: true,
+      message: 'Automatic Job Card linking is handled when each maintenance activity is saved. No manual reconciliation is required.'
+    })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unable to process request'
     return NextResponse.json({ error: message }, {
