@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
 
     for (const organization of targets) {
       try {
-        const result = await withOrganization(organization, () => processPendingStorageObjectDeletions(20))
+        const result = await withOrganization(organization, () => processPendingStorageObjectDeletions(20, [organization.id, organization.slug, ...(organization.isPrimary ? ['primary'] : [])]))
         results.push({ organization: organization.slug, ...result })
       } catch (error) {
         errors.push({
