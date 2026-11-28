@@ -108,7 +108,8 @@ export async function migrateOrganizationStorage(client: any, organizationId: st
     } catch (error) { fail('truck.image', row.id, error) }
   }
 
-  for (const row of await client.$queryRawUnsafe<Array<{ id: string; fileName: string | null; mimeType: string | null; fileData: Uint8Array }>>('SELECT "id", "fileName", "mimeType", "fileData" FROM "vehicle_documents" WHERE "fileData" IS NOT NULL ORDER BY "id"')) {
+  const vehicleDocuments = await client.$queryRawUnsafe('SELECT "id", "fileName", "mimeType", "fileData" FROM "vehicle_documents" WHERE "fileData" IS NOT NULL ORDER BY "id"') as Array<{ id: string; fileName: string | null; mimeType: string | null; fileData: Uint8Array }>
+  for (const row of vehicleDocuments) {
     const oldBytes = Buffer.from(row.fileData || [])
     if (!oldBytes.length || oldBytes.toString('utf8').startsWith('s3://')) { result.skipped++; continue }
     result.scanned++
@@ -144,12 +145,12 @@ export async function migrateOrganizationStorage(client: any, organizationId: st
   ] as const
   for (const [table, column, module] of jsonSources) {
     try {
-      const rows = await client.$queryRawUnsafe<Array<{ id: string; value: unknown }>>(`SELECT "id", "${column}" AS "value" FROM "${table}" WHERE "${column}"::text LIKE '%data:%'`)
+      const rows = await client.$queryRawUnsafe(`SELECT "id", "${column}" AS "value" FROM "${table}" WHERE "${column}"::text LIKE '%data:%'`) as Array<{ id: string; value: unknown }>
       for (const row of rows) await migrateJson(client, table, column, row.id, row.value, organizationId, module, execute, result)
     } catch (error) { fail(`${table}.${column}`, '*', error) }
   }
 
-  const signatureRows = await client.$queryRawUnsafe<Array<{ id: string; field: string; value: string }>>(`SELECT "id", 'technicianSignature' AS field, "technicianSignature" AS value FROM "workshop_job_cards" WHERE "technicianSignature" LIKE 'data:%' UNION ALL SELECT "id", 'supervisorSignature', "supervisorSignature" FROM "workshop_job_cards" WHERE "supervisorSignature" LIKE 'data:%' UNION ALL SELECT "id", 'driverSignature', "driverSignature" FROM "workshop_job_cards" WHERE "driverSignature" LIKE 'data:%'`)
+  const signatureRows = await client.$queryRawUnsafe(`SELECT "id", 'technicianSignature' AS field, "technicianSignature" AS value FROM "workshop_job_cards" WHERE "technicianSignature" LIKE 'data:%' UNION ALL SELECT "id", 'supervisorSignature', "supervisorSignature" FROM "workshop_job_cards" WHERE "supervisorSignature" LIKE 'data:%' UNION ALL SELECT "id", 'driverSignature', "driverSignature" FROM "workshop_job_cards" WHERE "driverSignature" LIKE 'data:%'`) as Array<{ id: string; field: string; value: string }>
   for (const row of signatureRows) {
     try {
       const parsed = parseDataUri(row.value)
@@ -163,7 +164,7 @@ export async function migrateOrganizationStorage(client: any, organizationId: st
   }
 
   try {
-    const tireEvidence = await client.$queryRawUnsafe<Array<{ id: string; tireId: string; evidenceUrl: string }>>('SELECT "id", "tireId", "evidenceUrl" FROM "tire_lifecycle_events" WHERE "evidenceUrl" LIKE \'data:%\'')
+    const tireEvidence = await client.$queryRawUnsafe('SELECT "id", "tireId", "evidenceUrl" FROM "tire_lifecycle_events" WHERE "evidenceUrl" LIKE \'data:%\'') as Array<{ id: string; tireId: string; evidenceUrl: string }>
     for (const row of tireEvidence) {
       try {
         const parsed = parseDataUri(row.evidenceUrl)
@@ -180,11 +181,11 @@ export async function migrateOrganizationStorage(client: any, organizationId: st
   }
 
   result.remaining = {
-    profileImages: Number((await client.$queryRawUnsafe<Array<{ count: bigint }>>('SELECT COUNT(*) AS count FROM "users" WHERE "profileImage" LIKE \'data:image/%\''))[0]?.count || 0),
-    truckImages: Number((await client.$queryRawUnsafe<Array<{ count: bigint }>>('SELECT COUNT(*) AS count FROM "trucks" WHERE "image" LIKE \'data:image/%\''))[0]?.count || 0),
-    vehicleDocuments: Number((await client.$queryRawUnsafe<Array<{ count: bigint }>>('SELECT COUNT(*) AS count FROM "vehicle_documents" WHERE "fileData" IS NOT NULL AND left(encode("fileData", \'escape\'), 5) <> \'s3://\''))[0]?.count || 0),
-    documentFiles: Number((await client.$queryRawUnsafe<Array<{ count: bigint }>>('SELECT COUNT(*) AS count FROM "documents" WHERE "fileUrl" LIKE \'data:%\''))[0]?.count || 0),
-    tireEvidence: Number((await client.$queryRawUnsafe<Array<{ count: bigint | number }>>('SELECT COUNT(*) AS count FROM "tire_lifecycle_events" WHERE "evidenceUrl" LIKE \'data:%\'').catch(() => [{ count: 0 }]))[0]?.count || 0),
+    profileImages: Number(((await client.$queryRawUnsafe('SELECT COUNT(*) AS count FROM "users" WHERE "profileImage" LIKE \'data:image%\'')) as Array<{ count: bigint }>)[0]?.count || 0),
+    truckImages: Number(((await client.$queryRawUnsafe('SELECT COUNT(*) AS count FROM "trucks" WHERE "image" LIKE \'data:image%\'')) as Array<{ count: bigint }>)[0]?.count || 0),
+    vehicleDocuments: Number(((await client.$queryRawUnsafe('SELECT COUNT(*) AS count FROM "vehicle_documents" WHERE "fileData" IS NOT NULL AND left(encode("fileData", \'escape\'), 5) <> \'s3://\'')) as Array<{ count: bigint }>)[0]?.count || 0),
+    documentFiles: Number(((await client.$queryRawUnsafe('SELECT COUNT(*) AS count FROM "documents" WHERE "fileUrl" LIKE \'data:%\'')) as Array<{ count: bigint }>)[0]?.count || 0),
+    tireEvidence: Number((((await client.$queryRawUnsafe('SELECT COUNT(*) AS count FROM "tire_lifecycle_events" WHERE "evidenceUrl" LIKE \'data:%\'').catch(() => [{ count: 0 }])) as Array<{ count: bigint | number }>)[0]?.count || 0)),
   }
   return result
 }
