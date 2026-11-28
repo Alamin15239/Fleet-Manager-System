@@ -4,6 +4,7 @@ import { requireRolePermission } from '@/lib/permission-middleware'
 import { logUserActivity } from '@/lib/activity-tracking'
 import { logEntityChange } from '@/lib/audit-logging'
 import { syncOneDriveWorkbookAfterChange } from '@/lib/onedrive-excel-sync'
+import { deleteOrganizationObject, putOrganizationImageDataUri } from '@/lib/object-storage'
 
 // GET all trucks
 export async function GET(request: NextRequest) {
@@ -111,6 +112,7 @@ export async function GET(request: NextRequest) {
 
 // POST create new truck
 export async function POST(request: NextRequest) {
+  let uploadedImageKey: string | undefined
   try {
     const user = await requireRolePermission(request, 'trucks', 'create')
     const body = await request.json()
@@ -170,6 +172,19 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Store embedded truck images in private organization-scoped object storage.
+    let imageValue: string | null | undefined = body.image
+    if (typeof body.image === 'string' && body.image.startsWith('data:')) {
+      const storedImage = await putOrganizationImageDataUri({
+        organizationId: user.organizationId || user.organizationSlug || 'primary',
+        module: 'truck-images',
+        entityId: vin,
+        dataUri: body.image,
+      })
+      uploadedImageKey = storedImage.key
+      imageValue = storedImage.pointer
+    }
+
     // Create truck with timeout protection
     const truck = await Promise.race([
       db.truck.create({
@@ -182,7 +197,7 @@ export async function POST(request: NextRequest) {
         currentMileage,
         status,
         driverName: body.driverName || null,
-        image: body.image,
+        image: imageValue,
         engineHours: body.engineHours ? parseInt(body.engineHours) : null,
         healthScore: body.healthScore ? parseFloat(body.healthScore) : null,
         riskLevel: body.riskLevel || 'LOW',
@@ -226,6 +241,7 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
+    if (uploadedImageKey) await deleteOrganizationObject(uploadedImageKey).catch(() => undefined)
     console.error('Error creating truck:', error)
     if (error instanceof Error && (error.message === 'No token provided' || error.message === 'Invalid token')) {
       return NextResponse.json(
