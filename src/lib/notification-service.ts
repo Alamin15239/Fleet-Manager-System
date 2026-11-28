@@ -75,7 +75,7 @@ export class NotificationService {
       // Check oil change interval
       if (intervals.oilChange) {
         const lastOilChange = truck.maintenanceRecords.find(
-          record => record.serviceType.toLowerCase().includes('oil')
+          (record: any) => record.serviceType.toLowerCase().includes('oil')
         )
         
         if (lastOilChange) {
@@ -97,7 +97,7 @@ export class NotificationService {
       // Check tire rotation interval
       if (intervals.tireRotation) {
         const lastTireRotation = truck.maintenanceRecords.find(
-          record => record.serviceType.toLowerCase().includes('tire') || 
+          (record: any) => record.serviceType.toLowerCase().includes('tire') || 
                    record.serviceType.toLowerCase().includes('rotation')
         )
         
